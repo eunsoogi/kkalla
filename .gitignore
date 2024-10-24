@@ -1,6 +1,6 @@
 # Dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp/
 .pnp.js
 package-lock.json
 yarn.lock
@@ -19,11 +19,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build and Output
-/dist
-/build
-/.next/
-/out/
-/coverage
+dist/
+build/
+.next/
+out/
+coverage/
 .nyc_output
 
 # Runtime data
