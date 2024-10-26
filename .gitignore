@@ -57,3 +57,7 @@ public/worker-*.js.map
 # System Files
 .DS_Store
 Thumbs.db
+
+# IDE
+.idea
+.vscode
