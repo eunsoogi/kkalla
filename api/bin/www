@@ -4,9 +4,11 @@
  * Module dependencies.
  */
 
-var app = require('../app');
-var debug = require('debug')('ai-invest-assistant:server');
-var http = require('http');
+import app from '../app.js';
+import DBG from 'debug';
+var debug = DBG('ai-invest-assistant:server');
+import http from 'http';
+
 
 /**
  * Get port from environment and store in Express.
