@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import React from 'react'
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Sidebar } from 'flowbite-react'
-import SimpleBar from 'simplebar-react'
+import { Icon } from '@iconify/react';
+import { Sidebar } from 'flowbite-react';
+import SimpleBar from 'simplebar-react';
 
-import FullLogo from '../../shared/logo/FullLogo'
-import NavCollapse from './NavCollapse'
-import NavItems from './NavItems'
-import SidebarContent from './Sidebaritems'
-import Upgrade from './Upgrade'
+import FullLogo from '../../shared/logo/FullLogo';
+import NavCollapse from './NavCollapse';
+import NavItems from './NavItems';
+import SidebarContent from './Sidebaritems';
+import Upgrade from './Upgrade';
 
 const SidebarLayout = () => {
   return (
@@ -60,7 +60,7 @@ const SidebarLayout = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default SidebarLayout
+export default SidebarLayout;

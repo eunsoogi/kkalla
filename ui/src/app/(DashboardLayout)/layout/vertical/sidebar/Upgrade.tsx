@@ -1,10 +1,10 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import React from 'react'
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
 
-import { Button } from 'flowbite-react'
+import { Button } from 'flowbite-react';
 
-import UpgradePlan from '/public/images/backgrounds/upgrade.png'
+import UpgradePlan from '/public/images/backgrounds/upgrade.png';
 
 const Upgrade = () => {
   return (
@@ -23,7 +23,7 @@ const Upgrade = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Upgrade
+export default Upgrade;

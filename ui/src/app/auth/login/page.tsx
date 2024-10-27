@@ -1,19 +1,19 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import React from 'react'
+import Link from 'next/link';
+import React from 'react';
 
-import FullLogo from '@/app/(DashboardLayout)/layout/shared/logo/FullLogo'
+import FullLogo from '@/app/(DashboardLayout)/layout/shared/logo/FullLogo';
 
-import AuthLogin from '../authforms/AuthLogin'
+import AuthLogin from '../authforms/AuthLogin';
 
 const gradientStyle = {
   background:
     'linear-gradient(45deg, rgb(238, 119, 82,0.2), rgb(231, 60, 126,0.2), rgb(35, 166, 213,0.2), rgb(35, 213, 171,0.2))',
   backgroundSize: '400% 400%',
   animation: 'gradient 15s ease infinite',
-  height: '100vh'
-}
+  height: '100vh',
+};
 
 const BoxedLogin = () => {
   return (
@@ -49,7 +49,7 @@ const BoxedLogin = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default BoxedLogin
+export default BoxedLogin;

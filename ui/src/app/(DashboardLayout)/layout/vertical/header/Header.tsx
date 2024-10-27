@@ -1,39 +1,39 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import React, { useEffect, useState } from 'react'
+import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
 
-import { Icon } from '@iconify/react'
-import { Badge, Button, Navbar } from 'flowbite-react'
-import { Drawer } from 'flowbite-react'
+import { Icon } from '@iconify/react';
+import { Badge, Button, Navbar } from 'flowbite-react';
+import { Drawer } from 'flowbite-react';
 
-import FullLogo from '../../shared/logo/FullLogo'
-import MobileSidebar from '../sidebar/MobileSidebar'
-import Profile from './Profile'
-import Notification from './notification'
+import FullLogo from '../../shared/logo/FullLogo';
+import MobileSidebar from '../sidebar/MobileSidebar';
+import Profile from './Profile';
+import Notification from './notification';
 
 const Header = () => {
-  const [isSticky, setIsSticky] = useState(false)
+  const [isSticky, setIsSticky] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
-        setIsSticky(true)
+        setIsSticky(true);
       } else {
-        setIsSticky(false)
+        setIsSticky(false);
       }
-    }
+    };
 
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll);
 
     return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // mobile-sidebar
-  const [isOpen, setIsOpen] = useState(false)
-  const handleClose = () => setIsOpen(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const handleClose = () => setIsOpen(false);
   return (
     <>
       <header className={`sticky top-0 z-[5] ${isSticky ? 'bg-white dark:bg-dark fixed w-full' : 'bg-white'}`}>
@@ -68,7 +68,7 @@ const Header = () => {
         </Drawer.Items>
       </Drawer>
     </>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

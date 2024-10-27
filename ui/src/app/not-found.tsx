@@ -1,15 +1,15 @@
-import type { Metadata } from 'next'
-import Image from 'next/image'
-import Link from 'next/link'
-import React from 'react'
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
 
-import { Button } from 'flowbite-react'
+import { Button } from 'flowbite-react';
 
-import ErrorImg from '/public/images/backgrounds/errorimg.svg'
+import ErrorImg from '/public/images/backgrounds/errorimg.svg';
 
 export const metadata: Metadata = {
-  title: 'Error-404'
-}
+  title: 'Error-404',
+};
 const Error = () => {
   return (
     <>
@@ -24,7 +24,7 @@ const Error = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Error
+export default Error;

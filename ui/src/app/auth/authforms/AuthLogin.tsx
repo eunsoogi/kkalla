@@ -1,7 +1,7 @@
-import Link from 'next/link'
-import React from 'react'
+import Link from 'next/link';
+import React from 'react';
 
-import { Button, Checkbox, Label, TextInput } from 'flowbite-react'
+import { Button, Checkbox, Label, TextInput } from 'flowbite-react';
 
 const AuthLogin = () => {
   return (
@@ -35,7 +35,7 @@ const AuthLogin = () => {
         </Button>
       </form>
     </>
-  )
-}
+  );
+};
 
-export default AuthLogin
+export default AuthLogin;

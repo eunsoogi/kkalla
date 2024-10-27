@@ -1,9 +1,9 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import React from 'react'
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Button, Dropdown } from 'flowbite-react'
+import { Icon } from '@iconify/react';
+import { Button, Dropdown } from 'flowbite-react';
 
 const Profile = () => {
   return (
@@ -54,7 +54,7 @@ const Profile = () => {
         </div>
       </Dropdown>
     </div>
-  )
-}
+  );
+};
 
-export default Profile
+export default Profile;

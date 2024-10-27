@@ -1,24 +1,24 @@
-import { uniqueId } from 'lodash'
+import { uniqueId } from 'lodash';
 
 export interface ChildItem {
-  id?: number | string
-  name?: string
-  icon?: any
-  children?: ChildItem[]
-  item?: any
-  url?: any
-  color?: string
+  id?: number | string;
+  name?: string;
+  icon?: any;
+  children?: ChildItem[];
+  item?: any;
+  url?: any;
+  color?: string;
 }
 
 export interface MenuItem {
-  heading?: string
-  name?: string
-  icon?: any
-  id?: number
-  to?: string
-  items?: MenuItem[]
-  children?: ChildItem[]
-  url?: any
+  heading?: string;
+  name?: string;
+  icon?: any;
+  id?: number;
+  to?: string;
+  items?: MenuItem[];
+  children?: ChildItem[];
+  url?: any;
 }
 
 const SidebarContent: MenuItem[] = [
@@ -29,9 +29,9 @@ const SidebarContent: MenuItem[] = [
         name: 'Dashboard',
         icon: 'solar:widget-add-line-duotone',
         id: uniqueId(),
-        url: '/'
-      }
-    ]
+        url: '/',
+      },
+    ],
   },
   {
     heading: 'UTILITIES',
@@ -40,27 +40,27 @@ const SidebarContent: MenuItem[] = [
         name: 'Typography',
         icon: 'solar:text-circle-outline',
         id: uniqueId(),
-        url: '/ui/typography'
+        url: '/ui/typography',
       },
       {
         name: 'Table',
         icon: 'solar:bedside-table-3-linear',
         id: uniqueId(),
-        url: '/ui/table'
+        url: '/ui/table',
       },
       {
         name: 'Form',
         icon: 'solar:password-minimalistic-outline',
         id: uniqueId(),
-        url: '/ui/form'
+        url: '/ui/form',
       },
       {
         name: 'Shadow',
         icon: 'solar:airbuds-case-charge-outline',
         id: uniqueId(),
-        url: '/ui/shadow'
-      }
-    ]
+        url: '/ui/shadow',
+      },
+    ],
   },
   {
     heading: 'AUTH',
@@ -69,15 +69,15 @@ const SidebarContent: MenuItem[] = [
         name: 'Login',
         icon: 'solar:login-2-linear',
         id: uniqueId(),
-        url: '/auth/login'
+        url: '/auth/login',
       },
       {
         name: 'Register',
         icon: 'solar:shield-user-outline',
         id: uniqueId(),
-        url: '/auth/register'
-      }
-    ]
+        url: '/auth/register',
+      },
+    ],
   },
   {
     heading: 'EXTRA',
@@ -86,16 +86,16 @@ const SidebarContent: MenuItem[] = [
         name: 'Icons',
         icon: 'solar:smile-circle-outline',
         id: uniqueId(),
-        url: '/icons/solar'
+        url: '/icons/solar',
       },
       {
         name: 'Sample Page',
         icon: 'solar:notes-minimalistic-outline',
         id: uniqueId(),
-        url: '/sample-page'
-      }
-    ]
-  }
-]
+        url: '/sample-page',
+      },
+    ],
+  },
+];
 
-export default SidebarContent
+export default SidebarContent;

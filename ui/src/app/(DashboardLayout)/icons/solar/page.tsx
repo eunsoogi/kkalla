@@ -1,9 +1,9 @@
-import type { Metadata } from 'next'
-import React from 'react'
+import type { Metadata } from 'next';
+import React from 'react';
 
 export const metadata: Metadata = {
-  title: 'Solar Icons'
-}
+  title: 'Solar Icons',
+};
 
 const page = () => {
   return (
@@ -20,7 +20,7 @@ const page = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default page
+export default page;

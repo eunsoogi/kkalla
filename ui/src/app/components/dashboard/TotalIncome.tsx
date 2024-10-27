@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import dynamic from 'next/dynamic'
-import React from 'react'
+import dynamic from 'next/dynamic';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Badge } from 'flowbite-react'
+import { Icon } from '@iconify/react';
+import { Badge } from 'flowbite-react';
 
-const Chart = dynamic(() => import('react-apexcharts'), { ssr: false })
+const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 const TotalIncome = () => {
   const ChartData: any = {
@@ -14,23 +14,23 @@ const TotalIncome = () => {
       {
         name: 'monthly earnings',
         color: 'var(--color-error)',
-        data: [30, 25, 35, 20, 30, 40]
-      }
+        data: [30, 25, 35, 20, 30, 40],
+      },
     ],
     chart: {
       id: 'total-income',
       type: 'area',
       height: 60,
       sparkline: {
-        enabled: true
+        enabled: true,
       },
       group: 'sparklines',
       fontFamily: 'inherit',
-      foreColor: '#adb0bb'
+      foreColor: '#adb0bb',
     },
     stroke: {
       curve: 'smooth',
-      width: 2
+      width: 2,
     },
     fill: {
       type: 'gradient',
@@ -39,23 +39,23 @@ const TotalIncome = () => {
         inverseColors: false,
         opacityFrom: 0,
         opacityTo: 0,
-        stops: [20, 180]
-      }
+        stops: [20, 180],
+      },
     },
     markers: {
-      size: 0
+      size: 0,
     },
     tooltip: {
       theme: 'dark',
       fixed: {
         enabled: true,
-        position: 'right'
+        position: 'right',
       },
       x: {
-        show: false
-      }
-    }
-  }
+        show: false,
+      },
+    },
+  };
   return (
     <>
       <div className='bg-white rounded-xl shadow-md p-8'>
@@ -77,7 +77,7 @@ const TotalIncome = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default TotalIncome
+export default TotalIncome;

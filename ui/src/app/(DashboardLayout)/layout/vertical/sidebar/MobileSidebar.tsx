@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import React, { useContext } from 'react'
+import React, { useContext } from 'react';
 
-import { Icon } from '@iconify/react'
-import { Sidebar } from 'flowbite-react'
-import SimpleBar from 'simplebar-react'
+import { Icon } from '@iconify/react';
+import { Sidebar } from 'flowbite-react';
+import SimpleBar from 'simplebar-react';
 
-import FullLogo from '../../shared/logo/FullLogo'
-import NavCollapse from './NavCollapse'
-import NavItems from './NavItems'
-import SidebarContent from './Sidebaritems'
-import Upgrade from './Upgrade'
+import FullLogo from '../../shared/logo/FullLogo';
+import NavCollapse from './NavCollapse';
+import NavItems from './NavItems';
+import SidebarContent from './Sidebaritems';
+import Upgrade from './Upgrade';
 
 const MobileSidebar = () => {
   return (
@@ -58,7 +58,7 @@ const MobileSidebar = () => {
         </Sidebar>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default MobileSidebar
+export default MobileSidebar;

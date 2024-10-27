@@ -1,18 +1,18 @@
-'use client'
+'use client';
 
-import Image from 'next/image'
-import Link from 'next/link'
-import React from 'react'
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Badge } from 'flowbite-react'
-import { TbPoint } from 'react-icons/tb'
+import { Icon } from '@iconify/react';
+import { Badge } from 'flowbite-react';
+import { TbPoint } from 'react-icons/tb';
 
-import img1 from '/public/images/blog/blog-img1.jpg'
-import img2 from '/public/images/blog/blog-img2.jpg'
-import img3 from '/public/images/blog/blog-img3.jpg'
-import user2 from '/public/images/profile/user-2.jpg'
-import user3 from '/public/images/profile/user-3.jpg'
+import img1 from '/public/images/blog/blog-img1.jpg';
+import img2 from '/public/images/blog/blog-img2.jpg';
+import img3 from '/public/images/blog/blog-img3.jpg';
+import user2 from '/public/images/profile/user-2.jpg';
+import user3 from '/public/images/profile/user-3.jpg';
 
 const BlogCardsData = [
   {
@@ -25,7 +25,7 @@ const BlogCardsData = [
     view: '9,125',
     comments: '3',
     time: 'Mon, Dec 19',
-    url: ''
+    url: '',
   },
   {
     avatar: user2,
@@ -37,7 +37,7 @@ const BlogCardsData = [
     view: '4,150',
     comments: '38',
     time: 'Sun, Dec 18',
-    url: ''
+    url: '',
   },
   {
     avatar: user3,
@@ -49,9 +49,9 @@ const BlogCardsData = [
     view: '9,480',
     comments: '12',
     time: 'Sat, Dec 17',
-    url: ''
-  }
-]
+    url: '',
+  },
+];
 
 const BlogCards = () => {
   return (
@@ -95,7 +95,7 @@ const BlogCards = () => {
         ))}
       </div>
     </>
-  )
-}
+  );
+};
 
-export default BlogCards
+export default BlogCards;

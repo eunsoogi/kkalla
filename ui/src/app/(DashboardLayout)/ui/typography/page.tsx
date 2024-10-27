@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 const page = () => {
   return (
@@ -33,7 +33,7 @@ const page = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default page
+export default page;

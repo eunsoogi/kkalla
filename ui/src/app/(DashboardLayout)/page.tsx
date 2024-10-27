@@ -1,12 +1,12 @@
-import Link from 'next/link'
-import React from 'react'
+import Link from 'next/link';
+import React from 'react';
 
-import BlogCards from '../components/dashboard/BlogCards'
-import DailyActivity from '../components/dashboard/DailyActivity'
-import NewCustomers from '../components/dashboard/NewCustomers'
-import ProductRevenue from '../components/dashboard/ProductRevenue'
-import SalesProfit from '../components/dashboard/RevenueForecast'
-import TotalIncome from '../components/dashboard/TotalIncome'
+import BlogCards from '../components/dashboard/BlogCards';
+import DailyActivity from '../components/dashboard/DailyActivity';
+import NewCustomers from '../components/dashboard/NewCustomers';
+import ProductRevenue from '../components/dashboard/ProductRevenue';
+import SalesProfit from '../components/dashboard/RevenueForecast';
+import TotalIncome from '../components/dashboard/TotalIncome';
 
 const page = () => {
   return (
@@ -36,7 +36,7 @@ const page = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default page
+export default page;

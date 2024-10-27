@@ -1,21 +1,21 @@
-import { usePathname } from 'next/navigation'
-import React from 'react'
+import { usePathname } from 'next/navigation';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Sidebar } from 'flowbite-react'
-import { HiOutlineChevronDown } from 'react-icons/hi'
-import { twMerge } from 'tailwind-merge'
+import { Icon } from '@iconify/react';
+import { Sidebar } from 'flowbite-react';
+import { HiOutlineChevronDown } from 'react-icons/hi';
+import { twMerge } from 'tailwind-merge';
 
-import NavItems from '../NavItems'
-import { ChildItem } from '../Sidebaritems'
+import NavItems from '../NavItems';
+import { ChildItem } from '../Sidebaritems';
 
 interface NavCollapseProps {
-  item: ChildItem
+  item: ChildItem;
 }
 
 const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
-  const pathname = usePathname()
-  const activeDD = item.children.find((t: { url: string }) => t.url === pathname)
+  const pathname = usePathname();
+  const activeDD = item.children.find((t: { url: string }) => t.url === pathname);
 
   return (
     <>
@@ -25,10 +25,10 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
         icon={() => <Icon icon={item.icon} height={18} />}
         className={`${activeDD ? '!text-primary bg-lightprimary ' : ''} collapse-menu`}
         renderChevronIcon={(theme, open) => {
-          const IconComponent = open ? HiOutlineChevronDown : HiOutlineChevronDown
+          const IconComponent = open ? HiOutlineChevronDown : HiOutlineChevronDown;
           return (
             <IconComponent aria-hidden className={`${twMerge(theme.label.icon.open[open ? 'on' : 'off'])} drop-icon`} />
-          )
+          );
         }}
       >
         {/* Render child items */}
@@ -48,7 +48,7 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
         )}
       </Sidebar.Collapse>
     </>
-  )
-}
+  );
+};
 
-export default NavCollapse
+export default NavCollapse;

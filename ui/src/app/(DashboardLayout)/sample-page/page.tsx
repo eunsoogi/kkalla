@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 const samplepage = () => {
   return (
@@ -8,7 +8,7 @@ const samplepage = () => {
         <p className='card-subtitle'>This is a sample page</p>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default samplepage
+export default samplepage;

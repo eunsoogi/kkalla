@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import React from 'react'
+import Link from 'next/link';
+import React from 'react';
 
 const DailyActivity = () => {
   const ActivitySteps = [
@@ -9,40 +9,40 @@ const DailyActivity = () => {
       Time: '09:46',
       action: 'Payment received from John Doe of $385.90',
       color: 'bg-primary',
-      line: 'h-full w-px bg-border'
+      line: 'h-full w-px bg-border',
     },
     {
       Time: '09:46',
       action: 'New sale recorded',
       id: '#ML-3467',
       color: 'bg-warning',
-      line: 'h-full w-px bg-border'
+      line: 'h-full w-px bg-border',
     },
     {
       Time: '09:46',
       action: 'Payment was made of $64.95 to Michael',
       color: 'bg-warning',
-      line: 'h-full w-px bg-border'
+      line: 'h-full w-px bg-border',
     },
     {
       Time: '09:46',
       action: 'New sale recorded',
       id: '#ML-3467',
       color: 'bg-secondary',
-      line: 'h-full w-px bg-border'
+      line: 'h-full w-px bg-border',
     },
     {
       Time: '09:46',
       action: 'Project meeting',
       color: 'bg-error',
-      line: 'h-full w-px bg-border'
+      line: 'h-full w-px bg-border',
     },
     {
       Time: '09:46',
       action: 'Payment received from John Doe of $385.90',
-      color: 'bg-primary'
-    }
-  ]
+      color: 'bg-primary',
+    },
+  ];
   return (
     <>
       <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words'>
@@ -73,7 +73,7 @@ const DailyActivity = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default DailyActivity
+export default DailyActivity;

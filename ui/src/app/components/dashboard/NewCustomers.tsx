@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import React from 'react'
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Progress } from 'flowbite-react'
+import { Icon } from '@iconify/react';
+import { Progress } from 'flowbite-react';
 
 const NewCustomers = () => {
   return (
@@ -22,7 +22,7 @@ const NewCustomers = () => {
         <Progress progress={83} color='secondary' />
       </div>
     </>
-  )
-}
+  );
+};
 
-export default NewCustomers
+export default NewCustomers;

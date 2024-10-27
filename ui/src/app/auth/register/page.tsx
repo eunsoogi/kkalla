@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import React from 'react'
+import Link from 'next/link';
+import React from 'react';
 
-import FullLogo from '@/app/(DashboardLayout)/layout/shared/logo/FullLogo'
+import FullLogo from '@/app/(DashboardLayout)/layout/shared/logo/FullLogo';
 
-import AuthRegister from '../authforms/AuthRegister'
+import AuthRegister from '../authforms/AuthRegister';
 
 const gradientStyle = {
   background:
@@ -13,8 +13,8 @@ const gradientStyle = {
   backgroundSize: '400% 400%',
   animation: 'gradient 15s ease infinite',
   height: '100vh',
-  overflow: 'hidden'
-}
+  overflow: 'hidden',
+};
 
 const BoxedRegister = () => {
   return (
@@ -50,7 +50,7 @@ const BoxedRegister = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default BoxedRegister
+export default BoxedRegister;

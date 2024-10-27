@@ -1,18 +1,18 @@
-'use client'
+'use client';
 
-import Image from 'next/image'
-import React from 'react'
+import Image from 'next/image';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Badge, Dropdown, Progress } from 'flowbite-react'
-import { Table } from 'flowbite-react'
-import { HiOutlineDotsVertical } from 'react-icons/hi'
+import { Icon } from '@iconify/react';
+import { Badge, Dropdown, Progress } from 'flowbite-react';
+import { Table } from 'flowbite-react';
+import { HiOutlineDotsVertical } from 'react-icons/hi';
 
-import product1 from '/public/images/products/dash-prd-1.jpg'
-import product2 from '/public/images/products/dash-prd-2.jpg'
-import product3 from '/public/images/products/dash-prd-3.jpg'
-import product4 from '/public/images/products/dash-prd-4.jpg'
-import product5 from '/public/images/products/s5.jpg'
+import product1 from '/public/images/products/dash-prd-1.jpg';
+import product2 from '/public/images/products/dash-prd-2.jpg';
+import product3 from '/public/images/products/dash-prd-3.jpg';
+import product4 from '/public/images/products/dash-prd-4.jpg';
+import product5 from '/public/images/products/s5.jpg';
 
 const PopularProducts = () => {
   const ProductTableData = [
@@ -24,7 +24,7 @@ const PopularProducts = () => {
       process: 45,
       processcolor: 'bg-warning',
       statuscolor: 'secondary',
-      statustext: 'Confirmed'
+      statustext: 'Confirmed',
     },
     {
       img: product2,
@@ -34,7 +34,7 @@ const PopularProducts = () => {
       process: 100,
       processcolor: 'bg-success',
       statuscolor: 'success',
-      statustext: 'Confirmed'
+      statustext: 'Confirmed',
     },
     {
       img: product3,
@@ -44,7 +44,7 @@ const PopularProducts = () => {
       process: 100,
       processcolor: 'bg-error',
       statuscolor: 'error',
-      statustext: 'Cancelled'
+      statustext: 'Cancelled',
     },
     {
       img: product4,
@@ -54,25 +54,25 @@ const PopularProducts = () => {
       process: 45,
       processcolor: 'bg-warning',
       statuscolor: 'secondary',
-      statustext: 'Confirmed'
-    }
-  ]
+      statustext: 'Confirmed',
+    },
+  ];
 
   /*Table Action*/
   const tableActionData = [
     {
       icon: 'solar:add-circle-outline',
-      listtitle: 'Add'
+      listtitle: 'Add',
     },
     {
       icon: 'solar:pen-new-square-broken',
-      listtitle: 'Edit'
+      listtitle: 'Edit',
     },
     {
       icon: 'solar:trash-bin-minimalistic-outline',
-      listtitle: 'Delete'
-    }
-  ]
+      listtitle: 'Delete',
+    },
+  ];
 
   return (
     <>
@@ -149,7 +149,7 @@ const PopularProducts = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default PopularProducts
+export default PopularProducts;

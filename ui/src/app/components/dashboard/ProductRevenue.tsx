@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import Image from 'next/image'
-import React from 'react'
+import Image from 'next/image';
+import React from 'react';
 
-import { Badge } from 'flowbite-react'
-import { Table } from 'flowbite-react'
-import SimpleBar from 'simplebar-react'
+import { Badge } from 'flowbite-react';
+import { Table } from 'flowbite-react';
+import SimpleBar from 'simplebar-react';
 
-import product1 from '/public/images/products/dash-prd-1.jpg'
-import product2 from '/public/images/products/dash-prd-2.jpg'
-import product3 from '/public/images/products/dash-prd-3.jpg'
-import product4 from '/public/images/products/dash-prd-4.jpg'
+import product1 from '/public/images/products/dash-prd-1.jpg';
+import product2 from '/public/images/products/dash-prd-2.jpg';
+import product3 from '/public/images/products/dash-prd-3.jpg';
+import product4 from '/public/images/products/dash-prd-4.jpg';
 
 const ProductRevenue = () => {
   const ProductTableData = [
@@ -21,7 +21,7 @@ const ProductRevenue = () => {
       process: '73.2%',
       statuscolor: 'text-success',
       statusbg: 'bg-lightsuccess',
-      statustext: 'Low'
+      statustext: 'Low',
     },
     {
       img: product2,
@@ -30,7 +30,7 @@ const ProductRevenue = () => {
       process: '73.2%',
       statuscolor: 'text-warning',
       statusbg: 'bg-lightwarning',
-      statustext: 'Medium'
+      statustext: 'Medium',
     },
     {
       img: product3,
@@ -39,7 +39,7 @@ const ProductRevenue = () => {
       process: '73.2%',
       statuscolor: 'text-secondary',
       statusbg: 'bg-lightsecondary',
-      statustext: 'Very High'
+      statustext: 'Very High',
     },
     {
       img: product4,
@@ -48,9 +48,9 @@ const ProductRevenue = () => {
       process: '73.2%',
       statuscolor: 'text-error',
       statusbg: 'bg-lighterror',
-      statustext: 'High'
-    }
-  ]
+      statustext: 'High',
+    },
+  ];
 
   return (
     <>
@@ -98,7 +98,7 @@ const ProductRevenue = () => {
         </SimpleBar>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default ProductRevenue
+export default ProductRevenue;

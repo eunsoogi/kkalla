@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import React from 'react'
+import React from 'react';
 
-import Header from './layout/vertical/header/Header'
-import Sidebar from './layout/vertical/sidebar/Sidebar'
+import Header from './layout/vertical/header/Header';
+import Sidebar from './layout/vertical/sidebar/Sidebar';
 
 export default function Layout({
-  children
+  children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <div className='flex w-full min-h-screen'>
@@ -24,5 +24,5 @@ export default function Layout({
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import React from 'react'
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Badge, Dropdown } from 'flowbite-react'
+import { Icon } from '@iconify/react';
+import { Badge, Dropdown } from 'flowbite-react';
 
 const Notification = () => {
   return (
@@ -73,7 +73,7 @@ const Notification = () => {
         <div className=''></div>
       </Dropdown>
     </div>
-  )
-}
+  );
+};
 
-export default Notification
+export default Notification;

@@ -22,50 +22,50 @@ const customTheme = {
       outlineprimary:
         'border border-primary bg-transparent text-primary hover:bg-primary dark:hover:bg-primary hover:text-white ',
       outlinewhite: 'border border-white bg-transparent text-white hover:bg-white dark:hover:bg-white hover:text-dark ',
-      transparent: 'bg-transparent hover:bg-lightprimary dark:hover:bg-darkprimary hover:text-primary p-0'
+      transparent: 'bg-transparent hover:bg-lightprimary dark:hover:bg-darkprimary hover:text-primary p-0',
     },
     inner: {
-      base: 'flex items-center gap-2 transition-all duration-150 justify-center'
-    }
+      base: 'flex items-center gap-2 transition-all duration-150 justify-center',
+    },
   },
 
   drawer: {
     root: {
-      base: 'fixed z-40 overflow-y-auto bg-white dark:bg-darkgray p-0 transition-transform'
+      base: 'fixed z-40 overflow-y-auto bg-white dark:bg-darkgray p-0 transition-transform',
     },
     header: {
       inner: {
         closeButton:
           'absolute end-2.5 top-3 flex h-8 w-8 items-center justify-center rounded-md bg-lightgray dark:bg-darkmuted text-primary',
         closeIcon: 'h-4 w-4',
-        titleText: 'mb-4 inline-flex items-center text-base font-semibold text-darklink'
-      }
-    }
+        titleText: 'mb-4 inline-flex items-center text-base font-semibold text-darklink',
+      },
+    },
   },
 
   table: {
     root: {
       base: 'w-full text-left text-sm text-gray-500 dark:text-gray-400',
       shadow: 'absolute left-0 top-0 -z-10 h-full w-full  bg-transparent drop-shadow-md ',
-      wrapper: 'relative'
+      wrapper: 'relative',
     },
     head: {
       base: 'group/head text-sm font-medium capitalize text-dark dark:text-white border-b border-ld',
       cell: {
-        base: 'font-semibold px-4 py-4   dark:bg-transparent'
-      }
+        base: 'font-semibold px-4 py-4   dark:bg-transparent',
+      },
     },
     body: {
       base: 'group/body',
       cell: {
-        base: 'px-4 py-3 dark:bg-transparent'
-      }
+        base: 'px-4 py-3 dark:bg-transparent',
+      },
     },
     row: {
       base: 'group/row bg-transparent ',
       hovered: 'bg-hover dark:bg-transparent',
-      striped: 'odd:bg-transparent  even:bg-gray-50 odd:dark:bg-dark even:dark:bg-gray-700'
-    }
+      striped: 'odd:bg-transparent  even:bg-gray-50 odd:dark:bg-dark even:dark:bg-gray-700',
+    },
   },
 
   badge: {
@@ -85,17 +85,17 @@ const customTheme = {
         lightsecondary: 'bg-lightsecondary dark:bg-lightsecondary text-secondary',
         lighterror: 'bg-lighterror dark:bg-lighterror text-error',
         white: 'bg-white dark:bg-darkmuted text-dark dark:text-white',
-        muted: 'bg-muted dark:bg-darkmuted text-dark dark:text-white'
-      }
+        muted: 'bg-muted dark:bg-darkmuted text-dark dark:text-white',
+      },
     },
     icon: {
       off: 'rounded-sm px-2.5 py-1',
       on: 'rounded-full py-[5px] px-[10px]',
       size: {
         xs: 'h-3 w-3',
-        sm: 'h-3.5 w-3.5'
-      }
-    }
+        sm: 'h-3.5 w-3.5',
+      },
+    },
   },
 
   checkbox: {
@@ -105,9 +105,9 @@ const customTheme = {
         default: 'text-primary',
         primary: 'text-primary',
         secondary: 'text-secondary',
-        error: 'text-error'
-      }
-    }
+        error: 'text-error',
+      },
+    },
   },
 
   progress: {
@@ -120,42 +120,42 @@ const customTheme = {
       warning: 'bg-warning',
       error: 'bg-error',
       info: 'bg-info',
-      primary: 'bg-primary'
+      primary: 'bg-primary',
     },
     size: {
       sm: 'h-1',
       md: 'h-1.5',
       lg: 'h-4',
-      xl: 'h-6'
-    }
+      xl: 'h-6',
+    },
   },
 
   sidebar: {
     root: {
-      inner: 'bg-white dark:bg-darkgray rounded-none'
+      inner: 'bg-white dark:bg-darkgray rounded-none',
     },
     item: {
       base: 'flex items-center justify-center rounded-md px-4 py-3 mb-1 gap-3  text-[15px] text-start  leading-[normal] font-normal text-link hover:text-primary dark:text-white  dark:hover:text-primary',
       content: {
-        base: 'flex-1 whitespace-nowrap px-0'
+        base: 'flex-1 whitespace-nowrap px-0',
       },
-      active: 'bg-lightprimary !text-primary dark:bg-lightprimary !dark:text-primary'
+      active: 'bg-lightprimary !text-primary dark:bg-lightprimary !dark:text-primary',
     },
 
     collapse: {
       button:
         'group flex gap-3 items-center  rounded-md px-4 py-3 mb-1 text-[15px] text-start truncate leading-[normal] font-normal text-link hover:bg-lightprimary hover:text-primary dark:text-white w-full dark:hover:text-primary',
       icon: {
-        base: 'h-6 w-6 text-link text-base'
+        base: 'h-6 w-6 text-link text-base',
       },
       label: {
-        base: 'flex justify-start flex-1 max-w-36 overflow-hidden truncate'
-      }
+        base: 'flex justify-start flex-1 max-w-36 overflow-hidden truncate',
+      },
     },
     itemGroup: {
-      base: 'mt-4 space-y-2 border-t border-ld pt-4 first:mt-0 first:border-t-0 first:pt-0 sidebar-nav '
-    }
-  }
-}
+      base: 'mt-4 space-y-2 border-t border-ld pt-4 first:mt-0 first:border-t-0 first:pt-0 sidebar-nav ',
+    },
+  },
+};
 
-export default customTheme
+export default customTheme;

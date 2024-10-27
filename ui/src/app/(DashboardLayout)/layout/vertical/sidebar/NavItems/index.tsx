@@ -1,19 +1,19 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import React from 'react'
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import React from 'react';
 
-import { Icon } from '@iconify/react'
-import { Sidebar } from 'flowbite-react'
+import { Icon } from '@iconify/react';
+import { Sidebar } from 'flowbite-react';
 
-import { ChildItem } from '../Sidebaritems'
+import { ChildItem } from '../Sidebaritems';
 
 interface NavItemsProps {
-  item: ChildItem
+  item: ChildItem;
 }
 const NavItems: React.FC<NavItemsProps> = ({ item }) => {
-  const pathname = usePathname()
+  const pathname = usePathname();
   return (
     <>
       <Sidebar.Item
@@ -39,7 +39,7 @@ const NavItems: React.FC<NavItemsProps> = ({ item }) => {
         </span>
       </Sidebar.Item>
     </>
-  )
-}
+  );
+};
 
-export default NavItems
+export default NavItems;

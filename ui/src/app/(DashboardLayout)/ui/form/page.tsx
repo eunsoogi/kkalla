@@ -1,6 +1,6 @@
-import React from 'react'
+import React from 'react';
 
-import { Button, Checkbox, Label, Select, TextInput } from 'flowbite-react'
+import { Button, Checkbox, Label, Select, TextInput } from 'flowbite-react';
 
 const page = () => {
   return (
@@ -86,7 +86,7 @@ const page = () => {
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default page
+export default page;
