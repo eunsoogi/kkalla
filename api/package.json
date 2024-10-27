@@ -6,8 +6,9 @@
   "scripts": {
     "start:dev": "nodemon ./bin/www",
     "start:prod": "node ./bin/www",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint": "eslint '**/*.{js,ts}'",
+    "prettier:check": "prettier '**/*.{js,ts}' --check",
+    "prettier:write": "prettier '**/*.{js,ts}' --write"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -22,10 +23,16 @@
     "sequelize": "^6.37.5"
   },
   "devDependencies": {
+    "@eslint/compat": "^1.2.1",
     "@eslint/js": "^9.13.0",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
     "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.11.0",
-    "nodemon": "^3.1.7"
+    "nodemon": "^3.1.7",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
   }
 }

@@ -1,8 +1,9 @@
-import express from 'express';
-import controller from '../controllers/index.js';
+import express from 'express'
 
-const router = express.Router();
+import controller from '../controllers/index.js'
 
-router.get('/v1/inference', controller.getInferenceV1);
+const router = express.Router()
 
-export default router;
+router.get('/v1/inference', controller.getInferenceV1)
+
+export default router

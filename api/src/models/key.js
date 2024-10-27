@@ -1,5 +1,6 @@
-import { Model, DataTypes } from 'sequelize';
-import { KEY_TYPES } from '../const/key.js';
+import { DataTypes, Model } from 'sequelize'
+
+import { KEY_TYPES } from '../const/key.js'
 
 class Key extends Model {}
 
@@ -9,7 +10,7 @@ export default (sequelize) => {
       keyType: {
         type: DataTypes.ENUM(...KEY_TYPES),
         allowNull: false,
-        unique: true,
+        unique: true
       },
       apiKey: {
         type: DataTypes.STRING,
@@ -18,13 +19,13 @@ export default (sequelize) => {
       secretKey: {
         type: DataTypes.STRING,
         allowNull: true
-      },
+      }
     },
     {
       sequelize,
-      modelName: 'Key',
+      modelName: 'Key'
     }
-  );
+  )
 
-  return Key;
-};
+  return Key
+}
