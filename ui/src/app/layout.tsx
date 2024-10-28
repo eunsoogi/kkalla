@@ -8,11 +8,12 @@ import 'simplebar-react/dist/simplebar.min.css';
 import customTheme from '@/utils/theme/custom-theme';
 
 import './css/globals.css';
+import { Providers } from './providers';
 
 const manrope = Manrope({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'MatDash-Nextjs-Free',
+  title: 'AI 투자 어시스턴트',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeModeScript />
       </head>
       <body className={`${manrope.className}`}>
-        <Flowbite theme={{ theme: customTheme }}>{children}</Flowbite>
+        <Flowbite theme={{ theme: customTheme }}>
+          <Providers>{children}</Providers>
+        </Flowbite>
       </body>
     </html>
   );

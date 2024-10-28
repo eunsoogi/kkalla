@@ -6,7 +6,7 @@ import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { InferenceService } from './inference.service';
 
-@Controller('api/v1/inference')
+@Controller('api/v1/inferences')
 export class InferenceController {
   constructor(private readonly inferenceService: InferenceService) {}
 

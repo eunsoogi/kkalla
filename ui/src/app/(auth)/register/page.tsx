@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import React from 'react';
 
-import FullLogo from '@/app/components/layouts/shared/logo/FullLogo';
-
-import AuthRegister from '../authforms/AuthRegister';
+import AuthRegister from '@/components/authforms/AuthRegister';
+import FullLogo from '@/components/layouts/shared/logo/FullLogo';
 
 const gradientStyle = {
   background:
