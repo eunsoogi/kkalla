@@ -9,6 +9,6 @@ export class InferenceController {
 
   @Get()
   request() {
-    return this.inferenceService.inference(new RequestInferenceDto());
+    return this.inferenceService.inferenceAndSave(new RequestInferenceDto());
   }
 }

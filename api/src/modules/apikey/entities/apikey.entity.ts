@@ -1,9 +1,6 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export enum ApikeyTypes {
-  OPENAI = 'OPENAI',
-  UPBIT = 'UPBIT',
-}
+import { ApikeyTypes } from '../apikey.interface';
 
 @Entity({
   orderBy: {

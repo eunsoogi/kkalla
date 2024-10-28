@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
@@ -10,14 +10,15 @@ import { NewsService } from '../news/news.service';
 import { OpenaiService } from '../openai/openai.service';
 import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
+import { CreateInferenceDto } from './dto/create-inference.dto';
+import { FindInferenceDto } from './dto/find-inference.dto';
 import { RequestInferenceDto } from './dto/request-inference.dto';
+import { Inference } from './entities/inference.entity';
 import { INFERENCE_MAX_TOKENS, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
 import { InferenceData, InferenceResult } from './inference.interface';
 
 @Injectable()
 export class InferenceService {
-  private readonly logger = new Logger(InferenceService.name);
-
   constructor(
     private readonly openaiService: OpenaiService,
     private readonly upbitService: UpbitService,
@@ -41,12 +42,17 @@ export class InferenceService {
 
     const feargreed: Feargreed = await this.feargreedService.getFeargreed();
 
+    const inferences: Inference[] = await this.findRecent({
+      limit: requestInferenceDto.inferenceLimit,
+    });
+
     const data: InferenceData = {
       krwBalance: 10000000,
       coinBalance: 0,
       candles: candles,
       news: news,
       feargreed: feargreed,
+      prevInferences: inferences,
     };
 
     return data;
@@ -89,8 +95,53 @@ export class InferenceService {
       stream: false,
     });
 
-    const result: InferenceResult = JSON.parse(response.choices[0].message?.content || '{}');
+    const result: InferenceResult = {
+      ...JSON.parse(response.choices[0].message?.content || '{}'),
+      krwBalance: data.krwBalance,
+      coinBalance: data.coinBalance,
+    };
 
     return result;
+  }
+
+  public async inferenceAndSave(requestInferenceDto: RequestInferenceDto): Promise<Inference> {
+    const inferenceResult = await this.inference(requestInferenceDto);
+
+    const inferenceEntity = await this.create({
+      decision: inferenceResult.decision,
+      krwBalance: inferenceResult.krwBalance,
+      coinBalance: inferenceResult.coinBalance,
+      suggestedBalance: inferenceResult.suggestedBalance,
+      reason: inferenceResult.reason,
+      reflection: inferenceResult.reflection,
+    });
+
+    return inferenceEntity;
+  }
+
+  public async create(createInferenceDto: CreateInferenceDto): Promise<Inference> {
+    const inference = new Inference();
+
+    inference.decision = createInferenceDto.decision;
+    inference.krwBalance = createInferenceDto.krwBalance;
+    inference.coinBalance = createInferenceDto.coinBalance;
+    inference.suggestedBalance = createInferenceDto.suggestedBalance;
+    inference.reason = createInferenceDto?.reason;
+    inference.reflection = createInferenceDto.reflection;
+
+    await inference.save();
+
+    return inference;
+  }
+
+  public async findRecent(findInferenceDto: FindInferenceDto): Promise<Inference[]> {
+    const inferences = Inference.find({
+      take: findInferenceDto.limit,
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return inferences;
   }
 }

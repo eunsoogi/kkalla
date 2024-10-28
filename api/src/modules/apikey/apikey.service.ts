@@ -1,12 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { ApikeyTypes } from './apikey.interface';
 import { CreateApikeyDto } from './dto/create-apikey.dto';
 import { UpdateApikeyDto } from './dto/update-apikey.dto';
-import { Apikey, ApikeyTypes } from './entities/apikey.entity';
+import { Apikey } from './entities/apikey.entity';
 
 @Injectable()
 export class ApikeyService {
-  async create(createApikeyDto: CreateApikeyDto) {
+  async create(createApikeyDto: CreateApikeyDto): Promise<Apikey> {
     const existingApikey = await this.findByType(createApikeyDto.type);
 
     if (existingApikey) {

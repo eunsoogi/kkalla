@@ -1,4 +1,4 @@
-import { ApikeyTypes } from '../entities/apikey.entity';
+import { ApikeyTypes } from '../apikey.interface';
 
 export class CreateApikeyDto {
   type!: ApikeyTypes;
