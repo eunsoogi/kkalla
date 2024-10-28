@@ -11,11 +11,13 @@ services:
     environment:
       TZ: Asia/Seoul
       NODE_ENV: development
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ai-invest-assistant
+      DB_PASSWORD: ai-invest-assistant
+      DB_DATABASE: ai-invest-assistant
     volumes:
-      - ./api/app.js:/app/app.js
       - ./api/src:/app/src
-      - ./api/migrations:/app/migrations
-      - ./api/seeders:/app/seeders
 
   ui:
     build:
@@ -38,7 +40,10 @@ services:
       retries: 3
     environment:
       TZ: Asia/Seoul
+      MARIADB_USER: ai-invest-assistant
       MARIADB_ROOT_PASSWORD: ai-invest-assistant
+      MARIADB_PASSWORD: ai-invest-assistant
+      MARIADB_DATABASE: ai-invest-assistant
     ports:
       - 3306:3306
     volumes:
