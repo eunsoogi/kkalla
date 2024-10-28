@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
-import { Feargreed } from 'src/modules/feargreed/feargreed.interface';
-import { News } from 'src/modules/news/news.interface';
-import { Candle } from 'src/modules/upbit/upbit.interface';
+import OpenAI from 'openai';
+import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
 
+import { Feargreed } from '../feargreed/feargreed.interface';
 import { FeargreedService } from '../feargreed/feargreed.service';
+import { News, NewsTypes } from '../news/news.interface';
 import { NewsService } from '../news/news.service';
 import { OpenaiService } from '../openai/openai.service';
+import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
 import { RequestInferenceDto } from './dto/request-inference.dto';
 import { INFERENCE_MAX_TOKENS, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
@@ -33,7 +34,10 @@ export class InferenceService {
       countD1: requestInferenceDto.countD1,
     });
 
-    const news: News[] = await this.newsService.getNews(requestInferenceDto.newsLimit);
+    const news: News[] = await this.newsService.getNews({
+      type: NewsTypes.COIN,
+      limit: requestInferenceDto.newsLimit,
+    });
 
     const feargreed: Feargreed = await this.feargreedService.getFeargreed();
 
@@ -73,11 +77,11 @@ export class InferenceService {
   }
 
   public async inference(requestInferenceDto: RequestInferenceDto): Promise<InferenceResult> {
-    const service = await this.openaiService.getClient();
+    const service: OpenAI = await this.openaiService.getClient();
 
-    const data = await this.getData(requestInferenceDto);
+    const data: InferenceData = await this.getData(requestInferenceDto);
 
-    const response = await service.chat.completions.create({
+    const response: ChatCompletion = await service.chat.completions.create({
       model: INFERENCE_MODEL,
       max_tokens: INFERENCE_MAX_TOKENS,
       messages: this.getMessage(data),
@@ -85,7 +89,7 @@ export class InferenceService {
       stream: false,
     });
 
-    const result = JSON.parse(response.choices[0].message?.content || '{}');
+    const result: InferenceResult = JSON.parse(response.choices[0].message?.content || '{}');
 
     return result;
   }

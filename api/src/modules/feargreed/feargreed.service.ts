@@ -3,16 +3,15 @@ import { Injectable } from '@nestjs/common';
 
 import { firstValueFrom } from 'rxjs';
 
+import { API_URL } from './feargreed.config';
 import { Feargreed, FeargreedResponse } from './feargreed.interface';
 
 @Injectable()
 export class FeargreedService {
-  public static readonly API_URL = 'https://ubci-api.ubcindex.com/v1/crix/feargreed';
-
   constructor(private readonly httpService: HttpService) {}
 
   public async getFeargreed(): Promise<Feargreed> {
-    const { data } = await firstValueFrom(this.httpService.get<FeargreedResponse>(FeargreedService.API_URL));
+    const { data } = await firstValueFrom(this.httpService.get<FeargreedResponse>(API_URL));
 
     const feargreed = this.transformToFeargreed(data);
 

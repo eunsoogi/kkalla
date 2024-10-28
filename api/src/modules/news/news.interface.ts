@@ -1,3 +1,7 @@
+export enum NewsTypes {
+  COIN = '3',
+}
+
 export interface News {
   labels: string[];
   title: string;
