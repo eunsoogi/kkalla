@@ -10,7 +10,6 @@ import FullLogo from '../../shared/logo/FullLogo';
 import NavCollapse from './NavCollapse';
 import NavItems from './NavItems';
 import SidebarContent from './Sidebaritems';
-import Upgrade from './Upgrade';
 
 const MobileSidebar = () => {
   return (
@@ -53,7 +52,6 @@ const MobileSidebar = () => {
                 ))}
               </Sidebar.ItemGroup>
             </Sidebar.Items>
-            <Upgrade />
           </SimpleBar>
         </Sidebar>
       </div>

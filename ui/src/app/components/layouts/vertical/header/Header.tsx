@@ -1,13 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 import { Icon } from '@iconify/react';
-import { Badge, Button, Navbar } from 'flowbite-react';
+import { Navbar } from 'flowbite-react';
 import { Drawer } from 'flowbite-react';
 
-import FullLogo from '../../shared/logo/FullLogo';
 import MobileSidebar from '../sidebar/MobileSidebar';
 import Profile from './Profile';
 import Notification from './notification';
@@ -52,9 +50,6 @@ const Header = () => {
             </div>
 
             <div className='flex gap-4 items-center'>
-              <Button as={Link} href='#' size={'sm'} color={'primary'} className='rounded-md py-1 px-3'>
-                Download Free
-              </Button>
               <Profile />
             </div>
           </div>

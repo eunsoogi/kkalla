@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import React from 'react';
 
 import { Button, Label, TextInput } from 'flowbite-react';

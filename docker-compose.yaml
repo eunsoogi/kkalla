@@ -27,6 +27,7 @@ services:
     environment:
       TZ: Asia/Seoul
       NODE_ENV: development
+      API_URL: http://api:3000/
     volumes:
       - ./ui/src:/app/src
       - ./ui/public:/app/public

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import React from 'react';
 
-import FullLogo from '@/app/(DashboardLayout)/layout/shared/logo/FullLogo';
+import FullLogo from '@/app/components/layouts/shared/logo/FullLogo';
 
 import AuthLogin from '../authforms/AuthLogin';
 
