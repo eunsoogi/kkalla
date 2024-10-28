@@ -15,7 +15,7 @@ export class Apikey extends BaseEntity {
   type!: ApikeyTypes;
 
   @Column({ nullable: false })
-  apiKey!: string;
+  accessKey!: string;
 
   @Column()
   secretKey: string;

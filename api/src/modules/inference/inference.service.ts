@@ -115,10 +115,6 @@ export class InferenceService {
     return inferenceEntity;
   }
 
-  public async paginate(findInferenceDto: FindInferenceDto): Promise<PaginatedInferenceDto> {
-    return Inference.paginate(findInferenceDto);
-  }
-
   public async create(createInferenceDto: CreateInferenceDto): Promise<Inference> {
     const inference = new Inference();
 
@@ -130,5 +126,9 @@ export class InferenceService {
     await inference.save();
 
     return inference;
+  }
+
+  public async paginate(findInferenceDto: FindInferenceDto): Promise<PaginatedInferenceDto> {
+    return Inference.paginate(findInferenceDto);
   }
 }

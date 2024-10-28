@@ -13,7 +13,7 @@ export class OpenaiService {
     const apikey = await this.apikeyService.findByType(ApikeyTypes.OPENAI);
 
     const client = new OpenAI({
-      apiKey: apikey?.apiKey,
+      apiKey: apikey?.accessKey,
     });
 
     return client;

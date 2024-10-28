@@ -14,7 +14,7 @@ export class ApikeyService {
     }
 
     apikey.type = createApikeyDto.type;
-    apikey.apiKey = createApikeyDto.apiKey;
+    apikey.accessKey = createApikeyDto.accessKey;
     apikey.secretKey = createApikeyDto.secretKey ?? '';
 
     await apikey.save();

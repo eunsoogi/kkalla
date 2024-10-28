@@ -2,6 +2,6 @@ import { ApikeyTypes } from '../apikey.interface';
 
 export class CreateApikeyDto {
   type!: ApikeyTypes;
-  apiKey!: string;
+  accessKey!: string;
   secretKey?: string;
 }

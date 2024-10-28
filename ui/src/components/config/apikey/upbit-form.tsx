@@ -28,11 +28,11 @@ const UpbitForm = () => {
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='upbitApiKey' value='API 키' />
+                    <Label htmlFor='upbitAccessKey' value='API 키' />
                   </div>
                   <TextInput
-                    id='upbitApiKey'
-                    name='apiKey'
+                    id='upbitAccessKey'
+                    name='accessKey'
                     type='text'
                     required
                     className='form-control form-rounded-xl'

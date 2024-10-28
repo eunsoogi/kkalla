@@ -28,11 +28,11 @@ const OpenaiForm = () => {
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='openaiApiKey' value='API 키' />
+                    <Label htmlFor='openaiAccessKey' value='API 키' />
                   </div>
                   <TextInput
-                    id='openaiApiKey'
-                    name='apiKey'
+                    id='openaiAccessKey'
+                    name='accessKey'
                     type='text'
                     required
                     className='form-control form-rounded-xl'

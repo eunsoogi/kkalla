@@ -11,5 +11,6 @@ import { InferenceService } from './inference.service';
   imports: [OpenaiModule, UpbitModule, NewsModule, FeargreedModule],
   controllers: [InferenceController],
   providers: [InferenceService],
+  exports: [InferenceService],
 })
 export class InferenceModule {}
