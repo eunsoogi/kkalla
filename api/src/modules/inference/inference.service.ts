@@ -12,6 +12,7 @@ import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
 import { CreateInferenceDto } from './dto/create-inference.dto';
 import { FindInferenceDto } from './dto/find-inference.dto';
+import { PaginatedInferenceDto } from './dto/paginated-inference.dto';
 import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_MAX_TOKENS, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
@@ -42,9 +43,12 @@ export class InferenceService {
 
     const feargreed: Feargreed = await this.feargreedService.getFeargreed();
 
-    const inferences: Inference[] = await this.findRecent({
-      limit: requestInferenceDto.inferenceLimit,
+    const inferenceResult: PaginatedInferenceDto = await this.paginate({
+      page: 1,
+      perPage: requestInferenceDto.inferenceLimit,
     });
+
+    const inferences: Inference[] = inferenceResult.items;
 
     const data: InferenceData = {
       candles: candles,
@@ -111,6 +115,10 @@ export class InferenceService {
     return inferenceEntity;
   }
 
+  public async paginate(findInferenceDto: FindInferenceDto): Promise<PaginatedInferenceDto> {
+    return Inference.paginate(findInferenceDto);
+  }
+
   public async create(createInferenceDto: CreateInferenceDto): Promise<Inference> {
     const inference = new Inference();
 
@@ -122,16 +130,5 @@ export class InferenceService {
     await inference.save();
 
     return inference;
-  }
-
-  public async findRecent(findInferenceDto: FindInferenceDto): Promise<Inference[]> {
-    const inferences = Inference.find({
-      take: findInferenceDto.limit,
-      order: {
-        createdAt: 'DESC',
-      },
-    });
-
-    return inferences;
   }
 }

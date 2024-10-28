@@ -1,3 +1,4 @@
 export class FindInferenceDto {
-  limit: number = 7;
+  page: number = 1;
+  perPage: number = 10;
 }
