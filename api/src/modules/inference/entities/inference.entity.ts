@@ -14,19 +14,13 @@ export class Inference extends BaseEntity {
   @Column({ type: 'enum', enum: InferenceDicisionTypes, nullable: false })
   decision!: InferenceDicisionTypes;
 
-  @Column({ default: 0 })
-  krwBalance: number;
+  @Column({ type: 'double', default: 0 })
+  rate: number;
 
-  @Column({ default: 0 })
-  coinBalance: number;
-
-  @Column({ default: 0 })
-  suggestedBalance: number;
-
-  @Column()
+  @Column({ type: 'text' })
   reason?: string;
 
-  @Column()
+  @Column({ type: 'text' })
   reflection?: string;
 
   @CreateDateColumn()

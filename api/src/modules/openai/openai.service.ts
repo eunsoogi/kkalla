@@ -9,7 +9,7 @@ import { ApikeyService } from '../apikey/apikey.service';
 export class OpenaiService {
   constructor(private readonly apikeyService: ApikeyService) {}
 
-  async getClient() {
+  public async getClient() {
     const apikey = await this.apikeyService.findByType(ApikeyTypes.OPENAI);
 
     const client = new OpenAI({

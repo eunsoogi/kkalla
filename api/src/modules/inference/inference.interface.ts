@@ -10,8 +10,6 @@ export enum InferenceDicisionTypes {
 }
 
 export interface InferenceData {
-  krwBalance: number;
-  coinBalance: number;
   candles: Candle[];
   news: News[];
   feargreed: Feargreed;
@@ -20,9 +18,7 @@ export interface InferenceData {
 
 export interface InferenceResult {
   decision: InferenceDicisionTypes;
-  krwBalance: number;
-  coinBalance: number;
-  suggestedBalance: number;
+  rate: number;
   reason: string;
   reflection: string;
 }

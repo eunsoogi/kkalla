@@ -1,34 +1,49 @@
 import { Injectable } from '@nestjs/common';
 
-import { QuoationService } from 'node-upbit';
+import { ExchangeService, QuoationService } from 'node-upbit';
 
+import { ApikeyTypes } from '../apikey/apikey.interface';
+import { ApikeyService } from '../apikey/apikey.service';
 import { RequestDataDto } from './dto/request-data.dto';
 import { Candle, CandleResponse } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
-  private readonly quotationService: QuoationService = new QuoationService();
+  constructor(private readonly apikeyService: ApikeyService) {}
 
-  async getCandles(requestDataDto: RequestDataDto) {
-    const candles_m15: CandleResponse[] = await this.quotationService.getMinutesCandles({
+  public getQuatationService() {
+    return new QuoationService();
+  }
+
+  public async getExchangeService() {
+    const apikey = await this.apikeyService.findByType(ApikeyTypes.UPBIT);
+    const client = new ExchangeService(apikey?.apiKey, apikey?.secretKey);
+
+    return client;
+  }
+
+  public async getCandles(requestDataDto: RequestDataDto) {
+    const client = this.getQuatationService();
+
+    const candles_m15: CandleResponse[] = await client.getMinutesCandles({
       minutes: '15',
       marketCoin: requestDataDto.ticker,
       count: requestDataDto.countM15,
     });
 
-    const candles_h1: CandleResponse[] = await this.quotationService.getMinutesCandles({
+    const candles_h1: CandleResponse[] = await client.getMinutesCandles({
       minutes: '60',
       marketCoin: requestDataDto.ticker,
       count: requestDataDto.countH1,
     });
 
-    const candles_h4: CandleResponse[] = await this.quotationService.getMinutesCandles({
+    const candles_h4: CandleResponse[] = await client.getMinutesCandles({
       minutes: '240',
       marketCoin: requestDataDto.ticker,
       count: requestDataDto.countH4,
     });
 
-    const candles_d1: CandleResponse[] = await this.quotationService.getDayCandles({
+    const candles_d1: CandleResponse[] = await client.getDayCandles({
       marketCoin: requestDataDto.ticker,
       count: requestDataDto.countD1,
     });

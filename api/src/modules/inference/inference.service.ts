@@ -47,8 +47,6 @@ export class InferenceService {
     });
 
     const data: InferenceData = {
-      krwBalance: 10000000,
-      coinBalance: 0,
       candles: candles,
       news: news,
       feargreed: feargreed,
@@ -95,11 +93,7 @@ export class InferenceService {
       stream: false,
     });
 
-    const result: InferenceResult = {
-      ...JSON.parse(response.choices[0].message?.content || '{}'),
-      krwBalance: data.krwBalance,
-      coinBalance: data.coinBalance,
-    };
+    const result: InferenceResult = JSON.parse(response.choices[0].message?.content || '{}');
 
     return result;
   }
@@ -109,9 +103,7 @@ export class InferenceService {
 
     const inferenceEntity = await this.create({
       decision: inferenceResult.decision,
-      krwBalance: inferenceResult.krwBalance,
-      coinBalance: inferenceResult.coinBalance,
-      suggestedBalance: inferenceResult.suggestedBalance,
+      rate: inferenceResult.rate,
       reason: inferenceResult.reason,
       reflection: inferenceResult.reflection,
     });
@@ -123,9 +115,7 @@ export class InferenceService {
     const inference = new Inference();
 
     inference.decision = createInferenceDto.decision;
-    inference.krwBalance = createInferenceDto.krwBalance;
-    inference.coinBalance = createInferenceDto.coinBalance;
-    inference.suggestedBalance = createInferenceDto.suggestedBalance;
+    inference.rate = createInferenceDto.rate;
     inference.reason = createInferenceDto?.reason;
     inference.reflection = createInferenceDto.reflection;
 
