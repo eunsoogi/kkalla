@@ -1,7 +1,8 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { FindItemDto } from '../../../dto/find-item.dto';
-import { PaginatedItemDto } from '../../../dto/paginated-item.dto';
+import { FindItemDto } from '@/dto/find-item.dto';
+import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+
 import { InferenceDicisionTypes } from '../inference.type';
 
 @Entity({

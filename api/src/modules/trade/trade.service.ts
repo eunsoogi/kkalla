@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-import { FindItemDto } from '../../dto/find-item.dto';
-import { PaginatedItemDto } from '../../dto/paginated-item.dto';
+import { FindItemDto } from '@/dto/find-item.dto';
+import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+
 import { RequestInferenceDto } from '../inference/dto/request-inference.dto';
 import { InferenceService } from '../inference/inference.service';
 import { InferenceDicisionTypes } from '../inference/inference.type';

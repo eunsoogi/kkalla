@@ -9,9 +9,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { FindItemDto } from '../../../dto/find-item.dto';
-import { PaginatedItemDto } from '../../../dto/paginated-item.dto';
-import { Inference } from '../../inference/entities/inference.entity';
+import { FindItemDto } from '@/dto/find-item.dto';
+import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+import { Inference } from '@/modules/inference/entities/inference.entity';
+
 import { BalanceTypes, TradeTypes } from '../trade.type';
 
 @Entity({

@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Query } from '@nestjs/common';
 
-import { FindItemDto } from '../../dto/find-item.dto';
-import { PaginatedItemDto } from '../../dto/paginated-item.dto';
+import { FindItemDto } from '@/dto/find-item.dto';
+import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+
 import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { InferenceService } from './inference.service';

@@ -1,6 +1,7 @@
-import { typeORMEncryptionConfig } from 'src/typeorm.config';
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { EncryptionTransformer } from 'typeorm-encrypted';
+
+import { typeORMEncryptionConfig } from '@/typeorm.config';
 
 import { ApikeyTypes } from '../apikey.type';
 

@@ -3,8 +3,9 @@ import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
 
-import { FindItemDto } from '../../dto/find-item.dto';
-import { PaginatedItemDto } from '../../dto/paginated-item.dto';
+import { FindItemDto } from '@/dto/find-item.dto';
+import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+
 import { FeargreedService } from '../feargreed/feargreed.service';
 import { Feargreed } from '../feargreed/feargreed.type';
 import { NewsService } from '../news/news.service';
