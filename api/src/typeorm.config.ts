@@ -9,4 +9,5 @@ export const typeORMConfig: TypeOrmModuleOptions = {
   database: process.env.DB_DATABASE,
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   synchronize: process.env.NODE_ENV !== 'production',
+  timezone: process.env.TZ,
 };
