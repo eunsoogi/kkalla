@@ -27,6 +27,8 @@ export class TradeService {
     // Inference
     const inference = await this.inferenceService.inferenceAndSave(new RequestInferenceDto());
 
+    this.logger.log(inference);
+
     // Order
     let orderType: OrderTypes;
 
@@ -46,6 +48,8 @@ export class TradeService {
 
     const order = await this.upbitService.order(orderType, inference.rate);
 
+    this.logger.log(order);
+
     // Record
     const balanceKRW = await this.upbitService.getBalance(BalanceTypes.KRW);
     const balanceBTC = await this.upbitService.getBalance(BalanceTypes.BTC);
@@ -53,7 +57,7 @@ export class TradeService {
     const trade = await this.create({
       type: TradeTypes[order.side],
       symbol: order.symbol,
-      cost: order.cost,
+      amount: order?.amount ?? order?.cost,
       balance: {
         krw: balanceKRW,
         coin: balanceBTC,

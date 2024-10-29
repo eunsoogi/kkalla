@@ -16,7 +16,7 @@ export interface Trade {
   id: number;
   type: TradeTypes;
   symbol: string;
-  cost: number;
+  amount: number;
   balance: BalanceTypes;
   inference: Inference;
   createdAt: Date;

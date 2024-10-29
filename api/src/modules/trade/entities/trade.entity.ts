@@ -31,7 +31,7 @@ export class Trade extends BaseEntity {
   symbol!: string;
 
   @Column({ type: 'double', nullable: false })
-  cost!: number;
+  amount!: number;
 
   @Column(() => BalanceTypes)
   balance: BalanceTypes;

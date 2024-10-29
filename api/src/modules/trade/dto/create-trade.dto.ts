@@ -5,7 +5,7 @@ import { BalanceTypes, TradeTypes } from '../trade.type';
 export class CreateTradeDto {
   type!: TradeTypes;
   symbol!: string;
-  cost!: number;
+  amount!: number;
   balance: BalanceTypes;
   inference: Inference;
 }
