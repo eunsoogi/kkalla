@@ -1,6 +1,6 @@
 'use server';
 
-import { api } from '@/utils/api/axios';
+import { api } from '@/utils/axios';
 
 import { State } from './state';
 

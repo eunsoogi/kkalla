@@ -5,7 +5,7 @@ import React, { Suspense } from 'react';
 import { Badge, Table } from 'flowbite-react';
 import SimpleBar from 'simplebar-react';
 
-import { formatDate } from '@/common/date';
+import { formatDate } from '@/utils/date';
 
 import { useInferencesSuspenseQuery } from './hook';
 import { Trade } from './type';

@@ -4,7 +4,7 @@ import React, { Suspense } from 'react';
 
 import { Badge } from 'flowbite-react';
 
-import { formatDate } from '@/common/date';
+import { formatDate } from '@/utils/date';
 
 import { useInferencesSuspenseQuery } from './hook';
 import { Inference } from './type';

@@ -1,7 +1,7 @@
 'use server';
 
 import { ItemResponse } from '@/types/item-response.type';
-import { api } from '@/utils/api/axios';
+import { api } from '@/utils/axios';
 
 import { Trade, initialState } from './type';
 
