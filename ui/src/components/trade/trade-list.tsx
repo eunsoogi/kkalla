@@ -34,18 +34,10 @@ const TradeContent = () => {
               <p className='text-base'>{formatDate(new Date(item.createdAt))}</p>
             </div>
           </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            {item.symbol}
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            {item.cost.toLocaleString()}
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            {item.balance.krw.toLocaleString()}
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            {item.balance.coin.toLocaleString()}
-          </Table.Cell>
+          <Table.Cell className='whitespace-nowrap'>{item.symbol}</Table.Cell>
+          <Table.Cell className='whitespace-nowrap'>{item.cost.toLocaleString()}</Table.Cell>
+          <Table.Cell className='whitespace-nowrap'>{item.balance.krw.toLocaleString()}</Table.Cell>
+          <Table.Cell className='whitespace-nowrap'>{item.balance.coin.toLocaleString()}</Table.Cell>
         </Table.Row>
       ))}
     </Table.Body>

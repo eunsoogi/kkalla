@@ -10,13 +10,16 @@ services:
       - 3001:3000
     environment:
       TZ: Asia/Seoul
+      TZ_OFFSET: +09:00
       NODE_ENV: development
       DB_HOST: db
       DB_PORT: 3306
       DB_USER: ai-invest-assistant
       DB_PASSWORD: ai-invest-assistant
       DB_DATABASE: ai-invest-assistant
+      SECRET_KEY_PATH: /run/secrets/api_secret_key
     volumes:
+      - ./.secrets:/run/secrets:ro
       - ./api/src:/app/src
 
   ui:

@@ -1,4 +1,6 @@
+import { typeORMEncryptionConfig } from 'src/typeorm.config';
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { EncryptionTransformer } from 'typeorm-encrypted';
 
 import { ApikeyTypes } from '../apikey.type';
 
@@ -14,10 +16,18 @@ export class Apikey extends BaseEntity {
   @Column({ type: 'enum', enum: ApikeyTypes, nullable: false, unique: true })
   type!: ApikeyTypes;
 
-  @Column()
+  @Column({
+    type: 'text',
+    default: '',
+    transformer: new EncryptionTransformer(typeORMEncryptionConfig),
+  })
   accessKey: string;
 
-  @Column({ nullable: false })
+  @Column({
+    type: 'text',
+    nullable: false,
+    transformer: new EncryptionTransformer(typeORMEncryptionConfig),
+  })
   secretKey!: string;
 
   @CreateDateColumn()

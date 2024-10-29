@@ -1,8 +1,7 @@
 import React from 'react';
 
-import TradeList from '@/components/trade/trade-list';
-
 import InferenceList from '@/components/inference/inference-list';
+import TradeList from '@/components/trade/trade-list';
 
 const Page = () => {
   return (
