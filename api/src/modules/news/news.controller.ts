@@ -1,8 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
 import { RequestNewsDto } from './dto/request-news.dto';
-import { News } from './news.interface';
 import { NewsService } from './news.service';
+import { News } from './news.type';
 
 @Controller('api/v1/news')
 export class NewsController {

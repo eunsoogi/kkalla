@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import OpenAI from 'openai';
 
-import { ApikeyTypes } from '../apikey/apikey.interface';
 import { ApikeyService } from '../apikey/apikey.service';
+import { ApikeyTypes } from '../apikey/apikey.type';
 
 @Injectable()
 export class OpenaiService {

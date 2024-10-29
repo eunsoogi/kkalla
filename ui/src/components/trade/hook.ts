@@ -2,13 +2,13 @@
 
 import { useSuspenseQuery } from '@tanstack/react-query';
 
-import { getInferencesAction } from './actions';
-import { initialState } from './state';
+import { getTradesAction } from './action';
+import { initialState } from './type';
 
 export const useInferencesSuspenseQuery = () => {
   return useSuspenseQuery({
-    queryKey: ['inferences'],
-    queryFn: getInferencesAction,
+    queryKey: ['trades'],
+    queryFn: getTradesAction,
     initialData: initialState,
     staleTime: 0,
   });

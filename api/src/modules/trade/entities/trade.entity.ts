@@ -9,16 +9,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { FindItemDto } from '../../../dto/find-item.dto';
+import { PaginatedItemDto } from '../../../dto/paginated-item.dto';
 import { Inference } from '../../inference/entities/inference.entity';
-import { TradeTypes } from '../trade.interface';
-
-export class BalanceTypes {
-  @Column({ type: 'double', default: 0 })
-  krw: number;
-
-  @Column({ type: 'double', default: 0 })
-  coin: number;
-}
+import { BalanceTypes, TradeTypes } from '../trade.type';
 
 @Entity({
   orderBy: {
@@ -41,7 +35,9 @@ export class Trade extends BaseEntity {
   @Column(() => BalanceTypes)
   balance: BalanceTypes;
 
-  @OneToOne(() => Inference)
+  @OneToOne(() => Inference, {
+    eager: true,
+  })
   @JoinColumn()
   inference: Inference;
 
@@ -50,4 +46,22 @@ export class Trade extends BaseEntity {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  public static async paginate(findItemDto: FindItemDto): Promise<PaginatedItemDto<Trade>> {
+    const [items, total] = await Trade.findAndCount({
+      take: findItemDto.perPage,
+      skip: (findItemDto.page - 1) * findItemDto.perPage,
+      order: {
+        updatedAt: 'DESC',
+      },
+    });
+
+    return {
+      items,
+      total,
+      page: findItemDto.page,
+      perPage: findItemDto.perPage,
+      totalPages: Math.ceil(total / findItemDto.perPage),
+    };
+  }
 }

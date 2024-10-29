@@ -1,6 +1,6 @@
 import { Inference } from '../../inference/entities/inference.entity';
 import { BalanceTypes } from '../entities/trade.entity';
-import { TradeTypes } from '../trade.interface';
+import { TradeTypes } from '../trade.type';
 
 export class CreateTradeDto {
   type!: TradeTypes;

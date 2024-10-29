@@ -1,8 +1,8 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { FindInferenceDto } from '../dto/find-inference.dto';
-import { PaginatedInferenceDto } from '../dto/paginated-inference.dto';
-import { InferenceDicisionTypes } from '../inference.interface';
+import { FindItemDto } from '../../../dto/find-item.dto';
+import { PaginatedItemDto } from '../../../dto/paginated-item.dto';
+import { InferenceDicisionTypes } from '../inference.type';
 
 @Entity({
   orderBy: {
@@ -31,10 +31,10 @@ export class Inference extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async paginate(findInferenceDto: FindInferenceDto): Promise<PaginatedInferenceDto> {
+  public static async paginate(findItemDto: FindItemDto): Promise<PaginatedItemDto<Inference>> {
     const [items, total] = await Inference.findAndCount({
-      take: findInferenceDto.perPage,
-      skip: (findInferenceDto.page - 1) * findInferenceDto.perPage,
+      take: findItemDto.perPage,
+      skip: (findItemDto.page - 1) * findItemDto.perPage,
       order: {
         updatedAt: 'DESC',
       },
@@ -43,9 +43,9 @@ export class Inference extends BaseEntity {
     return {
       items,
       total,
-      page: findInferenceDto.page,
-      perPage: findInferenceDto.perPage,
-      totalPages: Math.ceil(total / findInferenceDto.perPage),
+      page: findItemDto.page,
+      perPage: findItemDto.perPage,
+      totalPages: Math.ceil(total / findItemDto.perPage),
     };
   }
 }

@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { RequestNewsDto } from './dto/request-news.dto';
 import { API_URL } from './news.config';
-import { News, NewsResponse } from './news.interface';
+import { News, NewsResponse } from './news.type';
 
 @Injectable()
 export class NewsService {

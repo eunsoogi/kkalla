@@ -1,4 +1,4 @@
-import { InferenceDicisionTypes } from '../inference.interface';
+import { InferenceDicisionTypes } from '../inference.type';
 
 export class CreateInferenceDto {
   decision!: InferenceDicisionTypes;

@@ -1,6 +1,6 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { ApikeyTypes } from '../apikey.interface';
+import { ApikeyTypes } from '../apikey.type';
 
 @Entity({
   orderBy: {

@@ -3,20 +3,20 @@ import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
 
-import { Feargreed } from '../feargreed/feargreed.interface';
+import { FindItemDto } from '../../dto/find-item.dto';
+import { PaginatedItemDto } from '../../dto/paginated-item.dto';
 import { FeargreedService } from '../feargreed/feargreed.service';
-import { News, NewsTypes } from '../news/news.interface';
+import { Feargreed } from '../feargreed/feargreed.type';
 import { NewsService } from '../news/news.service';
+import { News, NewsTypes } from '../news/news.type';
 import { OpenaiService } from '../openai/openai.service';
-import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
+import { Candle } from '../upbit/upbit.type';
 import { CreateInferenceDto } from './dto/create-inference.dto';
-import { FindInferenceDto } from './dto/find-inference.dto';
-import { PaginatedInferenceDto } from './dto/paginated-inference.dto';
 import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_MAX_TOKENS, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
-import { InferenceData, InferenceResult } from './inference.interface';
+import { InferenceData, InferenceResult } from './inference.type';
 
 @Injectable()
 export class InferenceService {
@@ -43,7 +43,7 @@ export class InferenceService {
 
     const feargreed: Feargreed = await this.feargreedService.getFeargreed();
 
-    const inferenceResult: PaginatedInferenceDto = await this.paginate({
+    const inferenceResult: PaginatedItemDto<Inference> = await this.paginate({
       page: 1,
       perPage: requestInferenceDto.inferenceLimit,
     });
@@ -118,7 +118,7 @@ export class InferenceService {
     return inference;
   }
 
-  public async paginate(findInferenceDto: FindInferenceDto): Promise<PaginatedInferenceDto> {
-    return Inference.paginate(findInferenceDto);
+  public async paginate(findItemDto: FindItemDto): Promise<PaginatedItemDto<Inference>> {
+    return Inference.paginate(findItemDto);
   }
 }

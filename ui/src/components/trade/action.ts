@@ -1,12 +1,13 @@
 'use server';
 
+import { ItemResponse } from '@/types/item-response.type';
 import { api } from '@/utils/api/axios';
 
-import { InferenceResponse, initialState } from './state';
+import { Trade, initialState } from './type';
 
-export const getInferencesAction = async (): Promise<InferenceResponse> => {
+export const getTradesAction = async (): Promise<ItemResponse<Trade>> => {
   try {
-    const { data } = await api.get('/api/v1/inferences');
+    const { data } = await api.get('/api/v1/trades');
 
     return {
       success: true,

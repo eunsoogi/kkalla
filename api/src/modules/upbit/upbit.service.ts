@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { OHLCV, Order, upbit } from 'ccxt';
 
-import { ApikeyTypes } from '../apikey/apikey.interface';
 import { ApikeyService } from '../apikey/apikey.service';
+import { ApikeyTypes } from '../apikey/apikey.type';
 import { RequestDataDto } from './dto/request-data.dto';
-import { BalanceTypes, Candle, OrderTypes } from './upbit.interface';
+import { BalanceTypes, Candle, OrderTypes } from './upbit.type';
 
 @Injectable()
 export class UpbitService {

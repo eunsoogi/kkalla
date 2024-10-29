@@ -2,71 +2,74 @@
 
 import React, { Suspense } from 'react';
 
-import { Badge, Table } from 'flowbite-react';
-import SimpleBar from 'simplebar-react';
+import { Badge } from 'flowbite-react';
 
-import { useInferencesSuspenseQuery } from './hooks';
-import { Inference } from './state';
+import { formatDate } from '@/common/date';
+
+import { useInferencesSuspenseQuery } from './hook';
+import { Inference } from './type';
+
+const DECISION_STYLES = {
+  buy: {
+    dotStyle: 'bg-success',
+    badgeStyle: 'text-success bg-lightsuccess',
+  },
+  hold: {
+    dotStyle: 'bg-warning',
+    badgeStyle: 'text-warning bg-lightwarning',
+  },
+  sell: {
+    dotStyle: 'bg-error',
+    badgeStyle: 'text-error bg-lighterror',
+  },
+} as const;
 
 const InferenceContent = () => {
   const { data } = useInferencesSuspenseQuery();
 
   return (
-    <Table.Body className='divide-y divide-border dark:divide-darkborder'>
+    <ul>
       {data.items.map((item: Inference) => (
-        <Table.Row key={item.id}>
-          <Table.Cell className='whitespace-nowrap'>
-            {item.decision === 'buy' && <Badge className='text-success bg-lightsuccess'>{item.decision}</Badge>}
-            {item.decision === 'hold' && <Badge className='text-warning bg-lightwarning'>{item.decision}</Badge>}
-            {item.decision === 'sell' && <Badge className='text-error bg-lighterror'>{item.decision}</Badge>}
-          </Table.Cell>
-          <Table.Cell>
-            <h4>{item.rate * 100}%</h4>
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            <div className='me-5'>
-              <p className='text-base'>{item.createdAt.toLocaleString()}</p>
+        <li key={item.id}>
+          <div className='flex gap-4 min-h-16'>
+            <div>
+              <p>{formatDate(new Date(item.createdAt))}</p>
             </div>
-          </Table.Cell>
-        </Table.Row>
+            <div className='flex flex-col items-center'>
+              <div className={`rounded-full ${DECISION_STYLES[item.decision].dotStyle} p-1.5 w-fit`}></div>
+              <div className='h-full w-px bg-border'></div>
+            </div>
+            <div className='flex gap-4'>
+              <p className='text-dark text-start'>
+                <Badge className={DECISION_STYLES[item.decision].badgeStyle}>{item.decision}</Badge>
+              </p>
+              <p>{item.rate * 100}%</p>
+            </div>
+          </div>
+        </li>
       ))}
-    </Table.Body>
+    </ul>
   );
 };
 
 const InferenceSkeleton = () => {
   return (
-    <Table.Body className='divide-y divide-border dark:divide-darkborder'>
-      <Table.Row>
-        <Table.Cell>로딩 중...</Table.Cell>
-      </Table.Row>
-    </Table.Body>
+    <ul>
+      <li>로딩 중...</li>
+    </ul>
   );
 };
 
 const InferenceList = () => {
   return (
-    <>
-      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray pt-6 px-0 relative w-full break-words'>
-        <div className='px-6'>
-          <h5 className='card-title mb-6'>추론 목록</h5>
-        </div>
-        <SimpleBar>
-          <div className='overflow-x-auto'>
-            <Table hoverable>
-              <Table.Head>
-                <Table.HeadCell className='whitespace-nowrap'>투자 의견</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>투자 비율</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>매매 날짜</Table.HeadCell>
-              </Table.Head>
-              <Suspense fallback={<InferenceSkeleton />}>
-                <InferenceContent />
-              </Suspense>
-            </Table>
-          </div>
-        </SimpleBar>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words'>
+      <h5 className='card-title mb-6'>추론 목록</h5>
+      <div className='flex flex-col mt-2'>
+        <Suspense fallback={<InferenceSkeleton />}>
+          <InferenceContent />
+        </Suspense>
       </div>
-    </>
+    </div>
   );
 };
 

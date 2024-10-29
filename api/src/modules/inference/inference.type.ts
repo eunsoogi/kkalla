@@ -1,6 +1,6 @@
-import { Feargreed } from '../feargreed/feargreed.interface';
-import { News } from '../news/news.interface';
-import { Candle } from '../upbit/upbit.interface';
+import { Feargreed } from '../feargreed/feargreed.type';
+import { News } from '../news/news.type';
+import { Candle } from '../upbit/upbit.type';
 import { Inference } from './entities/inference.entity';
 
 export enum InferenceDicisionTypes {

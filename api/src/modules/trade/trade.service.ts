@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-import { Order } from 'ccxt';
-
+import { FindItemDto } from '../../dto/find-item.dto';
+import { PaginatedItemDto } from '../../dto/paginated-item.dto';
 import { RequestInferenceDto } from '../inference/dto/request-inference.dto';
-import { InferenceDicisionTypes } from '../inference/inference.interface';
 import { InferenceService } from '../inference/inference.service';
-import { BalanceTypes, OrderTypes } from '../upbit/upbit.interface';
+import { InferenceDicisionTypes } from '../inference/inference.type';
 import { UpbitService } from '../upbit/upbit.service';
+import { BalanceTypes, OrderTypes } from '../upbit/upbit.type';
 import { CreateTradeDto } from './dto/create-trade.dto';
 import { Trade } from './entities/trade.entity';
-import { TradeTypes } from './trade.interface';
+import { TradeTypes } from './trade.type';
 
 @Injectable()
 export class TradeService {
@@ -72,5 +72,9 @@ export class TradeService {
     await trade.save();
 
     return trade;
+  }
+
+  public async paginate(findItemDto: FindItemDto): Promise<PaginatedItemDto<Trade>> {
+    return Trade.paginate(findItemDto);
   }
 }

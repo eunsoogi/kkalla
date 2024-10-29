@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { ApikeyTypes } from './apikey.interface';
+import { ApikeyTypes } from './apikey.type';
 import { CreateApikeyDto } from './dto/create-apikey.dto';
 import { Apikey } from './entities/apikey.entity';
 

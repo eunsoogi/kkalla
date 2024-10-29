@@ -1,3 +1,5 @@
+import { ItemResponse } from '@/types/item-response.type';
+
 export enum InferenceDicisionTypes {
   BUY = 'buy',
   SELL = 'sell',
@@ -14,17 +16,7 @@ export interface Inference {
   updatedAt: Date;
 }
 
-export type InferenceResponse = {
-  success: boolean;
-  message?: string | null;
-  items: Inference[];
-  total: number;
-  page: number;
-  perPage?: number;
-  totalPages: number;
-};
-
-export const initialState: InferenceResponse = {
+export const initialState: ItemResponse<Inference> = {
   success: true,
   message: null,
   items: [],

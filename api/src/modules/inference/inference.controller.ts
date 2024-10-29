@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Query } from '@nestjs/common';
 
-import { FindInferenceDto } from './dto/find-inference.dto';
-import { PaginatedInferenceDto } from './dto/paginated-inference.dto';
+import { FindItemDto } from '../../dto/find-item.dto';
+import { PaginatedItemDto } from '../../dto/paginated-item.dto';
 import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { InferenceService } from './inference.service';
@@ -11,8 +11,8 @@ export class InferenceController {
   constructor(private readonly inferenceService: InferenceService) {}
 
   @Get()
-  public get(@Query() findInferenceDto: FindInferenceDto): Promise<PaginatedInferenceDto> {
-    return this.inferenceService.paginate(findInferenceDto);
+  public get(@Query() findItemDto: FindItemDto): Promise<PaginatedItemDto<Inference>> {
+    return this.inferenceService.paginate(findItemDto);
   }
 
   @Post()
