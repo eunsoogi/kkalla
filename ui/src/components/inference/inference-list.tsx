@@ -32,14 +32,14 @@ const InferenceContent = () => {
       {data.items.map((item: Inference) => (
         <li key={item.id}>
           <div className='flex gap-4 min-h-16'>
-            <div>
+            <div className='min-w-24'>
               <p>{formatDate(new Date(item.createdAt))}</p>
             </div>
             <div className='flex flex-col items-center'>
               <div className={`rounded-full ${DECISION_STYLES[item.decision].dotStyle} p-1.5 w-fit`}></div>
               <div className='h-full w-px bg-border'></div>
             </div>
-            <div className='flex gap-4'>
+            <div className='flex gap-4 min-w-full'>
               <p className='text-dark text-start'>
                 <Badge className={DECISION_STYLES[item.decision].badgeStyle}>{item.decision}</Badge>
               </p>
