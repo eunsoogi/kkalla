@@ -1,4 +1,5 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 export const typeORMConfig: TypeOrmModuleOptions = {
   type: 'mariadb',
@@ -10,4 +11,5 @@ export const typeORMConfig: TypeOrmModuleOptions = {
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   synchronize: process.env.NODE_ENV !== 'production',
   timezone: process.env.TZ,
+  namingStrategy: new SnakeNamingStrategy(),
 };
