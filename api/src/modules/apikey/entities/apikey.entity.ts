@@ -4,21 +4,21 @@ import { ApikeyTypes } from '../apikey.interface';
 
 @Entity({
   orderBy: {
-    id: 'ASC',
+    createdAt: 'ASC',
   },
 })
 export class Apikey extends BaseEntity {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('uuid')
   id!: number;
 
   @Column({ type: 'enum', enum: ApikeyTypes, nullable: false, unique: true })
   type!: ApikeyTypes;
 
-  @Column({ nullable: false })
-  accessKey!: string;
-
   @Column()
-  secretKey: string;
+  accessKey: string;
+
+  @Column({ nullable: false })
+  secretKey!: string;
 
   @CreateDateColumn()
   createdAt: Date;

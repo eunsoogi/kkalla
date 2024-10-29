@@ -57,7 +57,7 @@ const SidebarContent: MenuItem[] = [
         name: 'API 키',
         icon: 'solar:key-outline',
         id: uniqueId(),
-        url: '/config/apikey',
+        url: '/apikey',
       },
     ],
   },

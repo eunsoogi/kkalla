@@ -6,11 +6,11 @@ import { InferenceDicisionTypes } from '../inference.interface';
 
 @Entity({
   orderBy: {
-    id: 'ASC',
+    createdAt: 'ASC',
   },
 })
 export class Inference extends BaseEntity {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('uuid')
   id!: number;
 
   @Column({ type: 'enum', enum: InferenceDicisionTypes, nullable: false })
@@ -36,7 +36,7 @@ export class Inference extends BaseEntity {
       take: findInferenceDto.perPage,
       skip: (findInferenceDto.page - 1) * findInferenceDto.perPage,
       order: {
-        id: 'DESC',
+        updatedAt: 'DESC',
       },
     });
 

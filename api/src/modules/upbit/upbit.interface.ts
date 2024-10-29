@@ -1,5 +1,5 @@
 export interface Candle {
-  market: string;
+  symbol: string;
   timestamp: Date;
   openPrice: number;
   highPrice: number;

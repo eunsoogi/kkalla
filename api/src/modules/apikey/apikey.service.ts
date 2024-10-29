@@ -13,10 +13,7 @@ export class ApikeyService {
       apikey = new Apikey();
     }
 
-    apikey.type = createApikeyDto.type;
-    apikey.accessKey = createApikeyDto.accessKey;
-    apikey.secretKey = createApikeyDto.secretKey ?? '';
-
+    Object.entries(createApikeyDto).forEach(([key, value]) => (apikey[key] = value));
     await apikey.save();
 
     return apikey;

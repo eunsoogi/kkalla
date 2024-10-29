@@ -29,7 +29,7 @@ export class InferenceService {
 
   public async getData(requestInferenceDto: RequestInferenceDto): Promise<InferenceData> {
     const candles: Candle[] = await this.upbitService.getCandles({
-      ticker: requestInferenceDto.ticker,
+      symbol: requestInferenceDto.symbol,
       countM15: requestInferenceDto.countM15,
       countH1: requestInferenceDto.countH1,
       countH4: requestInferenceDto.countH4,
@@ -104,13 +104,7 @@ export class InferenceService {
 
   public async inferenceAndSave(requestInferenceDto: RequestInferenceDto): Promise<Inference> {
     const inferenceResult = await this.inference(requestInferenceDto);
-
-    const inferenceEntity = await this.create({
-      decision: inferenceResult.decision,
-      rate: inferenceResult.rate,
-      reason: inferenceResult.reason,
-      reflection: inferenceResult.reflection,
-    });
+    const inferenceEntity = await this.create(inferenceResult);
 
     return inferenceEntity;
   }
@@ -118,11 +112,7 @@ export class InferenceService {
   public async create(createInferenceDto: CreateInferenceDto): Promise<Inference> {
     const inference = new Inference();
 
-    inference.decision = createInferenceDto.decision;
-    inference.rate = createInferenceDto.rate;
-    inference.reason = createInferenceDto?.reason;
-    inference.reflection = createInferenceDto.reflection;
-
+    Object.entries(createInferenceDto).forEach(([key, value]) => (inference[key] = value));
     await inference.save();
 
     return inference;

@@ -16,11 +16,6 @@ const InferenceContent = () => {
       {data.items.map((item: Inference) => (
         <Table.Row key={item.id}>
           <Table.Cell className='whitespace-nowrap'>
-            <div className='me-5'>
-              <p className='text-base'>{item.createdAt.toLocaleString()}</p>
-            </div>
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
             {item.decision === 'buy' && <Badge className='text-success bg-lightsuccess'>{item.decision}</Badge>}
             {item.decision === 'hold' && <Badge className='text-warning bg-lightwarning'>{item.decision}</Badge>}
             {item.decision === 'sell' && <Badge className='text-error bg-lighterror'>{item.decision}</Badge>}
@@ -30,12 +25,7 @@ const InferenceContent = () => {
           </Table.Cell>
           <Table.Cell className='whitespace-nowrap'>
             <div className='me-5'>
-              <p className='text-base'>{item.reason}</p>
-            </div>
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            <div className='me-5'>
-              <p className='text-base'>{item.reflection}</p>
+              <p className='text-base'>{item.createdAt.toLocaleString()}</p>
             </div>
           </Table.Cell>
         </Table.Row>
@@ -65,11 +55,9 @@ const InferenceList = () => {
           <div className='overflow-x-auto'>
             <Table hoverable>
               <Table.Head>
-                <Table.HeadCell className='whitespace-nowrap'>매매 날짜</Table.HeadCell>
                 <Table.HeadCell className='whitespace-nowrap'>투자 의견</Table.HeadCell>
                 <Table.HeadCell className='whitespace-nowrap'>투자 비율</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>투자 사유</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>재판단 사유</Table.HeadCell>
+                <Table.HeadCell className='whitespace-nowrap'>매매 날짜</Table.HeadCell>
               </Table.Head>
               <Suspense fallback={<InferenceSkeleton />}>
                 <InferenceContent />

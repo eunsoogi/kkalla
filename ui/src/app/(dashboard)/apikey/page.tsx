@@ -1,7 +1,7 @@
 import React from 'react';
 
-import OpenaiForm from '@/components/config/apikey/openai-form';
-import UpbitForm from '@/components/config/apikey/upbit-form';
+import OpenaiForm from '@/components/apikey/openai-form';
+import UpbitForm from '@/components/apikey/upbit-form';
 
 const Page = () => {
   return (

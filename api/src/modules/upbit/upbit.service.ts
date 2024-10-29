@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { OHLCV, upbit } from 'ccxt';
+import { OHLCV, Order, upbit } from 'ccxt';
 
 import { ApikeyTypes } from '../apikey/apikey.interface';
 import { ApikeyService } from '../apikey/apikey.service';
@@ -29,19 +29,19 @@ export class UpbitService {
     const client = await this.getClient();
 
     const candles_m15: OHLCV[] = await client.fetchOHLCV(
-      requestDataDto.ticker,
+      requestDataDto.symbol,
       '15m',
       undefined,
       requestDataDto.countM15,
     );
-    const candles_h1: OHLCV[] = await client.fetchOHLCV(requestDataDto.ticker, '1h', undefined, requestDataDto.countH1);
-    const candles_h4: OHLCV[] = await client.fetchOHLCV(requestDataDto.ticker, '4h', undefined, requestDataDto.countH4);
-    const candles_d1: OHLCV[] = await client.fetchOHLCV(requestDataDto.ticker, '1d', undefined, requestDataDto.countH4);
+    const candles_h1: OHLCV[] = await client.fetchOHLCV(requestDataDto.symbol, '1h', undefined, requestDataDto.countH1);
+    const candles_h4: OHLCV[] = await client.fetchOHLCV(requestDataDto.symbol, '4h', undefined, requestDataDto.countH4);
+    const candles_d1: OHLCV[] = await client.fetchOHLCV(requestDataDto.symbol, '1d', undefined, requestDataDto.countH4);
     const responses: OHLCV[] = [...candles_m15, ...candles_h1, ...candles_h4, ...candles_d1];
 
     const candles = responses.map(
       (item: OHLCV): Candle => ({
-        market: requestDataDto.ticker,
+        symbol: requestDataDto.symbol,
         timestamp: new Date(item[0]),
         openPrice: item[1],
         highPrice: item[2],
@@ -61,7 +61,7 @@ export class UpbitService {
     return balances[type].free;
   }
 
-  public async order(type: OrderTypes, rate: number) {
+  public async order(type: OrderTypes, rate: number): Promise<Order> {
     const client = await this.getClient();
     const balanceKRW = await this.getBalance(BalanceTypes.KRW);
     const balanceBTC = await this.getBalance(BalanceTypes.BTC);

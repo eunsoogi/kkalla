@@ -1,6 +1,6 @@
 export const INFERENCE_MODEL = 'gpt-4o-mini';
 
-export const INFERENCE_MAX_TOKENS = 512;
+export const INFERENCE_MAX_TOKENS = 1024;
 
 export const INFERENCE_RESPONSE_SCHEMA = {
   type: 'object',
