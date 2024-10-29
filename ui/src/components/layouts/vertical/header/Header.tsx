@@ -42,7 +42,7 @@ const Header = () => {
             <div className='flex gap-2 items-center'>
               <span
                 onClick={() => setIsOpen(true)}
-                className='h-10 w-10 flex text-black dark:text-white text-opacity-65 xl:hidden hover:text-primary hover:bg-lightprimary rounded-full justify-center items-center cursor-pointer'
+                className='h-10 w-10 flex text-black dark:text-white text-opacity-65 2xl:hidden hover:text-primary hover:bg-lightprimary rounded-full justify-center items-center cursor-pointer'
               >
                 <Icon icon='solar:hamburger-menu-line-duotone' height={21} />
               </span>

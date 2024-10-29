@@ -14,7 +14,7 @@ import SidebarContent from './Sidebaritems';
 const SidebarLayout = () => {
   return (
     <>
-      <div className='xl:block hidden'>
+      <div className='2xl:block hidden'>
         <div className='flex'>
           <Sidebar
             className='fixed menu-sidebar pt-6 bg-white dark:bg-darkgray z-[10]'
