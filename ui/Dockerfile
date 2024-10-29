@@ -1,4 +1,4 @@
-FROM node:23-slim AS dev
+FROM node:23-bookworm AS dev
 WORKDIR /app
 COPY package.json .
 RUN npm install
