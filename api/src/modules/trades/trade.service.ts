@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-import { AppModule } from '@/app.module';
 import { FindItemDto } from '@/dto/find-item.dto';
 import { PaginatedItemDto } from '@/dto/paginated-item.dto';
 
@@ -27,19 +25,20 @@ export class TradeService {
 
   @Cron(CronExpression.EVERY_4_HOURS)
   public async tradeSchedule(): Promise<Trade[]> {
-    const app = await NestFactory.createApplicationContext(AppModule);
-    const tradeService = app.get(TradeService);
+    this.logger.log('Trade schedule started...');
 
-    try {
-      const users = await User.find();
-      const threads = users.map((user) => tradeService.trade(user));
-      return await Promise.all(threads);
-    } finally {
-      app.close();
-    }
+    const users = await User.find();
+    const threads = users.map((user) => this.trade(user));
+    const results = await Promise.all(threads);
+
+    this.logger.log('Trade schedule has ended.');
+
+    return results;
   }
 
   public async trade(user: User): Promise<Trade> {
+    this.logger.log(`Inference for ${user.id} started...`);
+
     // Inference
     const inference = await this.inferenceService.inferenceAndSave(user, new RequestInferenceDto());
 
@@ -59,9 +58,13 @@ export class TradeService {
         break;
     }
 
+    this.logger.log(`Inference for ${user.id} has ended.`);
+
     if (!orderType) {
       return null;
     }
+
+    this.logger.log(`Order for ${user.id} started...`);
 
     const order = await this.upbitService.order(user, orderType, inference.rate);
 
@@ -80,7 +83,7 @@ export class TradeService {
       inference: inference,
     });
 
-    this.logger.log(`${inference.decision} trade occured. rate: ${inference.rate}`);
+    this.logger.log(`Order for ${user.id} has ended. decision: ${inference.decision}, rate: ${inference.rate}`);
 
     return trade;
   }
