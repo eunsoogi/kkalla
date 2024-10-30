@@ -1,7 +1,6 @@
-import NextAuth from 'next-auth';
+import NextAuth, { ISODateString } from 'next-auth';
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
-import { signOut } from 'next-auth/react';
 
 export const authOptions: NextAuthOptions = {
   pages: {
@@ -28,15 +27,11 @@ export const authOptions: NextAuthOptions = {
         token.iat = account.iat;
         token.exp = account.exp;
       }
-      if ((token.exp as number) < Date.now()) {
-        signOut();
-      }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.accessToken = token.accessToken as string;
-      }
+      session.accessToken = token?.accessToken as string;
+      session.expires = token?.exp as ISODateString;
       return session;
     },
   },
