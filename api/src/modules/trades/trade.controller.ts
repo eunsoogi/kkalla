@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
 import { FindItemDto } from 'src/dto/find-item.dto';
 import { PaginatedItemDto } from 'src/dto/paginated-item.dto';
@@ -15,5 +15,11 @@ export class TradeController {
   @UseGuards(GoogleTokenAuthGuard)
   public get(@Req() req, @Query() findItemDto: FindItemDto): Promise<PaginatedItemDto<Trade>> {
     return this.tradeService.paginate(req.user, findItemDto);
+  }
+
+  @Post()
+  @UseGuards(GoogleTokenAuthGuard)
+  public post(@Req() req): Promise<Trade> {
+    return this.tradeService.trade(req.user);
   }
 }
