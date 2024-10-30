@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import { signOut } from 'next-auth/react';
 
 export const authOptions: NextAuthOptions = {
   pages: {
@@ -23,11 +24,19 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account }) {
       if (account) {
         token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.iat = account.iat;
+        token.exp = account.exp;
+      }
+      if ((token.exp as number) < Date.now()) {
+        signOut();
       }
       return token;
     },
     async session({ session, token }) {
-      session.user.accessToken = token.accessToken as string;
+      if (token) {
+        session.accessToken = token.accessToken as string;
+      }
       return session;
     },
   },

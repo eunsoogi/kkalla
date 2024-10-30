@@ -11,8 +11,8 @@ export const getClient = async () => {
 
   const session = await getServerSession(authOptions);
 
-  if (session?.user?.accessToken) {
-    headers['Authorization'] = `Bearer ${session?.user?.accessToken}`;
+  if (session?.accessToken) {
+    headers['Authorization'] = `Bearer ${session?.accessToken}`;
   }
 
   return axios.create({
