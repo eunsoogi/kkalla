@@ -7,7 +7,7 @@ import { User } from './entities/user.entity';
 @Injectable()
 export class UserService {
   public async findOrCreate(getUserDto: GetUserDto): Promise<User> {
-    return (await User.findByEmail(getUserDto.email)) ?? User.create({ ...getUserDto });
+    return (await User.findByEmail(getUserDto.email)) ?? this.create({ ...getUserDto });
   }
 
   public async create(createUserDto: CreateUserDto): Promise<User> {
