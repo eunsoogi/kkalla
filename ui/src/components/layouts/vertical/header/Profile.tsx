@@ -1,11 +1,13 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react';
 
 import { Icon } from '@iconify/react';
 import { Button, Dropdown } from 'flowbite-react';
+import { signOut, useSession } from 'next-auth/react';
 
 const Profile = () => {
+  const session = useSession();
+
   return (
     <div className='relative group/menu'>
       <Dropdown
@@ -14,42 +16,25 @@ const Profile = () => {
         dismissOnClick={false}
         renderTrigger={() => (
           <span className='h-10 w-10 hover:text-primary hover:bg-lightprimary rounded-full flex justify-center items-center cursor-pointer group-hover/menu:bg-lightprimary group-hover/menu:text-primary'>
-            <Image src='/images/profile/user-1.jpg' alt='logo' height='35' width='35' className='rounded-full' />
+            <img src={session.data?.user?.image} alt='logo' height='35' width='35' className='rounded-full' />
           </span>
         )}
       >
         <Dropdown.Item
           as={Link}
-          href='#'
+          href='/apikeys'
           className='px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-dark'
         >
-          <Icon icon='solar:user-circle-outline' height={20} />
-          My Profile
+          <Icon icon='solar:key-outline' height={20} />
+          API 키
         </Dropdown.Item>
-        <Dropdown.Item
-          as={Link}
-          href='#'
-          className='px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-dark'
-        >
-          <Icon icon='solar:letter-linear' height={20} />
-          My Account
-        </Dropdown.Item>
-        <Dropdown.Item
-          as={Link}
-          href='#'
-          className='px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-dark'
-        >
-          <Icon icon='solar:checklist-linear' height={20} />
-          My Task
-        </Dropdown.Item>
-        <div className='p-3 pt-0'>
+        <div className='p-3 flex flex-col'>
           <Button
-            as={Link}
+            onClick={() => signOut()}
             size={'sm'}
-            href='/auth/login'
             className='mt-2 border border-primary text-primary bg-transparent hover:bg-lightprimary outline-none focus:outline-none'
           >
-            Logout
+            로그아웃
           </Button>
         </div>
       </Dropdown>

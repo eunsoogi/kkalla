@@ -8,6 +8,8 @@ services:
         condition: service_healthy
     ports:
       - 3001:3000
+    env_file:
+      - .env
     environment:
       TZ: Asia/Seoul
       TZ_OFFSET: +09:00
@@ -19,7 +21,7 @@ services:
       DB_DATABASE: ai-invest-assistant
       SECRET_KEY_PATH: /run/secrets/api_secret_key
     volumes:
-      - ./.secrets:/run/secrets:ro
+      - ./secrets:/run/secrets:ro
       - ./api/src:/app/src
 
   ui:
@@ -27,10 +29,13 @@ services:
       context: ./ui
     ports:
       - 3000:3000
+    env_file:
+      - .env
     environment:
       TZ: Asia/Seoul
       NODE_ENV: development
       API_URL: http://api:3000/
+      NEXTAUTH_URL: http://localhost:3000/
     volumes:
       - ./ui/src:/app/src
       - ./ui/public:/app/public

@@ -2,15 +2,14 @@ import { Injectable } from '@nestjs/common';
 
 import OpenAI from 'openai';
 
-import { ApikeyService } from '../apikey/apikey.service';
-import { ApikeyTypes } from '../apikey/apikey.type';
+import { ApikeyTypes } from '../apikeys/apikey.type';
+import { Apikey } from '../apikeys/entities/apikey.entity';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class OpenaiService {
-  constructor(private readonly apikeyService: ApikeyService) {}
-
-  public async getClient() {
-    const apikey = await this.apikeyService.findByType(ApikeyTypes.OPENAI);
+  public async getClient(user: User) {
+    const apikey = await Apikey.findByType(user, ApikeyTypes.OPENAI);
 
     const client = new OpenAI({
       apiKey: apikey?.secretKey,

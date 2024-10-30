@@ -79,7 +79,7 @@ public/worker-*.js.map
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Secrets
-.secrets/*
+secrets/*
 
 # Git
 !/**/.gitkeep

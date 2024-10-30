@@ -1,8 +1,9 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import { readFileSync } from 'fs';
 import { EncryptionOptions } from 'typeorm-encrypted';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+
+import { readKey } from './utils/key';
 
 export const typeORMConfig: TypeOrmModuleOptions = {
   type: 'mariadb',
@@ -18,7 +19,7 @@ export const typeORMConfig: TypeOrmModuleOptions = {
 };
 
 export const typeORMEncryptionConfig: EncryptionOptions = {
-  key: Buffer.from(readFileSync(process.env.SECRET_KEY_PATH, 'utf8'), 'base64').toString('hex'),
+  key: readKey(process.env.SECRET_KEY_PATH),
   algorithm: 'aes-256-gcm',
   ivLength: 16,
 };

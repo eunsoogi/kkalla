@@ -1,20 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { OHLCV, Order, upbit } from 'ccxt';
 
-import { ApikeyService } from '../apikey/apikey.service';
-import { ApikeyTypes } from '../apikey/apikey.type';
+import { ApikeyTypes } from '../apikeys/apikey.type';
+import { Apikey } from '../apikeys/entities/apikey.entity';
+import { User } from '../user/entities/user.entity';
 import { RequestDataDto } from './dto/request-data.dto';
 import { BalanceTypes, Candle, OrderTypes } from './upbit.type';
 
 @Injectable()
 export class UpbitService {
-  private readonly logger = new Logger(UpbitService.name);
-
-  constructor(private readonly apikeyService: ApikeyService) {}
-
-  public async getClient() {
-    const apikey = await this.apikeyService.findByType(ApikeyTypes.UPBIT);
+  public async getClient(user: User) {
+    const apikey = await Apikey.findByType(user, ApikeyTypes.UPBIT);
 
     const client = new upbit({
       apiKey: apikey?.accessKey,
@@ -25,8 +22,8 @@ export class UpbitService {
     return client;
   }
 
-  public async getCandles(requestDataDto: RequestDataDto) {
-    const client = await this.getClient();
+  public async getCandles(user: User, requestDataDto: RequestDataDto) {
+    const client = await this.getClient(user);
 
     const candles_m15: OHLCV[] = await client.fetchOHLCV(
       requestDataDto.symbol,
@@ -54,17 +51,17 @@ export class UpbitService {
     return candles;
   }
 
-  public async getBalance(type: BalanceTypes): Promise<number> {
-    const client = await this.getClient();
+  public async getBalance(user: User, type: BalanceTypes): Promise<number> {
+    const client = await this.getClient(user);
     const balances = await client.fetchBalance();
 
     return balances[type].free;
   }
 
-  public async order(type: OrderTypes, rate: number): Promise<Order> {
-    const client = await this.getClient();
-    const balanceKRW = await this.getBalance(BalanceTypes.KRW);
-    const balanceBTC = await this.getBalance(BalanceTypes.BTC);
+  public async order(user: User, type: OrderTypes, rate: number): Promise<Order> {
+    const client = await this.getClient(user);
+    const balanceKRW = await this.getBalance(user, BalanceTypes.KRW);
+    const balanceBTC = await this.getBalance(user, BalanceTypes.BTC);
     const tradePrice = Math.floor(balanceKRW * rate * 0.9995);
     const tradeVolume = balanceBTC * rate * 0.9995;
 
