@@ -4,8 +4,8 @@ import { PassportStrategy } from '@nestjs/passport';
 import { OAuth2Client, TokenInfo } from 'google-auth-library';
 import { Strategy } from 'passport-http-bearer';
 
-import { User } from '../user/entities/user.entity';
-import { UserService } from '../user/user.service';
+import { User } from '../users/entities/user.entity';
+import { UserService } from '../users/user.service';
 
 @Injectable()
 export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-token') {

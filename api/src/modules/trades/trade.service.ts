@@ -9,7 +9,7 @@ import { InferenceService } from '../inferences/inference.service';
 import { InferenceDicisionTypes } from '../inferences/inference.type';
 import { UpbitService } from '../upbit/upbit.service';
 import { BalanceTypes, OrderTypes } from '../upbit/upbit.type';
-import { User } from '../user/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateTradeDto } from './dto/create-trade.dto';
 import { Trade } from './entities/trade.entity';
 import { TradeTypes } from './trade.type';

@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 
 import { ApikeyTypes } from '../apikeys/apikey.type';
 import { Apikey } from '../apikeys/entities/apikey.entity';
-import { User } from '../user/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class OpenaiService {

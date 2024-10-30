@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { EncryptionTransformer } from 'typeorm-encrypted';
 
-import { User } from '@/modules/user/entities/user.entity';
+import { User } from '@/modules/users/entities/user.entity';
 import { typeORMEncryptionConfig } from '@/typeorm.config';
 
 import { ApikeyTypes } from '../apikey.type';

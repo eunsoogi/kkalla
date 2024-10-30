@@ -13,7 +13,7 @@ import { News, NewsTypes } from '../news/news.type';
 import { OpenaiService } from '../openai/openai.service';
 import { UpbitService } from '../upbit/upbit.service';
 import { Candle } from '../upbit/upbit.type';
-import { User } from '../user/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateInferenceDto } from './dto/create-inference.dto';
 import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';

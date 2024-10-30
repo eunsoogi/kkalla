@@ -4,7 +4,7 @@ import { OHLCV, Order, upbit } from 'ccxt';
 
 import { ApikeyTypes } from '../apikeys/apikey.type';
 import { Apikey } from '../apikeys/entities/apikey.entity';
-import { User } from '../user/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { RequestDataDto } from './dto/request-data.dto';
 import { BalanceTypes, Candle, OrderTypes } from './upbit.type';
 

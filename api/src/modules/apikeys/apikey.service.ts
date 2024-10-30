@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { User } from '../user/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateApikeyDto } from './dto/create-apikey.dto';
 import { Apikey } from './entities/apikey.entity';
 

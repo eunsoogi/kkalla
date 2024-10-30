@@ -11,7 +11,7 @@ import {
 
 import { FindItemDto } from '@/dto/find-item.dto';
 import { PaginatedItemDto } from '@/dto/paginated-item.dto';
-import { User } from '@/modules/user/entities/user.entity';
+import { User } from '@/modules/users/entities/user.entity';
 
 import { InferenceDicisionTypes } from '../inference.type';
 

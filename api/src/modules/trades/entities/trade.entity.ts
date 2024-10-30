@@ -13,7 +13,7 @@ import {
 import { FindItemDto } from '@/dto/find-item.dto';
 import { PaginatedItemDto } from '@/dto/paginated-item.dto';
 import { Inference } from '@/modules/inferences/entities/inference.entity';
-import { User } from '@/modules/user/entities/user.entity';
+import { User } from '@/modules/users/entities/user.entity';
 
 import { BalanceTypes, TradeTypes } from '../trade.type';
 
