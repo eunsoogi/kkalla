@@ -1,13 +1,15 @@
 'use server';
 
 import { ItemResponse } from '@/types/item-response.type';
-import { api } from '@/utils/axios';
+import { getClient } from '@/utils/api';
 
 import { Inference, initialState } from './type';
 
 export const getInferencesAction = async (): Promise<ItemResponse<Inference>> => {
+  const client = await getClient();
+
   try {
-    const { data } = await api.get('/api/v1/inferences');
+    const { data } = await client.get('/api/v1/inferences');
 
     return {
       success: true,

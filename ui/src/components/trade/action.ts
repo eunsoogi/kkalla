@@ -1,13 +1,15 @@
 'use server';
 
 import { ItemResponse } from '@/types/item-response.type';
-import { api } from '@/utils/axios';
+import { getClient } from '@/utils/api';
 
 import { Trade, initialState } from './type';
 
 export const getTradesAction = async (): Promise<ItemResponse<Trade>> => {
+  const client = await getClient();
+
   try {
-    const { data } = await api.get('/api/v1/trades');
+    const { data } = await client.get('/api/v1/trades');
 
     return {
       success: true,

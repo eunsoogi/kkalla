@@ -1,12 +1,14 @@
 'use server';
 
-import { api } from '@/utils/axios';
+import { getClient } from '@/utils/api';
 
 import { State } from './state';
 
 export const postApikeyAction = async (_: State, formData: FormData): Promise<State> => {
+  const client = await getClient();
+
   try {
-    await api.post('/api/v1/apikeys', formData);
+    await client.post('/api/v1/apikeys', formData);
 
     return {
       success: true,
