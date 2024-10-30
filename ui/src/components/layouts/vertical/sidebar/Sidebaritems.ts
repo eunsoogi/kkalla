@@ -33,6 +33,17 @@ const SidebarContent: MenuItem[] = [
       },
     ],
   },
+  {
+    heading: '서비스',
+    children: [
+      {
+        name: '추론 목록',
+        icon: 'mingcute:ai-line',
+        id: uniqueId(),
+        url: '/inferences',
+      },
+    ],
+  },
 ];
 
 export default SidebarContent;

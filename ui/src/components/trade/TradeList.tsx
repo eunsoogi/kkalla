@@ -7,7 +7,7 @@ import SimpleBar from 'simplebar-react';
 
 import { formatDate } from '@/utils/date';
 
-import { useInferencesSuspenseQuery } from './hook';
+import { useTradesSuspenseQuery } from './hook';
 import { Trade } from './type';
 
 const TRADE_STYLES = {
@@ -20,7 +20,7 @@ const TRADE_STYLES = {
 } as const;
 
 const TradeContent = () => {
-  const { data } = useInferencesSuspenseQuery();
+  const { data } = useTradesSuspenseQuery();
 
   return (
     <Table.Body className='divide-y divide-border dark:divide-darkborder'>
@@ -57,7 +57,7 @@ const TradeSkeleton = () => {
 const TradeList = () => {
   return (
     <>
-      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray pt-6 px-0 relative w-full break-words'>
+      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray pt-6 px-0 relative w-full min-h-full break-words'>
         <div className='px-6'>
           <h5 className='card-title mb-6'>거래 목록</h5>
         </div>

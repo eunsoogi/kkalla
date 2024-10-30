@@ -7,22 +7,8 @@ import { Badge } from 'flowbite-react';
 import { formatDate } from '@/utils/date';
 
 import { useInferencesSuspenseQuery } from './hook';
+import { DECISION_STYLES } from './style';
 import { Inference } from './type';
-
-const DECISION_STYLES = {
-  buy: {
-    dotStyle: 'bg-success',
-    badgeStyle: 'text-success bg-lightsuccess',
-  },
-  hold: {
-    dotStyle: 'bg-warning',
-    badgeStyle: 'text-warning bg-lightwarning',
-  },
-  sell: {
-    dotStyle: 'bg-error',
-    badgeStyle: 'text-error bg-lighterror',
-  },
-} as const;
 
 const InferenceContent = () => {
   const { data } = useInferencesSuspenseQuery();
@@ -62,7 +48,7 @@ const InferenceSkeleton = () => {
 
 const InferenceList = () => {
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words'>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full min-h-full break-words'>
       <h5 className='card-title mb-6'>추론 목록</h5>
       <div className='flex flex-col mt-2'>
         <Suspense fallback={<InferenceSkeleton />}>
