@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -25,7 +26,7 @@ export class Trade extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @OneToOne(() => User, {
+  @ManyToOne(() => User, {
     nullable: false,
     cascade: true,
     onDelete: 'CASCADE',
@@ -33,13 +34,20 @@ export class Trade extends BaseEntity {
   @JoinColumn()
   user!: User;
 
-  @Column({ type: 'enum', enum: TradeTypes, nullable: false })
+  @Column({
+    type: 'enum',
+    enum: TradeTypes,
+    nullable: false,
+  })
   type!: TradeTypes;
 
   @Column({ nullable: false })
   symbol!: string;
 
-  @Column({ type: 'double', nullable: false })
+  @Column({
+    type: 'double',
+    nullable: false,
+  })
   amount!: number;
 
   @Column(() => BalanceTypes)

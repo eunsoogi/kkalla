@@ -4,7 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
-  OneToOne,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -24,7 +24,7 @@ export class Inference extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @OneToOne(() => User, {
+  @ManyToOne(() => User, {
     nullable: false,
     cascade: true,
     onDelete: 'CASCADE',
@@ -32,10 +32,17 @@ export class Inference extends BaseEntity {
   @JoinColumn()
   user!: User;
 
-  @Column({ type: 'enum', enum: InferenceDicisionTypes, nullable: false })
+  @Column({
+    type: 'enum',
+    enum: InferenceDicisionTypes,
+    nullable: false,
+  })
   decision!: InferenceDicisionTypes;
 
-  @Column({ type: 'double', default: 0 })
+  @Column({
+    type: 'double',
+    default: 0,
+  })
   rate: number;
 
   @Column({ type: 'text' })

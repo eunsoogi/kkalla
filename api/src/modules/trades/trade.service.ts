@@ -43,8 +43,6 @@ export class TradeService {
     // Inference
     const inference = await this.inferenceService.inferenceAndSave(user, new RequestInferenceDto());
 
-    this.logger.log(inference);
-
     // Order
     let orderType: OrderTypes;
     let tradeType: TradeTypes;
@@ -67,13 +65,11 @@ export class TradeService {
 
     const order = await this.upbitService.order(user, orderType, inference.rate);
 
-    this.logger.log(order);
-
     // Record
     const balanceKRW = await this.upbitService.getBalance(user, BalanceTypes.KRW);
     const balanceBTC = await this.upbitService.getBalance(user, BalanceTypes.BTC);
 
-    const trade = await this.create({
+    const trade = await this.create(user, {
       type: tradeType,
       symbol: order.symbol,
       amount: order?.amount ?? order?.cost,
@@ -89,9 +85,10 @@ export class TradeService {
     return trade;
   }
 
-  public async create(createInferenceDto: CreateTradeDto): Promise<Trade> {
+  public async create(user: User, createInferenceDto: CreateTradeDto): Promise<Trade> {
     const trade = new Trade();
 
+    trade.user = user;
     Object.entries(createInferenceDto).forEach(([key, value]) => (trade[key] = value));
 
     return trade.save();
