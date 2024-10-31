@@ -11,14 +11,7 @@ import { PaginatedItem } from '@/interfaces/item.interface';
 import { Trade, initialState } from '@/interfaces/trade.interface';
 import { formatDate } from '@/utils/date';
 
-const TRADE_STYLES = {
-  buy: {
-    badgeStyle: 'text-success bg-lightsuccess',
-  },
-  sell: {
-    badgeStyle: 'text-error bg-lighterror',
-  },
-} as const;
+import { TRADE_STYLES } from './style';
 
 const TradeContent = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Trade>>({
