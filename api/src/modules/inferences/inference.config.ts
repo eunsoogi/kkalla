@@ -2,6 +2,17 @@ export const INFERENCE_MODEL = 'gpt-4o-mini';
 
 export const INFERENCE_MAX_TOKENS = 1024;
 
+export const INFERENCE_MESSAGE_CONFIG = {
+  candles: {
+    m15: 96,
+    h1: 24 * 7,
+    h4: 6 * 30,
+    d1: 90,
+  },
+  newsLimit: 100,
+  inferenceLimit: 6 * 7,
+};
+
 export const INFERENCE_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {

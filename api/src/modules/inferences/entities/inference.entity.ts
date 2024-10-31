@@ -9,11 +9,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { FindItemDto } from '@/dto/find-item.dto';
-import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 import { User } from '@/modules/users/entities/user.entity';
 
-import { InferenceDicisionTypes } from '../inference.type';
+import { InferenceDicisionTypes } from '../inference.enum';
 
 @Entity({
   orderBy: {
@@ -31,6 +30,9 @@ export class Inference extends BaseEntity {
   })
   @JoinColumn()
   user!: User;
+
+  @Column()
+  symbol!: string;
 
   @Column({
     type: 'enum',
@@ -57,10 +59,10 @@ export class Inference extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async paginate(user: User, findItemDto: FindItemDto): Promise<PaginatedItemDto<Inference>> {
+  public static async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Inference>> {
     const [items, total] = await Inference.findAndCount({
-      take: findItemDto.perPage,
-      skip: (findItemDto.page - 1) * findItemDto.perPage,
+      take: request.perPage,
+      skip: (request.page - 1) * request.perPage,
       relations: {
         user: true,
       },
@@ -77,9 +79,9 @@ export class Inference extends BaseEntity {
     return {
       items,
       total,
-      page: findItemDto.page,
-      perPage: findItemDto.perPage,
-      totalPages: Math.ceil(total / findItemDto.perPage),
+      page: request.page,
+      perPage: request.perPage,
+      totalPages: Math.ceil(total / request.perPage),
     };
   }
 }

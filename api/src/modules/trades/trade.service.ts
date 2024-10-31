@@ -1,18 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-import { FindItemDto } from '@/dto/find-item.dto';
-import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 
-import { RequestInferenceDto } from '../inferences/dto/request-inference.dto';
+import { INFERENCE_MESSAGE_CONFIG } from '../inferences/inference.config';
+import { InferenceDicisionTypes } from '../inferences/inference.enum';
 import { InferenceService } from '../inferences/inference.service';
-import { InferenceDicisionTypes } from '../inferences/inference.type';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
-import { BalanceTypes, OrderTypes } from '../upbit/upbit.type';
 import { User } from '../users/entities/user.entity';
-import { CreateTradeDto } from './dto/create-trade.dto';
 import { Trade } from './entities/trade.entity';
-import { TradeTypes } from './trade.type';
+import { TradeData } from './trade.interface';
 
 @Injectable()
 export class TradeService {
@@ -27,7 +25,9 @@ export class TradeService {
   public async tradeSchedule(): Promise<Trade[]> {
     this.logger.log('Trade schedule started...');
 
+    // TO-DO: trade enabled user
     const users = await User.find();
+
     const threads = users.map((user) => this.trade(user));
     const results = await Promise.all(threads);
 
@@ -39,22 +39,27 @@ export class TradeService {
   public async trade(user: User): Promise<Trade> {
     this.logger.log(`Inference for ${user.id} started...`);
 
+    // TO-DO: dynamic symbol
+    const symbol = 'BTC';
+    const market = 'KRW';
+
     // Inference
-    const inference = await this.inferenceService.inferenceAndSave(user, new RequestInferenceDto());
+    const inference = await this.inferenceService.inferenceAndSave(user, {
+      ...INFERENCE_MESSAGE_CONFIG,
+      symbol,
+      market,
+    });
 
     // Order
     let orderType: OrderTypes;
-    let tradeType: TradeTypes;
 
     switch (inference.decision) {
       case InferenceDicisionTypes.BUY:
         orderType = OrderTypes.BUY;
-        tradeType = TradeTypes.BUY;
         break;
 
       case InferenceDicisionTypes.SELL:
         orderType = OrderTypes.SELL;
-        tradeType = TradeTypes.SELL;
         break;
     }
 
@@ -66,21 +71,23 @@ export class TradeService {
 
     this.logger.log(`Order for ${user.id} started...`);
 
-    const order = await this.upbitService.order(user, orderType, inference.rate);
+    const order = await this.upbitService.order(user, {
+      symbol,
+      market,
+      type: orderType,
+      rate: inference.rate,
+    });
 
-    // Record
-    const balanceKRW = await this.upbitService.getBalance(user, BalanceTypes.KRW);
-    const balanceBTC = await this.upbitService.getBalance(user, BalanceTypes.BTC);
+    // Record trade history
+    const balances = await this.upbitService.getBalances(user);
 
     const trade = await this.create(user, {
-      type: tradeType,
-      symbol: order.symbol,
+      type: orderType,
+      symbol,
+      market,
       amount: order?.amount ?? order?.cost,
-      balance: {
-        krw: balanceKRW,
-        coin: balanceBTC,
-      },
-      inference: inference,
+      balances,
+      inference,
     });
 
     this.logger.log(`Order for ${user.id} has ended. decision: ${inference.decision}, rate: ${inference.rate}`);
@@ -88,16 +95,16 @@ export class TradeService {
     return trade;
   }
 
-  public async create(user: User, createInferenceDto: CreateTradeDto): Promise<Trade> {
+  public async create(user: User, data: TradeData): Promise<Trade> {
     const trade = new Trade();
 
     trade.user = user;
-    Object.entries(createInferenceDto).forEach(([key, value]) => (trade[key] = value));
+    Object.entries(data).forEach(([key, value]) => (trade[key] = value));
 
     return trade.save();
   }
 
-  public async paginate(user: User, findItemDto: FindItemDto): Promise<PaginatedItemDto<Trade>> {
-    return Trade.paginate(user, findItemDto);
+  public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
+    return Trade.paginate(user, request);
   }
 }

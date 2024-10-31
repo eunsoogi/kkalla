@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
-import { OHLCV, Order, upbit } from 'ccxt';
+import { Balances, OHLCV, Order, upbit } from 'ccxt';
 
-import { ApikeyTypes } from '../apikeys/apikey.type';
+import { ApikeyTypes } from '../apikeys/apikey.enum';
 import { Apikey } from '../apikeys/entities/apikey.entity';
 import { User } from '../users/entities/user.entity';
-import { RequestDataDto } from './dto/request-data.dto';
-import { BalanceTypes, Candle, OrderTypes } from './upbit.type';
+import { OrderTypes } from './upbit.enum';
+import { Candle, CandleRequest, OrderRequest } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
@@ -22,55 +22,56 @@ export class UpbitService {
     return client;
   }
 
-  public async getCandles(user: User, requestDataDto: RequestDataDto) {
+  public async getCandles(user: User, request: CandleRequest): Promise<Candle[]> {
     const client = await this.getClient(user);
+    const combinedMarket = `${request.symbol}/${request.market}`;
 
-    const candles_m15: OHLCV[] = await client.fetchOHLCV(
-      requestDataDto.symbol,
-      '15m',
-      undefined,
-      requestDataDto.countM15,
-    );
-    const candles_h1: OHLCV[] = await client.fetchOHLCV(requestDataDto.symbol, '1h', undefined, requestDataDto.countH1);
-    const candles_h4: OHLCV[] = await client.fetchOHLCV(requestDataDto.symbol, '4h', undefined, requestDataDto.countH4);
-    const candles_d1: OHLCV[] = await client.fetchOHLCV(requestDataDto.symbol, '1d', undefined, requestDataDto.countH4);
-    const responses: OHLCV[] = [...candles_m15, ...candles_h1, ...candles_h4, ...candles_d1];
+    const candles = {
+      m15: await client.fetchOHLCV(combinedMarket, '15m', undefined, request.candles.m15),
+      h1: await client.fetchOHLCV(combinedMarket, '1h', undefined, request.candles.h1),
+      h4: await client.fetchOHLCV(combinedMarket, '4h', undefined, request.candles.h4),
+      d1: await client.fetchOHLCV(combinedMarket, '1d', undefined, request.candles.d1),
+    };
 
-    const candles = responses.map(
-      (item: OHLCV): Candle => ({
-        symbol: requestDataDto.symbol,
-        timestamp: new Date(item[0]),
-        openPrice: item[1],
-        highPrice: item[2],
-        lowPrice: item[3],
-        closePrice: item[4],
-        volume: item[5],
-      }),
-    );
-
-    return candles;
+    return [
+      ...candles.m15.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 15)),
+      ...candles.h1.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 60)),
+      ...candles.h4.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 240)),
+      ...candles.d1.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 1440)),
+    ];
   }
 
-  public async getBalance(user: User, type: BalanceTypes): Promise<number> {
+  private mapOHLCVToCandle(ohlcv: OHLCV, market: string, unit: number): Candle {
+    return {
+      market,
+      unit,
+      timestamp: new Date(ohlcv[0]),
+      openPrice: ohlcv[1],
+      highPrice: ohlcv[2],
+      lowPrice: ohlcv[3],
+      closePrice: ohlcv[4],
+      volume: ohlcv[5],
+    };
+  }
+
+  public async getBalances(user: User): Promise<Balances> {
+    const client = await this.getClient(user);
+    return client.fetchBalance();
+  }
+
+  public async order(user: User, request: OrderRequest): Promise<Order> {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
+    const combinedMarket = `${request.symbol}/${request.market}`;
+    const tradePrice = Math.floor(balances[request.market].free * request.rate * 0.9995);
+    const tradeVolume = balances[request.symbol].free * request.rate * 0.9995;
 
-    return balances[type].free;
-  }
-
-  public async order(user: User, type: OrderTypes, rate: number): Promise<Order> {
-    const client = await this.getClient(user);
-    const balanceKRW = await this.getBalance(user, BalanceTypes.KRW);
-    const balanceBTC = await this.getBalance(user, BalanceTypes.BTC);
-    const tradePrice = Math.floor(balanceKRW * rate * 0.9995);
-    const tradeVolume = balanceBTC * rate * 0.9995;
-
-    switch (type) {
+    switch (request.type) {
       case OrderTypes.BUY:
-        return await client.createOrder('KRW-BTC', 'market', type, 1, tradePrice);
+        return await client.createOrder(combinedMarket, 'market', request.type, 1, tradePrice);
 
       case OrderTypes.SELL:
-        return await client.createOrder('KRW-BTC', 'market', type, tradeVolume);
+        return await client.createOrder(combinedMarket, 'market', request.type, tradeVolume);
     }
   }
 }

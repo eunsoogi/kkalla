@@ -9,7 +9,10 @@ import { UserService } from '../users/user.service';
 
 @Injectable()
 export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-token') {
-  private googleClient: OAuth2Client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+  private readonly googleClient: OAuth2Client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+  );
 
   constructor(private readonly userService: UserService) {
     super();
