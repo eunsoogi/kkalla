@@ -20,13 +20,7 @@ const InferenceContent = () => {
     staleTime: 0,
   });
 
-  return (
-    <ul>
-      {data.items.map((item: Inference) => (
-        <InferenceItem key={item.id} {...item} />
-      ))}
-    </ul>
-  );
+  return <ul>{data.items?.map((item: Inference) => <InferenceItem key={item.id} {...item} />)}</ul>;
 };
 
 const InferenceItem = (item: Inference) => {

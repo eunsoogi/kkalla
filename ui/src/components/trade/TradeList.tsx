@@ -30,23 +30,29 @@ const TradeContent = () => {
 
   return (
     <Table.Body className='divide-y divide-border dark:divide-darkborder'>
-      {data.items.map((item: Trade) => (
-        <Table.Row key={item.id}>
-          <Table.Cell className='whitespace-nowrap'>
-            <Badge className={TRADE_STYLES[item.type].badgeStyle}>{item.type}</Badge>
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            <div className='me-5'>
-              <p className='text-base'>{formatDate(new Date(item.createdAt))}</p>
-            </div>
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>
-            {item.symbol}/{item.market}
-          </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
-        </Table.Row>
+      {data.items?.map((item: Trade) => (
+        <TradeItem key={item.id} {...item} />
       ))}
     </Table.Body>
+  );
+};
+
+const TradeItem = (item: Trade) => {
+  return (
+    <Table.Row>
+      <Table.Cell className='whitespace-nowrap'>
+        <Badge className={TRADE_STYLES[item.type].badgeStyle}>{item.type}</Badge>
+      </Table.Cell>
+      <Table.Cell className='whitespace-nowrap'>
+        <div className='me-5'>
+          <p className='text-base'>{formatDate(new Date(item.createdAt))}</p>
+        </div>
+      </Table.Cell>
+      <Table.Cell className='whitespace-nowrap'>
+        {item.symbol}/{item.market}
+      </Table.Cell>
+      <Table.Cell className='whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
+    </Table.Row>
   );
 };
 
