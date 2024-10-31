@@ -1,7 +1,6 @@
-import { ItemResponse } from '@/interfaces/item.interface';
-
 import { TradeTypes } from '../enums/trade.enum';
 import { Inference } from './inference.interface';
+import { PaginatedItem } from './item.interface';
 
 export interface Trade {
   id: number;
@@ -15,7 +14,7 @@ export interface Trade {
   updatedAt: Date;
 }
 
-export const initialState: ItemResponse<Trade> = {
+export const initialState: PaginatedItem<Trade> = {
   success: true,
   message: null,
   items: [],

@@ -30,9 +30,7 @@ const TradeContent = () => {
 
   return (
     <Table.Body className='divide-y divide-border dark:divide-darkborder'>
-      {data.items?.map((item: Trade) => (
-        <TradeItem key={item.id} {...item} />
-      ))}
+      {data.items?.map((item: Trade) => <TradeItem key={item.id} {...item} />)}
     </Table.Body>
   );
 };
