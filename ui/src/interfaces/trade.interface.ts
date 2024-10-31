@@ -1,23 +1,15 @@
-import { ItemResponse } from '@/types/item-response.type';
+import { ItemResponse } from '@/interfaces/item.interface';
 
-import { Inference } from '../inference/type';
-
-export enum TradeTypes {
-  BUY = 'buy',
-  SELL = 'sell',
-}
-
-export interface BalanceTypes {
-  krw: number;
-  coin: number;
-}
+import { TradeTypes } from '../enums/trade.enum';
+import { Inference } from './inference.interface';
 
 export interface Trade {
   id: number;
   type: TradeTypes;
   symbol: string;
+  market: string;
   amount: number;
-  balances: BalanceTypes;
+  balances: object;
   inference: Inference;
   createdAt: Date;
   updatedAt: Date;

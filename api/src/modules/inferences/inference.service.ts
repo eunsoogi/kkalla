@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
 
-import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 
 import { Feargreed } from '../feargreeds/feargreed.interface';
 import { FeargreedService } from '../feargreeds/feargreed.service';
@@ -121,5 +121,9 @@ export class InferenceService {
 
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Inference>> {
     return Inference.paginate(user, request);
+  }
+
+  public async cursor(user: User, request: CursorRequest): Promise<CursorItem<Inference>> {
+    return Inference.cursor(user, request);
   }
 }

@@ -1,26 +1,90 @@
 'use client';
 
 import Image from 'next/image';
-import React, { Suspense } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef } from 'react';
 
+import { Icon } from '@iconify/react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { TbPoint } from 'react-icons/tb';
 
+import { GET } from '@/app/api/v1/inferences/cursor/route';
+import { Inference } from '@/interfaces/inference.interface';
+import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
-import { useInferencesSuspenseQuery } from './hook';
 import { DECISION_STYLES } from './style';
-import { Inference } from './type';
 import userImage1 from '/public/images/profile/user-1.jpg';
 
 const InferenceContent = () => {
-  const { data } = useInferencesSuspenseQuery();
+  const observerRef = useRef<IntersectionObserver>();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const queryKey = (cursor?: string | null) => ['inferences', { cursor }] as const;
 
-  return data.items.map((item: Inference) => (
-    <div
-      key={item.id}
-      className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words'
-    >
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
+    queryKey: queryKey(null),
+    queryFn: ({ pageParam = null }) => GET(pageParam as string),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    initialPageParam: null,
+  });
+
+  const handleObserver = useCallback(
+    ([entry]: IntersectionObserverEntry[]) => {
+      if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetchingNextPage],
+  );
+
+  useEffect(() => {
+    const element = loadMoreRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(handleObserver, {
+      threshold: 0.1,
+    });
+
+    observerRef.current.observe(element);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [handleObserver]);
+
+  return (
+    <div className='space-y-4'>
+      {data?.pages.map((page, i) => (
+        <div key={i}>
+          {page.items.map((item) => (
+            <InferenceItem key={item.id} {...item} />
+          ))}
+        </div>
+      ))}
+      <div ref={loadMoreRef} className='h-10'>
+        {isFetchingNextPage && (
+          <div className='text-center'>
+            <Icon
+              icon='eos-icons:loading'
+              className='text-ld mx-auto leading-6 dark:text-opacity-60 hide-icon'
+              height={36}
+            />
+            <p>추론 목록 로딩 중...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const InferenceItem = (item: Inference) => {
+  return (
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words'>
       <div className='relative'>
         <Image
           src={userImage1}
@@ -53,7 +117,7 @@ const InferenceContent = () => {
         </div>
       </div>
     </div>
-  ));
+  );
 };
 
 const InferenceSkeleton = () => {
