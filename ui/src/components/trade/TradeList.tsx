@@ -2,13 +2,14 @@
 
 import React, { Suspense } from 'react';
 
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { Badge, Table } from 'flowbite-react';
 import SimpleBar from 'simplebar-react';
 
+import { GET } from '@/app/api/v1/trades/route';
+import { PaginatedItem } from '@/interfaces/item.interface';
+import { Trade, initialState } from '@/interfaces/trade.interface';
 import { formatDate } from '@/utils/date';
-
-import { useTradesSuspenseQuery } from './hook';
-import { Trade } from './type';
 
 const TRADE_STYLES = {
   buy: {
@@ -20,7 +21,12 @@ const TRADE_STYLES = {
 } as const;
 
 const TradeContent = () => {
-  const { data } = useTradesSuspenseQuery();
+  const { data } = useSuspenseQuery<PaginatedItem<Trade>>({
+    queryKey: ['trades'],
+    queryFn: GET,
+    initialData: initialState,
+    staleTime: 0,
+  });
 
   return (
     <Table.Body className='divide-y divide-border dark:divide-darkborder'>
@@ -34,7 +40,9 @@ const TradeContent = () => {
               <p className='text-base'>{formatDate(new Date(item.createdAt))}</p>
             </div>
           </Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>{item.symbol}</Table.Cell>
+          <Table.Cell className='whitespace-nowrap'>
+            {item.symbol}/{item.market}
+          </Table.Cell>
           <Table.Cell className='whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
         </Table.Row>
       ))}

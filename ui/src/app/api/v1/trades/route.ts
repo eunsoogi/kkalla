@@ -1,15 +1,15 @@
 'use server';
 
-import { ItemResponse } from '@/types/item-response.type';
+import { PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
 
-import { Inference, initialState } from './type';
+import { Trade, initialState } from '../../../../interfaces/trade.interface';
 
-export const getInferencesAction = async (): Promise<ItemResponse<Inference>> => {
+export const GET = async (): Promise<PaginatedItem<Trade>> => {
   const client = await getClient();
 
   try {
-    const { data } = await client.get('/api/v1/inferences');
+    const { data } = await client.get('/api/v1/trades');
 
     return {
       success: true,
