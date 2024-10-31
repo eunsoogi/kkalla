@@ -1,27 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
 
-import { FindItemDto } from '@/dto/find-item.dto';
-import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 
+import { Feargreed } from '../feargreeds/feargreed.interface';
 import { FeargreedService } from '../feargreeds/feargreed.service';
-import { Feargreed } from '../feargreeds/feargreed.type';
+import { NewsTypes } from '../news/news.enum';
+import { News } from '../news/news.interface';
 import { NewsService } from '../news/news.service';
-import { News, NewsTypes } from '../news/news.type';
 import { OpenaiService } from '../openai/openai.service';
+import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
-import { Candle } from '../upbit/upbit.type';
 import { User } from '../users/entities/user.entity';
-import { CreateInferenceDto } from './dto/create-inference.dto';
-import { RequestInferenceDto } from './dto/request-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_MAX_TOKENS, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
-import { InferenceData, InferenceResult } from './inference.type';
+import { InferenceData, InferenceMessage, InferenceMessageRequest, InferenceResult } from './inference.interface';
 
 @Injectable()
 export class InferenceService {
+  private readonly logger = new Logger(InferenceService.name);
+
   constructor(
     private readonly openaiService: OpenaiService,
     private readonly upbitService: UpbitService,
@@ -29,30 +29,24 @@ export class InferenceService {
     private readonly feargreedService: FeargreedService,
   ) {}
 
-  public async getData(user: User, requestInferenceDto: RequestInferenceDto): Promise<InferenceData> {
-    const candles: Candle[] = await this.upbitService.getCandles(user, {
-      symbol: requestInferenceDto.symbol,
-      countM15: requestInferenceDto.countM15,
-      countH1: requestInferenceDto.countH1,
-      countH4: requestInferenceDto.countH4,
-      countD1: requestInferenceDto.countD1,
-    });
+  public async getMessage(user: User, request: InferenceMessageRequest): Promise<InferenceMessage> {
+    const candles: Candle[] = await this.upbitService.getCandles(user, request);
 
     const news: News[] = await this.newsService.getNews({
       type: NewsTypes.COIN,
-      limit: requestInferenceDto.newsLimit,
+      limit: request.newsLimit,
     });
 
     const feargreed: Feargreed = await this.feargreedService.getFeargreed();
 
-    const inferenceResult: PaginatedItemDto<Inference> = await this.paginate(user, {
+    const inferenceResult: PaginatedItem<Inference> = await this.paginate(user, {
       page: 1,
-      perPage: requestInferenceDto.inferenceLimit,
+      perPage: request.inferenceLimit,
     });
 
     const inferences: Inference[] = inferenceResult.items;
 
-    const data: InferenceData = {
+    const data: InferenceMessage = {
       candles: candles,
       news: news,
       feargreed: feargreed,
@@ -62,7 +56,7 @@ export class InferenceService {
     return data;
   }
 
-  public getMessage(data: InferenceData): ChatCompletionMessageParam[] {
+  public getMessageParams(message: InferenceMessage): ChatCompletionMessageParam[] {
     return [
       {
         role: 'system',
@@ -70,7 +64,7 @@ export class InferenceService {
       },
       {
         role: 'user',
-        content: JSON.stringify(data),
+        content: JSON.stringify(message),
       },
     ];
   }
@@ -86,41 +80,46 @@ export class InferenceService {
     };
   }
 
-  public async inference(user: User, requestInferenceDto: RequestInferenceDto): Promise<InferenceResult> {
+  public async inference(user: User, request: InferenceMessageRequest): Promise<InferenceResult> {
     const service: OpenAI = await this.openaiService.getClient(user);
 
-    const data: InferenceData = await this.getData(user, requestInferenceDto);
+    const message: InferenceMessage = await this.getMessage(user, request);
 
     const response: ChatCompletion = await service.chat.completions.create({
       model: INFERENCE_MODEL,
       max_tokens: INFERENCE_MAX_TOKENS,
-      messages: this.getMessage(data),
+      messages: this.getMessageParams(message),
       response_format: this.getResponseFormat(),
       stream: false,
     });
 
-    const result: InferenceResult = JSON.parse(response.choices[0].message?.content || '{}');
+    this.logger.log(response);
+
+    const result: InferenceResult = {
+      ...JSON.parse(response.choices[0].message?.content || '{}'),
+      symbol: request.symbol,
+    };
 
     return result;
   }
 
-  public async inferenceAndSave(user: User, requestInferenceDto: RequestInferenceDto): Promise<Inference> {
-    const inferenceResult = await this.inference(user, requestInferenceDto);
+  public async inferenceAndSave(user: User, request: InferenceMessageRequest): Promise<Inference> {
+    const inferenceResult = await this.inference(user, request);
     const inferenceEntity = await this.create(user, inferenceResult);
 
     return inferenceEntity;
   }
 
-  public async create(user: User, createInferenceDto: CreateInferenceDto): Promise<Inference> {
+  public async create(user: User, data: InferenceData): Promise<Inference> {
     const inference = new Inference();
 
     inference.user = user;
-    Object.entries(createInferenceDto).forEach(([key, value]) => (inference[key] = value));
+    Object.entries(data).forEach(([key, value]) => (inference[key] = value));
 
     return inference.save();
   }
 
-  public async paginate(user: User, findItemDto: FindItemDto): Promise<PaginatedItemDto<Inference>> {
-    return Inference.paginate(user, findItemDto);
+  public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Inference>> {
+    return Inference.paginate(user, request);
   }
 }

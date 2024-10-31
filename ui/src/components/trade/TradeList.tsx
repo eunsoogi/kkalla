@@ -36,8 +36,6 @@ const TradeContent = () => {
           </Table.Cell>
           <Table.Cell className='whitespace-nowrap'>{item.symbol}</Table.Cell>
           <Table.Cell className='whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>{item.balance.krw.toLocaleString()}</Table.Cell>
-          <Table.Cell className='whitespace-nowrap'>{item.balance.coin.toLocaleString()}</Table.Cell>
         </Table.Row>
       ))}
     </Table.Body>
@@ -65,12 +63,10 @@ const TradeList = () => {
           <div className='overflow-x-auto'>
             <Table hoverable>
               <Table.Head>
-                <Table.HeadCell className='whitespace-nowrap'>방식</Table.HeadCell>
+                <Table.HeadCell className='whitespace-nowrap'>거래</Table.HeadCell>
                 <Table.HeadCell className='whitespace-nowrap'>날짜</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>항목</Table.HeadCell>
+                <Table.HeadCell className='whitespace-nowrap'>종목</Table.HeadCell>
                 <Table.HeadCell className='whitespace-nowrap'>비용</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>원화 보유량</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>코인 보유량</Table.HeadCell>
               </Table.Head>
               <Suspense fallback={<TradeSkeleton />}>
                 <TradeContent />

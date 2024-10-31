@@ -1,19 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
-import { CreateUserDto } from './dto/create-user.dto';
-import { GetUserDto } from './dto/find-user.dto';
 import { User } from './entities/user.entity';
+import { UserData } from './user.interface';
 
 @Injectable()
 export class UserService {
-  public async findOrCreate(getUserDto: GetUserDto): Promise<User> {
-    return (await User.findByEmail(getUserDto.email)) ?? this.create({ ...getUserDto });
+  public async findOrCreate(data: UserData): Promise<User> {
+    return (await User.findByEmail(data.email)) ?? this.create(data);
   }
 
-  public async create(createUserDto: CreateUserDto): Promise<User> {
+  public async create(data: UserData): Promise<User> {
     const user = new User();
 
-    Object.entries(createUserDto).forEach(([key, value]) => (user[key] = value));
+    Object.entries(data).forEach(([key, value]) => (user[key] = value));
 
     return user.save();
   }

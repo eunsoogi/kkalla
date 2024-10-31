@@ -32,6 +32,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       session.accessToken = token?.accessToken as string;
       session.expires = token?.exp as ISODateString;
+      if (process.env.NODE_ENV === 'development') {
+        console.log(session);
+      }
       return session;
     },
   },

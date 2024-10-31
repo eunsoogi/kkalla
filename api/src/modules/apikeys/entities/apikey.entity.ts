@@ -14,7 +14,7 @@ import { EncryptionTransformer } from 'typeorm-encrypted';
 import { User } from '@/modules/users/entities/user.entity';
 import { typeORMEncryptionConfig } from '@/typeorm.config';
 
-import { ApikeyTypes } from '../apikey.type';
+import { ApikeyTypes } from '../apikey.enum';
 
 @Entity({
   orderBy: {

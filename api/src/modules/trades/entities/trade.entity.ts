@@ -1,3 +1,4 @@
+import { Balances } from 'ccxt';
 import {
   BaseEntity,
   Column,
@@ -10,12 +11,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { FindItemDto } from '@/dto/find-item.dto';
-import { PaginatedItemDto } from '@/dto/paginated-item.dto';
+import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 import { Inference } from '@/modules/inferences/entities/inference.entity';
+import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/users/entities/user.entity';
-
-import { BalanceTypes, TradeTypes } from '../trade.type';
 
 @Entity({
   orderBy: {
@@ -36,13 +35,13 @@ export class Trade extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: TradeTypes,
+    enum: OrderTypes,
     nullable: false,
   })
-  type!: TradeTypes;
+  type!: OrderTypes;
 
   @Column({ nullable: false })
-  symbol!: string;
+  market!: string;
 
   @Column({
     type: 'double',
@@ -50,8 +49,11 @@ export class Trade extends BaseEntity {
   })
   amount!: number;
 
-  @Column(() => BalanceTypes)
-  balance: BalanceTypes;
+  @Column({
+    type: 'json',
+    default: '{}',
+  })
+  balances: Balances;
 
   @OneToOne(() => Inference, {
     eager: true,
@@ -65,10 +67,10 @@ export class Trade extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async paginate(user: User, findItemDto: FindItemDto): Promise<PaginatedItemDto<Trade>> {
+  public static async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
     const [items, total] = await Trade.findAndCount({
-      take: findItemDto.perPage,
-      skip: (findItemDto.page - 1) * findItemDto.perPage,
+      take: request.perPage,
+      skip: (request.page - 1) * request.perPage,
       relations: {
         user: true,
       },
@@ -85,9 +87,9 @@ export class Trade extends BaseEntity {
     return {
       items,
       total,
-      page: findItemDto.page,
-      perPage: findItemDto.perPage,
-      totalPages: Math.ceil(total / findItemDto.perPage),
+      page: request.page,
+      perPage: request.perPage,
+      totalPages: Math.ceil(total / request.perPage),
     };
   }
 }

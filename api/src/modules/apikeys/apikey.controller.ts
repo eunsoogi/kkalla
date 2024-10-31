@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { ApikeyService } from './apikey.service';

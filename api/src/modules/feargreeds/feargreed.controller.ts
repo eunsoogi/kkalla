@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 
+import { Feargreed } from './feargreed.interface';
 import { FeargreedService } from './feargreed.service';
-import { Feargreed } from './feargreed.type';
 
 @Controller('api/v1/feargreeds')
 export class FeargreedController {

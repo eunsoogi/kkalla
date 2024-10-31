@@ -17,7 +17,7 @@ export interface Trade {
   type: TradeTypes;
   symbol: string;
   amount: number;
-  balance: BalanceTypes;
+  balances: BalanceTypes;
   inference: Inference;
   createdAt: Date;
   updatedAt: Date;

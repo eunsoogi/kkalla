@@ -3,32 +3,29 @@ import { Injectable } from '@nestjs/common';
 
 import { firstValueFrom } from 'rxjs';
 
-import { RequestNewsDto } from './dto/request-news.dto';
 import { API_URL } from './news.config';
-import { News, NewsResponse } from './news.type';
+import { News, NewsApiResponse, NewsRequest } from './news.interface';
 
 @Injectable()
 export class NewsService {
   constructor(private readonly httpService: HttpService) {}
 
-  public async getNews(requestNewsDto: RequestNewsDto): Promise<News[]> {
+  public async getNews(request: NewsRequest): Promise<News[]> {
     const { data } = await firstValueFrom(
-      this.httpService.get<NewsResponse>(API_URL, {
+      this.httpService.get<NewsApiResponse>(API_URL, {
         params: {
           q: JSON.stringify({
-            t1: requestNewsDto.type,
+            t1: request.type,
           }),
-          limit: requestNewsDto.limit,
+          limit: request.limit,
         },
       }),
     );
 
-    const news = this.transformToNews(data);
-
-    return news;
+    return this.transformToNews(data);
   }
 
-  private transformToNews(response: NewsResponse): News[] {
+  private transformToNews(response: NewsApiResponse): News[] {
     const news = response.docs.map(
       (item): News => ({
         labels: item.Labels,

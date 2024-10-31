@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
 import { API_URL } from './feargreed.config';
-import { Feargreed, FeargreedResponse } from './feargreed.type';
+import { Feargreed, FeargreedResponse } from './feargreed.interface';
 
 @Injectable()
 export class FeargreedService {

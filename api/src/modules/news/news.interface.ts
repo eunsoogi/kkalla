@@ -1,6 +1,4 @@
-export enum NewsTypes {
-  COIN = '3',
-}
+import { NewsTypes } from './news.enum';
 
 export interface News {
   labels: string[];
@@ -11,7 +9,12 @@ export interface News {
   publishedAt: string;
 }
 
-export interface NewsResponse {
+export interface NewsRequest {
+  type: NewsTypes;
+  limit: number;
+}
+
+export interface NewsApiResponse {
   docs: {
     _id: string;
     구분: number;

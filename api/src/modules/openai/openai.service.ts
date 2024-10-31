@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import OpenAI from 'openai';
 
-import { ApikeyTypes } from '../apikeys/apikey.type';
+import { ApikeyTypes } from '../apikeys/apikey.enum';
 import { Apikey } from '../apikeys/entities/apikey.entity';
 import { User } from '../users/entities/user.entity';
 
