@@ -3,7 +3,7 @@
 import React from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { LoadingIndicator } from '../loading/LoadingIndicator';
+import { LoadingIndicator } from './LoadingIndicator';
 
 export const InfinityScroll: React.FC<{
   onIntersect: () => void;
