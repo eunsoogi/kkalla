@@ -1,9 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import React, { Suspense, useCallback, useEffect, useRef } from 'react';
+import React, { Suspense, useCallback } from 'react';
 
-import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { TbPoint } from 'react-icons/tb';
@@ -13,72 +12,36 @@ import { Inference } from '@/interfaces/inference.interface';
 import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
+import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { DECISION_STYLES } from './style';
 import userImage1 from '/public/images/profile/user-1.jpg';
 
 const InferenceContent = () => {
-  const observerRef = useRef<IntersectionObserver>();
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const queryKey = (cursor?: string | null) => ['inferences', { cursor }] as const;
-
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
-    queryKey: queryKey(null),
+    queryKey: ['inferences', 'cursor'],
     queryFn: ({ pageParam = null }) => GET(pageParam as string),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });
 
-  const handleObserver = useCallback(
-    ([entry]: IntersectionObserverEntry[]) => {
-      if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-    [fetchNextPage, hasNextPage, isFetchingNextPage],
-  );
-
-  useEffect(() => {
-    const element = loadMoreRef.current;
-
-    if (!element) {
-      return;
+  const handleIntersect = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
-
-    observerRef.current = new IntersectionObserver(handleObserver, {
-      threshold: 0.1,
-    });
-
-    observerRef.current.observe(element);
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [handleObserver]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div className='space-y-4'>
-      {data?.pages.map((page, i) => (
-        <div key={i}>
-          {page.items.map((item) => (
-            <InferenceItem key={item.id} {...item} />
-          ))}
-        </div>
-      ))}
-      <div ref={loadMoreRef} className='h-10'>
-        {isFetchingNextPage && (
-          <div className='text-center'>
-            <Icon
-              icon='eos-icons:loading'
-              className='text-ld mx-auto leading-6 dark:text-opacity-60 hide-icon'
-              height={36}
-            />
-            <p>추론 목록 로딩 중...</p>
+    <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText='추론 목록 로딩 중...'>
+      <div className='space-y-4'>
+        {data?.pages.map((page, i) => (
+          <div key={i}>
+            {page.items.map((item) => (
+              <InferenceItem key={item.id} {...item} />
+            ))}
           </div>
-        )}
+        ))}
       </div>
-    </div>
+    </InfinityScroll>
   );
 };
 
