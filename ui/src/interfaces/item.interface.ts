@@ -1,6 +1,6 @@
-export interface PaginatedItem<T> {
-  success: boolean;
-  message?: string | null;
+import { State } from './state.interface';
+
+export interface PaginatedItem<T> extends State {
   items: T[];
   total: number;
   page: number;
@@ -8,9 +8,7 @@ export interface PaginatedItem<T> {
   totalPages: number;
 }
 
-export interface CursorItem<T> {
-  success: boolean;
-  message?: string | null;
+export interface CursorItem<T> extends State {
   items: T[];
   nextCursor: string | null;
   hasNextPage: boolean;
