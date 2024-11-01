@@ -32,12 +32,12 @@ export class InferenceService {
   public async getMessage(user: User, request: InferenceMessageRequest): Promise<InferenceMessage> {
     const candles: Candle[] = await this.upbitService.getCandles(user, request);
 
-    const news: News[] = await this.newsService.getNews({
+    const news: News[] = await this.newsService.get({
       type: NewsTypes.COIN,
       limit: request.newsLimit,
     });
 
-    const feargreed: Feargreed = await this.feargreedService.getFeargreed();
+    const feargreed: Feargreed = await this.feargreedService.get();
 
     const inferenceResult: PaginatedItem<Inference> = await this.paginate(user, {
       page: 1,
@@ -123,7 +123,7 @@ export class InferenceService {
     return Inference.paginate(user, request);
   }
 
-  public async cursor(user: User, request: CursorRequest): Promise<CursorItem<Inference>> {
+  public async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Inference, string>> {
     return Inference.cursor(user, request);
   }
 }

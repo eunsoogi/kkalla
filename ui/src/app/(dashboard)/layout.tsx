@@ -2,8 +2,8 @@
 
 import React from 'react';
 
-import Header from '@/components/layouts/vertical/header/Header';
-import Sidebar from '@/components/layouts/vertical/sidebar/Sidebar';
+import Header from '@/layouts/vertical/header/Header';
+import Sidebar from '@/layouts/vertical/sidebar/Sidebar';
 
 export default function Layout({
   children,

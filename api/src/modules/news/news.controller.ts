@@ -1,5 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
+import { CursorItem } from '@/interfaces/item.interface';
+
 import { GetNewsDto } from './dto/get-news.dto';
 import { News } from './news.interface';
 import { NewsService } from './news.service';
@@ -8,8 +10,8 @@ import { NewsService } from './news.service';
 export class NewsController {
   constructor(private readonly newsService: NewsService) {}
 
-  @Get()
-  async get(@Query() params: GetNewsDto): Promise<News[]> {
-    return this.newsService.getNews(params);
+  @Get('cursor')
+  async get(@Query() params: GetNewsDto): Promise<CursorItem<News, number>> {
+    return this.newsService.cursor(params);
   }
 }

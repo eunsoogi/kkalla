@@ -30,7 +30,7 @@ export interface Feargreed {
   }[];
 }
 
-export interface FeargreedResponse {
+export interface FeargreedApiResponse {
   at: string;
   today: {
     date: string;

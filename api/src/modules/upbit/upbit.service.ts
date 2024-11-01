@@ -24,20 +24,20 @@ export class UpbitService {
 
   public async getCandles(user: User, request: CandleRequest): Promise<Candle[]> {
     const client = await this.getClient(user);
-    const combinedMarket = `${request.symbol}/${request.market}`;
+    const ticker = `${request.symbol}/${request.market}`;
 
     const candles = {
-      m15: await client.fetchOHLCV(combinedMarket, '15m', undefined, request.candles.m15),
-      h1: await client.fetchOHLCV(combinedMarket, '1h', undefined, request.candles.h1),
-      h4: await client.fetchOHLCV(combinedMarket, '4h', undefined, request.candles.h4),
-      d1: await client.fetchOHLCV(combinedMarket, '1d', undefined, request.candles.d1),
+      m15: await client.fetchOHLCV(ticker, '15m', undefined, request.candles.m15),
+      h1: await client.fetchOHLCV(ticker, '1h', undefined, request.candles.h1),
+      h4: await client.fetchOHLCV(ticker, '4h', undefined, request.candles.h4),
+      d1: await client.fetchOHLCV(ticker, '1d', undefined, request.candles.d1),
     };
 
     return [
-      ...candles.m15.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 15)),
-      ...candles.h1.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 60)),
-      ...candles.h4.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 240)),
-      ...candles.d1.map((item) => this.mapOHLCVToCandle(item, combinedMarket, 1440)),
+      ...candles.m15.map((item) => this.mapOHLCVToCandle(item, ticker, 15)),
+      ...candles.h1.map((item) => this.mapOHLCVToCandle(item, ticker, 60)),
+      ...candles.h4.map((item) => this.mapOHLCVToCandle(item, ticker, 240)),
+      ...candles.d1.map((item) => this.mapOHLCVToCandle(item, ticker, 1440)),
     ];
   }
 
@@ -62,16 +62,16 @@ export class UpbitService {
   public async order(user: User, request: OrderRequest): Promise<Order> {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
-    const combinedMarket = `${request.symbol}/${request.market}`;
+    const ticker = `${request.symbol}/${request.market}`;
     const tradePrice = Math.floor(balances[request.market].free * request.rate * 0.9995);
     const tradeVolume = balances[request.symbol].free * request.rate * 0.9995;
 
     switch (request.type) {
       case OrderTypes.BUY:
-        return await client.createOrder(combinedMarket, 'market', request.type, 1, tradePrice);
+        return await client.createOrder(ticker, 'market', request.type, 1, tradePrice);
 
       case OrderTypes.SELL:
-        return await client.createOrder(combinedMarket, 'market', request.type, tradeVolume);
+        return await client.createOrder(ticker, 'market', request.type, tradeVolume);
     }
   }
 }

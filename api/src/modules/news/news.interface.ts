@@ -1,17 +1,23 @@
+import { CursorRequest } from '@/interfaces/item.interface';
+
 import { NewsTypes } from './news.enum';
+import { ImportanceLevel } from './news.type';
 
 export interface News {
+  id: string;
+  seq: number;
   labels: string[];
   title: string;
-  importance: number;
+  source: string;
+  link: string;
+  importance: ImportanceLevel;
   marketAnalysis: number;
   relatedStocks: string[];
   publishedAt: string;
 }
 
-export interface NewsRequest {
-  type: NewsTypes;
-  limit: number;
+export interface NewsRequest extends CursorRequest<number> {
+  type?: NewsTypes;
 }
 
 export interface NewsApiResponse {

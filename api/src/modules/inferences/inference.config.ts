@@ -9,7 +9,7 @@ export const INFERENCE_MESSAGE_CONFIG = {
     h4: 6 * 30,
     d1: 90,
   },
-  newsLimit: 100,
+  newsLimit: 5000,
   inferenceLimit: 6 * 7,
 };
 
