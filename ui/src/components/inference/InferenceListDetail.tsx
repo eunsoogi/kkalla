@@ -14,9 +14,9 @@ import { formatDate } from '@/utils/date';
 
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { DECISION_STYLES } from './style';
-import userImage1 from '/public/images/profile/user-1.jpg';
+import userImage from '/public/images/profile/user-1.jpg';
 
-const InferenceContent = () => {
+const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
     queryKey: ['inferences', 'cursor'],
     queryFn: ({ pageParam = null }) => GET(pageParam as string),
@@ -36,7 +36,7 @@ const InferenceContent = () => {
         {data?.pages.map((page, i) => (
           <div key={i}>
             {page.items.map((item) => (
-              <InferenceItem key={item.id} {...item} />
+              <InferenceItem key={item.id} {...item} isFocus={item.id == id} />
             ))}
           </div>
         ))}
@@ -45,12 +45,14 @@ const InferenceContent = () => {
   );
 };
 
-const InferenceItem = (item: Inference) => {
+const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = false, ...item }) => {
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words'>
+    <div
+      className={`${isFocus && 'border-2 border-primary'} rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words`}
+    >
       <div className='relative'>
         <Image
-          src={userImage1}
+          src={userImage}
           className='h-10 w-10 rounded-full absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
           alt='user'
         />
@@ -83,7 +85,7 @@ const InferenceItem = (item: Inference) => {
   );
 };
 
-const InferenceSkeleton = () => {
+const InferenceSkeleton: React.FC = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words overflow-hidden'>
       <div className='p-6'>
@@ -108,10 +110,10 @@ const InferenceSkeleton = () => {
   );
 };
 
-const InferenceListDetail = () => {
+const InferenceListDetail: React.FC<{ id?: string }> = ({ id }) => {
   return (
     <Suspense fallback={<InferenceSkeleton />}>
-      <InferenceContent />
+      <InferenceContent id={id} />
     </Suspense>
   );
 };

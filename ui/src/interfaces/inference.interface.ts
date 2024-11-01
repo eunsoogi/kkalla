@@ -2,7 +2,7 @@ import { InferenceDicisionTypes } from '../enums/inference.enum';
 import { CursorItem, PaginatedItem } from './item.interface';
 
 export interface Inference {
-  id: number;
+  id: string;
   decision: InferenceDicisionTypes;
   rate: number;
   reason: string;
