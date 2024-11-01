@@ -3,7 +3,7 @@ import React from 'react';
 import InferenceList from '@/components/inference/InferenceList';
 import TradeList from '@/components/trade/TradeList';
 
-const Page = () => {
+const Page: React.FC = () => {
   return (
     <>
       <div className='grid grid-cols-12 gap-30'>

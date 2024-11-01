@@ -2,7 +2,7 @@ import React from 'react';
 
 import NewsListDetail from '@/components/news/NewsListDetail';
 
-const Page = () => {
+const Page: React.FC = () => {
   return <NewsListDetail />;
 };
 

@@ -15,7 +15,7 @@ import { formatDate } from '@/utils/date';
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { NEWS_STYLES } from './style';
 
-const NewsContent = () => {
+const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<News>>({
     queryKey: ['news', 'cursor'],
     queryFn: ({ pageParam = null }) => GET(pageParam as string),
@@ -35,7 +35,7 @@ const NewsContent = () => {
         {data?.pages.map((page, i) => (
           <div key={i}>
             {page.items.map((item) => (
-              <NewsItem key={item.id} {...item} />
+              <NewsItem key={item.id} {...item} isFocus={item.id == id} />
             ))}
           </div>
         ))}
@@ -44,14 +44,14 @@ const NewsContent = () => {
   );
 };
 
-const NewsItem = (item: News) => {
+const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...item }) => {
   const handleClick = useCallback(() => {
     window.open(item.link);
   }, [item]);
 
   return (
     <div
-      className={`rounded-xl dark:shadow-dark-md shadow-md ${NEWS_STYLES[item.importance].bgStyle} transition-all cursor-pointer mb-30 p-0 relative w-full break-words`}
+      className={`${isFocus ? 'border-2 border-primary' : ''} rounded-xl dark:shadow-dark-md shadow-md ${NEWS_STYLES[item.importance].bgStyle} transition-all cursor-pointer mb-30 p-0 relative w-full break-words`}
       onClick={handleClick}
     >
       <div className='p-6'>
@@ -89,7 +89,7 @@ const NewsItem = (item: News) => {
   );
 };
 
-const NewsSkeleton = () => {
+const NewsSkeleton: React.FC = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words overflow-hidden'>
       <div className='p-6'>
@@ -105,10 +105,10 @@ const NewsSkeleton = () => {
   );
 };
 
-const NewsListDetail = () => {
+const NewsListDetail: React.FC<{ id?: string }> = ({ id }) => {
   return (
     <Suspense fallback={<NewsSkeleton />}>
-      <NewsContent />
+      <NewsContent id={id} />
     </Suspense>
   );
 };
