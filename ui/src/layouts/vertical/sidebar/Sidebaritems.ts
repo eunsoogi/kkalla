@@ -37,6 +37,12 @@ const SidebarContent: MenuItem[] = [
     heading: '서비스',
     children: [
       {
+        name: '뉴스 목록',
+        icon: 'solar:document-outline',
+        id: uniqueId(),
+        url: '/news',
+      },
+      {
         name: '추론 목록',
         icon: 'mingcute:ai-line',
         id: uniqueId(),

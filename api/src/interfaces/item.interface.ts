@@ -3,8 +3,8 @@ export interface ItemRequest {
   perPage: number;
 }
 
-export interface CursorRequest {
-  cursor: string;
+export interface CursorRequest<C> {
+  cursor?: C;
   limit: number;
 }
 
@@ -16,9 +16,9 @@ export class PaginatedItem<T> {
   totalPages: number = 1;
 }
 
-export interface CursorItem<T> {
+export interface CursorItem<T, C> {
   items: T[];
-  nextCursor: string | null;
+  nextCursor: C;
   hasNextPage: boolean;
   total: number;
 }

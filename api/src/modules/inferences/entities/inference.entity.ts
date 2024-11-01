@@ -87,7 +87,7 @@ export class Inference extends BaseEntity {
     };
   }
 
-  public static async cursor(user: User, request: CursorRequest): Promise<CursorItem<Inference>> {
+  public static async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Inference, string>> {
     const findOptions: FindManyOptions<Inference> = {
       take: request.limit + 1,
       skip: request.cursor ? 1 : 0,

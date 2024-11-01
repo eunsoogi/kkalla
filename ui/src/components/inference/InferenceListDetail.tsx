@@ -57,7 +57,7 @@ const InferenceItem = (item: Inference) => {
       </div>
       <div className='p-6'>
         <div className='flex gap-6 mt-6'>
-          <Badge color={'muted'} className={DECISION_STYLES[item.decision].badgeStyle}>
+          <Badge color='muted' className={DECISION_STYLES[item.decision].badgeStyle}>
             {item.decision}
           </Badge>
           <h4>{item.rate * 100}%</h4>
@@ -86,7 +86,7 @@ const InferenceItem = (item: Inference) => {
 const InferenceSkeleton = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words overflow-hidden'>
-      <div className='px-6 pb-6'>
+      <div className='p-6'>
         <div className='grid grid-cols-12 gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>
             <h4 className='my-3'>추론 내용</h4>

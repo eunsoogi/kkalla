@@ -8,7 +8,7 @@ export class FeargreedController {
   constructor(private readonly feargreedService: FeargreedService) {}
 
   @Get()
-  async getNews(): Promise<Feargreed> {
-    return this.feargreedService.getFeargreed();
+  async get(): Promise<Feargreed> {
+    return this.feargreedService.get();
   }
 }

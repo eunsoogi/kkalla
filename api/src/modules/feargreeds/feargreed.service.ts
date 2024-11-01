@@ -4,21 +4,19 @@ import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
 import { API_URL } from './feargreed.config';
-import { Feargreed, FeargreedResponse } from './feargreed.interface';
+import { Feargreed, FeargreedApiResponse } from './feargreed.interface';
 
 @Injectable()
 export class FeargreedService {
   constructor(private readonly httpService: HttpService) {}
 
-  public async getFeargreed(): Promise<Feargreed> {
-    const { data } = await firstValueFrom(this.httpService.get<FeargreedResponse>(API_URL));
+  public async get(): Promise<Feargreed> {
+    const { data } = await firstValueFrom(this.httpService.get<FeargreedApiResponse>(API_URL));
 
-    const feargreed = this.transformToFeargreed(data);
-
-    return feargreed;
+    return this.transform(data);
   }
 
-  private transformToFeargreed(response: FeargreedResponse): Feargreed {
+  private transform(response: FeargreedApiResponse): Feargreed {
     return {
       at: response.at,
       today: {

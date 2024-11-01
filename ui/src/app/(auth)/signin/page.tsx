@@ -3,7 +3,7 @@
 import React from 'react';
 
 import AuthLogin from '@/components/authforms/AuthLogin';
-import FullLogo from '@/components/layouts/shared/logo/FullLogo';
+import FullLogo from '@/layouts/shared/logo/FullLogo';
 
 const gradientStyle = {
   background:
