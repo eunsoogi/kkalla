@@ -1,6 +1,6 @@
 'use server';
 
-import { Inference, initialState } from '@/interfaces/inference.interface';
+import { Inference, initialPaginatedState } from '@/interfaces/inference.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
 
@@ -18,7 +18,7 @@ export const GET = async (page?: number | null): Promise<PaginatedItem<Inference
     };
   } catch (error) {
     return {
-      ...initialState,
+      ...initialPaginatedState,
       success: false,
       message: String(error),
     };

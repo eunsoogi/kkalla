@@ -5,8 +5,9 @@ import React, { useActionState } from 'react';
 import { Alert, Button, Label, TextInput } from 'flowbite-react';
 import { useFormStatus } from 'react-dom';
 
+import { initialState } from '@/interfaces/state.interface';
+
 import { postApikeyAction } from './actions';
-import { initialState } from './state';
 
 const OpenaiForm = () => {
   const [formState, formDispatch] = useActionState(postApikeyAction, initialState);
