@@ -8,9 +8,9 @@ const nextConfig = {
         hostname: '*.googleusercontent.com',
         port: '',
         pathname: '/**',
-      }
-    ]
-  }
+      },
+    ],
+  },
 };
 
 export default nextConfig;

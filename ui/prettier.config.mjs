@@ -1,4 +1,4 @@
-import prettierPluginSortImports from '@trivago/prettier-plugin-sort-imports'
+import prettierPluginSortImports from '@trivago/prettier-plugin-sort-imports';
 
 export default {
   plugins: [prettierPluginSortImports],
@@ -11,13 +11,8 @@ export default {
   bracketSameLine: false,
   arrowParens: 'always',
   trailingComma: 'all',
-  importOrder: [
-    '^react/(.*)$|^react$|^next/(.*)$|^next$',
-    '<THIRD_PARTY_MODULES>',
-    '^@/(.*)$',
-    '^[./]'
-  ],
+  importOrder: ['^react/(.*)$|^react$|^next/(.*)$|^next$', '<THIRD_PARTY_MODULES>', '^@/(.*)$', '^[./]'],
   importOrderSeparation: true,
   importOrderSortSpecifiers: true,
   importOrderGroupNamespaceSpecifiers: true,
-}
+};

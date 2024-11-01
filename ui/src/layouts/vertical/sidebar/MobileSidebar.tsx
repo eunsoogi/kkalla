@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useContext } from 'react';
+import React from 'react';
 
 import { Icon } from '@iconify/react';
 import { Sidebar } from 'flowbite-react';

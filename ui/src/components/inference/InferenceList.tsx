@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -11,7 +12,6 @@ import { PaginatedItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
 import { DECISION_STYLES } from './style';
-import Link from 'next/link';
 
 const InferenceContent: React.FC = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Inference>>({
