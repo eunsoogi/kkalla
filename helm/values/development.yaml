@@ -1,0 +1,58 @@
+---
+auth:
+  db: &db
+    password: ai-invest-assistant
+    rootPassword: ai-invest-assistant
+  google: &google
+    id: 1057123995646-ugmi0o9u88v59ovv3s6po6t9bha6jf86.apps.googleusercontent.com
+    secret: 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
+
+mariadb:
+  enabled: true
+  auth:
+    <<: *db
+
+api:
+  image:
+    pullPolicy: Always
+    tag: latest
+  volumes:
+    - name: src
+      hostPath:
+        path: /api/src
+  volumeMounts:
+    - name: src
+      mountPath: /app/src
+  autoscaling:
+    enabled: false
+  auth:
+    google:
+      <<: *google
+  db:
+    <<: *db
+
+ui:
+  image:
+    pullPolicy: Always
+    tag: latest
+  volumes:
+    - name: src
+      hostPath:
+        path: /ui/src
+    - name: public
+      hostPath:
+        path: /ui/public
+  volumeMounts:
+    - name: src
+      mountPath: /app/src
+    - name: public
+      mountPath: /app/public
+  autoscaling:
+    enabled: false
+  service:
+    type: LoadBalancer
+    port: 3000
+  publicUrl: "http://127.0.0.1:3000/"
+  auth:
+    google:
+      <<: *google

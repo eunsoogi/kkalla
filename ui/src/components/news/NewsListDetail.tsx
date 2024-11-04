@@ -7,18 +7,18 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { TbPoint } from 'react-icons/tb';
 
-import { GET } from '@/app/api/v1/news/cursor/route';
 import { CursorItem } from '@/interfaces/item.interface';
 import { News } from '@/interfaces/news.interface';
 import { formatDate } from '@/utils/date';
 
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
+import { getNewsAction } from './action';
 import { NEWS_STYLES } from './style';
 
 const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<News>>({
     queryKey: ['news', 'cursor'],
-    queryFn: ({ pageParam = null }) => GET(pageParam as string),
+    queryFn: ({ pageParam = null }) => getNewsAction(pageParam as string),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });

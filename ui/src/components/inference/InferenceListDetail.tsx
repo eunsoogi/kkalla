@@ -7,19 +7,19 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { TbPoint } from 'react-icons/tb';
 
-import { GET } from '@/app/api/v1/inferences/cursor/route';
 import { Inference } from '@/interfaces/inference.interface';
 import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
+import { getInferenceCursorAction } from './action';
 import { DECISION_STYLES } from './style';
 import userImage from '/public/images/profile/user-1.jpg';
 
 const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
     queryKey: ['inferences', 'cursor'],
-    queryFn: ({ pageParam = null }) => GET(pageParam as string),
+    queryFn: ({ pageParam = null }) => getInferenceCursorAction(pageParam as string),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });

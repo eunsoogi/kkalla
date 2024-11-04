@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import OpenAI from 'openai';
-import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources';
+import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 

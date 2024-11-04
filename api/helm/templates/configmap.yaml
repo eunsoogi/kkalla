@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "api.fullname" . }}
+data:
+  TZ: "Asia/Seoul"
+  TZ_OFFSET: "+09:00"
+  DB_HOST: "{{ tpl .Values.db.host . }}"
+  DB_PORT: "{{ .Values.db.port }}"
+  DB_DATABASE: "{{ .Values.db.database }}"
+  DB_USER: "{{ .Values.db.username }}"

@@ -1,16 +1,15 @@
 'use server';
 
-import { Inference, initialPaginatedState } from '@/interfaces/inference.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
 
-export const GET = async (page?: number | null): Promise<PaginatedItem<Inference>> => {
+import { Trade, initialState } from '../../interfaces/trade.interface';
+
+export const getTradeAction = async (): Promise<PaginatedItem<Trade>> => {
   const client = await getClient();
 
   try {
-    const { data } = await client.get('/api/v1/inferences', {
-      params: { page },
-    });
+    const { data } = await client.get('/api/v1/trades');
 
     return {
       success: true,
@@ -18,7 +17,7 @@ export const GET = async (page?: number | null): Promise<PaginatedItem<Inference
     };
   } catch (error) {
     return {
-      ...initialPaginatedState,
+      ...initialState,
       success: false,
       message: String(error),
     };

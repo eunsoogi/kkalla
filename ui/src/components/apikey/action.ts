@@ -3,7 +3,7 @@
 import { State } from '@/interfaces/state.interface';
 import { getClient } from '@/utils/api';
 
-export const POST = async (_: State, formData: FormData): Promise<State> => {
+export const postApikeyAction = async (_: State, formData: FormData): Promise<State> => {
   const client = await getClient();
 
   try {

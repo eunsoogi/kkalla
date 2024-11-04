@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApikeyModule } from './modules/apikeys/apikey.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FeargreedModule } from './modules/feargreeds/feargreed.module';
+import { HealthModule } from './modules/health/health.module';
 import { InferenceModule } from './modules/inferences/inference.module';
 import { NewsModule } from './modules/news/news.module';
 import { OpenaiModule } from './modules/openai/openai.module';
@@ -26,6 +27,7 @@ import { typeORMConfig } from './typeorm.config';
     FeargreedModule,
     InferenceModule,
     TradeModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

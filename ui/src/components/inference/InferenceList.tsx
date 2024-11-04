@@ -6,17 +6,17 @@ import React, { Suspense } from 'react';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 
-import { GET } from '@/app/api/v1/inferences/route';
 import { Inference, initialPaginatedState } from '@/interfaces/inference.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
+import { getInferenceAction } from './action';
 import { DECISION_STYLES } from './style';
 
 const InferenceContent: React.FC = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Inference>>({
     queryKey: ['inferences'],
-    queryFn: () => GET(),
+    queryFn: () => getInferenceAction(),
     initialData: initialPaginatedState,
     staleTime: 0,
   });
