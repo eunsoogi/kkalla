@@ -86,6 +86,8 @@ make uninstall
 
 > 어플리케이션을 구동하기 위해 vCore는 최소 0.4개여야 하며, 메모리는 최소 512MB 이상이어야 합니다.
 
+다음 명령어를 사용하여 이미지를 빌드합니다.
+
 ```bash
 make build ENV=production IMAGE_TAG=1.0.0
 ```
