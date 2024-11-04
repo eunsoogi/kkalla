@@ -34,7 +34,8 @@ deps:
 template: deps
 	@helm template ai-invent-assistant ./helm \
 		-n $(HELM_NAMESPACE) \
-		-f ./helm/values/$(ENV).yaml
+		-f ./helm/values/$(ENV).yaml \
+		-f ./secret.yaml
 
 .PHONY: install
 install: deps
@@ -42,7 +43,8 @@ install: deps
 		--install \
 		--create-namespace \
 		-n $(HELM_NAMESPACE) \
-		-f ./helm/values/$(ENV).yaml
+		-f ./helm/values/$(ENV).yaml \
+		-f ./secret.yaml
 
 .PHONY: uninstall
 uninstall:

@@ -1,26 +1,6 @@
 ---
-auth:
-  db: &db
-    password: ai-invest-assistant
-    rootPassword: ai-invest-assistant
-  google: &google
-    id: 1057123995646-ugmi0o9u88v59ovv3s6po6t9bha6jf86.apps.googleusercontent.com
-    secret: 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
-
 mariadb:
   enabled: true
-  auth:
-    <<: *db
-
-api:
-  auth:
-    google:
-      <<: *google
-  db:
-    <<: *db
 
 ui:
   publicUrl: "http://127.0.0.1:3000/"
-  auth:
-    google:
-      <<: *google
