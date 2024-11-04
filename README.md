@@ -4,6 +4,8 @@
 
 ### 비밀 키 설정
 
+[secret.yaml.example](secret.yaml.example) 파일을 `secret.yaml` 파일로 복사하여 아래 값을 입력해주세요.
+
 #### `auth.db.password`
 
 MariaDB의 유저 비밀번호입니다.
