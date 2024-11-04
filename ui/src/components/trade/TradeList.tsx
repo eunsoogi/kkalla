@@ -6,17 +6,17 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Badge, Table } from 'flowbite-react';
 import SimpleBar from 'simplebar-react';
 
-import { GET } from '@/app/api/v1/trades/route';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { Trade, initialState } from '@/interfaces/trade.interface';
 import { formatDate } from '@/utils/date';
 
+import { getTradeAction } from './action';
 import { TRADE_STYLES } from './style';
 
 const TradeContent = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Trade>>({
     queryKey: ['trades'],
-    queryFn: GET,
+    queryFn: getTradeAction,
     initialData: initialState,
     staleTime: 0,
   });

@@ -37,11 +37,11 @@ export const INFERENCE_RULES = [
   '답변은 반드시 JSON format으로만 할 것',
   '한국어로 답변할 것',
   'decision은 반드시 "buy", "sell", "hold" 중 하나여야 함',
-  'decision은 reflection을 복기할 것',
+  'decision은 제공된 데이터 모두를 분석하여 판단할 것',
   'rate는 얼마만큼 분할 매수 및 분할 매도할 지 0~1 사이로 비율을 결정할 것',
   'decision이 "hold"일 경우, rate는 0으로 판단할 것',
   '반드시 분할 매수 및 분할 매도할 것',
-  'reason은 제공된 데이터 각각에 대한 판단을 서술할 것',
+  'reason은 decision에 대한 상세 사유를 서술할 것',
   'reflection은 prevInferences를 복기한 내용을 서술할 것',
 ];
 

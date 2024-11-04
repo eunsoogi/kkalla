@@ -56,3 +56,6 @@ docker-compose*
 
 # Next.js
 next-env.d.ts
+
+# Helm
+helm

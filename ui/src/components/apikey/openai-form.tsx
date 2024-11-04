@@ -5,11 +5,12 @@ import React, { useActionState } from 'react';
 import { Alert, Button, Label, TextInput } from 'flowbite-react';
 import { useFormStatus } from 'react-dom';
 
-import { POST } from '@/app/api/v1/apikeys/route';
 import { initialState } from '@/interfaces/state.interface';
 
+import { postApikeyAction } from './action';
+
 const OpenaiForm = () => {
-  const [formState, formDispatch] = useActionState(POST, initialState);
+  const [formState, formDispatch] = useActionState(postApikeyAction, initialState);
   const { pending } = useFormStatus();
 
   return (

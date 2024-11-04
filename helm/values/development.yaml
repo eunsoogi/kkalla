@@ -1,0 +1,40 @@
+---
+mariadb:
+  enabled: true
+
+api:
+  image:
+    pullPolicy: Always
+    tag: latest
+  volumes:
+    - name: src
+      hostPath:
+        path: /api/src
+  volumeMounts:
+    - name: src
+      mountPath: /app/src
+  autoscaling:
+    enabled: false
+
+ui:
+  image:
+    pullPolicy: Always
+    tag: latest
+  volumes:
+    - name: src
+      hostPath:
+        path: /ui/src
+    - name: public
+      hostPath:
+        path: /ui/public
+  volumeMounts:
+    - name: src
+      mountPath: /app/src
+    - name: public
+      mountPath: /app/public
+  autoscaling:
+    enabled: false
+  service:
+    type: LoadBalancer
+    port: 3000
+  publicUrl: "http://127.0.0.1:3000/"

@@ -16,7 +16,13 @@ const Profile = () => {
         dismissOnClick={false}
         renderTrigger={() => (
           <span className='h-10 w-10 hover:text-primary hover:bg-lightprimary rounded-full flex justify-center items-center cursor-pointer group-hover/menu:bg-lightprimary group-hover/menu:text-primary'>
-            <img src={session.data?.user?.image} alt='logo' height='35' width='35' className='rounded-full' />
+            <img
+              src={session.data?.user?.image || undefined}
+              alt='logo'
+              height='35'
+              width='35'
+              className='rounded-full'
+            />
           </span>
         )}
       >
