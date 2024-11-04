@@ -11,6 +11,9 @@ mariadb:
       type: ClusterIP
       ports:
         mysql: 3306
+    extraEnvVars:
+      - name: TZ
+        value: Asia/Seoul
 
 api:
   auth:
