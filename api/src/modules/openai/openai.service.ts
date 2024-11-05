@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import OpenAI from 'openai';
 
-import { ApikeyTypes } from '../apikeys/apikey.enum';
-import { Apikey } from '../apikeys/entities/apikey.entity';
-import { User } from '../users/entities/user.entity';
+import { ApikeyTypes } from '../apikey/apikey.enum';
+import { Apikey } from '../apikey/entities/apikey.entity';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class OpenaiService {
