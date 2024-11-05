@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { Balances } from 'ccxt';
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
 
@@ -30,6 +31,8 @@ export class InferenceService {
   ) {}
 
   public async getMessage(user: User, request: InferenceMessageRequest): Promise<InferenceMessage> {
+    const balances: Balances = await this.upbitService.getBalances(user);
+
     const candles: Candle[] = await this.upbitService.getCandles(user, request);
 
     const news: News[] = await this.newsService.get({
@@ -44,13 +47,14 @@ export class InferenceService {
       perPage: request.inferenceLimit,
     });
 
-    const inferences: Inference[] = inferenceResult.items;
+    const prevInferences: Inference[] = inferenceResult.items;
 
     const data: InferenceMessage = {
-      candles: candles,
-      news: news,
-      feargreed: feargreed,
-      prevInferences: inferences,
+      balances,
+      candles,
+      news,
+      feargreed,
+      prevInferences,
     };
 
     return data;

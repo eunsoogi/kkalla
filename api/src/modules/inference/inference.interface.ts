@@ -1,3 +1,5 @@
+import { Balances } from 'ccxt';
+
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { News } from '../news/news.interface';
 import { Candle } from '../upbit/upbit.interface';
@@ -18,6 +20,7 @@ export interface InferenceMessageRequest {
 }
 
 export interface InferenceMessage {
+  balances: Balances;
   candles: Candle[];
   news: News[];
   feargreed: Feargreed;

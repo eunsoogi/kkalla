@@ -38,6 +38,7 @@ export const INFERENCE_RULES = [
   '한국어로 답변할 것',
   'decision은 반드시 "buy", "sell", "hold" 중 하나여야 함',
   'decision은 제공된 데이터 모두를 분석하여 판단할 것',
+  'decision을 판단할 때 현재 계좌 잔고를 고려할 것',
   'rate는 얼마만큼 분할 매수 및 분할 매도할 지 0~1 사이로 비율을 결정할 것',
   'decision이 "hold"일 경우, rate는 0으로 판단할 것',
   '반드시 분할 매수 및 분할 매도할 것',
