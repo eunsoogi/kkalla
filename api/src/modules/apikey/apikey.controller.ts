@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { ApikeyStatus } from './apikey.enum';
@@ -13,7 +13,7 @@ export class ApikeyController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  get(@Req() req, @Param() request: GetApikeyStatusDto): Promise<ApikeyStatus> {
+  get(@Req() req, @Query() request: GetApikeyStatusDto): Promise<ApikeyStatus> {
     return this.apikeyService.status(req.user, request);
   }
 

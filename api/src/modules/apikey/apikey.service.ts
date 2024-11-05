@@ -9,7 +9,7 @@ import { Apikey } from './entities/apikey.entity';
 export class ApikeyService {
   public async status(user: User, data: ApikeyStatusRequest): Promise<ApikeyStatus> {
     const apikey = await Apikey.findByType(user, data.type);
-    return apikey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
+    return apikey?.secretKey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
   }
 
   public async create(user: User, data: ApikeyData): Promise<Apikey> {
