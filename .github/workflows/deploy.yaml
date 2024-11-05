@@ -48,6 +48,7 @@ jobs:
             auth:
               google: *google
           ui:
+            publicUrl: ${{ vars.PUBLIC_URL }}
             auth:
               google: *google
           EOL
