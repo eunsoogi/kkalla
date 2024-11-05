@@ -1,23 +1,24 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule as ScheduleModuleRoot } from '@nestjs/schedule';
+import { TypeOrmModule as TypeOrmModuleRoot } from '@nestjs/typeorm';
 
-import { ApikeyModule } from './modules/apikeys/apikey.module';
+import { ApikeyModule } from './modules/apikey/apikey.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { FeargreedModule } from './modules/feargreeds/feargreed.module';
+import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { HealthModule } from './modules/health/health.module';
-import { InferenceModule } from './modules/inferences/inference.module';
+import { InferenceModule } from './modules/inference/inference.module';
 import { NewsModule } from './modules/news/news.module';
 import { OpenaiModule } from './modules/openai/openai.module';
-import { TradeModule } from './modules/trades/trade.module';
+import { ScheduleModule } from './modules/schedule/schedule.module';
+import { TradeModule } from './modules/trade/trade.module';
 import { UpbitModule } from './modules/upbit/upbit.module';
-import { UserModule } from './modules/users/user.module';
+import { UserModule } from './modules/user/user.module';
 import { typeORMConfig } from './typeorm.config';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(typeORMConfig),
-    ScheduleModule.forRoot(),
+    TypeOrmModuleRoot.forRoot(typeORMConfig),
+    ScheduleModuleRoot.forRoot(),
     AuthModule,
     UserModule,
     ApikeyModule,
@@ -28,6 +29,7 @@ import { typeORMConfig } from './typeorm.config';
     InferenceModule,
     TradeModule,
     HealthModule,
+    ScheduleModule,
   ],
 })
 export class AppModule {}
