@@ -1,19 +1,15 @@
-FROM node:22.11.0-alpine AS deps
+FROM node:22.11.0-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
-COPY package.json .
-RUN npm install
-
-FROM deps AS builder
 COPY . .
+RUN npm install
 RUN npm run build
 
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 RUN chown node:node .
 COPY --chown=node:node . .
-COPY --from=deps --chown=node:node /app/package*.json .
-COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+RUN npm install
 ENV NODE_ENV=development
 USER node
 EXPOSE 3000
