@@ -4,8 +4,6 @@ mariadb:
   auth:
     database: ai-invest-assistant
     username: ai-invest-assistant
-    password: ""
-    rootPassword: ""
   primary:
     service:
       type: ClusterIP
@@ -16,24 +14,12 @@ mariadb:
         value: Asia/Seoul
 
 api:
-  auth:
-    google:
-      id: ""
-      secret: ""
   db:
     host: "{{ .Release.Name }}-mariadb.{{ .Release.Namespace }}.svc.cluster.local"
     port: 3306
     database: ai-invest-assistant
     username: ai-invest-assistant
-    password: ""
-    secret: ""
 
 ui:
-  publicUrl: ""
-  auth:
-    secret: ""
-    google:
-      id: ""
-      secret: ""
   api:
     url: "http://{{ .Release.Name }}-api.{{ .Release.Namespace }}.svc.cluster.local:3000/"
