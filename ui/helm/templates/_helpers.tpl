@@ -65,9 +65,13 @@ Create the name of the service account to use
 32 bytes random generated key
 */}}
 {{- define "ui.auth.secret" -}}
-{{- if .Values.auth.secret -}}
-{{- .Values.auth.secret -}}
-{{- else -}}
-{{- randAlphaNum 32 | b64enc -}}
-{{- end -}}
-{{- end -}}
+{{- $secretName := include "ui.fullname" . }}
+{{- $secret := (lookup "v1" "Secret" .Release.Namespace $secretName) }}
+{{- if .Values.auth.secret }}
+{{- .Values.auth.secret }}
+{{- else if $secret }}
+{{- index $secret.data "auth-secret" }}
+{{- else }}
+{{- randAlphaNum 32 | b64enc }}
+{{- end }}
+{{- end }}
