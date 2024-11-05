@@ -4,7 +4,7 @@ import Link from 'next/link';
 import React, { Suspense, useActionState } from 'react';
 
 import { Icon } from '@iconify/react';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
 import { useFormStatus } from 'react-dom';
 
@@ -14,9 +14,11 @@ import { initialState } from '@/interfaces/state.interface';
 import { getApikeyAction, postApikeyAction } from './action';
 import { STATUS_STYLES } from './style';
 
+const badgeQueryKey = ['apikey', 'status', ApikeyTypes.UPBIT];
+
 const UpbitStatusBadge: React.FC = () => {
   const { data } = useSuspenseQuery<ApikeyStatus>({
-    queryKey: ['apikey', 'status', ApikeyTypes.UPBIT],
+    queryKey: badgeQueryKey,
     queryFn: () => getApikeyAction(ApikeyTypes.UPBIT),
     initialData: ApikeyStatus.UNKNOWN,
     staleTime: 0,
@@ -30,8 +32,16 @@ const UpbitStatusBadgeSkeleton: React.FC = () => {
 };
 
 const UpbitForm: React.FC = () => {
+  const queryClient = useQueryClient();
   const [formState, formDispatch] = useActionState(postApikeyAction, initialState);
   const { pending } = useFormStatus();
+
+  const handleSubmit = async (payload: FormData) => {
+    await formDispatch(payload);
+    queryClient.invalidateQueries({
+      queryKey: badgeQueryKey,
+    });
+  };
 
   return (
     <>
@@ -40,7 +50,7 @@ const UpbitForm: React.FC = () => {
           {formState.message}
         </Alert>
       )}
-      <form action={formDispatch}>
+      <form action={handleSubmit}>
         <input type='hidden' name='type' value='UPBIT' />
         <div className='flex flex-column items-center gap-2'>
           <h5 className='card-title'>업비트</h5>
