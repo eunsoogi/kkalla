@@ -34,7 +34,8 @@ create-cluster:
 		-v $(PWD)/ui/public:/app/ui/public \
 		-p 3306:3306@loadbalancer \
 		-p 3001:3001@loadbalancer \
-		-p 3000:3000@loadbalancer
+		-p 3000:3000@loadbalancer \
+		-p 80:80@loadbalancer
 
 .PHONY: delete-cluster
 delete-cluster:

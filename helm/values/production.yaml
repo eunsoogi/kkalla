@@ -3,6 +3,7 @@ mariadb:
   enabled: true
 
 ui:
+  publicUrl: http://localhost/
   ingress:
     enabled: true
     hosts:

@@ -9,13 +9,18 @@
     "start:dev": "nest start --tsc --watch",
     "start:debug": "nest start --tsc --watch --debug",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
-    "prettier": "prettier \"{src,test}/**/*.ts\" --write",
+    "lint": "eslint \"{src,test,migrations}/**/*.ts\" --fix",
+    "prettier": "prettier \"{src,test,migrations}/**/*.ts\" --write",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm migration:create ./src/migrations/migration",
+    "migration:generate": "npm run typeorm migration:generate ./src/migrations/migration",
+    "migration:run": "npm run typeorm migration:run",
+    "migration:revert": "npm run typeorm migration:revert"
   },
   "dependencies": {
     "@nestjs/axios": "^3.1.1",
