@@ -29,6 +29,29 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
+      - name: Setup Helm secrets
+        run: |
+          cat > secrets.yaml << 'EOL'
+          ---
+          auth:
+            db: &db
+              password: ${{ secrets.DB_PASSWORD }}
+              rootPassword: ${{ secrets.DB_ROOT_PASSWORD }}
+            google: &google
+              id: ${{ secrets.GOOGLE_CLIENT_ID }}
+              secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+          mariadb:
+            auth: *db
+          api:
+            db: *db
+            auth:
+              google: *google
+          ui:
+            auth:
+              google: *google
+          EOL
+
       - name: Deploy Helm chart
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
