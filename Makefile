@@ -2,6 +2,7 @@ ENV := development
 IMAGE_REGISTRY := eunsoogi
 IMAGE_NAME_PREFIX := ai-invest-assistant
 IMAGE_TAG := latest
+CLUSTER_NAME := ai-invest-assistant
 HELM_RELEASE := ai-invest-assistant
 HELM_NAMESPACE := default
 
@@ -25,17 +26,24 @@ push:
 	BUILD_TARGET=$(ENV) \
 	docker buildx bake --push
 
+.PHONY: create-cluster
+create-cluster:
+	k3d cluster create $(CLUSTER_NAME) \
+		-v $(PWD)/api/src:/app/api/src \
+		-v $(PWD)/ui/src:/app/ui/src \
+		-v $(PWD)/ui/public:/app/ui/public \
+		-p 3306:3306@loadbalancer \
+		-p 3001:3001@loadbalancer \
+		-p 3000:3000@loadbalancer
+
+.PHONY: delete-cluster
+delete-cluster:
+	k3d cluster delete $(CLUSTER_NAME)
+
 deps:
 	@helm dep up ./api/helm
 	@helm dep up ./ui/helm
 	@helm dep up ./helm
-
-.PHONY: template
-template: deps
-	@helm template ai-invent-assistant ./helm \
-		-n $(HELM_NAMESPACE) \
-		-f ./helm/values/$(ENV).yaml \
-		-f ./secret.yaml
 
 .PHONY: install
 install: deps
@@ -44,34 +52,12 @@ install: deps
 		--create-namespace \
 		-n $(HELM_NAMESPACE) \
 		-f ./helm/values/$(ENV).yaml \
-		-f ./secret.yaml
+		-f ./secrets.yaml
 
 .PHONY: uninstall
 uninstall:
 	@helm uninstall $(HELM_RELEASE) \
 		-n $(HELM_NAMESPACE)
 
-.PHONY: mount
-mount:
-	@nohup minikube mount ./api/src:/api/src 2>&1 &
-	@nohup minikube mount ./ui/src:/ui/src 2>&1 &
-	@nohup minikube mount ./ui/public:/ui/public 2>&1 &
-	@echo "All mounts commands started."
-
-.PHONY: unmount
-unmount:
-	@pkill -f "minikube mount"
-	@echo "All mounts commands has stopped."
-
-.PHONY: tunnel
-tunnel:
-	@nohup minikube tunnel 2>&1 &
-	@echo "Tunnel command started."
-
-.PHONY: untunnel
-untunnel:
-	@pkill -f "minikube tunnel"
-	@echo "Tunnel command has stopped."
-
 .PHONY: all
-all: build push install
+all: build install

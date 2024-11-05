@@ -85,7 +85,7 @@ tmpcharts-*
 Chart.lock
 
 # Secret
-/secret.yaml
+/secrets.yaml
 
 # Git
 !/**/.gitkeep
