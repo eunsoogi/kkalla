@@ -1,0 +1,25 @@
+---
+mariadb:
+  enabled: true
+  auth:
+    database: ai-invest-assistant
+    username: ai-invest-assistant
+  primary:
+    service:
+      type: ClusterIP
+      ports:
+        mysql: 3306
+    extraEnvVars:
+      - name: TZ
+        value: Asia/Seoul
+
+api:
+  db:
+    host: "{{ .Release.Name }}-mariadb.{{ .Release.Namespace }}.svc.cluster.local"
+    port: 3306
+    database: ai-invest-assistant
+    username: ai-invest-assistant
+
+ui:
+  api:
+    url: "http://{{ .Release.Name }}-api.{{ .Release.Namespace }}.svc.cluster.local:3000/"

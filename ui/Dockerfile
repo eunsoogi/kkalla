@@ -1,8 +1,29 @@
-FROM node:23-alpine
-WORKDIR /src
-COPY package.json .
-RUN npm install
+FROM node:22.11.0-alpine AS builder
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
 COPY . .
+RUN npm install
+RUN npm run build
+
+FROM node:22.11.0-bookworm AS development
+WORKDIR /app
+RUN chown node:node .
+COPY --chown=node:node . .
+RUN npm install
+ENV NODE_ENV=development
+ENV WATCHPACK_POLLING=true
+USER node
 EXPOSE 3000
-ENTRYPOINT ["npm"]
-CMD ["run", "dev"]
+CMD ["npm", "run", "start:dev"]
+
+FROM node:22.11.0-alpine AS production
+WORKDIR /app
+RUN chown node:node .
+COPY --from=builder --chown=node:node /app/package*.json .
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next ./.next
+ENV NODE_ENV=production
+USER node
+EXPOSE 3000
+CMD ["npm", "run", "start:prod"]

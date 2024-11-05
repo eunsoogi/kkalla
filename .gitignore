@@ -1,9 +1,25 @@
+# Build and Output
+dist
+build
+.next
+out
+
 # Dependencies
-node_modules/
-.pnp/
+node_modules
+.pnp
 .pnp.js
 package-lock.json
 yarn.lock
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+nohup.out*
 
 # Environment Variables
 .env
@@ -13,40 +29,46 @@ yarn.lock
 .env.test.local
 .env.production.local
 
-# Debug logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Build and Output
-dist/
-build/
-.next/
-out/
+# Tests and Coverage
 coverage/
-.nyc_output
+.nyc_output/
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# IDE - VSCode
-.vscode/*
+# IDE and Editors
+.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Vercel
-.vercel
+# System Files
+.DS_Store
+Thumbs.db
+
+# Runtime Data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary Files
+.temp
+.tmp
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# PWA files
+# Vercel
+.vercel
+
+# PWA Files
 public/sw.js
 public/workbox-*.js
 public/worker-*.js
@@ -54,6 +76,16 @@ public/sw.js.map
 public/workbox-*.js.map
 public/worker-*.js.map
 
-# System Files
-.DS_Store
-Thumbs.db
+# Diagnostic Reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Chart dependencies
+**/charts/*.tgz
+tmpcharts-*
+Chart.lock
+
+# Secret
+/secrets.yaml
+
+# Git
+!/**/.gitkeep

@@ -1,0 +1,47 @@
+---
+mariadb:
+  enabled: true
+  primary:
+    service:
+      type: LoadBalancer
+
+api:
+  image:
+    pullPolicy: Always
+    tag: latest
+  volumes:
+    - name: src
+      hostPath:
+        path: /app/api/src
+  volumeMounts:
+    - name: src
+      mountPath: /app/src
+  autoscaling:
+    enabled: false
+  service:
+    type: LoadBalancer
+    port: 3001
+
+ui:
+  image:
+    pullPolicy: Always
+    tag: latest
+  volumes:
+    - name: src
+      hostPath:
+        path: /app/ui/src
+    - name: public
+      hostPath:
+        path: /app/ui/public
+  volumeMounts:
+    - name: src
+      mountPath: /app/src
+    - name: public
+      mountPath: /app/public
+  autoscaling:
+    enabled: false
+  service:
+    type: LoadBalancer
+  publicUrl: http://localhost:3000/
+  api:
+    url: "http://{{ .Release.Name }}-api.{{ .Release.Namespace }}.svc.cluster.local:3001/"

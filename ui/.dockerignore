@@ -3,6 +3,7 @@ node_modules
 npm-debug.log
 yarn-debug.log
 yarn-error.log
+package-lock.json
 
 # Next.js build output
 .next
@@ -52,3 +53,9 @@ Thumbs.db
 .dockerignore
 Dockerfile
 docker-compose*
+
+# Next.js
+next-env.d.ts
+
+# Helm
+helm
