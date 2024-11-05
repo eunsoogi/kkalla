@@ -6,7 +6,8 @@ ui:
   ingress:
     enabled: true
     hosts:
-      - paths:
+      - host: ai.copy-money.com
+        paths:
           - path: /
             pathType: ImplementationSpecific
-  publicUrl: http://localhost/
+  publicUrl: http://ai.copy-money.com/
