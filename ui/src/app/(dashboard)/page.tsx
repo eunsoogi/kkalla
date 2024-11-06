@@ -6,7 +6,7 @@ import TradeList from '@/components/trade/TradeList';
 const Page: React.FC = () => {
   return (
     <>
-      <div className='grid grid-cols-12 gap-30'>
+      <div className='grid grid-cols-12 gap-4 lg:gap-30'>
         <div className='lg:col-span-8 col-span-12'>
           <TradeList />
         </div>

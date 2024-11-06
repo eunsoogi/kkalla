@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback } from 'react';
+import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -31,13 +31,13 @@ const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
 
   return (
     <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText='뉴스 목록 로딩 중...'>
-      <div className='space-y-4'>
+      <div className='flex flex-col gap-4 lg:gap-30'>
         {data?.pages.map((page, i) => (
-          <div key={i}>
+          <Fragment key={i}>
             {page.items.map((item) => (
               <NewsItem key={item.id} {...item} isFocus={item.id == id} />
             ))}
-          </div>
+          </Fragment>
         ))}
       </div>
     </InfinityScroll>
@@ -51,7 +51,7 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
 
   return (
     <div
-      className={`${isFocus ? 'border-2 border-primary' : ''} rounded-xl dark:shadow-dark-md shadow-md ${NEWS_STYLES[item.importance].bgStyle} transition-all cursor-pointer mb-30 p-0 relative w-full break-words`}
+      className={`${isFocus ? 'border-2 border-primary' : ''} rounded-xl dark:shadow-dark-md shadow-md ${NEWS_STYLES[item.importance].bgStyle} transition-all cursor-pointer relative w-full break-words`}
       onClick={handleClick}
     >
       <div className='p-6'>
@@ -63,8 +63,8 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
           />
           <h2 className={NEWS_STYLES[item.importance].textStyle}>{item.title}</h2>
         </div>
-        <div className='flex'>
-          <div className='flex items-center gap-2'>
+        <div className='flex items-start'>
+          <div className='flex flex-col lg:flex-row items-start lg:items-center gap-2'>
             <span className={NEWS_STYLES[item.importance].textStyle}>{item.source}</span>
             {item.labels.map((label, i) => (
               <Badge key={i} color='muted' className='text-white bg-stone-600'>
@@ -91,7 +91,7 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
 
 const NewsSkeleton: React.FC = () => {
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words overflow-hidden'>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-0 relative w-full break-words overflow-hidden'>
       <div className='p-6'>
         <h2>뉴스 없음</h2>
         <div className='flex'>
