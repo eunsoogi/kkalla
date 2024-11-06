@@ -19,7 +19,7 @@ export default function Layout({
           <Header />
           {/* Body Content  */}
           <div className='bg-lightgray mr-3 rounded-page min-h-[90vh]'>
-            <div className={`container mx-auto  py-30`}>{children}</div>
+            <div className='container p-4 lg:p-30'>{children}</div>
           </div>
         </div>
       </div>

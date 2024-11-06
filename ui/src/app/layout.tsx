@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import React from 'react';
 
@@ -14,6 +14,13 @@ const manrope = Manrope({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'AI 투자 어시스턴트',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { Suspense, useCallback } from 'react';
+import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
@@ -32,13 +32,13 @@ const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
 
   return (
     <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText='추론 목록 로딩 중...'>
-      <div className='space-y-4'>
+      <div className='flex flex-col gap-4 lg:gap-30'>
         {data?.pages.map((page, i) => (
-          <div key={i}>
+          <Fragment key={i}>
             {page.items.map((item) => (
               <InferenceItem key={item.id} {...item} isFocus={item.id == id} />
             ))}
-          </div>
+          </Fragment>
         ))}
       </div>
     </InfinityScroll>
@@ -48,7 +48,7 @@ const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
 const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = false, ...item }) => {
   return (
     <div
-      className={`${isFocus && 'border-2 border-primary'} rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words`}
+      className={`${isFocus && 'border-2 border-primary'} rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray relative w-full break-words`}
     >
       <div className='relative'>
         <Image
@@ -67,11 +67,11 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
         <div className='grid grid-cols-12 gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>
             <h4 className='my-3'>추론 내용</h4>
-            <div className='my-3 lg:line-clamp-4'>{item.reason}</div>
+            <div className='my-3'>{item.reason}</div>
           </div>
           <div className='lg:col-span-6 col-span-12'>
             <h4 className='my-3'>회귀 내용</h4>
-            <div className='my-3 lg:line-clamp-4'>{item.reflection}</div>
+            <div className='my-3'>{item.reflection}</div>
           </div>
         </div>
         <div className='flex'>
@@ -87,9 +87,9 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
 
 const InferenceSkeleton: React.FC = () => {
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray mb-30 p-0 relative w-full break-words overflow-hidden'>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray relative w-full break-words'>
       <div className='p-6'>
-        <div className='grid grid-cols-12 gap-x-30'>
+        <div className='grid grid-cols-12 gap-x-4 lg:gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>
             <h4 className='my-3'>추론 내용</h4>
             <div className='my-3 lg:line-clamp-4'>없음</div>
