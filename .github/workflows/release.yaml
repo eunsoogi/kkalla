@@ -38,6 +38,8 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
