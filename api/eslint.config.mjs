@@ -15,7 +15,12 @@ const compat = new FlatCompat({
 });
 
 export default [
-  ...compat.extends('plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended', 'prettier'),
+  ...compat.extends(
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended',
+    'prettier',
+  ),
   {
     plugins: {
       '@typescript-eslint': typescriptEslintEslintPlugin,
@@ -30,18 +35,12 @@ export default [
       parser: tsParser,
       ecmaVersion: 5,
       sourceType: 'module',
-
-      parserOptions: {
-        project: 'tsconfig.json',
-        tsconfigRootDir: '/Users/eunsoo/Documents/Git/ai-invest-assistant/api',
-      },
     },
 
     rules: {
-      '@typescript-eslint/interface-name-prefix': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 0,
+      '@typescript-eslint/no-non-null-assertion': 0,
+      '@typescript-eslint/no-unused-vars': 2,
     },
   },
 ];
