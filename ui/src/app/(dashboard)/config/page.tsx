@@ -1,8 +1,8 @@
 import React from 'react';
 
-import OpenaiForm from '@/components/config/openai-form';
-import ScheduleForm from '@/components/config/schedule-form';
-import UpbitForm from '@/components/config/upbit-form';
+import OpenaiForm from '@/components/config/OpenaiForm';
+import ScheduleForm from '@/components/config/ScheduleForm';
+import UpbitForm from '@/components/config/UpbitForm';
 
 const Page: React.FC = () => {
   return (

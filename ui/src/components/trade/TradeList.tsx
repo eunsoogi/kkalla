@@ -64,7 +64,7 @@ const TradeList = () => {
         <div className='px-6'>
           <h5 className='card-title mb-6'>거래 목록</h5>
         </div>
-        <SimpleBar>
+        <SimpleBar className='overflow-hidden'>
           <div className='overflow-x-auto'>
             <Table hoverable>
               <Table.Head>
