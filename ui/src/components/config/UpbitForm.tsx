@@ -14,12 +14,12 @@ import { initialState } from '@/interfaces/state.interface';
 import { getApikeyAction, postApikeyAction } from './action';
 import { STATUS_STYLES } from './style';
 
-const badgeQueryKey = ['apikey', 'status', ApikeyTypes.OPENAI];
+const badgeQueryKey = ['apikey', 'status', ApikeyTypes.UPBIT];
 
-const OpenaiStatusBadge: React.FC = () => {
+const UpbitStatusBadge: React.FC = () => {
   const { data } = useSuspenseQuery<ApikeyStatus>({
     queryKey: badgeQueryKey,
-    queryFn: () => getApikeyAction(ApikeyTypes.OPENAI),
+    queryFn: () => getApikeyAction(ApikeyTypes.UPBIT),
     initialData: ApikeyStatus.UNKNOWN,
     staleTime: 0,
   });
@@ -27,11 +27,11 @@ const OpenaiStatusBadge: React.FC = () => {
   return <Badge className={STATUS_STYLES[data]}>{data}</Badge>;
 };
 
-const OpenaiStatusBadgeSkeleton: React.FC = () => {
+const UpbitStatusBadgeSkeleton: React.FC = () => {
   return <Badge className={STATUS_STYLES.unknown}>{ApikeyStatus.UNKNOWN}</Badge>;
 };
 
-const OpenaiForm: React.FC = () => {
+const UpbitForm: React.FC = () => {
   const queryClient = useQueryClient();
   const [formState, formDispatch] = useActionState(postApikeyAction, initialState);
   const { pending } = useFormStatus();
@@ -51,31 +51,47 @@ const OpenaiForm: React.FC = () => {
         </Alert>
       )}
       <form action={handleSubmit}>
-        <input type='hidden' name='type' value='OPENAI' />
+        <input type='hidden' name='type' value='UPBIT' />
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title'>OpenAI</h5>
-          <Tooltip content='AI를 호출하기 위한 OpenAI 비밀 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>
-            <Link href='https://platform.openai.com/docs/quickstart' target='_blank'>
+          <h5 className='card-title'>업비트</h5>
+          <Tooltip content='업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>
+            <Link href='https://upbit.com/service_center/open_api_guide' target='_blank'>
               <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
             </Link>
           </Tooltip>
-          <Suspense fallback={<OpenaiStatusBadgeSkeleton />}>
-            <OpenaiStatusBadge />
+          <Suspense fallback={<UpbitStatusBadgeSkeleton />}>
+            <UpbitStatusBadge />
           </Suspense>
         </div>
         <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
-          이 API 키는 Model compabilities(/v1/chat/completions)에 대해 Write 권한이 필요합니다.
+          이 API 키는 자산조회, 주문하기 권한이 필요합니다.
         </div>
         <div className='mt-6'>
-          <div className='grid grid-cols-12 gap-30'>
+          <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
             <div className='lg:col-span-6 col-span-12'>
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='openaiSecretKey' value='비밀 키' />
+                    <Label htmlFor='upbitAccessKey' value='액세스 키' />
                   </div>
                   <TextInput
-                    id='openaiSecretKey'
+                    id='upbitAccessKey'
+                    name='accessKey'
+                    type='text'
+                    required
+                    className='form-control form-rounded-xl'
+                  />
+                </div>
+              </div>
+            </div>
+            <div className='lg:col-span-6 col-span-12'>
+              <div className='flex flex-col gap-4'>
+                <div>
+                  <div className='mb-2 block'>
+                    <Label htmlFor='upbitSecretKey' value='비밀 키' />
+                  </div>
+                  <TextInput
+                    id='upbitSecretKey'
                     name='secretKey'
                     type='text'
                     required
@@ -84,7 +100,7 @@ const OpenaiForm: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className='col-span-12 flex gap-3'>
+            <div className='flex col-span-12'>
               <Button type='submit' color={'primary'} disabled={pending}>
                 저장
               </Button>
@@ -96,4 +112,4 @@ const OpenaiForm: React.FC = () => {
   );
 };
 
-export default OpenaiForm;
+export default UpbitForm;
