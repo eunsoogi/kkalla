@@ -78,13 +78,13 @@ make uninstall
 다음 명령어를 사용하여 이미지를 빌드합니다.
 
 ```bash
-make build ENV=production IMAGE_TAG=1.0.0
+make build ENV=production IMAGE_TAG=<버전>
 ```
 
 다음 명령어를 사용하여 이미지를 푸시합니다.
 
 ```bash
-make push ENV=production IMAGE_TAG=1.0.0
+make push ENV=production IMAGE_TAG=<버전>
 ```
 
 다음 명령어를 사용하여 어플리케이션을 설치합니다.
