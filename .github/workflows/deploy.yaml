@@ -62,3 +62,13 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           make install ENV=production
+
+      - name: Cleanup unused images
+        if: always()
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ vars.EC2_HOST }}
+          username: ${{ vars.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo crictl rmi --prune
