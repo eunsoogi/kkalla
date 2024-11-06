@@ -64,7 +64,7 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
           </Badge>
           <h4>{item.rate * 100}%</h4>
         </div>
-        <div className='grid grid-cols-12 gap-x-30'>
+        <div className='grid grid-cols-12 lg:gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>
             <h4 className='my-3'>추론 내용</h4>
             <div className='my-3'>{item.reason}</div>
