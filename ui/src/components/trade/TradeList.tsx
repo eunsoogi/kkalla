@@ -34,15 +34,15 @@ const TradeItem = (item: Trade) => {
       <Table.Cell className='whitespace-nowrap'>
         <Badge className={TRADE_STYLES[item.type].badgeStyle}>{item.type}</Badge>
       </Table.Cell>
-      <Table.Cell className='whitespace-nowrap'>
+      <Table.Cell className='p-2 lg:px-4 lg:py-3 whitespace-nowrap'>
         <div className='me-5'>
           <p className='text-base'>{formatDate(new Date(item.createdAt))}</p>
         </div>
       </Table.Cell>
-      <Table.Cell className='whitespace-nowrap'>
+      <Table.Cell className='p-2 lg:px-4 lg:py-3 whitespace-nowrap'>
         {item.symbol}/{item.market}
       </Table.Cell>
-      <Table.Cell className='whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
+      <Table.Cell className='p-2 lg:px-4 lg:py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
     </Table.Row>
   );
 };
@@ -64,7 +64,7 @@ const TradeList = () => {
         <div className='px-6'>
           <h5 className='card-title mb-6'>거래 목록</h5>
         </div>
-        <SimpleBar className='overflow-hidden'>
+        <SimpleBar>
           <div className='overflow-x-auto'>
             <Table hoverable>
               <Table.Head>
