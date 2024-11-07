@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
+import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
 import { INFERENCE_MESSAGE_CONFIG } from '../inference/inference.config';
-import { InferenceDicisionTypes } from '../inference/inference.enum';
+import { InferenceDecisionTypes } from '../inference/inference.enum';
 import { InferenceService } from '../inference/inference.service';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
@@ -38,11 +38,11 @@ export class TradeService {
     let orderType: OrderTypes;
 
     switch (inference.decision) {
-      case InferenceDicisionTypes.BUY:
+      case InferenceDecisionTypes.BUY:
         orderType = OrderTypes.BUY;
         break;
 
-      case InferenceDicisionTypes.SELL:
+      case InferenceDecisionTypes.SELL:
         orderType = OrderTypes.SELL;
         break;
     }

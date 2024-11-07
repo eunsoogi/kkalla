@@ -11,8 +11,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
 import { Inference } from '@/modules/inference/entities/inference.entity';
+import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
 
@@ -71,7 +71,7 @@ export class Trade extends BaseEntity {
   updatedAt: Date;
 
   public static async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
-    const [items, total] = await Trade.findAndCount({
+    const [items, total] = await this.findAndCount({
       take: request.perPage,
       skip: (request.page - 1) * request.perPage,
       relations: {

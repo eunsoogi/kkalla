@@ -4,7 +4,7 @@ import { Balances } from 'ccxt';
 import OpenAI from 'openai';
 import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
 
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { FeargreedService } from '../feargreed/feargreed.service';

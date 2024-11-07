@@ -1,4 +1,4 @@
-import { GetCursorDto } from '@/dto/get-cursor.dto';
+import { GetCursorDto } from '@/modules/item/dto/get-cursor.dto';
 
 import { NewsTypes } from '../news.enum';
 

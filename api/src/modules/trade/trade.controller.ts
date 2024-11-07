@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
-import { PaginatedItem } from '@/interfaces/item.interface';
+import { PaginatedItem } from '@/modules/item/item.interface';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { GetTradeDto } from './dto/get-trade.dto';

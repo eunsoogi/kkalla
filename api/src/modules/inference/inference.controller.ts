@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
-import { GetCursorDto } from '@/dto/get-cursor.dto';
-import { CursorItem, PaginatedItem } from '@/interfaces/item.interface';
+import { GetCursorDto } from '@/modules/item/dto/get-cursor.dto';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { GetInferenceDto } from './dto/get-inference.dto';
