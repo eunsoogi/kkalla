@@ -4,7 +4,7 @@ import { Feargreed } from '../feargreed/feargreed.interface';
 import { News } from '../news/news.interface';
 import { Candle } from '../upbit/upbit.interface';
 import { Inference } from './entities/inference.entity';
-import { InferenceDicisionTypes } from './inference.enum';
+import { InferenceDecisionTypes } from './inference.enum';
 
 export interface InferenceMessageRequest {
   symbol: string;
@@ -29,14 +29,14 @@ export interface InferenceMessage {
 
 export interface InferenceResult {
   market: string;
-  decision: InferenceDicisionTypes;
+  decision: InferenceDecisionTypes;
   rate: number;
   reason: string;
   reflection: string;
 }
 
 export interface InferenceData {
-  decision: InferenceDicisionTypes;
+  decision: InferenceDecisionTypes;
   rate: number;
   reason: string;
   reflection: string;

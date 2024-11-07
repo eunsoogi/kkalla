@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, TypeOrmHealthIndicator } from '@nestjs/terminus';
 
-import { typeORMConfig } from '@/typeorm.config';
+import { typeORMConfig } from '@/databases/typeorm.config';
 
 @Injectable()
 export class HealthService {

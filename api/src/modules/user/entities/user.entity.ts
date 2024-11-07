@@ -19,6 +19,6 @@ export class User extends BaseEntity {
   updatedAt: Date;
 
   public static async findByEmail(email: string): Promise<User> {
-    return User.findOne({ where: { email } });
+    return this.findOne({ where: { email } });
   }
 }

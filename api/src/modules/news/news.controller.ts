@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
-import { CursorItem } from '@/interfaces/item.interface';
+import { CursorItem } from '@/modules/item/item.interface';
 
 import { GetNewsDto } from './dto/get-news.dto';
 import { News } from './news.interface';

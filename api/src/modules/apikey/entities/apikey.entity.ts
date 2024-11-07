@@ -11,8 +11,8 @@ import {
 } from 'typeorm';
 import { EncryptionTransformer } from 'typeorm-encrypted';
 
+import { typeORMEncryptionConfig } from '@/databases/typeorm.config';
 import { User } from '@/modules/user/entities/user.entity';
-import { typeORMEncryptionConfig } from '@/typeorm.config';
 
 import { ApikeyTypes } from '../apikey.enum';
 
@@ -62,7 +62,7 @@ export class Apikey extends BaseEntity {
   updatedAt: Date;
 
   public static async findByType(user: User, type: ApikeyTypes): Promise<Apikey> {
-    return Apikey.findOne({
+    return this.findOne({
       relations: {
         user: true,
       },

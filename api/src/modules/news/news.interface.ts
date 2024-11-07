@@ -1,4 +1,4 @@
-import { CursorRequest } from '@/interfaces/item.interface';
+import { CursorRequest } from '@/modules/item/item.interface';
 
 import { NewsTypes } from './news.enum';
 import { ImportanceLevel } from './news.type';

@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 
 import { firstValueFrom } from 'rxjs';
 
-import { CursorItem } from '@/interfaces/item.interface';
+import { CursorItem } from '@/modules/item/item.interface';
 
 import { API_URL } from './news.config';
 import { News, NewsApiResponse, NewsRequest } from './news.interface';

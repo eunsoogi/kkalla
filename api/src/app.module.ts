@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule as ScheduleModuleRoot } from '@nestjs/schedule';
-import { TypeOrmModule as TypeOrmModuleRoot } from '@nestjs/typeorm';
 
+import { TypeOrmModule } from './databases/typeorm.module';
 import { ApikeyModule } from './modules/apikey/apikey.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
@@ -13,12 +13,11 @@ import { ScheduleModule } from './modules/schedule/schedule.module';
 import { TradeModule } from './modules/trade/trade.module';
 import { UpbitModule } from './modules/upbit/upbit.module';
 import { UserModule } from './modules/user/user.module';
-import { typeORMConfig } from './typeorm.config';
 
 @Module({
   imports: [
-    TypeOrmModuleRoot.forRoot(typeORMConfig),
     ScheduleModuleRoot.forRoot(),
+    TypeOrmModule,
     AuthModule,
     UserModule,
     ApikeyModule,

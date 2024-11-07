@@ -11,10 +11,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/interfaces/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { User } from '@/modules/user/entities/user.entity';
 
-import { InferenceDicisionTypes } from '../inference.enum';
+import { InferenceDecisionTypes } from '../inference.enum';
 
 @Entity({
   orderBy: {
@@ -38,10 +38,10 @@ export class Inference extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: InferenceDicisionTypes,
+    enum: InferenceDecisionTypes,
     nullable: false,
   })
-  decision!: InferenceDicisionTypes;
+  decision!: InferenceDecisionTypes;
 
   @Column({
     type: 'double',
@@ -62,7 +62,7 @@ export class Inference extends BaseEntity {
   updatedAt: Date;
 
   public static async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Inference>> {
-    const [items, total] = await Inference.findAndCount({
+    const [items, total] = await this.findAndCount({
       take: request.perPage,
       skip: (request.page - 1) * request.perPage,
       relations: {
@@ -105,7 +105,7 @@ export class Inference extends BaseEntity {
     };
 
     if (request.cursor) {
-      const cursor = await Inference.findOne({
+      const cursor = await this.findOne({
         where: {
           id: request.cursor,
         },
@@ -117,7 +117,7 @@ export class Inference extends BaseEntity {
       };
     }
 
-    const [items, total] = await Inference.findAndCount(findOptions);
+    const [items, total] = await this.findAndCount(findOptions);
     const hasNextPage = items.length > request.limit;
 
     if (hasNextPage) {
