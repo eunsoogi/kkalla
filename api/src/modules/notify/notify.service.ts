@@ -13,6 +13,10 @@ export class NotifyService {
     return Notify.findAllByUser(user);
   }
 
+  public async notify(user: User, message: string): Promise<Notify> {
+    return this.create(user, { message });
+  }
+
   public async create(user: User, data: NotifyData): Promise<Notify> {
     const notify = new Notify();
 
