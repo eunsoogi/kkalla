@@ -6,7 +6,7 @@ export class Migration1730974316877 implements MigrationInterface {
       .createQueryBuilder()
       .select(['id', 'user_id', 'secret_key', 'created_at', 'updated_at'])
       .from('apikey', 'apikey')
-      .where('apikey.name = :type', { type: 'OPENAI' })
+      .where('name = :type', { type: 'OPENAI' })
       .getRawMany();
 
     if (openaiData.length > 0) {
@@ -16,8 +16,8 @@ export class Migration1730974316877 implements MigrationInterface {
     const upbitData = await queryRunner.manager
       .createQueryBuilder()
       .select(['id', 'user_id', 'access_key', 'secret_key', 'created_at', 'updated_at'])
-      .from('apikey', 'api')
-      .where('api.name = :type', { type: 'UPBIT' })
+      .from('apikey', 'apikey')
+      .where('name = :type', { type: 'UPBIT' })
       .getRawMany();
 
     if (upbitData.length > 0) {
