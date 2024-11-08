@@ -2,16 +2,38 @@ import { Injectable } from '@nestjs/common';
 
 import { Balances, OHLCV, Order, upbit } from 'ccxt';
 
-import { ApikeyTypes } from '../apikey/apikey.enum';
-import { Apikey } from '../apikey/entities/apikey.entity';
+import { ApikeyStatus } from '../apikey/apikey.enum';
 import { User } from '../user/entities/user.entity';
+import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
-import { Candle, CandleRequest, OrderRequest } from './upbit.interface';
+import { Candle, CandleRequest, OrderRequest, UpbitConfigData } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
+  public async readConfig(user: User): Promise<UpbitConfig> {
+    return UpbitConfig.findByUser(user);
+  }
+
+  public async createConfig(user: User, data: UpbitConfigData): Promise<UpbitConfig> {
+    let apikey = await this.readConfig(user);
+
+    if (!apikey) {
+      apikey = new UpbitConfig();
+    }
+
+    apikey.user = user;
+    Object.entries(data).forEach(([key, value]) => (apikey[key] = value));
+
+    return apikey.save();
+  }
+
+  public async status(user: User): Promise<ApikeyStatus> {
+    const apikey = await this.readConfig(user);
+    return apikey?.secretKey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
+  }
+
   public async getClient(user: User) {
-    const apikey = await Apikey.findByType(user, ApikeyTypes.UPBIT);
+    const apikey = await this.readConfig(user);
 
     const client = new upbit({
       apiKey: apikey?.accessKey,

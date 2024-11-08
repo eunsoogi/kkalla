@@ -8,18 +8,18 @@ import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
 import { useFormStatus } from 'react-dom';
 
-import { ApikeyStatus, ApikeyTypes } from '@/enums/apikey.enum';
+import { ApikeyStatus } from '@/enums/apikey.enum';
 import { initialState } from '@/interfaces/state.interface';
 
-import { getApikeyAction, postApikeyAction } from './action';
+import { getOpenaiStatusAction, postOpenaiConfigAction } from './action';
 import { STATUS_STYLES } from './style';
 
-const badgeQueryKey = ['apikey', 'status', ApikeyTypes.OPENAI];
+const badgeQueryKey = ['openai', 'status'];
 
 const OpenaiStatusBadge: React.FC = () => {
   const { data } = useSuspenseQuery<ApikeyStatus>({
     queryKey: badgeQueryKey,
-    queryFn: () => getApikeyAction(ApikeyTypes.OPENAI),
+    queryFn: getOpenaiStatusAction,
     initialData: ApikeyStatus.UNKNOWN,
     staleTime: 0,
   });
@@ -33,11 +33,11 @@ const OpenaiStatusBadgeSkeleton: React.FC = () => {
 
 const OpenaiForm: React.FC = () => {
   const queryClient = useQueryClient();
-  const [formState, formDispatch] = useActionState(postApikeyAction, initialState);
+  const [formState, formDispatch] = useActionState(postOpenaiConfigAction, initialState);
   const { pending } = useFormStatus();
 
   const handleSubmit = async (payload: FormData) => {
-    await formDispatch(payload);
+    formDispatch(payload);
     queryClient.invalidateQueries({
       queryKey: badgeQueryKey,
     });
@@ -51,7 +51,6 @@ const OpenaiForm: React.FC = () => {
         </Alert>
       )}
       <form action={handleSubmit}>
-        <input type='hidden' name='type' value='OPENAI' />
         <div className='flex flex-column items-center gap-2'>
           <h5 className='card-title'>OpenAI</h5>
           <Tooltip content='AI를 호출하기 위한 OpenAI 비밀 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>

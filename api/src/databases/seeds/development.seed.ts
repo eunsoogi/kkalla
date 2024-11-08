@@ -6,12 +6,13 @@ import { User } from '@/modules/user/entities/user.entity';
 
 export const seeds = {
   users: async () => {
-    await User.delete({});
-    await User.save([
-      {
-        email: 'eunsoogi.lee@gmail.com',
-      },
-    ]);
+    const email = process.env.TEST_EMAIL!;
+    let user = await User.findOneBy({ email });
+    if (!user) {
+      user = new User();
+      user.email = email;
+    }
+    await user.save();
   },
   inferences: async () => {
     const users = await User.find();

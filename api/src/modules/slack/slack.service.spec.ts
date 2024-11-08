@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { ApikeyService } from './apikey.service';
+import { SlackService } from './slack.service';
 
-describe('ApikeyService', () => {
-  let service: ApikeyService;
+describe('SlackService', () => {
+  let service: SlackService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ApikeyService],
+      providers: [SlackService],
     }).compile();
 
-    service = module.get<ApikeyService>(ApikeyService);
+    service = module.get<SlackService>(SlackService);
   });
 
   it('should be defined', () => {
