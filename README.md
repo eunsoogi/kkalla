@@ -22,6 +22,10 @@ Google OAuth 2.0 클라이언트 ID입니다. 자세한 내용은 [이곳](https
 
 Google OAuth 2.0 클라이언트 암호입니다. 자세한 내용은 [이곳](https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko)을 참조하세요.
 
+#### `api.test.email`
+
+개발 환경에서 dummy seed를 생성할 대상 이메일 계정입니다.
+
 ### 개발 환경
 
 개발 환경은 [k3d](https://k3d.io/)를 사용합니다. 다음 명령어를 사용하여 k3d를 설치합니다.

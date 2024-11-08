@@ -1,13 +1,14 @@
 import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
-import { GetCursorDto } from '@/dto/get-cursor.dto';
-import { CursorItem, PaginatedItem } from '@/interfaces/item.interface';
+import { GetCursorDto } from '@/modules/item/dto/get-cursor.dto';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { GetInferenceDto } from './dto/get-inference.dto';
 import { PostInferenceDto } from './dto/post-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_MESSAGE_CONFIG } from './inference.config';
+import { InferenceResult } from './inference.interface';
 import { InferenceService } from './inference.service';
 
 @Controller('api/v1/inferences')
@@ -28,8 +29,8 @@ export class InferenceController {
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public post(@Req() req, @Body() body: PostInferenceDto): Promise<Inference> {
-    return this.inferenceService.inferenceAndSave(req.user, {
+  public post(@Req() req, @Body() body: PostInferenceDto): Promise<InferenceResult> {
+    return this.inferenceService.inference(req.user, {
       ...INFERENCE_MESSAGE_CONFIG,
       ...body,
     });

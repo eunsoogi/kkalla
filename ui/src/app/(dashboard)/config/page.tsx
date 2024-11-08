@@ -2,6 +2,7 @@ import React from 'react';
 
 import OpenaiForm from '@/components/config/OpenaiForm';
 import ScheduleForm from '@/components/config/ScheduleForm';
+import SlackForm from '@/components/config/SlackForm';
 import UpbitForm from '@/components/config/UpbitForm';
 
 const Page: React.FC = () => {
@@ -16,6 +17,9 @@ const Page: React.FC = () => {
         </div>
         <div className='py-6'>
           <UpbitForm />
+        </div>
+        <div className='py-6'>
+          <SlackForm />
         </div>
       </div>
     </>

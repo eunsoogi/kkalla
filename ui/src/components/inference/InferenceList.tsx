@@ -36,7 +36,7 @@ const InferenceItem: React.FC<Inference> = (item: Inference) => {
             <div className={`rounded-full ${DECISION_STYLES[item.decision].dotStyle} p-1.5 w-fit`}></div>
             <div className='h-full w-px bg-border'></div>
           </div>
-          <div className='flex gap-4 min-w-full'>
+          <div className='flex gap-4'>
             <p className='text-dark text-start'>
               <Badge className={DECISION_STYLES[item.decision].badgeStyle}>{item.decision}</Badge>
             </p>

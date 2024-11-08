@@ -38,7 +38,7 @@ export class Schedule extends BaseEntity {
   updatedAt: Date;
 
   public static async findByEnabled(): Promise<Schedule[]> {
-    return Schedule.find({
+    return this.find({
       relations: {
         user: true,
       },
@@ -49,7 +49,7 @@ export class Schedule extends BaseEntity {
   }
 
   public static async findByUser(user: User): Promise<Schedule> {
-    return Schedule.findOne({
+    return this.findOne({
       relations: {
         user: true,
       },

@@ -3,7 +3,7 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { EncryptionOptions } from 'typeorm-encrypted';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
-import { decrypt } from './utils/key';
+import { decrypt } from '@/utils/key';
 
 export const typeORMConfig: TypeOrmModuleOptions = {
   type: 'mariadb',
@@ -12,7 +12,7 @@ export const typeORMConfig: TypeOrmModuleOptions = {
   username: process.env.DB_USER ?? 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
   migrationsRun: process.env.NODE_ENV === 'production',

@@ -135,3 +135,6 @@ db:
   username: ""
   password: ""
   secret: ""
+
+test:
+  email: ""

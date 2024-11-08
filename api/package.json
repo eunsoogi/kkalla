@@ -1,6 +1,6 @@
 {
   "name": "ai-invest-assistant-api",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -17,8 +17,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm migration:create ./src/migrations/migration",
-    "migration:generate": "npm run typeorm migration:generate ./src/migrations/migration",
+    "migration:create": "npm run typeorm migration:create ./src/databases/migrations/migration",
+    "migration:generate": "npm run typeorm migration:generate ./src/databases/migrations/migration",
     "migration:run": "npm run typeorm migration:run",
     "migration:revert": "npm run typeorm migration:revert"
   },
@@ -30,8 +30,10 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.6",
     "@nestjs/schedule": "^4.1.1",
+    "@nestjs/swagger": "^8.0.3",
     "@nestjs/terminus": "^10.2.3",
     "@nestjs/typeorm": "^10.0.2",
+    "@slack/web-api": "^7.7.0",
     "ccxt": "^4.4.25",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -43,6 +45,7 @@
     "passport-http-bearer": "^1.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.20",
     "typeorm-encrypted": "^0.8.0",
     "typeorm-naming-strategies": "^4.1.0"

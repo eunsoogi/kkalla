@@ -1,10 +1,8 @@
-import { Balances } from 'ccxt';
-
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { News } from '../news/news.interface';
 import { Candle } from '../upbit/upbit.interface';
 import { Inference } from './entities/inference.entity';
-import { InferenceDicisionTypes } from './inference.enum';
+import { InferenceDecisionTypes } from './inference.enum';
 
 export interface InferenceMessageRequest {
   symbol: string;
@@ -20,7 +18,6 @@ export interface InferenceMessageRequest {
 }
 
 export interface InferenceMessage {
-  balances: Balances;
   candles: Candle[];
   news: News[];
   feargreed: Feargreed;
@@ -28,16 +25,15 @@ export interface InferenceMessage {
 }
 
 export interface InferenceResult {
-  market: string;
-  decision: InferenceDicisionTypes;
-  rate: number;
-  reason: string;
-  reflection: string;
+  items: InferenceData[];
 }
 
 export interface InferenceData {
-  decision: InferenceDicisionTypes;
+  symbol: string;
+  decision: InferenceDecisionTypes;
   rate: number;
+  cashMoreThan: number;
+  cashLessThan: number;
   reason: string;
   reflection: string;
 }

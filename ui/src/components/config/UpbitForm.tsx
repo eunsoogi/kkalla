@@ -8,18 +8,18 @@ import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
 import { useFormStatus } from 'react-dom';
 
-import { ApikeyStatus, ApikeyTypes } from '@/enums/apikey.enum';
+import { ApikeyStatus } from '@/enums/apikey.enum';
 import { initialState } from '@/interfaces/state.interface';
 
-import { getApikeyAction, postApikeyAction } from './action';
+import { getUpbitStatusAction, postUpbitConfigAction } from './action';
 import { STATUS_STYLES } from './style';
 
-const badgeQueryKey = ['apikey', 'status', ApikeyTypes.UPBIT];
+const badgeQueryKey = ['upbit', 'status'];
 
 const UpbitStatusBadge: React.FC = () => {
   const { data } = useSuspenseQuery<ApikeyStatus>({
     queryKey: badgeQueryKey,
-    queryFn: () => getApikeyAction(ApikeyTypes.UPBIT),
+    queryFn: getUpbitStatusAction,
     initialData: ApikeyStatus.UNKNOWN,
     staleTime: 0,
   });
@@ -33,11 +33,11 @@ const UpbitStatusBadgeSkeleton: React.FC = () => {
 
 const UpbitForm: React.FC = () => {
   const queryClient = useQueryClient();
-  const [formState, formDispatch] = useActionState(postApikeyAction, initialState);
+  const [formState, formDispatch] = useActionState(postUpbitConfigAction, initialState);
   const { pending } = useFormStatus();
 
   const handleSubmit = async (payload: FormData) => {
-    await formDispatch(payload);
+    formDispatch(payload);
     queryClient.invalidateQueries({
       queryKey: badgeQueryKey,
     });
@@ -51,7 +51,6 @@ const UpbitForm: React.FC = () => {
         </Alert>
       )}
       <form action={handleSubmit}>
-        <input type='hidden' name='type' value='UPBIT' />
         <div className='flex flex-column items-center gap-2'>
           <h5 className='card-title'>업비트</h5>
           <Tooltip content='업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>
