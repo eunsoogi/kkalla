@@ -10,3 +10,4 @@ data:
   DB_PORT: "{{ .Values.db.port }}"
   DB_DATABASE: "{{ .Values.db.database }}"
   DB_USER: "{{ .Values.db.username }}"
+  TEST_EMAIL: "{{ .Values.test.email }}"

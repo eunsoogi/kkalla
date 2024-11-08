@@ -60,6 +60,7 @@ export class Trade extends BaseEntity {
 
   @OneToOne(() => Inference, {
     eager: true,
+    onDelete: 'SET NULL',
   })
   @JoinColumn()
   inference: Inference;

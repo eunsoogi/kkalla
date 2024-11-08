@@ -1,5 +1,10 @@
 import { OrderTypes } from './upbit.enum';
 
+export interface UpbitConfigData {
+  accessKey: string;
+  secretKey: string;
+}
+
 export interface CandleRequest {
   symbol: string;
   market: string;

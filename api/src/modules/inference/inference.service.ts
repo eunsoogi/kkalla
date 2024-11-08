@@ -85,11 +85,11 @@ export class InferenceService {
   }
 
   public async inference(user: User, request: InferenceMessageRequest): Promise<InferenceResult> {
-    const service: OpenAI = await this.openaiService.getClient(user);
+    const client: OpenAI = await this.openaiService.getClient(user);
 
     const message: InferenceMessage = await this.getMessage(user, request);
 
-    const response: ChatCompletion = await service.chat.completions.create({
+    const response: ChatCompletion = await client.chat.completions.create({
       model: INFERENCE_MODEL,
       max_tokens: INFERENCE_MAX_TOKENS,
       messages: this.getMessageParams(message),
