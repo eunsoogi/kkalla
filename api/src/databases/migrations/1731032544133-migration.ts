@@ -3,11 +3,14 @@ import { MigrationInterface, QueryRunner, TableForeignKey } from 'typeorm';
 export class Migration1731032544133 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const foreignKeys = await queryRunner.query(`
-      SELECT constraint_name
-      FROM information_schema.table_constraints
-      WHERE table_name = 'trade'
-      AND constraint_type = 'FOREIGN KEY'
-      AND column_name = 'inference_id'
+      SELECT tc.constraint_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+      WHERE tc.table_name = 'trade'
+        AND tc.constraint_type = 'FOREIGN KEY'
+        AND kcu.column_name = 'inference_id'
+        AND tc.table_schema = DATABASE()
     `);
 
     if (foreignKeys && foreignKeys.length > 0) {
@@ -29,11 +32,14 @@ export class Migration1731032544133 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     const foreignKeys = await queryRunner.query(`
-      SELECT constraint_name
-      FROM information_schema.table_constraints
-      WHERE table_name = 'trade'
-      AND constraint_type = 'FOREIGN KEY'
-      AND column_name = 'inference_id'
+      SELECT tc.constraint_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+      WHERE tc.table_name = 'trade'
+        AND tc.constraint_type = 'FOREIGN KEY'
+        AND kcu.column_name = 'inference_id'
+        AND tc.table_schema = DATABASE()
     `);
 
     if (foreignKeys && foreignKeys.length > 0) {
