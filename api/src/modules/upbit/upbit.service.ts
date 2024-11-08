@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Balances, OHLCV, Order, upbit } from 'ccxt';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
+import { InferenceDecisionTypes } from '../inference/inference.enum';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
@@ -81,6 +82,20 @@ export class UpbitService {
     return client.fetchBalance();
   }
 
+  public async getCashRate(user: User): Promise<number> {
+    const balances = await this.getBalances(user);
+    const curr = balances['KRW']['total'];
+    let total = curr;
+
+    balances.info.map((item) => {
+      total += item['balance'] * item['avg_buy_price'];
+    });
+
+    const rate = curr / total;
+
+    return rate;
+  }
+
   public async order(user: User, request: OrderRequest): Promise<Order> {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
@@ -95,5 +110,21 @@ export class UpbitService {
       case OrderTypes.SELL:
         return await client.createOrder(ticker, 'market', request.type, tradeVolume);
     }
+  }
+
+  public static getOrderType(decision: InferenceDecisionTypes): OrderTypes {
+    let orderType: OrderTypes;
+
+    switch (decision) {
+      case InferenceDecisionTypes.BUY:
+        orderType = OrderTypes.BUY;
+        break;
+
+      case InferenceDecisionTypes.SELL:
+        orderType = OrderTypes.SELL;
+        break;
+    }
+
+    return orderType;
   }
 }

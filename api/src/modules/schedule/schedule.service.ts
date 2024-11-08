@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+import { PostTradeDto } from '../trade/dto/post-trade.dto';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeService } from '../trade/trade.service';
 import { User } from '../user/entities/user.entity';
@@ -18,7 +19,7 @@ export class ScheduleService {
     this.logger.log('Trade schedule started...');
 
     const schedules = await Schedule.findByEnabled();
-    const threads = schedules.map((schedule) => this.tradeService.trade(schedule.user));
+    const threads = schedules.map((schedule) => this.tradeService.trade(schedule.user, new PostTradeDto())); // TO-DO: dynamic symbol & market
     const results = await Promise.all(threads);
 
     this.logger.log('Trade schedule has ended.');
