@@ -34,9 +34,8 @@ export class Seeder {
         await seedFunc[entityName]();
       }
       await queryRunner.commitTransaction();
-    } catch (error) {
+    } catch {
       await queryRunner.rollbackTransaction();
-      throw error;
     } finally {
       await queryRunner.release();
     }
