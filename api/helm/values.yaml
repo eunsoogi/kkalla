@@ -137,5 +137,4 @@ db:
   secret: ""
 
 test:
-  name: ""
   email: ""
