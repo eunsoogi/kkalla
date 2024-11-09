@@ -25,46 +25,93 @@ export class TradeService {
   ) {}
 
   public async trade(user: User, request: TradeRequest): Promise<Trade> {
-    let inference: Inference;
-
-    this.logger.log(`Inference for ${user.id} started...`);
-
-    try {
-      const inferenceData = await this.inference(user, request);
-      inference = await this.inferenceService.create(user, inferenceData);
-    } catch (error) {
-      this.logger.error(`Inference for ${user.id} has failed.`, error);
-      this.notifyService.notify(user, '추론에 실패했습니다.');
-    }
-
-    this.logger.log(`Inference for ${user.id} has ended.`);
+    const inference = await this.performInference(user, request);
 
     if (!inference) {
       return null;
     }
 
-    this.notifyService.notify(
-      user,
-      `추론 결과: \`${inference.decision}\` (${inference.rate * 100}%)\n> ${inference.reason}`,
-    );
+    this.notifyInferenceResult(user, inference);
 
-    let order: Order;
-
-    this.logger.log(`Order for ${user.id} started...`);
-
-    try {
-      order = await this.order(user, inference, request);
-    } catch (error) {
-      this.logger.error(`Order for ${user.id} has failed.`, error);
-      this.notifyService.notify(user, '주문에 실패했습니다.');
-    }
-
-    this.logger.log(`Order for ${user.id} has ended.`);
+    const order = await this.performOrder(user, inference, request);
 
     if (!order) {
       return null;
     }
 
+    const trade = await this.performTrade(user, request, inference, order);
+
+    this.notifyTradeResult(user, trade);
+
+    return trade;
+  }
+
+  public async inference(user: User, request: TradeRequest): Promise<InferenceData> {
+    const rate = await this.upbitService.getCashRate(user);
+    const result = await this.inferenceService.inference(user, {
+      ...INFERENCE_MESSAGE_CONFIG,
+      ...request,
+    });
+
+    return result.items.find((item) => item.cashLessThan > rate && item.cashMoreThan < rate);
+  }
+
+  private async performInference(user: User, request: TradeRequest): Promise<Inference> {
+    this.logger.log(`Inference for ${user.id} started...`);
+
+    try {
+      const inferenceData = await this.inference(user, request);
+      return await this.inferenceService.create(user, inferenceData);
+    } catch (error) {
+      this.handleError(`Inference for ${user.id}`, error as Error, user);
+      return null;
+    }
+  }
+
+  private notifyInferenceResult(user: User, inference: Inference): void {
+    this.notifyService.notify(
+      user,
+      `추론 결과: \`${inference.decision}\` (${inference.rate * 100}%)\n> ${inference.reason}`,
+    );
+  }
+
+  public async order(user: User, inference: Inference, request: TradeRequest): Promise<Order> {
+    const type = UpbitService.getOrderType(inference.decision);
+    if (!type) return null;
+
+    return this.upbitService.order(user, {
+      ...request,
+      type,
+      rate: inference.rate,
+    });
+  }
+
+  private async performOrder(user: User, inference: Inference, request: TradeRequest): Promise<Order> {
+    this.logger.log(`Order for ${user.id} started...`);
+
+    try {
+      return await this.order(user, inference, request);
+    } catch (error) {
+      this.handleError(`Order for ${user.id}`, error as Error, user);
+      return null;
+    }
+  }
+
+  private handleError(context: string, error: Error, user: User): void {
+    this.logger.error(`${context} has failed.`, error);
+    this.notifyService.notify(user, `${context.split(' ')[0].toLowerCase()}에 실패했습니다.`);
+  }
+
+  public async create(user: User, data: TradeData): Promise<Trade> {
+    const trade = new Trade();
+
+    trade.user = user;
+    Object.assign(trade, data);
+
+    return trade.save();
+  }
+
+  private async performTrade(user: User, request: TradeRequest, inference: Inference, order: Order): Promise<Trade> {
     const type = UpbitService.getOrderType(inference.decision);
     const balances = await this.upbitService.getBalances(user);
     const trade = await this.create(user, {
@@ -75,48 +122,14 @@ export class TradeService {
       inference,
     });
 
-    this.notifyService.notify(
-      user,
-      `주문 결과: \`${type}\`\n${trade.symbol}/${trade.market}, ₩${trade.amount.toLocaleString()}`,
-    );
-
     return trade;
   }
 
-  public async inference(user: User, request: TradeRequest): Promise<InferenceData> {
-    const rate = await this.upbitService.getCashRate(user);
-
-    const result = await this.inferenceService.inference(user, {
-      ...INFERENCE_MESSAGE_CONFIG,
-      ...request,
-    });
-
-    return result.items.filter((item) => item.cashLessThan > rate && item.cashMoreThan < rate)[0];
-  }
-
-  public async order(user: User, inference: Inference, request: TradeRequest): Promise<Order> {
-    const type = UpbitService.getOrderType(inference.decision);
-
-    if (!type) {
-      return null;
-    }
-
-    const result = await this.upbitService.order(user, {
-      ...request,
-      type,
-      rate: inference.rate,
-    });
-
-    return result;
-  }
-
-  public async create(user: User, data: TradeData): Promise<Trade> {
-    const trade = new Trade();
-
-    trade.user = user;
-    Object.entries(data).forEach(([key, value]) => (trade[key] = value));
-
-    return trade.save();
+  private notifyTradeResult(user: User, trade: Trade): void {
+    this.notifyService.notify(
+      user,
+      `주문 결과: \`${trade.type}\`\n${trade.symbol}/${trade.market}, ₩${trade.amount.toLocaleString()}`,
+    );
   }
 
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {

@@ -104,7 +104,7 @@ export class InferenceService {
     const inference = new Inference();
 
     inference.user = user;
-    Object.entries(data).forEach(([key, value]) => (inference[key] = value));
+    Object.assign(inference, data);
 
     return inference.save();
   }

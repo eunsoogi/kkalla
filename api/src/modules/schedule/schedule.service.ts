@@ -35,7 +35,7 @@ export class ScheduleService {
     }
 
     schedule.user = user;
-    Object.entries(data).forEach(([key, value]) => (schedule[key] = value));
+    Object.assign(schedule, data);
 
     return schedule.save();
   }
