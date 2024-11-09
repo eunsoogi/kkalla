@@ -21,7 +21,7 @@ export class OpenaiService {
     }
 
     config.user = user;
-    Object.entries(data).forEach(([key, value]) => (config[key] = value));
+    Object.assign(config, data);
 
     return config.save();
   }
