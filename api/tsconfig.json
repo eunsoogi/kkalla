@@ -23,7 +23,8 @@
     "strictBindCallApply": false,
     "noImplicitAny": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "preserveWatchOutput": true
   },
   "watchOptions": {
     "watchFile": "fixedPollingInterval"
