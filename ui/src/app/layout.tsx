@@ -3,7 +3,7 @@ import { Manrope } from 'next/font/google';
 import React from 'react';
 
 import { Flowbite, ThemeModeScript } from 'flowbite-react';
-import { getLocale, getMessages } from 'next-intl/server';
+import { getLocale, getMessages, getTimeZone } from 'next-intl/server';
 import 'simplebar-react/dist/simplebar.min.css';
 
 import customTheme from '@/utils/theme/custom-theme';
@@ -26,6 +26,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
+  const timeZone = await getTimeZone();
   const messages = await getMessages();
 
   return (
@@ -36,7 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={`${manrope.className}`}>
         <Flowbite theme={{ theme: customTheme }}>
-          <Providers locale={locale} messages={messages}>
+          <Providers locale={locale} timeZone={timeZone} messages={messages}>
             {children}
           </Providers>
         </Flowbite>

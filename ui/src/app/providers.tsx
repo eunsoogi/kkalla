@@ -18,12 +18,13 @@ const queryClient = new QueryClient({
 interface ProvidersProps {
   children: React.ReactNode;
   locale?: string;
+  timeZone?: string;
   messages?: AbstractIntlMessages;
 }
 
-export function Providers({ children, locale, messages }: ProvidersProps) {
+export function Providers({ children, locale, timeZone, messages }: ProvidersProps) {
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <NextIntlClientProvider locale={locale} timeZone={timeZone} messages={messages}>
       <SessionProvider>
         <QueryClientProvider client={queryClient}>
           {children}

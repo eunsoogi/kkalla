@@ -1,4 +1,5 @@
 import { uniqueId } from 'lodash';
+import { useTranslations } from 'next-intl';
 
 export interface ChildItem {
   id?: number | string;
@@ -21,35 +22,37 @@ export interface MenuItem {
   url?: any;
 }
 
-const SidebarContent: MenuItem[] = [
-  {
-    heading: '홈',
-    children: [
-      {
-        name: '대시보드',
-        icon: 'solar:widget-add-line-duotone',
-        id: uniqueId(),
-        url: '/',
-      },
-    ],
-  },
-  {
-    heading: '서비스',
-    children: [
-      {
-        name: '뉴스 목록',
-        icon: 'solar:document-outline',
-        id: uniqueId(),
-        url: '/news',
-      },
-      {
-        name: '추론 목록',
-        icon: 'mingcute:ai-line',
-        id: uniqueId(),
-        url: '/inferences',
-      },
-    ],
-  },
-];
+export const SidebarContent = (): MenuItem[] => {
+  const t = useTranslations('menu');
 
-export default SidebarContent;
+  return [
+    {
+      heading: t('home'),
+      children: [
+        {
+          name: t('dashboard'),
+          icon: 'solar:widget-add-line-duotone',
+          id: uniqueId(),
+          url: '/',
+        },
+      ],
+    },
+    {
+      heading: t('service'),
+      children: [
+        {
+          name: t('newsList'),
+          icon: 'solar:document-outline',
+          id: uniqueId(),
+          url: '/news',
+        },
+        {
+          name: t('inferenceList'),
+          icon: 'mingcute:ai-line',
+          id: uniqueId(),
+          url: '/inferences',
+        },
+      ],
+    },
+  ];
+};
