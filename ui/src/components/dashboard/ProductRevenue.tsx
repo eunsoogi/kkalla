@@ -54,7 +54,7 @@ const ProductRevenue = () => {
 
   return (
     <>
-      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray pt-6 px-0 relative w-full break-words'>
+      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full break-words'>
         <div className='px-6'>
           <h5 className='card-title mb-6'>Revenue by Product</h5>
         </div>

@@ -96,7 +96,7 @@ const NewsSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-0 relative w-full break-words overflow-hidden'>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-0 relative w-full break-words overflow-hidden'>
       <div className='p-6'>
         <h2>{t('nothing')}</h2>
         <div className='flex'>

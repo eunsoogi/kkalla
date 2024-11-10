@@ -46,9 +46,9 @@ const ScheduleForm: React.FC = () => {
   return (
     <>
       <div className='flex flex-column items-center gap-2'>
-        <h5 className='card-title'>{t('schedule.title')}</h5>
+        <h5 className='card-title text-dark dark:text-white'>{t('schedule.title')}</h5>
         <Tooltip content={t('schedule.tooltip')}>
-          <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
+          <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
         </Tooltip>
       </div>
       <div className='mt-6'>

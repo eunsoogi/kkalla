@@ -8,7 +8,7 @@ import UpbitForm from '@/components/config/UpbitForm';
 const Page: React.FC = () => {
   return (
     <>
-      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words divide-y divide-gray-100'>
+      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words divide-y divide-gray-100 dark:divide-gray-800'>
         <div className='py-6'>
           <ScheduleForm />
         </div>

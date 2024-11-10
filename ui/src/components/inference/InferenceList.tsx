@@ -28,14 +28,14 @@ const InferenceContent: React.FC = () => {
 const InferenceItem: React.FC<Inference> = (item: Inference) => {
   return (
     <Link href={`/inferences/${item.id}`}>
-      <li className='rounded-xl hover:bg-gray-50'>
+      <li className='rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800'>
         <div className='flex gap-4 min-h-16'>
           <div className='min-w-24'>
             <p>{formatDate(new Date(item.createdAt))}</p>
           </div>
           <div className='flex flex-col items-center'>
             <div className={`rounded-full ${DECISION_STYLES[item.decision].dotStyle} p-1.5 w-fit`}></div>
-            <div className='h-full w-px bg-border'></div>
+            <div className='h-full w-px bg-border dark:bg-gray-800'></div>
           </div>
           <div className='flex gap-4'>
             <p className='text-dark text-start'>
@@ -63,8 +63,8 @@ const InferenceList: React.FC = () => {
   const t = useTranslations();
 
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full min-h-full break-words'>
-      <h5 className='card-title mb-6'>{t('inference.list')}</h5>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
+      <h5 className='card-title text-dark dark:text-white mb-6'>{t('inference.list')}</h5>
       <div className='flex flex-col mt-2'>
         <Suspense fallback={<InferenceSkeleton />}>
           <InferenceContent />

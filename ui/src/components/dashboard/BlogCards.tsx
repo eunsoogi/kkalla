@@ -60,7 +60,7 @@ const BlogCards = () => {
         {BlogCardsData.map((item, i) => (
           <div className='lg:col-span-4 col-span-12' key={i}>
             <Link href={item.url} className='group'>
-              <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-0 relative w-full break-words overflow-hidden'>
+              <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-0 relative w-full break-words overflow-hidden'>
                 <div className='relative'>
                   <Image src={item.coveravatar} alt='matdash' />
                   <Badge color={'muted'} className='absolute bottom-5 end-5 font-semibold rounded-sm bg-muted'>

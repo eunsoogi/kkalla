@@ -58,10 +58,10 @@ const UpbitForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title'>{t('upbit.title')}</h5>
+          <h5 className='card-title text-dark dark:text-white'>{t('upbit.title')}</h5>
           <Tooltip content={t('upbit.tooltip')}>
             <Link href='https://upbit.com/service_center/open_api_guide' target='_blank'>
-              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
+              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
             </Link>
           </Tooltip>
           <Suspense fallback={<UpbitStatusBadgeSkeleton />}>

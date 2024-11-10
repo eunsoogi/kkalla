@@ -11,14 +11,14 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className='flex w-full min-h-screen'>
+    <div className='flex w-full min-h-screen bg-white dark:bg-dark'>
       <div className='page-wrapper flex w-full'>
         {/* Header/sidebar */}
         <Sidebar />
-        <div className='body-wrapper w-full bg-white dark:bg-dark'>
+        <div className='body-wrapper w-full'>
           <Header />
           {/* Body Content  */}
-          <div className='bg-lightgray mr-3 rounded-page min-h-[90vh]'>
+          <div className='bg-lightgray dark:bg-gray-800 mr-3 rounded-page min-h-[90vh]'>
             <div className='container p-4 lg:p-30'>{children}</div>
           </div>
         </div>

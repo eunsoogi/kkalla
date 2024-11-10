@@ -18,7 +18,7 @@ const SidebarLayout = () => {
     <div className='xl:block hidden'>
       <div className='flex'>
         <Sidebar
-          className='fixed menu-sidebar pt-6 bg-white dark:bg-darkgray z-[10]'
+          className='fixed menu-sidebar pt-6 bg-white dark:bg-dark z-[10]'
           aria-label='Sidebar with multi-level dropdown example'
         >
           <div className='mb-7 px-6 brand-logo'>
@@ -30,7 +30,7 @@ const SidebarLayout = () => {
               <Sidebar.ItemGroup className='sidebar-nav'>
                 {sidebarContent.map((item, index) => (
                   <React.Fragment key={index}>
-                    <h5 className='text-link text-xs caption'>
+                    <h5 className='text-link dark:text-darklink text-xs caption'>
                       <span className='hide-menu'>{item.heading}</span>
                     </h5>
                     <Icon
