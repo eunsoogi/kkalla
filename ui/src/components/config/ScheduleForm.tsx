@@ -5,12 +5,14 @@ import React, { Suspense, useTransition } from 'react';
 import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { ToggleSwitch, Tooltip } from 'flowbite-react';
+import { useTranslations } from 'next-intl';
 
 import { Schedule, initialState } from '@/interfaces/schedule.interface';
 
 import { getScheduleAction, postScheduleAction } from './action';
 
 const ScheduleToggleSwitch: React.FC = () => {
+  const t = useTranslations();
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const queryKey = ['schedule'];
@@ -29,20 +31,24 @@ const ScheduleToggleSwitch: React.FC = () => {
     });
   };
 
-  return <ToggleSwitch checked={data.enabled} onChange={handleToggle} disabled={isPending} label='활성화' />;
+  return <ToggleSwitch checked={data.enabled} onChange={handleToggle} disabled={isPending} label={t('activate')} />;
 };
 
 const ScheduleToggleSwitchSkeleton: React.FC = () => {
-  return <ToggleSwitch checked={false} onChange={() => null} label='활성화' />;
+  const t = useTranslations();
+
+  return <ToggleSwitch checked={false} onChange={() => null} label={t('activate')} />;
 };
 
 const ScheduleForm: React.FC = () => {
+  const t = useTranslations();
+
   return (
     <>
       <div className='flex flex-column items-center gap-2'>
-        <h5 className='card-title'>매매 스케줄</h5>
-        <Tooltip content='등록된 API 키를 활용해 4시간마다 추론 및 매매를 수행합니다.'>
-          <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
+        <h5 className='card-title text-dark dark:text-white'>{t('schedule.title')}</h5>
+        <Tooltip content={t('schedule.tooltip')}>
+          <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
         </Tooltip>
       </div>
       <div className='mt-6'>

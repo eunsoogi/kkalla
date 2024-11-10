@@ -21,7 +21,7 @@ export class NotifyService {
     const notify = new Notify();
 
     notify.user = user;
-    Object.entries(data).forEach(([key, value]) => (notify[key] = value));
+    Object.assign(notify, data);
 
     // Send to slack
     this.slackService.send(user, { message: data?.message });

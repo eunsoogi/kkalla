@@ -31,7 +31,7 @@ const customTheme = {
 
   drawer: {
     root: {
-      base: 'fixed z-40 overflow-y-auto bg-white dark:bg-darkgray p-0 transition-transform',
+      base: 'fixed z-40 overflow-y-auto bg-white dark:bg-dark p-0 transition-transform',
     },
     header: {
       inner: {
@@ -132,7 +132,7 @@ const customTheme = {
 
   sidebar: {
     root: {
-      inner: 'bg-white dark:bg-darkgray rounded-none',
+      inner: 'bg-white dark:bg-dark rounded-none',
     },
     item: {
       base: 'flex items-center justify-center rounded-md px-4 py-3 mb-1 gap-3  text-[15px] text-start  leading-[normal] font-normal text-link hover:text-primary dark:text-white  dark:hover:text-primary',

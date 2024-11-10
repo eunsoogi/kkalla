@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule as ScheduleModuleRoot } from '@nestjs/schedule';
 
 import { TypeOrmModule } from './databases/typeorm.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -12,12 +11,14 @@ import { OpenaiModule } from './modules/openai/openai.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { SlackModule } from './modules/slack/slack.module';
 import { TradeModule } from './modules/trade/trade.module';
+import { TranslateModule } from './modules/translate/translate.module';
 import { UpbitModule } from './modules/upbit/upbit.module';
 import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
-    ScheduleModuleRoot.forRoot(),
+    HealthModule,
+    TranslateModule,
     TypeOrmModule,
     AuthModule,
     UserModule,
@@ -27,7 +28,6 @@ import { UserModule } from './modules/user/user.module';
     FeargreedModule,
     InferenceModule,
     TradeModule,
-    HealthModule,
     ScheduleModule,
     SlackModule,
     NotifyModule,

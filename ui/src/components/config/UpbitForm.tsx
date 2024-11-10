@@ -6,6 +6,7 @@ import React, { Suspense, useActionState } from 'react';
 import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
+import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 
 import { ApikeyStatus } from '@/enums/apikey.enum';
@@ -17,6 +18,8 @@ import { STATUS_STYLES } from './style';
 const badgeQueryKey = ['upbit', 'status'];
 
 const UpbitStatusBadge: React.FC = () => {
+  const t = useTranslations();
+
   const { data } = useSuspenseQuery<ApikeyStatus>({
     queryKey: badgeQueryKey,
     queryFn: getUpbitStatusAction,
@@ -24,14 +27,17 @@ const UpbitStatusBadge: React.FC = () => {
     staleTime: 0,
   });
 
-  return <Badge className={STATUS_STYLES[data]}>{data}</Badge>;
+  return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
 };
 
 const UpbitStatusBadgeSkeleton: React.FC = () => {
-  return <Badge className={STATUS_STYLES.unknown}>{ApikeyStatus.UNKNOWN}</Badge>;
+  const t = useTranslations();
+
+  return <Badge className={STATUS_STYLES.unknown}>{t('status.unknown')}</Badge>;
 };
 
 const UpbitForm: React.FC = () => {
+  const t = useTranslations();
   const queryClient = useQueryClient();
   const [formState, formDispatch] = useActionState(postUpbitConfigAction, initialState);
   const { pending } = useFormStatus();
@@ -52,19 +58,17 @@ const UpbitForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title'>업비트</h5>
-          <Tooltip content='업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>
+          <h5 className='card-title text-dark dark:text-white'>{t('upbit.title')}</h5>
+          <Tooltip content={t('upbit.tooltip')}>
             <Link href='https://upbit.com/service_center/open_api_guide' target='_blank'>
-              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
+              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
             </Link>
           </Tooltip>
           <Suspense fallback={<UpbitStatusBadgeSkeleton />}>
             <UpbitStatusBadge />
           </Suspense>
         </div>
-        <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
-          이 API 키는 자산조회, 주문하기 권한이 필요합니다.
-        </div>
+        <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>{t('upbit.api.description')}</div>
         <div className='mt-6'>
           <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
             <div className='lg:col-span-6 col-span-12'>
@@ -101,7 +105,7 @@ const UpbitForm: React.FC = () => {
             </div>
             <div className='flex col-span-12'>
               <Button type='submit' color={'primary'} disabled={pending}>
-                저장
+                {t('save')}
               </Button>
             </div>
           </div>

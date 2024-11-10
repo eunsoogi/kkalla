@@ -37,13 +37,13 @@ brew install k3d # MacOS
 curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash # Linux
 ```
 
-다음 명령어를 사용하여 K3D 클러스터를 생성합니다.
+다음 명령어를 사용하여 k3d 클러스터를 생성합니다.
 
 ```bash
 make create-cluster
 ```
 
-반대의 경우, 다음 명령어를 사용하여 K3D 클러스터를 삭제합니다.
+반대의 경우, 다음 명령어를 사용하여 k3d 클러스터를 삭제합니다.
 
 ```bash
 make delete-cluster
@@ -53,6 +53,12 @@ make delete-cluster
 
 ```bash
 make build ENV=development IMAGE_TAG=latest
+```
+
+다음 명령어를 사용하여 이미지를 클러스터로 불러옵니다.
+
+```bash
+make import IMAGE_TAG=latest
 ```
 
 다음 명령어를 사용하여 이미지를 푸시합니다.

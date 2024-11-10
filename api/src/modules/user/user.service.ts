@@ -12,7 +12,7 @@ export class UserService {
   public async create(data: UserData): Promise<User> {
     const user = new User();
 
-    Object.entries(data).forEach(([key, value]) => (user[key] = value));
+    Object.assign(user, data);
 
     return user.save();
   }

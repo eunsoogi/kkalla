@@ -5,6 +5,7 @@ import React, { Fragment, Suspense, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
+import { useTranslations } from 'next-intl';
 import { TbPoint } from 'react-icons/tb';
 
 import { CursorItem } from '@/interfaces/item.interface';
@@ -16,6 +17,8 @@ import { getNewsAction } from './action';
 import { NEWS_STYLES } from './style';
 
 const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
+  const t = useTranslations();
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<News>>({
     queryKey: ['news', 'cursor'],
     queryFn: ({ pageParam = null }) => getNewsAction(pageParam as string),
@@ -30,7 +33,7 @@ const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText='뉴스 목록 로딩 중...'>
+    <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText={t('loading')}>
       <div className='flex flex-col gap-4 lg:gap-30'>
         {data?.pages.map((page, i) => (
           <Fragment key={i}>
@@ -90,10 +93,12 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
 };
 
 const NewsSkeleton: React.FC = () => {
+  const t = useTranslations();
+
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-0 relative w-full break-words overflow-hidden'>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-0 relative w-full break-words overflow-hidden'>
       <div className='p-6'>
-        <h2>뉴스 없음</h2>
+        <h2>{t('nothing')}</h2>
         <div className='flex'>
           <div className='flex gap-1 items-center ms-auto'>
             <TbPoint size={15} className='text-dark' />

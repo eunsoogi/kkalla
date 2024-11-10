@@ -16,16 +16,16 @@ export class UpbitService {
   }
 
   public async createConfig(user: User, data: UpbitConfigData): Promise<UpbitConfig> {
-    let apikey = await this.readConfig(user);
+    let config = await this.readConfig(user);
 
-    if (!apikey) {
-      apikey = new UpbitConfig();
+    if (!config) {
+      config = new UpbitConfig();
     }
 
-    apikey.user = user;
-    Object.entries(data).forEach(([key, value]) => (apikey[key] = value));
+    config.user = user;
+    Object.assign(config, data);
 
-    return apikey.save();
+    return config.save();
   }
 
   public async status(user: User): Promise<ApikeyStatus> {
