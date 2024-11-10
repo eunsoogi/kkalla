@@ -15,11 +15,6 @@ const nextConfig = {
       },
     ],
   },
-  i18n: {
-    locales: ['ko'],
-    defaultLocale: 'ko',
-    localeDetection: true
-  }
 };
 
 export default withNextIntl(nextConfig);
