@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { Order } from 'ccxt';
-import { I18nService } from 'nestjs-i18n';
+import { I18nContext, I18nService } from 'nestjs-i18n';
 
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
@@ -61,6 +61,7 @@ export class TradeService {
   private async performInference(user: User, request: TradeRequest): Promise<Inference> {
     this.logger.log(
       this.i18n.t('logging.inference.start', {
+        lang: I18nContext.current().lang,
         args: {
           id: user.id,
         },
@@ -73,6 +74,7 @@ export class TradeService {
     } catch (error) {
       this.handleError(
         this.i18n.t('logging.inference.for', {
+          lang: I18nContext.current().lang,
           args: {
             id: user.id,
           },
@@ -88,6 +90,7 @@ export class TradeService {
     this.notifyService.notify(
       user,
       this.i18n.t('notify.inference.result', {
+        lang: I18nContext.current().lang,
         args: {
           decision: inference.decision,
           rate: inference.rate * 100,
@@ -111,6 +114,7 @@ export class TradeService {
   private async performOrder(user: User, inference: Inference, request: TradeRequest): Promise<Order> {
     this.logger.log(
       this.i18n.t('logging.order.start', {
+        lang: I18nContext.current().lang,
         args: {
           id: user.id,
         },
@@ -122,6 +126,7 @@ export class TradeService {
     } catch (error) {
       this.handleError(
         this.i18n.t('logging.order.for', {
+          lang: I18nContext.current().lang,
           args: {
             id: user.id,
           },
@@ -136,6 +141,7 @@ export class TradeService {
   private handleError(context: string, error: Error, user: User): void {
     this.logger.error(
       this.i18n.t('logging.common.fail', {
+        lang: I18nContext.current().lang,
         args: {
           context,
         },
@@ -146,6 +152,7 @@ export class TradeService {
     this.notifyService.notify(
       user,
       this.i18n.t('notify.common.fail', {
+        lang: I18nContext.current().lang,
         args: {
           context: context.split(' ')[0].toLowerCase(),
         },
@@ -180,6 +187,7 @@ export class TradeService {
     this.notifyService.notify(
       user,
       this.i18n.t('notify.order.result', {
+        lang: I18nContext.current().lang,
         args: {
           type: trade.type,
           symbol: trade.symbol,
