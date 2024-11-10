@@ -1,0 +1,19 @@
+{
+  "logging": {
+    "common": {
+      "fail": "{context} has failed."
+    },
+    "inference": {
+      "start": "Inference for {id} started...",
+      "for": "Inference for ${id}"
+    },
+    "order": {
+      "start": "Order for {id} started...",
+      "for": "Order for {id}"
+    },
+    "schedule": {
+      "start": "Trade schedule started...",
+      "end": "Trade schedule has ended."
+    }
+  }
+}

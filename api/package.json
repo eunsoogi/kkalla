@@ -40,6 +40,7 @@
     "google-auth-library": "^9.14.2",
     "lodash": "^4.17.21",
     "mysql2": "^3.11.3",
+    "nestjs-i18n": "^10.4.9",
     "openai": "^4.69.0",
     "passport": "^0.7.0",
     "passport-http-bearer": "^1.0.1",

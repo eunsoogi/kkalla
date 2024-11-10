@@ -5,6 +5,7 @@ import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
+import { useTranslations } from 'next-intl';
 
 import { Inference, initialPaginatedState } from '@/interfaces/inference.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
@@ -49,17 +50,21 @@ const InferenceItem: React.FC<Inference> = (item: Inference) => {
 };
 
 const InferenceSkeleton: React.FC = () => {
+  const t = useTranslations();
+
   return (
     <ul>
-      <li>로딩 중...</li>
+      <li>{t('loading')}</li>
     </ul>
   );
 };
 
 const InferenceList: React.FC = () => {
+  const t = useTranslations();
+
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full min-h-full break-words'>
-      <h5 className='card-title mb-6'>추론 목록</h5>
+      <h5 className='card-title mb-6'>{t('inference.list')}</h5>
       <div className='flex flex-col mt-2'>
         <Suspense fallback={<InferenceSkeleton />}>
           <InferenceContent />

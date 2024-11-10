@@ -6,6 +6,7 @@ import React, { Suspense, useActionState } from 'react';
 import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
+import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 
 import { ApikeyStatus } from '@/enums/apikey.enum';
@@ -17,6 +18,8 @@ import { STATUS_STYLES } from './style';
 const badgeQueryKey = ['openai', 'status'];
 
 const OpenaiStatusBadge: React.FC = () => {
+  const t = useTranslations();
+
   const { data } = useSuspenseQuery<ApikeyStatus>({
     queryKey: badgeQueryKey,
     queryFn: getOpenaiStatusAction,
@@ -24,14 +27,17 @@ const OpenaiStatusBadge: React.FC = () => {
     staleTime: 0,
   });
 
-  return <Badge className={STATUS_STYLES[data]}>{data}</Badge>;
+  return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
 };
 
 const OpenaiStatusBadgeSkeleton: React.FC = () => {
-  return <Badge className={STATUS_STYLES.unknown}>{ApikeyStatus.UNKNOWN}</Badge>;
+  const t = useTranslations();
+
+  return <Badge className={STATUS_STYLES.unknown}>{t('status.unknown')}</Badge>;
 };
 
 const OpenaiForm: React.FC = () => {
+  const t = useTranslations();
   const queryClient = useQueryClient();
   const [formState, formDispatch] = useActionState(postOpenaiConfigAction, initialState);
   const { pending } = useFormStatus();
@@ -52,8 +58,8 @@ const OpenaiForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title'>OpenAI</h5>
-          <Tooltip content='AI를 호출하기 위한 OpenAI 비밀 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>
+          <h5 className='card-title'>{t('openai.title')}</h5>
+          <Tooltip content={t('openai.tooltip')}>
             <Link href='https://platform.openai.com/docs/quickstart' target='_blank'>
               <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
             </Link>
@@ -62,9 +68,7 @@ const OpenaiForm: React.FC = () => {
             <OpenaiStatusBadge />
           </Suspense>
         </div>
-        <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
-          이 API 키는 Model compabilities(/v1/chat/completions)에 대해 Write 권한이 필요합니다.
-        </div>
+        <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>{t('openai.api.description')}</div>
         <div className='mt-6'>
           <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
             <div className='lg:col-span-6 col-span-12'>
@@ -85,7 +89,7 @@ const OpenaiForm: React.FC = () => {
             </div>
             <div className='flex col-span-12'>
               <Button type='submit' color={'primary'} disabled={pending}>
-                저장
+                {t('save')}
               </Button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { Order } from 'ccxt';
+import { I18nService } from 'nestjs-i18n';
 
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
@@ -22,6 +23,7 @@ export class TradeService {
     private readonly inferenceService: InferenceService,
     private readonly upbitService: UpbitService,
     private readonly notifyService: NotifyService,
+    private readonly i18n: I18nService,
   ) {}
 
   public async trade(user: User, request: TradeRequest): Promise<Trade> {
@@ -57,13 +59,27 @@ export class TradeService {
   }
 
   private async performInference(user: User, request: TradeRequest): Promise<Inference> {
-    this.logger.log(`Inference for ${user.id} started...`);
+    this.logger.log(
+      this.i18n.t('logging.inference.start', {
+        args: {
+          id: user.id,
+        },
+      }),
+    );
 
     try {
       const inferenceData = await this.inference(user, request);
       return await this.inferenceService.create(user, inferenceData);
     } catch (error) {
-      this.handleError(`Inference for ${user.id}`, error as Error, user);
+      this.handleError(
+        this.i18n.t('logging.inference.for', {
+          args: {
+            id: user.id,
+          },
+        }),
+        error as Error,
+        user,
+      );
       return null;
     }
   }
@@ -71,7 +87,13 @@ export class TradeService {
   private notifyInferenceResult(user: User, inference: Inference): void {
     this.notifyService.notify(
       user,
-      `추론 결과: \`${inference.decision}\` (${inference.rate * 100}%)\n> ${inference.reason}`,
+      this.i18n.t('notify.inference.result', {
+        args: {
+          decision: inference.decision,
+          rate: inference.rate * 100,
+          reason: inference.reason,
+        },
+      }),
     );
   }
 
@@ -87,19 +109,48 @@ export class TradeService {
   }
 
   private async performOrder(user: User, inference: Inference, request: TradeRequest): Promise<Order> {
-    this.logger.log(`Order for ${user.id} started...`);
+    this.logger.log(
+      this.i18n.t('logging.order.start', {
+        args: {
+          id: user.id,
+        },
+      }),
+    );
 
     try {
       return await this.order(user, inference, request);
     } catch (error) {
-      this.handleError(`Order for ${user.id}`, error as Error, user);
+      this.handleError(
+        this.i18n.t('logging.order.for', {
+          args: {
+            id: user.id,
+          },
+        }),
+        error as Error,
+        user,
+      );
       return null;
     }
   }
 
   private handleError(context: string, error: Error, user: User): void {
-    this.logger.error(`${context} has failed.`, error);
-    this.notifyService.notify(user, `${context.split(' ')[0].toLowerCase()}에 실패했습니다.`);
+    this.logger.error(
+      this.i18n.t('logging.common.fail', {
+        args: {
+          context,
+        },
+      }),
+      error,
+    );
+
+    this.notifyService.notify(
+      user,
+      this.i18n.t('notify.common.fail', {
+        args: {
+          context: context.split(' ')[0].toLowerCase(),
+        },
+      }),
+    );
   }
 
   public async create(user: User, data: TradeData): Promise<Trade> {
@@ -128,7 +179,14 @@ export class TradeService {
   private notifyTradeResult(user: User, trade: Trade): void {
     this.notifyService.notify(
       user,
-      `주문 결과: \`${trade.type}\`\n${trade.symbol}/${trade.market}, ₩${trade.amount.toLocaleString()}`,
+      this.i18n.t('notify.order.result', {
+        args: {
+          type: trade.type,
+          symbol: trade.symbol,
+          market: trade.market,
+          amount: trade.amount.toLocaleString(),
+        },
+      }),
     );
   }
 
