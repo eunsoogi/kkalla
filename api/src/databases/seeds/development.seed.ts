@@ -1,5 +1,6 @@
 import { Inference } from '@/modules/inference/entities/inference.entity';
 import { InferenceDecisionTypes } from '@/modules/inference/inference.enum';
+import { Notify } from '@/modules/notify/entities/notify.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
@@ -67,6 +68,20 @@ export const seeds = {
       },
     ]);
   },
+  notify: async () => {
+    const users = await User.find();
+    await Notify.delete({});
+    await Notify.save([
+      {
+        user: users[0],
+        message: '테스트 메시지 1입니다.',
+      },
+      {
+        user: users[0],
+        message: '테스트 메시지 2입니다.',
+      },
+    ]);
+  },
 };
 
-export const seedOrder = ['users', 'inferences', 'trades'];
+export const seedOrder = ['users', 'inferences', 'trades', 'notify'];
