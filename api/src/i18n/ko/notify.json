@@ -1,0 +1,13 @@
+{
+  "notify": {
+    "common": {
+      "fail": "{context}에 실패했습니다."
+    },
+    "inference": {
+      "result": "추론 결과: `{decision}` ({rate}%)\n> ${reason}"
+    },
+    "order": {
+      "result": "주문 결과: `{type}`\n{symbol}/{market}, ₩{amount}"
+    }
+  }
+}

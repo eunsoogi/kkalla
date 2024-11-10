@@ -24,6 +24,7 @@
     "moment": "2.30.1",
     "next": "15.0.2",
     "next-auth": "^4.24.10",
+    "next-intl": "^3.25.0",
     "react": "18",
     "react-apexcharts": "1.5.0",
     "react-dom": "18",

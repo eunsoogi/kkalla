@@ -1,0 +1,51 @@
+{
+  "auth": {
+    "signin": {
+      "google": "구글로 로그인"
+    }
+  },
+  "status": {
+    "registered": "등록됨",
+    "unknown": "알 수 없음"
+  },
+  "schedule": {
+    "title": "매매 스케줄",
+    "tooltip": "등록된 API 키를 활용해 4시간마다 추론 및 매매를 수행합니다."
+  },
+  "openai": {
+    "title": "OpenAI",
+    "tooltip": "AI를 호출하기 위한 OpenAI 비밀 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.",
+    "api": {
+      "description": "이 API 키는 Model compabilities(/v1/chat/completions)에 대해 Write 권한이 필요합니다."
+    }
+  },
+  "upbit": {
+    "title": "업비트",
+    "tooltip": "업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.",
+    "api": {
+      "description": "이 API 키는 자산조회, 주문하기 권한이 필요합니다."
+    }
+  },
+  "slack": {
+    "title": "Slack",
+    "tooltip": "Slack 메시지를 보내기 위한 봇 토큰입니다. 클릭하면 매뉴얼 페이지로 이동합니다."
+  },
+  "inference": {
+    "list": "추론 목록",
+    "reason": "추론 내용",
+    "reflection": "회귀 내용"
+  },
+  "trade": {
+    "list": "거래 목록",
+    "type": "거래",
+    "date": "날짜",
+    "ticker": "종목",
+    "cost": "비용"
+  },
+  "save": "저장",
+  "activate": "활성화",
+  "loading": "로딩 중...",
+  "nothing": "없음",
+  "token": "토큰",
+  "channel": "채널"
+}

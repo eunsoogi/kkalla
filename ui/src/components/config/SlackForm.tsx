@@ -6,6 +6,7 @@ import React, { Suspense, memo, useActionState } from 'react';
 import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
+import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 
 import { ApikeyStatus } from '@/enums/apikey.enum';
@@ -19,6 +20,8 @@ const configQueryKey = ['slack', 'config'];
 const badgeQueryKey = ['slack', 'status'];
 
 const SlackStatusBadge: React.FC = () => {
+  const t = useTranslations();
+
   const { data } = useSuspenseQuery<ApikeyStatus>({
     queryKey: badgeQueryKey,
     queryFn: getSlackStatusAction,
@@ -26,14 +29,18 @@ const SlackStatusBadge: React.FC = () => {
     staleTime: 0,
   });
 
-  return <Badge className={STATUS_STYLES[data]}>{data}</Badge>;
+  return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
 };
 
 const SlackStatusBadgeSkeleton: React.FC = () => {
-  return <Badge className={STATUS_STYLES.unknown}>{ApikeyStatus.UNKNOWN}</Badge>;
+  const t = useTranslations();
+
+  return <Badge className={STATUS_STYLES.unknown}>{t('status.unknown')}</Badge>;
 };
 
 const SlackFormItem = memo(() => {
+  const t = useTranslations();
+
   const { data } = useSuspenseQuery<SlackConfig>({
     queryKey: configQueryKey,
     queryFn: getSlackConfigAction,
@@ -46,11 +53,11 @@ const SlackFormItem = memo(() => {
 
   return (
     <>
-      <FormGroup title='토큰'>
+      <FormGroup title={t('token')}>
         <TextInput id='slackToken' name='token' type='text' required className='form-control form-rounded-xl' />
       </FormGroup>
 
-      <FormGroup title='채널'>
+      <FormGroup title={t('channel')}>
         <TextInput
           id='slackChannel'
           name='channel'
@@ -82,10 +89,13 @@ const FormGroup = memo(({ title, children }: { title: string; children: React.Re
 FormGroup.displayName = 'FormGroup';
 
 const SlackFormItemSkeleton: React.FC = () => {
-  return <div className='flex'>로딩 중...</div>;
+  const t = useTranslations();
+
+  return <div className='flex'>{t('loading')}</div>;
 };
 
 const SlackForm: React.FC = () => {
+  const t = useTranslations();
   const queryClient = useQueryClient();
   const [formState, formDispatch] = useActionState(postSlackConfigAction, initialState);
   const { pending } = useFormStatus();
@@ -106,8 +116,8 @@ const SlackForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title'>Slack</h5>
-          <Tooltip content='Slack 메시지를 보내기 위한 봇 토큰입니다. 클릭하면 매뉴얼 페이지로 이동합니다.'>
+          <h5 className='card-title'>{t('slack.title')}</h5>
+          <Tooltip content={t('slack.tooltip')}>
             <Link href='https://api.slack.com/apps' target='_blank'>
               <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
             </Link>
@@ -123,7 +133,7 @@ const SlackForm: React.FC = () => {
             </Suspense>
             <div className='flex col-span-12'>
               <Button type='submit' color={'primary'} disabled={pending}>
-                저장
+                {t('save')}
               </Button>
             </div>
           </div>
