@@ -7,7 +7,7 @@ mariadb:
 
 api:
   image:
-    pullPolicy: Always
+    pullPolicy: Never
     tag: latest
   volumes:
     - name: src
@@ -24,7 +24,7 @@ api:
 
 ui:
   image:
-    pullPolicy: Always
+    pullPolicy: Never
     tag: latest
   volumes:
     - name: src
