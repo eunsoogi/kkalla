@@ -1,17 +1,17 @@
 export const NEWS_STYLES = {
   0: {
-    bgStyle: 'bg-white dark:bg-darkgray hover:bg-gray-50 dark:hover:bg-gray-800',
-    textStyle: '',
+    bgStyle: 'bg-white dark:bg-dark hover:bg-gray-50 dark:hover:bg-gray-800',
+    textStyle: 'text-dark dark:text-white',
     iconStyle: '',
   },
   1: {
-    bgStyle: 'bg-white dark:bg-darkgray hover:bg-gray-50 dark:hover:bg-gray-800',
-    textStyle: '',
+    bgStyle: 'bg-white dark:bg-dark hover:bg-gray-50 dark:hover:bg-gray-800',
+    textStyle: 'text-dark dark:text-white',
     iconStyle: '',
   },
   2: {
-    bgStyle: 'bg-white dark:bg-darkgray hover:bg-gray-50 dark:hover:bg-gray-800',
-    textStyle: '',
+    bgStyle: 'bg-white dark:bg-dark hover:bg-gray-50 dark:hover:bg-gray-800',
+    textStyle: 'text-dark dark:text-white',
     iconStyle: 'text-info',
   },
   3: {

@@ -58,10 +58,10 @@ const OpenaiForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title'>{t('openai.title')}</h5>
+          <h5 className='card-title text-dark dark:text-white'>{t('openai.title')}</h5>
           <Tooltip content={t('openai.tooltip')}>
             <Link href='https://platform.openai.com/docs/quickstart' target='_blank'>
-              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark' />
+              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
             </Link>
           </Tooltip>
           <Suspense fallback={<OpenaiStatusBadgeSkeleton />}>

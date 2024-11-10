@@ -1,28 +1,28 @@
 .mobile-header-menu {
-    height: 0;
-    overflow: hidden;
-    transition: all .3s ease-in-out;
+  height: 0;
+  overflow: hidden;
+  transition: all .3s ease-in-out;
 }
 
 .mobile-header-menu.active {
-    min-height: 70px;
-    overflow: visible;
+  min-height: 70px;
+  overflow: visible;
 }
 
 
 .page-wrapper {
-    margin-left: calc(0px + 260px);
-    transition: .2s ease-in;
+  margin-left: calc(0px + 260px);
+  transition: .2s ease-in;
 }
 
 
 
 @media screen and (max-width:1280px) {
-    .page-wrapper {
-        margin-left: 0;
-    }
+  .page-wrapper {
+    margin-left: 0;
+  }
 }
 
 .notification {
-    @apply !absolute !left-36 !top-0 !mt-2 !w-80 !bg-white !border !border-gray-200 !rounded-md !shadow-lg;
+  @apply !absolute !left-36 !top-0 !mt-2 !w-80 !border !border-gray-200 !rounded-md !shadow-lg;
 }

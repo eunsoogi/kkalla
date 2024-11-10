@@ -31,7 +31,7 @@ const Notification = () => {
             <div>
               <Image src='/images/profile/user-1.jpg' alt='user' width={35} height={35} className='rounded-full' />
             </div>
-            <p className='text-black text-sm font-semibold'>Received Order from John Doe of $385.90</p>
+            <p className='text-black dark:text-white text-sm font-semibold'>Received Order from John Doe of $385.90</p>
           </div>
         </Dropdown.Item>
         <Dropdown.Item
@@ -43,7 +43,9 @@ const Notification = () => {
             <div>
               <Image src='/images/profile/user-2.jpg' alt='user' width={35} height={35} className='rounded-full' />
             </div>
-            <p className='text-black text-sm font-semibold'>Received Order from Jessica Williams of $249.99</p>
+            <p className='text-black dark:text-white text-sm font-semibold'>
+              Received Order from Jessica Williams of $249.99
+            </p>
           </div>
         </Dropdown.Item>
         <Dropdown.Item
@@ -55,7 +57,9 @@ const Notification = () => {
             <div>
               <Image src='/images/profile/user-3.jpg' alt='user' width={35} height={35} className='rounded-full' />
             </div>
-            <p className='text-black text-sm font-semibold'>Received Order from John Edison of $499.99</p>
+            <p className='text-black dark:text-white text-sm font-semibold'>
+              Received Order from John Edison of $499.99
+            </p>
           </div>
         </Dropdown.Item>
         <Dropdown.Item
@@ -67,7 +71,7 @@ const Notification = () => {
             <div>
               <Image src='/images/profile/user-4.jpg' alt='user' width={35} height={35} className='rounded-full' />
             </div>
-            <p className='text-black text-sm font-semibold'>Received message from Nitin Chohan</p>
+            <p className='text-black dark:text-white text-sm font-semibold'>Received message from Nitin Chohan</p>
           </div>
         </Dropdown.Item>
         <div className=''></div>

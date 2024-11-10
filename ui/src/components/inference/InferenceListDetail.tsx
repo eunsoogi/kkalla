@@ -53,7 +53,7 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
 
   return (
     <div
-      className={`${isFocus && 'border-2 border-primary'} rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray relative w-full break-words`}
+      className={`${isFocus && 'border-2 border-primary'} rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark relative w-full break-words`}
     >
       <div className='relative'>
         <Image
@@ -94,7 +94,7 @@ const InferenceSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray relative w-full break-words'>
+    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark relative w-full break-words'>
       <div className='p-6'>
         <div className='grid grid-cols-12 gap-x-4 lg:gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>

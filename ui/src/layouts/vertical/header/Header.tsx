@@ -35,7 +35,7 @@ const Header = () => {
   return (
     <>
       <header className={`sticky top-0 z-[5] ${isSticky ? 'bg-white dark:bg-dark fixed w-full' : 'bg-white'}`}>
-        <Navbar fluid className={`rounded-none bg-transparent dark:bg-transparent py-4 sm:px-30 px-4`}>
+        <Navbar fluid className='rounded-none bg-white dark:bg-dark py-4 sm:px-30 px-4'>
           {/* Mobile Toggle Icon */}
 
           <div className='flex gap-3 items-center justify-between w-full '>
