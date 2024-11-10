@@ -8,8 +8,9 @@ RUN npm run build
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 RUN chown node:node .
-COPY --chown=node:node . .
+COPY --chown=node:node package.json .
 RUN npm install
+COPY --chown=node:node . .
 ENV NODE_ENV=development
 USER node
 EXPOSE 3000

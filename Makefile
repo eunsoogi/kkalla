@@ -18,6 +18,13 @@ build:
 	BUILD_TARGET=$(ENV) \
 	docker buildx bake
 
+.PHONY: import
+import:
+	@k3d image import \
+		-c $(CLUSTER_NAME) \
+		$(IMAGE_REGISTRY)/$(IMAGE_NAME_PREFIX)-api:$(IMAGE_TAG) \
+		$(IMAGE_REGISTRY)/$(IMAGE_NAME_PREFIX)-ui:$(IMAGE_TAG)
+
 .PHONY: push
 push:
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
