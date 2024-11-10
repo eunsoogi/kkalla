@@ -67,7 +67,7 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
           <Badge color='muted' className={DECISION_STYLES[item.decision].badgeStyle}>
             {item.decision}
           </Badge>
-          <h4>{item.rate * 100}%</h4>
+          <h4 className='text-dark dark:text-white'>{item.rate * 100}%</h4>
         </div>
         <div className='grid grid-cols-12 lg:gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>
