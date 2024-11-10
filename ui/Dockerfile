@@ -1,8 +1,9 @@
 FROM node:22.11.0-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
-COPY . .
+COPY package.json .
 RUN npm install
+COPY . .
 RUN npm run build
 
 FROM node:22.11.0-bookworm AS development
