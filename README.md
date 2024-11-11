@@ -61,12 +61,6 @@ make build ENV=development IMAGE_TAG=latest
 make import IMAGE_TAG=latest
 ```
 
-다음 명령어를 사용하여 이미지를 푸시합니다.
-
-```bash
-make push ENV=development IMAGE_TAG=latest
-```
-
 다음 명령어를 사용하여 어플리케이션을 설치합니다.
 
 ```bash
