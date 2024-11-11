@@ -21,6 +21,7 @@ export interface InferenceMessage {
   candles: Candle[];
   news: News[];
   feargreed: Feargreed;
+  firechart: string;
   prevInferences: Inference[];
 }
 
