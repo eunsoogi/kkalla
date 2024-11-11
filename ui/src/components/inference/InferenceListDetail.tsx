@@ -15,7 +15,7 @@ import { formatDate } from '@/utils/date';
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { getInferenceCursorAction } from './action';
 import { DECISION_STYLES } from './style';
-import userImage from '/public/images/profile/user-1.jpg';
+import UserImg from '/public/images/profile/user-ai.png';
 
 const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
   const t = useTranslations();
@@ -57,7 +57,7 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
     >
       <div className='relative'>
         <Image
-          src={userImage}
+          src={UserImg}
           className='h-10 w-10 rounded-full absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
           alt='user'
         />
