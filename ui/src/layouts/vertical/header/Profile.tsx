@@ -7,11 +7,12 @@ import { Button, Dropdown } from 'flowbite-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
-import UserImg from '/public/images/profile/user-1.jpg';
+import DefaultUserImage from '/public/images/profile/user-1.jpg';
 
 const Profile = () => {
   const t = useTranslations();
-  const session = useSession();
+  const { data: sessionData } = useSession();
+  const userImage = sessionData?.user?.image;
 
   return (
     <div className='relative group/menu'>
@@ -20,14 +21,15 @@ const Profile = () => {
         className='rounded-sm w-44'
         dismissOnClick={false}
         renderTrigger={() => (
-          <span className='h-10 w-10 hover:text-primary hover:bg-lightprimary rounded-full flex justify-center items-center cursor-pointer group-hover/menu:bg-lightprimary group-hover/menu:text-primary'>
+          <span className='flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-lightprimary hover:text-primary group-hover/menu:bg-lightprimary group-hover/menu:text-primary'>
             <Image
-              src={session.data?.user?.image ?? UserImg}
-              alt='logo'
+              src={userImage ? userImage : DefaultUserImage}
+              alt={t('profile')}
               height={35}
               width={35}
               className='rounded-full'
               priority
+              {...(userImage && { unoptimized: true })}
             />
           </span>
         )}
@@ -35,16 +37,16 @@ const Profile = () => {
         <Dropdown.Item
           as={Link}
           href='/config'
-          className='px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-dark'
+          className='flex w-full items-center gap-3 bg-hover px-3 py-3 text-dark group/link'
         >
           <Icon icon='solar:settings-outline' height={20} />
           {t('config')}
         </Dropdown.Item>
-        <div className='p-3 flex flex-col'>
+        <div className='flex flex-col p-3'>
           <Button
             onClick={() => signOut()}
-            size={'sm'}
-            className='mt-2 border border-primary text-primary bg-transparent hover:bg-lightprimary outline-none focus:outline-none'
+            size='sm'
+            className='mt-2 border border-primary bg-transparent text-primary hover:bg-lightprimary focus:outline-none'
           >
             {t('auth.signout')}
           </Button>
