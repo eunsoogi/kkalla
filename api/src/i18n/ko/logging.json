@@ -1,14 +1,11 @@
 {
-  "common": {
-    "fail": "{context}에 실패했습니다."
-  },
   "inference": {
     "start": "유저 {id} 추론 시작...",
-    "for": "유저 {id} 추론"
+    "fail": "유저 {id} 추론 실패."
   },
   "order": {
     "start": "유저 {id} 주문 시작...",
-    "for": "유저 {id} 주문"
+    "fail": "유저 {id} 주문 실패."
   },
   "schedule": {
     "start": "매매 스케줄 시작...",
