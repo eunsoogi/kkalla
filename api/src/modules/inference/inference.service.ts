@@ -7,6 +7,7 @@ import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules
 
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { FeargreedService } from '../feargreed/feargreed.service';
+import { FirechartService } from '../firechart/firechart.service';
 import { NewsTypes } from '../news/news.enum';
 import { News } from '../news/news.interface';
 import { NewsService } from '../news/news.service';
@@ -27,6 +28,7 @@ export class InferenceService {
     private readonly upbitService: UpbitService,
     private readonly newsService: NewsService,
     private readonly feargreedService: FeargreedService,
+    private readonly firechartService: FirechartService,
   ) {}
 
   public async getMessage(user: User, request: InferenceMessageRequest): Promise<InferenceMessage> {
@@ -39,6 +41,8 @@ export class InferenceService {
 
     const feargreed: Feargreed = await this.feargreedService.get();
 
+    const firechart: string = await this.firechartService.getFirechart();
+
     const inferenceResult: PaginatedItem<Inference> = await this.paginate(user, {
       page: 1,
       perPage: request.inferenceLimit,
@@ -50,6 +54,7 @@ export class InferenceService {
       candles,
       news,
       feargreed,
+      firechart,
       prevInferences,
     };
 

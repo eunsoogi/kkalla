@@ -1,5 +1,5 @@
 ENV := development
-IMAGE_REGISTRY := eunsoogi
+IMAGE_REGISTRY := ghcr.io/eunsoogi
 IMAGE_NAME_PREFIX := ai-invest-assistant
 IMAGE_TAG := latest
 CLUSTER_NAME := ai-invest-assistant

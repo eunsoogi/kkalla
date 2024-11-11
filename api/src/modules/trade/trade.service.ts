@@ -55,7 +55,7 @@ export class TradeService {
       ...request,
     });
 
-    return result.items.find((item) => item.cashLessThan > rate && item.cashMoreThan < rate);
+    return result.items.find((item) => item.cashMoreThan < rate && rate <= item.cashLessThan);
   }
 
   private async performInference(user: User, request: TradeRequest): Promise<Inference> {
@@ -71,15 +71,17 @@ export class TradeService {
       const inferenceData = await this.inference(user, request);
       return await this.inferenceService.create(user, inferenceData);
     } catch (error) {
-      this.handleError(
-        this.i18n.t('logging.inference.for', {
+      this.logger.log(
+        this.i18n.t('logging.inference.fail', {
           args: {
             id: user.id,
           },
         }),
         error as Error,
-        user,
       );
+
+      this.notifyService.notify(user, this.i18n.t('notify.inference.fail'));
+
       return null;
     }
   }
@@ -90,6 +92,7 @@ export class TradeService {
       this.i18n.t('notify.inference.result', {
         args: {
           decision: inference.decision,
+          symbol: inference.symbol,
           rate: inference.rate * 100,
           reason: inference.reason,
         },
@@ -120,37 +123,19 @@ export class TradeService {
     try {
       return await this.order(user, inference, request);
     } catch (error) {
-      this.handleError(
-        this.i18n.t('logging.order.for', {
+      this.logger.log(
+        this.i18n.t('logging.order.fail', {
           args: {
             id: user.id,
           },
         }),
         error as Error,
-        user,
       );
+
+      this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
+
       return null;
     }
-  }
-
-  private handleError(context: string, error: Error, user: User): void {
-    this.logger.error(
-      this.i18n.t('logging.common.fail', {
-        args: {
-          context,
-        },
-      }),
-      error,
-    );
-
-    this.notifyService.notify(
-      user,
-      this.i18n.t('notify.common.fail', {
-        args: {
-          context: context.split(' ')[0].toLowerCase(),
-        },
-      }),
-    );
   }
 
   public async create(user: User, data: TradeData): Promise<Trade> {

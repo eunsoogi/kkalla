@@ -2,7 +2,8 @@
   "auth": {
     "signin": {
       "google": "구글로 로그인"
-    }
+    },
+    "signout": "로그아웃"
   },
   "menu": {
     "home": "홈",
@@ -51,6 +52,7 @@
     "cost": "비용"
   },
   "save": "저장",
+  "config": "설정",
   "activate": "활성화",
   "loading": "로딩 중...",
   "nothing": "없음",
