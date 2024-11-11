@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from './databases/typeorm.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
+import { FirechartModule } from './modules/firechart/firechart.module';
 import { HealthModule } from './modules/health/health.module';
 import { InferenceModule } from './modules/inference/inference.module';
 import { NewsModule } from './modules/news/news.module';
@@ -31,6 +32,7 @@ import { UserModule } from './modules/user/user.module';
     ScheduleModule,
     SlackModule,
     NotifyModule,
+    FirechartModule,
   ],
 })
 export class AppModule {}
