@@ -1,6 +1,6 @@
 export const INFERENCE_MODEL = 'gpt-4o-mini';
 
-export const INFERENCE_MAX_TOKENS = 1024;
+export const INFERENCE_MAX_TOKENS = 2048;
 
 export const INFERENCE_MESSAGE_CONFIG = {
   candles: {
@@ -57,7 +57,7 @@ export const INFERENCE_RULES = [
   '한국어로 답변할 것',
   'decision은 반드시 "buy", "sell", "hold" 중 하나여야 함',
   'decision은 캔들 차트, 뉴스, 공포탐욕지수, 기술적 지표를 분석하여 판단할 것',
-  '현금 보유 비중이 0~0.33인 경우, 0.33~0.66인 경우, 0.66~1인 경우로 나눠 3번 판단할 것',
+  '현금 보유 비중이 0~0.2인 경우, 0.2~0.4인 경우, 0.4~0.6인 경우, 0.6~0.8인 경우, 0.8~1인 경우로 나눠 5번 판단할 것',
   'cashMoreThan는 현금 보유 비중이 몇 이상일 때인지 0~1 사이로 답변할 것',
   'cashLessThan는 현금 보유 비중이 몇 미만일 때인지 0~1 사이로 답변할 것',
   'rate는 얼마만큼 분할 매수 및 분할 매도할 지 0~1 사이로 비율을 결정할 것',

@@ -55,7 +55,7 @@ export class TradeService {
       ...request,
     });
 
-    return result.items.find((item) => item.cashLessThan > rate && item.cashMoreThan < rate);
+    return result.items.find((item) => item.cashMoreThan < rate && rate <= item.cashLessThan);
   }
 
   private async performInference(user: User, request: TradeRequest): Promise<Inference> {
