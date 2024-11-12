@@ -71,7 +71,7 @@ export class TradeService {
       const inferenceData = await this.inference(user, request);
       return await this.inferenceService.create(user, inferenceData);
     } catch (error) {
-      this.logger.log(
+      this.logger.error(
         this.i18n.t('logging.inference.fail', {
           args: {
             id: user.id,
@@ -123,7 +123,7 @@ export class TradeService {
     try {
       return await this.order(user, inference, request);
     } catch (error) {
-      this.logger.log(
+      this.logger.error(
         this.i18n.t('logging.order.fail', {
           args: {
             id: user.id,

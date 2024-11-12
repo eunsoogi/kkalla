@@ -100,8 +100,8 @@ export class UpbitService {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
     const ticker = `${request.symbol}/${request.market}`;
-    const tradePrice = Math.floor(balances[request.market].free * request.rate * 0.9995);
-    const tradeVolume = balances[request.symbol].free * request.rate * 0.9995;
+    const tradePrice = Math.floor(balances[request.market]?.free ?? 0 * request.rate * 0.9995);
+    const tradeVolume = balances[request.symbol]?.free ?? 0 * request.rate * 0.9995;
 
     switch (request.type) {
       case OrderTypes.BUY:
