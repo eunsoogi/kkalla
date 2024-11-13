@@ -6,8 +6,8 @@ import { I18nService } from 'nestjs-i18n';
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
 import { Inference } from '../inference/entities/inference.entity';
-import { INFERENCE_MESSAGE_CONFIG } from '../inference/inference.config';
-import { InferenceData } from '../inference/inference.interface';
+import { INFERENCE_CONFIG } from '../inference/inference.config';
+import { InferenceItem } from '../inference/inference.interface';
 import { InferenceService } from '../inference/inference.service';
 import { NotifyService } from '../notify/notify.service';
 import { UpbitService } from '../upbit/upbit.service';
@@ -48,14 +48,23 @@ export class TradeService {
     return trade;
   }
 
-  public async inference(user: User, request: TradeRequest): Promise<InferenceData> {
-    const rate = await this.upbitService.getCashRate(user);
-    const result = await this.inferenceService.inference(user, {
-      ...INFERENCE_MESSAGE_CONFIG,
+  public async inference(user: User, request: TradeRequest): Promise<InferenceItem> {
+    const rate = await this.upbitService.getSymbolRate(user, request.symbol);
+    const data = await this.inferenceService.inference(user, {
+      ...INFERENCE_CONFIG.message,
       ...request,
     });
 
-    return result.items.find((item) => item.cashMoreThan < rate && rate <= item.cashLessThan);
+    const decision = data.decisions.find((item) => item.symbolRateLower < rate && rate <= item.symbolRateUpper);
+
+    if (!decision) {
+      return null;
+    }
+
+    return {
+      ...data,
+      ...decision,
+    };
   }
 
   private async performInference(user: User, request: TradeRequest): Promise<Inference> {

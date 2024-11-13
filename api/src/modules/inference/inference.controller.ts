@@ -7,8 +7,8 @@ import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { GetInferenceDto } from './dto/get-inference.dto';
 import { PostInferenceDto } from './dto/post-inference.dto';
 import { Inference } from './entities/inference.entity';
-import { INFERENCE_MESSAGE_CONFIG } from './inference.config';
-import { InferenceResult } from './inference.interface';
+import { INFERENCE_CONFIG } from './inference.config';
+import { InferenceData } from './inference.interface';
 import { InferenceService } from './inference.service';
 
 @Controller('api/v1/inferences')
@@ -29,9 +29,9 @@ export class InferenceController {
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public post(@Req() req, @Body() body: PostInferenceDto): Promise<InferenceResult> {
+  public post(@Req() req, @Body() body: PostInferenceDto): Promise<InferenceData> {
     return this.inferenceService.inference(req.user, {
-      ...INFERENCE_MESSAGE_CONFIG,
+      ...INFERENCE_CONFIG.message,
       ...body,
     });
   }
