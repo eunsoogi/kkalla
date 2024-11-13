@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { Balances, OHLCV, Order, upbit } from 'ccxt';
 
@@ -11,6 +11,8 @@ import { Candle, CandleRequest, OrderRequest, UpbitConfigData } from './upbit.in
 
 @Injectable()
 export class UpbitService {
+  private readonly logger = new Logger(UpbitService.name);
+
   public async readConfig(user: User): Promise<UpbitConfig> {
     return UpbitConfig.findByUser(user);
   }
@@ -79,29 +81,35 @@ export class UpbitService {
 
   public async getBalances(user: User): Promise<Balances> {
     const client = await this.getClient(user);
+
     return client.fetchBalance();
   }
 
-  public async getSymbolRate(user: User, symbol: string): Promise<number> {
+  public async getSymbolRate(user: User, symbol: string, market: string): Promise<number> {
     const balances = await this.getBalances(user);
-    const krwBalance = this.getBalance(balances, 'KRW');
     const symbolBalance = this.getBalance(balances, symbol);
-    const symbolRate = symbolBalance / (krwBalance + symbolBalance);
+    const marketBalance = this.getBalance(balances, market);
+    const symbolRate = symbolBalance / (symbolBalance + marketBalance);
+
+    this.logger.debug('symbolRate', symbolRate);
 
     return symbolRate;
   }
 
   private getBalance(balances: Balances, symbol: string) {
-    const balance = balances[symbol];
+    const info = balances.info.find((item) => item.currency === symbol);
 
-    if (!balance) {
+    if (!info) {
       return 0;
     }
 
-    const symbolBalance = balances[symbol]['balance'] ?? 0;
-    const symbolAvgBuyPrice = balances[symbol]['avg_buy_price'] || 1;
+    const symbolBalance = Number(info['balance']);
+    const symbolAvgBuyPrice = Number(info['avg_buy_price']) || 1;
+    const balance = symbolBalance * symbolAvgBuyPrice;
 
-    return symbolBalance * symbolAvgBuyPrice;
+    this.logger.debug('balance', balance);
+
+    return balance;
   }
 
   public async order(user: User, request: OrderRequest): Promise<Order> {
@@ -110,6 +118,9 @@ export class UpbitService {
     const ticker = `${request.symbol}/${request.market}`;
     const tradePrice = Math.floor(balances[request.market]?.free ?? 0 * request.rate * 0.9995);
     const tradeVolume = balances[request.symbol]?.free ?? 0 * request.rate * 0.9995;
+
+    this.logger.debug('tradePrice', tradePrice);
+    this.logger.debug('tradeVolume', tradeVolume);
 
     switch (request.type) {
       case OrderTypes.BUY:

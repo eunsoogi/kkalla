@@ -49,13 +49,14 @@ export class TradeService {
   }
 
   public async inference(user: User, request: TradeRequest): Promise<InferenceItem> {
-    const rate = await this.upbitService.getSymbolRate(user, request.symbol);
+    const rate = await this.upbitService.getSymbolRate(user, request.symbol, request.market);
+
     const data = await this.inferenceService.inference(user, {
       ...INFERENCE_CONFIG.message,
       ...request,
     });
 
-    const decision = data.decisions.find((item) => item.symbolRateLower < rate && rate <= item.symbolRateUpper);
+    const decision = data.decisions.find((item) => item.symbolRateLower <= rate && rate <= item.symbolRateUpper);
 
     if (!decision) {
       return null;
