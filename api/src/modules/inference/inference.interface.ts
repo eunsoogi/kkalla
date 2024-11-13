@@ -25,16 +25,22 @@ export interface InferenceMessage {
   prevInferences: Inference[];
 }
 
-export interface InferenceResult {
-  items: InferenceData[];
+export interface InferenceData {
+  decisions: InferenceDecisionData[];
+  symbol: string;
+  reason: string;
+  reflection: string;
 }
 
-export interface InferenceData {
-  symbol: string;
+export interface InferenceDecisionData {
   decision: InferenceDecisionTypes;
   rate: number;
-  cashMoreThan: number;
-  cashLessThan: number;
+  symbolRateLower: number;
+  symbolRateUpper: number;
   reason: string;
+}
+
+export interface InferenceItem extends InferenceDecisionData {
+  symbol: string;
   reflection: string;
 }

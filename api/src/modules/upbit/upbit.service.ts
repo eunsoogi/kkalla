@@ -82,26 +82,34 @@ export class UpbitService {
     return client.fetchBalance();
   }
 
-  public async getCashRate(user: User): Promise<number> {
+  public async getSymbolRate(user: User, symbol: string): Promise<number> {
     const balances = await this.getBalances(user);
-    const curr = balances['KRW']['total'];
-    let total = curr;
+    const krwBalance = this.getBalance(balances, 'KRW');
+    const symbolBalance = this.getBalance(balances, symbol);
+    const symbolRate = symbolBalance / (krwBalance + symbolBalance);
 
-    balances.info.map((item) => {
-      total += item['balance'] * item['avg_buy_price'];
-    });
+    return symbolRate;
+  }
 
-    const rate = curr / total;
+  private getBalance(balances: Balances, symbol: string) {
+    const balance = balances[symbol];
 
-    return rate;
+    if (!balance) {
+      return 0;
+    }
+
+    const symbolBalance = balances[symbol]['balance'] ?? 0;
+    const symbolAvgBuyPrice = balances[symbol]['avg_buy_price'] || 1;
+
+    return symbolBalance * symbolAvgBuyPrice;
   }
 
   public async order(user: User, request: OrderRequest): Promise<Order> {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
     const ticker = `${request.symbol}/${request.market}`;
-    const tradePrice = Math.floor(balances[request.market].free * request.rate * 0.9995);
-    const tradeVolume = balances[request.symbol].free * request.rate * 0.9995;
+    const tradePrice = Math.floor(balances[request.market]?.free ?? 0 * request.rate * 0.9995);
+    const tradeVolume = balances[request.symbol]?.free ?? 0 * request.rate * 0.9995;
 
     switch (request.type) {
       case OrderTypes.BUY:

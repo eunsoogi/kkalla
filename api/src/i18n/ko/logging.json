@@ -1,5 +1,20 @@
 {
+  "upbit": {
+    "candle": {
+      "loading": "캔들 차트 불러오는 중..."
+    }
+  },
+  "news": {
+    "loading": "뉴스 불러오는 중..."
+  },
+  "feargreed": {
+    "loading": "공포 탐욕 지수 불러오는 중..."
+  },
+  "firechart": {
+    "loading": "파이어 차트 불러오는 중..."
+  },
   "inference": {
+    "loading": "추론 중...",
     "start": "유저 {id} 추론 시작...",
     "fail": "유저 {id} 추론 실패."
   },

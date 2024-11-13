@@ -57,5 +57,6 @@
   "loading": "로딩 중...",
   "nothing": "없음",
   "token": "토큰",
-  "channel": "채널"
+  "channel": "채널",
+  "profile": "프로필"
 }
