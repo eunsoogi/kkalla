@@ -2,8 +2,8 @@
 mariadb:
   enabled: true
   auth:
-    database: ai-invest-assistant
-    username: ai-invest-assistant
+    database: kkalla
+    username: kkalla
   primary:
     service:
       type: ClusterIP
@@ -17,8 +17,8 @@ api:
   db:
     host: "{{ .Release.Name }}-mariadb.{{ .Release.Namespace }}.svc.cluster.local"
     port: 3306
-    database: ai-invest-assistant
-    username: ai-invest-assistant
+    database: kkalla
+    username: kkalla
 
 ui:
   api:

@@ -14,7 +14,7 @@ import { Providers } from './providers';
 const manrope = Manrope({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AI 투자 어시스턴트',
+  title: '칼라 - AI 투자 비서',
 };
 
 export const viewport: Viewport = {

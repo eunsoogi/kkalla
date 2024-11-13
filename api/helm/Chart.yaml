@@ -1,7 +1,7 @@
 ---
 apiVersion: v2
 name: api
-description: AI 투자 어시스턴트 API
+description: 칼라 - AI 투자 비서 API
 
 # A chart can be either an 'application' or a 'library' chart.
 #
