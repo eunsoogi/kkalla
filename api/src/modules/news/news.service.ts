@@ -13,7 +13,7 @@ import { ImportanceLevel } from './news.type';
 export class NewsService {
   constructor(private readonly httpService: HttpService) {}
 
-  public async get(request: NewsRequest): Promise<News[]> {
+  public async getNews(request: NewsRequest): Promise<News[]> {
     const { data } = await firstValueFrom(
       this.httpService.get<NewsApiResponse>(API_URL, {
         params: {
@@ -50,7 +50,7 @@ export class NewsService {
 
   public async cursor(request: NewsRequest): Promise<CursorItem<News, number>> {
     const limit = request.limit++;
-    const items = await this.get(request);
+    const items = await this.getNews(request);
     const hasNextPage = items.length > limit;
 
     if (hasNextPage) {
