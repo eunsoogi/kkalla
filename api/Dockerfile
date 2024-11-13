@@ -23,7 +23,7 @@ RUN chown node:node .
 COPY --from=builder --chown=node:node /app/package*.json .
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist ./dist
-LABEL org.opencontainers.image.source=https://github.com/eunsoogi/ai-invest-assistant
+LABEL org.opencontainers.image.source=https://github.com/eunsoogi/kkalla
 ENV NODE_ENV=production
 USER node
 EXPOSE 3000
