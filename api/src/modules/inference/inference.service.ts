@@ -18,7 +18,13 @@ import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
-import { InferenceData, InferenceItem, InferenceMessage, InferenceMessageRequest } from './inference.interface';
+import {
+  InferenceData,
+  InferenceItem,
+  InferenceMessage,
+  InferenceMessageRequest,
+  RetryOptions,
+} from './inference.interface';
 
 @Injectable()
 export class InferenceService {
@@ -97,28 +103,64 @@ export class InferenceService {
     };
   }
 
-  public async inference(user: User, request: InferenceMessageRequest): Promise<InferenceData> {
+  public async inference(
+    user: User,
+    request: InferenceMessageRequest,
+    retryOptions?: RetryOptions,
+  ): Promise<InferenceData> {
     const client: OpenAI = await this.openaiService.getClient(user);
 
     const message: InferenceMessage = await this.getMessage(user, request);
 
-    const response: ChatCompletion = await client.chat.completions.create({
-      model: INFERENCE_MODEL,
-      max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
-      temperature: INFERENCE_CONFIG.temperature,
-      top_p: INFERENCE_CONFIG.topP,
-      presence_penalty: INFERENCE_CONFIG.presencePenalty,
-      frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
-      messages: this.getMessageParams(message),
-      response_format: this.getResponseFormat(),
-      stream: false,
-    });
+    const response: ChatCompletion = await this.retry(
+      () =>
+        client.chat.completions.create({
+          model: INFERENCE_MODEL,
+          max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
+          temperature: INFERENCE_CONFIG.temperature,
+          top_p: INFERENCE_CONFIG.topP,
+          presence_penalty: INFERENCE_CONFIG.presencePenalty,
+          frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
+          messages: this.getMessageParams(message),
+          response_format: this.getResponseFormat(),
+          stream: false,
+        }),
+      retryOptions,
+    );
 
     this.logger.log(response);
 
     const data: InferenceData = JSON.parse(response.choices[0].message?.content || '{}');
 
     return data;
+  }
+
+  private async retry<T>(operation: () => Promise<T>, options?: RetryOptions): Promise<T> {
+    const maxRetries = options?.maxRetries || 3;
+    const retryDelay = options?.retryDelay || 1000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+
+        this.logger.warn(
+          this.i18n.t('logging.retry.attempt', {
+            args: {
+              attempt,
+              maxRetries,
+            },
+          }),
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
+    }
+
+    throw new Error(this.i18n.t('logging.retry.failed'));
   }
 
   public async create(user: User, data: InferenceItem): Promise<Inference> {

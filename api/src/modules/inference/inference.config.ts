@@ -133,7 +133,7 @@ export const INFERENCE_VALIDATION = {
     reflection: {
       minSentences: 5,
       maxSentences: 10,
-      required: 'prevInferences 데이터가 있는 경우 반드시 분석 포함',
+      required: 'prevInferences 데이터가 있는 경우 분석하고, decision에 영향 주지 말아야 함',
     },
   },
   responseExample: {
