@@ -82,18 +82,26 @@ export class UpbitService {
     return client.fetchBalance();
   }
 
-  public async getCashRate(user: User): Promise<number> {
+  public async getSymbolRate(user: User, symbol: string): Promise<number> {
     const balances = await this.getBalances(user);
-    const curr = balances['KRW']['total'];
-    let total = curr;
+    const krwBalance = this.getBalance(balances, 'KRW');
+    const symbolBalance = this.getBalance(balances, symbol);
+    const symbolRate = symbolBalance / (krwBalance + symbolBalance);
 
-    balances.info.map((item) => {
-      total += item['balance'] * item['avg_buy_price'];
-    });
+    return symbolRate;
+  }
 
-    const rate = curr / total;
+  private getBalance(balances: Balances, symbol: string) {
+    const balance = balances[symbol];
 
-    return rate;
+    if (!balance) {
+      return 0;
+    }
+
+    const symbolBalance = balances[symbol]['balance'] ?? 0;
+    const symbolAvgBuyPrice = balances[symbol]['avg_buy_price'] || 1;
+
+    return symbolBalance * symbolAvgBuyPrice;
   }
 
   public async order(user: User, request: OrderRequest): Promise<Order> {

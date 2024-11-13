@@ -49,6 +49,18 @@ export class Inference extends BaseEntity {
   })
   rate: number;
 
+  @Column({
+    type: 'double',
+    default: 0,
+  })
+  symbolRateLower: number;
+
+  @Column({
+    type: 'double',
+    default: 0,
+  })
+  symbolRateUpper: number;
+
   @Column({ type: 'text' })
   reason?: string;
 
