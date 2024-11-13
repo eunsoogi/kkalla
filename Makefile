@@ -1,9 +1,9 @@
 ENV := development
 IMAGE_REGISTRY := ghcr.io/eunsoogi
-IMAGE_NAME_PREFIX := ai-invest-assistant
+IMAGE_NAME_PREFIX := kkalla
 IMAGE_TAG := latest
-CLUSTER_NAME := ai-invest-assistant
-HELM_RELEASE := ai-invest-assistant
+CLUSTER_NAME := kkalla
+HELM_RELEASE := kkalla
 HELM_NAMESPACE := default
 
 .PHONY: clean
