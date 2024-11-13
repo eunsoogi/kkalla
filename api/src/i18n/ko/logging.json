@@ -25,5 +25,8 @@
   "schedule": {
     "start": "매매 스케줄 시작...",
     "end": "매매 스케줄 종료."
+  },
+  "error": {
+    "retry": "{maxRetries}번 중 {attempt}번째 재시도 중..."
   }
 }

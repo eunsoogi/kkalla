@@ -44,3 +44,8 @@ export interface InferenceItem extends InferenceDecisionData {
   symbol: string;
   reflection: string;
 }
+
+export interface RetryOptions {
+  maxRetries?: number;
+  retryDelay?: number;
+}
