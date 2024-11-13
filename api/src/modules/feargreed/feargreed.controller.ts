@@ -9,6 +9,6 @@ export class FeargreedController {
 
   @Get()
   async get(): Promise<Feargreed> {
-    return this.feargreedService.get();
+    return this.feargreedService.getFeargreed();
   }
 }
