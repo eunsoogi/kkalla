@@ -46,14 +46,14 @@ export class InferenceService {
 
     this.logger.log(this.i18n.t('logging.news.loading'));
 
-    const news: News[] = await this.newsService.get({
+    const news: News[] = await this.newsService.getNews({
       type: NewsTypes.COIN,
       limit: request.newsLimit,
     });
 
     this.logger.log(this.i18n.t('logging.feargreed.loading'));
 
-    const feargreed: Feargreed = await this.feargreedService.get();
+    const feargreed: Feargreed = await this.feargreedService.getFeargreed();
 
     this.logger.log(this.i18n.t('logging.firechart.loading'));
 

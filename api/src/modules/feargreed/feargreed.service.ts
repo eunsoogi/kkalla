@@ -10,7 +10,7 @@ import { Feargreed, FeargreedApiResponse } from './feargreed.interface';
 export class FeargreedService {
   constructor(private readonly httpService: HttpService) {}
 
-  public async get(): Promise<Feargreed> {
+  public async getFeargreed(): Promise<Feargreed> {
     const { data } = await firstValueFrom(this.httpService.get<FeargreedApiResponse>(API_URL));
 
     return this.transform(data);
