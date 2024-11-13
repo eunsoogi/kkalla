@@ -148,7 +148,7 @@ export class InferenceService {
         }
 
         this.logger.warn(
-          this.i18n.t('logging.error.retry', {
+          this.i18n.t('logging.retry.attempt', {
             args: {
               attempt,
               maxRetries,
@@ -160,7 +160,7 @@ export class InferenceService {
       }
     }
 
-    throw new Error('Retry operation failed');
+    throw new Error(this.i18n.t('logging.retry.failed'));
   }
 
   public async create(user: User, data: InferenceItem): Promise<Inference> {
