@@ -7,8 +7,8 @@ import { Navbar } from 'flowbite-react';
 import { Drawer } from 'flowbite-react';
 
 import MobileSidebar from '../sidebar/MobileSidebar';
+import Notification from './Notification';
 import Profile from './Profile';
-import Notification from './notification';
 
 const Header = () => {
   const [isSticky, setIsSticky] = useState(false);
