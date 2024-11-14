@@ -10,4 +10,7 @@ data:
   DB_PORT: "{{ .Values.db.port }}"
   DB_DATABASE: "{{ .Values.db.database }}"
   DB_USER: "{{ .Values.db.username }}"
+  OPENAI_SECRET_KEY: "{{ .Values.openai.secretKey }}"
+  UPBIT_ACCESS_KEY: "{{ .Values.upbit.accessKey }}"
+  UPBIT_SECRET_KEY: "{{ .Values.upbit.secretKey }}"
   TEST_EMAIL: "{{ .Values.test.email }}"

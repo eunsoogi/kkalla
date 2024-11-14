@@ -46,6 +46,11 @@ jobs:
             db: *db
             auth:
               google: *google
+            openai:
+              secretKey: ${{ secrets.OPENAI_SECRET_KEY }}
+            upbit:
+              accessKey: ${{ secrets.UPBIT_ACCESS_KEY }}
+              secretKey: ${{ secrets.UPBIT_SECRET_KEY }}
           ui:
             publicUrl: ${{ vars.PUBLIC_URL }}
             auth:

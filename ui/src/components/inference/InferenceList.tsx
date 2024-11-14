@@ -17,7 +17,7 @@ import { DECISION_STYLES } from './style';
 const InferenceContent: React.FC = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Inference>>({
     queryKey: ['inferences'],
-    queryFn: () => getInferenceAction(),
+    queryFn: () => getInferenceAction({ mine: true }),
     initialData: initialPaginatedState,
     staleTime: 0,
   });

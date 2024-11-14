@@ -17,10 +17,10 @@ const MobileSidebar = () => {
   return (
     <div className='flex'>
       <Sidebar
-        className='fixed menu-sidebar pt-6 bg-white dark:bg-dark z-[10]'
+        className='fixed menu-sidebar bg-white dark:bg-dark z-[10]'
         aria-label='Sidebar with multi-level dropdown example'
       >
-        <div className='mb-7 px-4 brand-logo'>
+        <div className='px-4 py-3 brand-logo'>
           <FullLogo />
         </div>
 

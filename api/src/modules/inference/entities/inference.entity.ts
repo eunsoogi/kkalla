@@ -4,9 +4,9 @@ import {
   CreateDateColumn,
   Entity,
   FindManyOptions,
-  JoinColumn,
+  JoinTable,
   LessThan,
-  ManyToOne,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -15,6 +15,7 @@ import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules
 import { User } from '@/modules/user/entities/user.entity';
 
 import { InferenceDecisionTypes } from '../inference.enum';
+import { InferenceFilter } from '../inference.interface';
 
 @Entity({
   orderBy: {
@@ -25,13 +26,12 @@ export class Inference extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => User, {
-    nullable: false,
+  @ManyToMany(() => User, {
     cascade: true,
     onDelete: 'CASCADE',
   })
-  @JoinColumn()
-  user!: User;
+  @JoinTable()
+  users: User[];
 
   @Column()
   symbol!: string;
@@ -73,22 +73,19 @@ export class Inference extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Inference>> {
-    const [items, total] = await this.findAndCount({
+  public static async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+    const findOptions: FindManyOptions<Inference> = {
       take: request.perPage,
       skip: (request.page - 1) * request.perPage,
-      relations: {
-        user: true,
-      },
       where: {
-        user: {
-          id: user.id,
-        },
+        users: request.users,
       },
       order: {
         updatedAt: 'DESC',
       },
-    });
+    };
+
+    const [items, total] = await this.findAndCount(findOptions);
 
     return {
       items,
@@ -99,17 +96,12 @@ export class Inference extends BaseEntity {
     };
   }
 
-  public static async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Inference, string>> {
+  public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
     const findOptions: FindManyOptions<Inference> = {
       take: request.limit + 1,
       skip: request.cursor ? 1 : 0,
-      relations: {
-        user: true,
-      },
       where: {
-        user: {
-          id: user.id,
-        },
+        users: request.users,
       },
       order: {
         createdAt: 'DESC',

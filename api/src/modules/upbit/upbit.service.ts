@@ -35,6 +35,16 @@ export class UpbitService {
     return apikey?.secretKey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
   }
 
+  public async getServerClient() {
+    const client = new upbit({
+      apiKey: process.env.UPBIT_ACCESS_KEY!,
+      secret: process.env.UPBIT_SECRET_KEY!,
+      enableRateLimit: true,
+    });
+
+    return client;
+  }
+
   public async getClient(user: User) {
     const apikey = await this.readConfig(user);
 
@@ -47,8 +57,8 @@ export class UpbitService {
     return client;
   }
 
-  public async getCandles(user: User, request: CandleRequest): Promise<Candle[]> {
-    const client = await this.getClient(user);
+  public async getCandles(request: CandleRequest): Promise<Candle[]> {
+    const client = await this.getServerClient();
     const ticker = `${request.symbol}/${request.market}`;
 
     const candles = {

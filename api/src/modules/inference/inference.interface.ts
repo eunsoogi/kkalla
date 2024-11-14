@@ -4,6 +4,12 @@ import { Candle } from '../upbit/upbit.interface';
 import { Inference } from './entities/inference.entity';
 import { InferenceDecisionTypes } from './inference.enum';
 
+export interface InferenceFilter {
+  users?: {
+    id: string;
+  };
+}
+
 export interface InferenceMessageRequest {
   symbol: string;
   market: string;

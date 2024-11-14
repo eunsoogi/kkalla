@@ -15,8 +15,8 @@
   },
   "inference": {
     "loading": "추론 중...",
-    "start": "유저 {id} 추론 시작...",
-    "fail": "유저 {id} 추론 실패."
+    "start": "추론 시작...",
+    "fail": "추론 실패."
   },
   "order": {
     "start": "유저 {id} 주문 시작...",

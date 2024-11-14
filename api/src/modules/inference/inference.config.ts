@@ -14,7 +14,7 @@ export const INFERENCE_CONFIG = {
       d1: 90, // 90 days
     },
     newsLimit: 450,
-    inferenceLimit: 6 * 7, // 7 days
+    inferenceLimit: 5 * 6 * 7, // 7 days
   },
 };
 
@@ -107,7 +107,7 @@ export const INFERENCE_VALIDATION = {
     types: {
       values: ['buy', 'sell', 'hold'],
       constraints: {
-        hold: 'rate는 반드시 0이어야 함',
+        hold: 'rate는 반드시 1이어야 함',
       },
     },
     rate: {
