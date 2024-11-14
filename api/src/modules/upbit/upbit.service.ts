@@ -87,16 +87,16 @@ export class UpbitService {
 
   public async getSymbolRate(user: User, symbol: string, market: string): Promise<number> {
     const balances = await this.getBalances(user);
-    const symbolBalance = this.getBalance(balances, symbol);
-    const marketBalance = this.getBalance(balances, market);
-    const symbolRate = symbolBalance / (symbolBalance + marketBalance);
+    const symbolPrice = this.getPrice(balances, symbol);
+    const marketPrice = this.getPrice(balances, market);
+    const symbolRate = symbolPrice / (symbolPrice + marketPrice);
 
-    this.logger.debug('symbolRate', symbolRate);
+    this.logger.debug(`symbolRate: ${symbolRate}`);
 
     return symbolRate;
   }
 
-  private getBalance(balances: Balances, symbol: string) {
+  private getPrice(balances: Balances, symbol: string) {
     const info = balances.info.find((item) => item.currency === symbol);
 
     if (!info) {
@@ -105,22 +105,40 @@ export class UpbitService {
 
     const symbolBalance = Number(info['balance']);
     const symbolAvgBuyPrice = Number(info['avg_buy_price']) || 1;
-    const balance = symbolBalance * symbolAvgBuyPrice;
+    const price = symbolBalance * symbolAvgBuyPrice;
 
-    this.logger.debug('balance', balance);
+    this.logger.debug(`price: ${price}`);
 
-    return balance;
+    return price;
+  }
+
+  private getVolume(balances: Balances, symbol: string) {
+    const balance = balances[symbol];
+
+    if (!balance) {
+      return 0;
+    }
+
+    const free = Number(balance?.free) || 0;
+
+    this.logger.debug(`free: ${free}`);
+
+    return free;
+  }
+
+  private getOrderVolume(balances: Balances, symbol: string, rate: number) {
+    return this.getVolume(balances, symbol) * rate * 0.9995;
   }
 
   public async order(user: User, request: OrderRequest): Promise<Order> {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
     const ticker = `${request.symbol}/${request.market}`;
-    const tradePrice = Math.floor(balances[request.market]?.free ?? 0 * request.rate * 0.9995);
-    const tradeVolume = balances[request.symbol]?.free ?? 0 * request.rate * 0.9995;
+    const tradePrice = this.getOrderVolume(balances, request.market, request.rate);
+    const tradeVolume = this.getOrderVolume(balances, request.symbol, request.rate);
 
-    this.logger.debug('tradePrice', tradePrice);
-    this.logger.debug('tradeVolume', tradeVolume);
+    this.logger.debug(`tradePrice: ${tradePrice}`);
+    this.logger.debug(`tradeVolume: ${tradeVolume}`);
 
     switch (request.type) {
       case OrderTypes.BUY:
@@ -129,6 +147,8 @@ export class UpbitService {
       case OrderTypes.SELL:
         return await client.createOrder(ticker, 'market', request.type, tradeVolume);
     }
+
+    return null;
   }
 
   public static getOrderType(decision: InferenceDecisionTypes): OrderTypes {
