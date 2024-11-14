@@ -18,10 +18,10 @@ const SidebarLayout = () => {
     <div className='xl:block hidden'>
       <div className='flex'>
         <Sidebar
-          className='fixed menu-sidebar pt-6 bg-white dark:bg-dark z-[10]'
+          className='fixed menu-sidebar bg-white dark:bg-dark z-[10]'
           aria-label='Sidebar with multi-level dropdown example'
         >
-          <div className='mb-7 px-6 brand-logo'>
+          <div className='px-6 py-3 brand-logo'>
             <FullLogo />
           </div>
 
