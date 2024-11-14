@@ -92,7 +92,6 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        id: 'ASC',
         createdAt: 'DESC',
       },
     };

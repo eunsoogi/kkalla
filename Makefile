@@ -68,4 +68,4 @@ uninstall:
 		-n $(HELM_NAMESPACE)
 
 .PHONY: all
-all: build install
+all: build import install
