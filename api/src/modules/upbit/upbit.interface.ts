@@ -27,7 +27,7 @@ export interface Candle {
   unit: number;
 }
 
-export class OrderRequest {
+export interface OrderRequest {
   symbol: string;
   market: string;
   type: OrderTypes;
