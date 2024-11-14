@@ -22,6 +22,18 @@ Google OAuth 2.0 클라이언트 ID입니다. 자세한 내용은 [이곳](https
 
 Google OAuth 2.0 클라이언트 암호입니다. 자세한 내용은 [이곳](https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko)을 참조하세요.
 
+#### `api.openai.secretKey`
+
+AI 질의를 위한 OpenAI API 암호키입니다. 자세한 내용은 [이곳]()을 참조하세요.
+
+#### `api.upbit.accessKey`
+
+마켓 데이터를 불러오기 위한 업비트 API 키입니다. 자세한 내용은 [이곳](https://upbit.com/service_center/open_api_guide)을 참조하세요.
+
+#### `api.upbit.secretKey`
+
+마켓 데이터를 불러오기 위한 업비트 API 암호키입니다. 자세한 내용은 [이곳](https://upbit.com/service_center/open_api_guide)을 참조하세요.
+
 #### `api.test.email`
 
 개발 환경에서 dummy seed를 생성할 대상 이메일 계정입니다.
