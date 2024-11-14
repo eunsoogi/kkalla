@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '../item/item.interface';
 import { SlackService } from '../slack/slack.service';
 import { User } from '../user/entities/user.entity';
 import { Notify } from './entities/notify.entity';
@@ -27,5 +28,13 @@ export class NotifyService {
     this.slackService.send(user, { message: data?.message });
 
     return notify.save();
+  }
+
+  public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Notify>> {
+    return Notify.paginate(user, request);
+  }
+
+  public async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Notify, string>> {
+    return Notify.cursor(user, request);
   }
 }
