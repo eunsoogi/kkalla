@@ -61,11 +61,13 @@ const NotificationItem: React.FC<Notify> = (item: Notify) => {
       className='group/link w-full px-3 py-3 gap-3 bg-hover text-dark hover:bg-gray-100'
     >
       <div className='flex items-center gap-5'>
-        <Icon
-          icon='solar:notification-unread-lines-outline'
-          height={35}
-          className='text-secondary dark:text-lightsecondary'
-        />
+        <div>
+          <Icon
+            height={35}
+            icon='solar:notification-unread-lines-outline'
+            className='text-secondary dark:text-lightsecondary'
+          />
+        </div>
         <div className='flex flex-col'>
           <p className='text-sm font-semibold line-clamp-2'>{item.message}</p>
           <p className='text-xs'>{formatDate(new Date(item.createdAt))}</p>
@@ -85,11 +87,13 @@ const NotificationSkeleton: React.FC = () => {
       className='group/link w-full px-3 py-3 gap-3 bg-hover text-dark hover:bg-gray-100'
     >
       <div className='flex items-center gap-5'>
-        <Icon
-          icon='solar:notification-unread-lines-outline'
-          height={35}
-          className='text-secondary dark:text-lightsecondary'
-        />
+        <div>
+          <Icon
+            icon='solar:notification-unread-lines-outline'
+            height={35}
+            className='text-secondary dark:text-lightsecondary'
+          />
+        </div>
         <div className='flex flex-col'>
           <p className='text-sm font-semibold line-clamp-2'>{t('loading')}</p>
         </div>
