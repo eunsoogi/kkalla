@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { GetCursorDto } from '../item/dto/get-cursor.dto';
+import { CursorItem, PaginatedItem } from '../item/item.interface';
+import { GetNotifyDto } from './dto/get-notify.dto';
 import { NotifyResponse } from './dto/notify-response.dto';
 import { PostNotifyDto } from './dto/post-notify.dto';
 import { NotifyService } from './notify.service';
@@ -11,15 +14,34 @@ export class NotifyController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public async get(@Req() req) {
-    const result = await this.notifyService.findAll(req.user);
+  public async get(@Req() req, @Query() params: GetNotifyDto): Promise<PaginatedItem<NotifyResponse>> {
+    const result = await this.notifyService.paginate(req.user, params);
 
-    return result.map((notify) => ({
-      id: notify.id,
-      message: notify?.message,
-      createdAt: notify.createdAt,
-      updatedAt: notify.updatedAt,
-    }));
+    return {
+      ...result,
+      items: result.items.map((item) => ({
+        id: item.id,
+        message: item?.message,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
+    };
+  }
+
+  @Get('cursor')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async cursor(@Req() req, @Query() params: GetCursorDto<string>): Promise<CursorItem<NotifyResponse, string>> {
+    const result = await this.notifyService.cursor(req.user, params);
+
+    return {
+      ...result,
+      items: result.items.map((item) => ({
+        id: item.id,
+        message: item?.message,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
+    };
   }
 
   @Post()

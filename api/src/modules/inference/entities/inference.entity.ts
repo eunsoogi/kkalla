@@ -129,14 +129,16 @@ export class Inference extends BaseEntity {
       };
     }
 
-    const [items, total] = await this.findAndCount(findOptions);
-    const hasNextPage = items.length > request.limit;
+    const items = await this.find(findOptions);
+    let total = items.length;
+    const hasNextPage = total > request.limit;
 
     if (hasNextPage) {
       items.pop();
+      total--;
     }
 
-    const nextCursor = hasNextPage ? items[items.length - 1].id : null;
+    const nextCursor = hasNextPage ? items[total - 1].id : null;
 
     return {
       items,
