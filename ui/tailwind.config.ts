@@ -1,6 +1,5 @@
 import flowbite from 'flowbite-react/tailwind';
 import flowbitePlugin from 'flowbite/plugin';
-import typographyPlugin from '@tailwindcss/typography';
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
@@ -64,7 +63,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [flowbitePlugin, typographyPlugin],
+  plugins: [flowbitePlugin],
 };
 
 export default config;

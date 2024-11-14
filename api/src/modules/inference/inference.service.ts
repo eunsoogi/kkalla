@@ -15,11 +15,11 @@ import { NewsService } from '../news/news.service';
 import { OpenaiService } from '../openai/openai.service';
 import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
-import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
 import {
   InferenceData,
+  InferenceFilter,
   InferenceItem,
   InferenceMessage,
   InferenceMessageRequest,
@@ -39,10 +39,10 @@ export class InferenceService {
     private readonly firechartService: FirechartService,
   ) {}
 
-  public async getMessage(user: User, request: InferenceMessageRequest): Promise<InferenceMessage> {
+  public async getMessage(request: InferenceMessageRequest): Promise<InferenceMessage> {
     this.logger.log(this.i18n.t('logging.upbit.candle.loading'));
 
-    const candles: Candle[] = await this.upbitService.getCandles(user, request);
+    const candles: Candle[] = await this.upbitService.getCandles(request);
 
     this.logger.log(this.i18n.t('logging.news.loading'));
 
@@ -61,7 +61,7 @@ export class InferenceService {
 
     this.logger.log(this.i18n.t('logging.inference.loading'));
 
-    const inferenceResult: PaginatedItem<Inference> = await this.paginate(user, {
+    const inferenceResult: PaginatedItem<Inference> = await this.paginate({
       page: 1,
       perPage: request.inferenceLimit,
     });
@@ -103,14 +103,10 @@ export class InferenceService {
     };
   }
 
-  public async inference(
-    user: User,
-    request: InferenceMessageRequest,
-    retryOptions?: RetryOptions,
-  ): Promise<InferenceData> {
-    const client: OpenAI = await this.openaiService.getClient(user);
+  public async inference(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
+    const client: OpenAI = await this.openaiService.getServerClient();
 
-    const message: InferenceMessage = await this.getMessage(user, request);
+    const message: InferenceMessage = await this.getMessage(request);
 
     const response: ChatCompletion = await this.retry(
       () =>
@@ -163,20 +159,17 @@ export class InferenceService {
     throw new Error(this.i18n.t('logging.retry.failed'));
   }
 
-  public async create(user: User, data: InferenceItem): Promise<Inference> {
+  public async create(data: InferenceItem): Promise<Inference> {
     const inference = new Inference();
-
-    inference.user = user;
     Object.assign(inference, data);
-
     return inference.save();
   }
 
-  public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Inference>> {
-    return Inference.paginate(user, request);
+  public async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+    return Inference.paginate(request);
   }
 
-  public async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Inference, string>> {
-    return Inference.cursor(user, request);
+  public async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
+    return Inference.cursor(request);
   }
 }

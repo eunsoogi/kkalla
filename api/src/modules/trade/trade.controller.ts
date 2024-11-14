@@ -14,13 +14,14 @@ export class TradeController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public get(@Req() req, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
+  public async get(@Req() req, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
     return this.tradeService.paginate(req.user, request);
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public post(@Req() req, @Body() body: PostTradeDto): Promise<Trade> {
-    return this.tradeService.trade(req.user, body);
+  public async post(@Req() req, @Body() body: PostTradeDto): Promise<Trade> {
+    const inferences = await this.tradeService.inference(body);
+    return this.tradeService.trade(req.user, inferences, body);
   }
 }

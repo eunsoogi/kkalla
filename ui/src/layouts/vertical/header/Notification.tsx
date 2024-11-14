@@ -7,7 +7,6 @@ import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge, Button, Dropdown } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
-import Markdown from 'react-markdown';
 
 import { CursorItem } from '@/interfaces/item.interface';
 import { Notify } from '@/interfaces/notify.interface';
@@ -70,9 +69,7 @@ const NotificationItem: React.FC<Notify> = (item: Notify) => {
           />
         </div>
         <div className='flex flex-col'>
-          <p className='text-sm font-semibold line-clamp-2 prose dark:prose-invert'>
-            <Markdown>{item.message}</Markdown>
-          </p>
+          <p className='text-sm font-semibold line-clamp-2 prose dark:prose-invert'>{item.message}</p>
           <p className='text-xs'>{formatDate(new Date(item.createdAt))}</p>
         </div>
       </div>

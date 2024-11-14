@@ -24,12 +24,19 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     const schedules = await Schedule.findByEnabled();
-    const threads = schedules.map((schedule) => this.tradeService.trade(schedule.user, new PostTradeDto())); // TO-DO: dynamic symbol & market
-    const results = await Promise.all(threads);
+
+    // TO-DO: dynamic symbol & market
+    const request = new PostTradeDto();
+
+    const inferences = await this.tradeService.inference(request);
+
+    const trades = await Promise.all(
+      schedules.map((schedule) => this.tradeService.trade(schedule.user, inferences, request)),
+    );
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
 
-    return results;
+    return trades;
   }
 
   public async create(user: User, data: ScheduleData): Promise<Schedule> {

@@ -22,7 +22,7 @@ const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
     queryKey: ['inferences', 'cursor'],
-    queryFn: ({ pageParam = null }) => getInferenceCursorAction(pageParam as string),
+    queryFn: ({ pageParam = null }) => getInferenceCursorAction({ cursor: pageParam as string }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });
@@ -67,7 +67,17 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
           <Badge color='muted' className={DECISION_STYLES[item.decision].badgeStyle}>
             {item.decision}
           </Badge>
-          <h4 className='text-dark dark:text-white'>{item.rate * 100}%</h4>
+          <div className='flex flex-col lg:flex-row lg:gap-6'>
+            <h4 className='text-dark dark:text-white'>
+              {item.rate * 100}% {t(`decision.${item.decision}`)}
+            </h4>
+            <p>
+              {t('inference.bound', {
+                lower: item.symbolRateLower * 100,
+                upper: item.symbolRateUpper * 100,
+              })}
+            </p>
+          </div>
         </div>
         <div className='grid grid-cols-12 lg:gap-x-30'>
           <div className='lg:col-span-6 col-span-12'>

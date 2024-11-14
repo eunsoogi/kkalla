@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 
-import { GetCursorDto } from '@/modules/item/dto/get-cursor.dto';
 import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { GetInferenceCursorDto } from './dto/get-inference-cursor.dto';
 import { GetInferenceDto } from './dto/get-inference.dto';
 import { PostInferenceDto } from './dto/post-inference.dto';
 import { Inference } from './entities/inference.entity';
@@ -18,19 +18,33 @@ export class InferenceController {
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
   public get(@Req() req, @Query() params: GetInferenceDto): Promise<PaginatedItem<Inference>> {
-    return this.inferenceService.paginate(req.user, params);
+    return this.inferenceService.paginate({
+      ...params,
+      ...(Boolean(params.mine) && {
+        users: {
+          id: req.user.id,
+        },
+      }),
+    });
   }
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  public cursor(@Req() req, @Query() params: GetCursorDto<string>): Promise<CursorItem<Inference, string>> {
-    return this.inferenceService.cursor(req.user, params);
+  public cursor(@Req() req, @Query() params: GetInferenceCursorDto): Promise<CursorItem<Inference, string>> {
+    return this.inferenceService.cursor({
+      ...params,
+      ...(Boolean(params.mine) && {
+        users: {
+          id: req.user.id,
+        },
+      }),
+    });
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public post(@Req() req, @Body() body: PostInferenceDto): Promise<InferenceData> {
-    return this.inferenceService.inference(req.user, {
+  public post(@Body() body: PostInferenceDto): Promise<InferenceData> {
+    return this.inferenceService.inference({
       ...INFERENCE_CONFIG.message,
       ...body,
     });

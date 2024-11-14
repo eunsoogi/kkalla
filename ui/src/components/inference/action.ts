@@ -4,12 +4,17 @@ import { Inference, initialCursorState, initialPaginatedState } from '@/interfac
 import { CursorItem, PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
 
-export const getInferenceAction = async (page?: number | null): Promise<PaginatedItem<Inference>> => {
+export interface InferenceParams {
+  page?: number | null;
+  mine?: boolean;
+}
+
+export const getInferenceAction = async (params: InferenceParams): Promise<PaginatedItem<Inference>> => {
   const client = await getClient();
 
   try {
     const { data } = await client.get('/api/v1/inferences', {
-      params: { page },
+      params,
     });
 
     return {
@@ -25,12 +30,17 @@ export const getInferenceAction = async (page?: number | null): Promise<Paginate
   }
 };
 
-export const getInferenceCursorAction = async (cursor?: string): Promise<CursorItem<Inference>> => {
+export interface InferenceCursorParams {
+  cursor?: string;
+  mine?: boolean;
+}
+
+export const getInferenceCursorAction = async (params: InferenceCursorParams): Promise<CursorItem<Inference>> => {
   const client = await getClient();
 
   try {
     const { data } = await client.get('/api/v1/inferences/cursor', {
-      params: { cursor },
+      params,
     });
 
     return {

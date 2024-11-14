@@ -21,13 +21,6 @@
     "title": "매매 스케줄",
     "tooltip": "등록된 API 키를 활용해 4시간마다 추론 및 매매를 수행합니다."
   },
-  "openai": {
-    "title": "OpenAI",
-    "tooltip": "AI를 호출하기 위한 OpenAI 비밀 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.",
-    "api": {
-      "description": "이 API 키는 Model compabilities(/v1/chat/completions)에 대해 Write 권한이 필요합니다."
-    }
-  },
   "upbit": {
     "title": "업비트",
     "tooltip": "업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.",
@@ -42,7 +35,13 @@
   "inference": {
     "list": "추론 목록",
     "reason": "추론 내용",
-    "reflection": "회귀 내용"
+    "reflection": "회귀 내용",
+    "bound": "현금 대비 종목 비율 {lower}~{upper}%"
+  },
+  "decision": {
+    "buy": "매수",
+    "sell": "매도",
+    "hold": "홀드"
   },
   "trade": {
     "list": "거래 목록",
