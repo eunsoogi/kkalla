@@ -20,7 +20,7 @@ export const seeds = {
     await Inference.delete({});
     await Inference.save([
       {
-        user: users[0],
+        users,
         symbol: 'BTC',
         decision: InferenceDecisionTypes.BUY,
         rate: 0.3,
@@ -30,7 +30,7 @@ export const seeds = {
         reflection: '테스트 회귀 내용입니다.',
       },
       {
-        user: users[0],
+        users,
         symbol: 'BTC',
         decision: InferenceDecisionTypes.SELL,
         rate: 0.3,
@@ -40,7 +40,16 @@ export const seeds = {
         reflection: '테스트 회귀 내용입니다.',
       },
       {
-        user: users[0],
+        users,
+        symbol: 'BTC',
+        decision: InferenceDecisionTypes.HOLD,
+        rate: 0,
+        symbolRateLower: 0.2,
+        symbolRateUpper: 0.4,
+        reason: '테스트 추론 내용입니다.',
+        reflection: '테스트 회귀 내용입니다.',
+      },
+      {
         symbol: 'BTC',
         decision: InferenceDecisionTypes.HOLD,
         rate: 0,

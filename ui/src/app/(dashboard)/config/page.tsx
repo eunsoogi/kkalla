@@ -1,6 +1,5 @@
 import React from 'react';
 
-import OpenaiForm from '@/components/config/OpenaiForm';
 import ScheduleForm from '@/components/config/ScheduleForm';
 import SlackForm from '@/components/config/SlackForm';
 import UpbitForm from '@/components/config/UpbitForm';
@@ -11,9 +10,6 @@ const Page: React.FC = () => {
       <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words divide-y divide-gray-100 dark:divide-gray-800'>
         <div className='py-6'>
           <ScheduleForm />
-        </div>
-        <div className='py-6'>
-          <OpenaiForm />
         </div>
         <div className='py-6'>
           <UpbitForm />

@@ -57,10 +57,6 @@ export const postConfigAction = async (url: string, formData: FormData): Promise
   }
 };
 
-export const postOpenaiConfigAction = async (_: State, formData: FormData): Promise<State> => {
-  return postConfigAction('/api/v1/openai/config', formData);
-};
-
 export const postUpbitConfigAction = async (_: State, formData: FormData): Promise<State> => {
   return postConfigAction('/api/v1/upbit/config', formData);
 };
@@ -78,10 +74,6 @@ export const getStatusAction = async (url: string): Promise<ApikeyStatus> => {
   } catch {
     return ApikeyStatus.UNKNOWN;
   }
-};
-
-export const getOpenaiStatusAction = async (): Promise<ApikeyStatus> => {
-  return getStatusAction('/api/v1/openai/status');
 };
 
 export const getUpbitStatusAction = async (): Promise<ApikeyStatus> => {

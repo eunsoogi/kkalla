@@ -5,6 +5,8 @@ export interface Inference {
   id: string;
   decision: InferenceDicisionTypes;
   rate: number;
+  symbolRateLower: number;
+  symbolRateUpper: number;
   reason: string;
   reflection: string;
   createdAt: Date;
