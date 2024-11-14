@@ -5,6 +5,9 @@ import { ToBoolean } from '@/transforms/boolean.transform';
 
 export class GetInferenceCursorDto extends GetCursorDto<string> {
   @ToBoolean()
-  @ApiProperty()
+  @ApiProperty({
+    required: true,
+    example: false,
+  })
   mine: boolean = false;
 }
