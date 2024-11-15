@@ -14,9 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install make
-        run: sudo apt-get update && sudo apt-get install -y make
-
       - name: Setup Helm
         uses: azure/setup-helm@v4.2.0
         with:
