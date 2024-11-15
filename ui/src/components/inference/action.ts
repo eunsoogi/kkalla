@@ -32,6 +32,8 @@ export const getInferenceAction = async (params: InferenceParams): Promise<Pagin
 
 export interface InferenceCursorParams {
   cursor?: string;
+  limit?: number;
+  skip?: boolean;
   mine?: boolean;
 }
 

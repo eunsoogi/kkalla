@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { Type } from 'class-transformer';
+
 import { OrderTypes } from '../upbit.enum';
 
 export class RequestOrderDto {
@@ -21,6 +23,7 @@ export class RequestOrderDto {
   })
   type: OrderTypes;
 
+  @Type(() => Number)
   @ApiProperty({
     required: true,
     example: 0.3,

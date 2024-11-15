@@ -1,9 +1,9 @@
 import React from 'react';
 
-import InferenceListDetail from '@/components/inference/InferenceListDetail';
+import { InferenceDetailList } from '@/components/inference/InferenceDetailList';
 
 const Page: React.FC = () => {
-  return <InferenceListDetail />;
+  return <InferenceDetailList />;
 };
 
 export default Page;

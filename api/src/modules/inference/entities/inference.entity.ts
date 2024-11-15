@@ -5,7 +5,7 @@ import {
   Entity,
   FindManyOptions,
   JoinTable,
-  LessThan,
+  LessThanOrEqual,
   ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -101,7 +101,7 @@ export class Inference extends BaseEntity {
   public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
     const findOptions: FindManyOptions<Inference> = {
       take: request.limit + 1,
-      skip: request.cursor ? 1 : 0,
+      skip: request.cursor && request.skip ? 1 : 0,
       where: {
         users: request.users,
       },
@@ -117,10 +117,12 @@ export class Inference extends BaseEntity {
         },
       });
 
-      findOptions.where = {
-        ...findOptions.where,
-        seq: LessThan(cursor.seq),
-      };
+      if (cursor) {
+        findOptions.where = {
+          ...findOptions.where,
+          seq: LessThanOrEqual(cursor.seq),
+        };
+      }
     }
 
     const items = await this.find(findOptions);
