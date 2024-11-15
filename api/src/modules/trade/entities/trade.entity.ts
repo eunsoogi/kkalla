@@ -16,14 +16,16 @@ import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
 
-@Entity({
-  orderBy: {
-    createdAt: 'ASC',
-  },
-})
+@Entity()
 export class Trade extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
 
   @ManyToOne(() => User, {
     nullable: false,
@@ -84,7 +86,7 @@ export class Trade extends BaseEntity {
         },
       },
       order: {
-        updatedAt: 'DESC',
+        seq: 'DESC',
       },
     });
 

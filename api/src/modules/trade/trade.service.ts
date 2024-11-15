@@ -9,6 +9,7 @@ import { Inference } from '../inference/entities/inference.entity';
 import { INFERENCE_CONFIG } from '../inference/inference.config';
 import { InferenceService } from '../inference/inference.service';
 import { NotifyService } from '../notify/notify.service';
+import { SequenceService } from '../sequence/sequence.service';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { Trade } from './entities/trade.entity';
@@ -19,10 +20,11 @@ export class TradeService {
   private readonly logger = new Logger(TradeService.name);
 
   constructor(
+    private readonly i18n: I18nService,
+    private readonly sequenceService: SequenceService,
     private readonly inferenceService: InferenceService,
     private readonly upbitService: UpbitService,
     private readonly notifyService: NotifyService,
-    private readonly i18n: I18nService,
   ) {}
 
   public async inference(request: TradeRequest): Promise<Inference[]> {
@@ -146,8 +148,9 @@ export class TradeService {
   public async create(user: User, data: TradeData): Promise<Trade> {
     const trade = new Trade();
 
-    trade.user = user;
     Object.assign(trade, data);
+    trade.seq = await this.sequenceService.getNextSequence();
+    trade.user = user;
 
     return trade.save();
   }

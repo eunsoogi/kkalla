@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '../item/item.interface';
+import { SequenceService } from '../sequence/sequence.service';
 import { SlackService } from '../slack/slack.service';
 import { User } from '../user/entities/user.entity';
 import { Notify } from './entities/notify.entity';
@@ -8,7 +9,10 @@ import { NotifyData } from './notify.interface';
 
 @Injectable()
 export class NotifyService {
-  constructor(private readonly slackService: SlackService) {}
+  constructor(
+    private readonly sequenceService: SequenceService,
+    private readonly slackService: SlackService,
+  ) {}
 
   public async findAll(user: User) {
     return Notify.findAllByUser(user);
@@ -21,8 +25,9 @@ export class NotifyService {
   public async create(user: User, data: NotifyData): Promise<Notify> {
     const notify = new Notify();
 
-    notify.user = user;
     Object.assign(notify, data);
+    notify.seq = await this.sequenceService.getNextSequence();
+    notify.user = user;
 
     // Send to slack
     this.slackService.send(user, { message: data?.message });

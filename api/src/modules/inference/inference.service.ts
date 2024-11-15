@@ -13,6 +13,7 @@ import { NewsTypes } from '../news/news.enum';
 import { News } from '../news/news.interface';
 import { NewsService } from '../news/news.service';
 import { OpenaiService } from '../openai/openai.service';
+import { SequenceService } from '../sequence/sequence.service';
 import { Candle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
 import { Inference } from './entities/inference.entity';
@@ -32,6 +33,7 @@ export class InferenceService {
 
   constructor(
     private readonly i18n: I18nService,
+    private readonly sequenceService: SequenceService,
     private readonly openaiService: OpenaiService,
     private readonly upbitService: UpbitService,
     private readonly newsService: NewsService,
@@ -161,7 +163,10 @@ export class InferenceService {
 
   public async create(data: InferenceItem): Promise<Inference> {
     const inference = new Inference();
+
     Object.assign(inference, data);
+    inference.seq = await this.sequenceService.getNextSequence();
+
     return inference.save();
   }
 
