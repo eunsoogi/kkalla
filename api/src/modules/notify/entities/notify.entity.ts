@@ -14,14 +14,16 @@ import {
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { User } from '@/modules/user/entities/user.entity';
 
-@Entity({
-  orderBy: {
-    createdAt: 'ASC',
-  },
-})
+@Entity()
 export class Notify extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
 
   @ManyToOne(() => User, {
     nullable: false,
@@ -66,7 +68,7 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        updatedAt: 'DESC',
+        seq: 'DESC',
       },
     });
 
@@ -92,7 +94,7 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        createdAt: 'DESC',
+        seq: 'DESC',
       },
     };
 
@@ -105,7 +107,7 @@ export class Notify extends BaseEntity {
 
       findOptions.where = {
         ...findOptions.where,
-        createdAt: LessThan(cursor.createdAt),
+        seq: LessThan(cursor.seq),
       };
     }
 

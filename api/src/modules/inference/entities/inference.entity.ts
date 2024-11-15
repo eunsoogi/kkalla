@@ -17,14 +17,16 @@ import { User } from '@/modules/user/entities/user.entity';
 import { InferenceDecisionTypes } from '../inference.enum';
 import { InferenceFilter } from '../inference.interface';
 
-@Entity({
-  orderBy: {
-    createdAt: 'ASC',
-  },
-})
+@Entity()
 export class Inference extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
 
   @ManyToMany(() => User, {
     cascade: true,
@@ -81,7 +83,7 @@ export class Inference extends BaseEntity {
         users: request.users,
       },
       order: {
-        updatedAt: 'DESC',
+        seq: 'DESC',
       },
     };
 
@@ -104,7 +106,7 @@ export class Inference extends BaseEntity {
         users: request.users,
       },
       order: {
-        createdAt: 'DESC',
+        seq: 'DESC',
       },
     };
 
@@ -117,7 +119,7 @@ export class Inference extends BaseEntity {
 
       findOptions.where = {
         ...findOptions.where,
-        createdAt: LessThan(cursor.createdAt),
+        seq: LessThan(cursor.seq),
       };
     }
 
