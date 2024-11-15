@@ -6,6 +6,7 @@ export interface ItemRequest {
 export interface CursorRequest<C> {
   cursor?: C;
   limit: number;
+  skip: boolean;
 }
 
 export class PaginatedItem<T> {

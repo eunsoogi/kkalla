@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { Type } from 'class-transformer';
+
 import { ToBoolean } from '@/transforms/boolean.transform';
 
 export class GetInferenceDto {
@@ -10,12 +12,14 @@ export class GetInferenceDto {
   })
   mine: boolean = false;
 
+  @Type(() => Number)
   @ApiProperty({
     required: true,
     example: 1,
   })
   page: number = 1;
 
+  @Type(() => Number)
   @ApiProperty({
     required: true,
     example: 6,

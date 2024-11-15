@@ -5,7 +5,7 @@ import {
   Entity,
   FindManyOptions,
   JoinColumn,
-  LessThan,
+  LessThanOrEqual,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,14 +14,16 @@ import {
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { User } from '@/modules/user/entities/user.entity';
 
-@Entity({
-  orderBy: {
-    createdAt: 'ASC',
-  },
-})
+@Entity()
 export class Notify extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
 
   @ManyToOne(() => User, {
     nullable: false,
@@ -66,7 +68,7 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        updatedAt: 'DESC',
+        seq: 'DESC',
       },
     });
 
@@ -82,7 +84,7 @@ export class Notify extends BaseEntity {
   public static async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Notify, string>> {
     const findOptions: FindManyOptions<Notify> = {
       take: request.limit + 1,
-      skip: request.cursor ? 1 : 0,
+      skip: request.cursor && request.skip ? 1 : 0,
       relations: {
         user: true,
       },
@@ -92,7 +94,7 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        createdAt: 'DESC',
+        seq: 'DESC',
       },
     };
 
@@ -103,10 +105,12 @@ export class Notify extends BaseEntity {
         },
       });
 
-      findOptions.where = {
-        ...findOptions.where,
-        createdAt: LessThan(cursor.createdAt),
-      };
+      if (cursor) {
+        findOptions.where = {
+          ...findOptions.where,
+          seq: LessThanOrEqual(cursor.seq),
+        };
+      }
     }
 
     const items = await this.find(findOptions);

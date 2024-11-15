@@ -98,11 +98,27 @@ export const INFERENCE_RULES = {
 export const INFERENCE_VALIDATION = {
   decisions: {
     pairs: [
-      { symbolRateLower: 0, symbolRateUpper: 0.2, description: '현금 대비 종목 비율 0-20% 구간' },
-      { symbolRateLower: 0.2, symbolRateUpper: 0.4, description: '현금 대비 종목 비율 20-40% 구간' },
-      { symbolRateLower: 0.4, symbolRateUpper: 0.6, description: '현금 대비 종목 비율 40-60% 구간' },
-      { symbolRateLower: 0.6, symbolRateUpper: 0.8, description: '현금 대비 종목 비율 60-80% 구간' },
-      { symbolRateLower: 0.8, symbolRateUpper: 1.0, description: '현금 대비 종목 비율 80-100% 구간' },
+      { symbolRateLower: 0, symbolRateUpper: 0.2, description: '현금 대비 종목 비율 0-20% 구간. 현금 보유량이 많음' },
+      {
+        symbolRateLower: 0.2,
+        symbolRateUpper: 0.4,
+        description: '현금 대비 종목 비율 20-40% 구간. 현금 보유량이 조금 많음',
+      },
+      {
+        symbolRateLower: 0.4,
+        symbolRateUpper: 0.6,
+        description: '현금 대비 종목 비율 40-60% 구간. 현금과 종목 보유량이 절반임',
+      },
+      {
+        symbolRateLower: 0.6,
+        symbolRateUpper: 0.8,
+        description: '현금 대비 종목 비율 60-80% 구간. 종목 보유량이 조금 많음',
+      },
+      {
+        symbolRateLower: 0.8,
+        symbolRateUpper: 1.0,
+        description: '현금 대비 종목 비율 80-100% 구간. 종목 보유량이 많음',
+      },
     ],
     types: {
       values: ['buy', 'sell', 'hold'],

@@ -5,7 +5,7 @@ import {
   Entity,
   FindManyOptions,
   JoinTable,
-  LessThan,
+  LessThanOrEqual,
   ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -17,14 +17,16 @@ import { User } from '@/modules/user/entities/user.entity';
 import { InferenceDecisionTypes } from '../inference.enum';
 import { InferenceFilter } from '../inference.interface';
 
-@Entity({
-  orderBy: {
-    createdAt: 'ASC',
-  },
-})
+@Entity()
 export class Inference extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
 
   @ManyToMany(() => User, {
     cascade: true,
@@ -81,7 +83,7 @@ export class Inference extends BaseEntity {
         users: request.users,
       },
       order: {
-        updatedAt: 'DESC',
+        seq: 'DESC',
       },
     };
 
@@ -99,12 +101,12 @@ export class Inference extends BaseEntity {
   public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
     const findOptions: FindManyOptions<Inference> = {
       take: request.limit + 1,
-      skip: request.cursor ? 1 : 0,
+      skip: request.cursor && request.skip ? 1 : 0,
       where: {
         users: request.users,
       },
       order: {
-        createdAt: 'DESC',
+        seq: 'DESC',
       },
     };
 
@@ -115,10 +117,12 @@ export class Inference extends BaseEntity {
         },
       });
 
-      findOptions.where = {
-        ...findOptions.where,
-        createdAt: LessThan(cursor.createdAt),
-      };
+      if (cursor) {
+        findOptions.where = {
+          ...findOptions.where,
+          seq: LessThanOrEqual(cursor.seq),
+        };
+      }
     }
 
     const items = await this.find(findOptions);

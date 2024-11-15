@@ -1,10 +1,10 @@
 import React from 'react';
 
-import InferenceListDetail from '@/components/inference/InferenceListDetail';
+import { InferenceDetail } from '@/components/inference/InferenceDetail';
 
 const Page: React.FC<{ params: Promise<{ id?: string }> }> = async ({ params }) => {
   const { id } = await params;
-  return <InferenceListDetail id={id} />;
+  return <InferenceDetail id={id} />;
 };
 
 export default Page;
