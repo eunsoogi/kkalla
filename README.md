@@ -24,7 +24,7 @@ Google OAuth 2.0 클라이언트 암호입니다. 자세한 내용은 [이곳](h
 
 #### `api.openai.secretKey`
 
-AI 질의를 위한 OpenAI API 암호키입니다. 자세한 내용은 [이곳]()을 참조하세요.
+AI 질의를 위한 OpenAI API 암호키입니다. 자세한 내용은 [이곳](https://platform.openai.com/docs/quickstart)을 참조하세요.
 
 #### `api.upbit.accessKey`
 
