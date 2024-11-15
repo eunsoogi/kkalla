@@ -87,7 +87,7 @@ export class Migration1731628833985 implements MigrationInterface {
       );
     }
 
-    const notifies = await queryRunner.manager.find(Trade, {
+    const notifies = await queryRunner.manager.find(Notify, {
       order: {
         createdAt: 'ASC',
       },
