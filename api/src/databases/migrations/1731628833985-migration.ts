@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableColumn } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableColumn, TableUnique } from 'typeorm';
 
 import { Inference } from '@/modules/inference/entities/inference.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
@@ -28,7 +28,6 @@ export class Migration1731628833985 implements MigrationInterface {
       new TableColumn({
         name: 'seq',
         type: 'bigint',
-        isUnique: true,
       }),
     );
 
@@ -37,7 +36,6 @@ export class Migration1731628833985 implements MigrationInterface {
       new TableColumn({
         name: 'seq',
         type: 'bigint',
-        isUnique: true,
       }),
     );
 
@@ -46,7 +44,6 @@ export class Migration1731628833985 implements MigrationInterface {
       new TableColumn({
         name: 'seq',
         type: 'bigint',
-        isUnique: true,
       }),
     );
 
@@ -109,6 +106,27 @@ export class Migration1731628833985 implements MigrationInterface {
         },
       );
     }
+
+    await queryRunner.createUniqueConstraint(
+      'inference',
+      new TableUnique({
+        columnNames: ['seq'],
+      }),
+    );
+
+    await queryRunner.createUniqueConstraint(
+      'trade',
+      new TableUnique({
+        columnNames: ['seq'],
+      }),
+    );
+
+    await queryRunner.createUniqueConstraint(
+      'notify',
+      new TableUnique({
+        columnNames: ['seq'],
+      }),
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
