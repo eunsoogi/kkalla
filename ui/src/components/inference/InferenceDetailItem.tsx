@@ -1,54 +1,19 @@
 'use client';
 
 import Image from 'next/image';
-import React, { Fragment, Suspense, useCallback } from 'react';
+import React from 'react';
 
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import { TbPoint } from 'react-icons/tb';
 
 import { Inference } from '@/interfaces/inference.interface';
-import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
-import { InfinityScroll } from '../infinityscroll/InfinityScroll';
-import { getInferenceCursorAction } from './action';
 import { DECISION_STYLES } from './style';
 import UserImg from '/public/images/profile/user-ai.png';
 
-const InferenceContent: React.FC<{ id?: string }> = ({ id }) => {
-  const t = useTranslations();
-
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
-    queryKey: ['inferences', 'cursor'],
-    queryFn: ({ pageParam = null }) => getInferenceCursorAction({ cursor: pageParam as string }),
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    initialPageParam: null,
-  });
-
-  const handleIntersect = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  return (
-    <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText={t('loading')}>
-      <div className='flex flex-col gap-x-4 gap-y-30 lg:gap-30 mt-30'>
-        {data?.pages.map((page, i) => (
-          <Fragment key={i}>
-            {page.items.map((item) => (
-              <InferenceItem key={item.id} {...item} isFocus={item.id == id} />
-            ))}
-          </Fragment>
-        ))}
-      </div>
-    </InfinityScroll>
-  );
-};
-
-const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = false, ...item }) => {
+export const InferenceDetailItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = false, ...item }) => {
   const t = useTranslations();
 
   return (
@@ -100,7 +65,7 @@ const InferenceItem: React.FC<Inference & { isFocus: boolean }> = ({ isFocus = f
   );
 };
 
-const InferenceSkeleton: React.FC = () => {
+export const InferenceDetailSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return (
@@ -126,13 +91,3 @@ const InferenceSkeleton: React.FC = () => {
     </div>
   );
 };
-
-const InferenceListDetail: React.FC<{ id?: string }> = ({ id }) => {
-  return (
-    <Suspense fallback={<InferenceSkeleton />}>
-      <InferenceContent id={id} />
-    </Suspense>
-  );
-};
-
-export default InferenceListDetail;

@@ -51,6 +51,7 @@ export class InferenceService {
     const news: News[] = await this.newsService.getNews({
       type: NewsTypes.COIN,
       limit: request.newsLimit,
+      skip: true,
     });
 
     this.logger.log(this.i18n.t('logging.feargreed.loading'));

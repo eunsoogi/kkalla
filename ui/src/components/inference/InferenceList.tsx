@@ -1,20 +1,17 @@
 'use client';
 
-import Link from 'next/link';
 import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { Inference, initialPaginatedState } from '@/interfaces/inference.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
-import { formatDate } from '@/utils/date';
 
+import { InferenceItem, InferenceSkeleton } from './InferenceItem';
 import { getInferenceAction } from './action';
-import { DECISION_STYLES } from './style';
 
-const InferenceContent: React.FC = () => {
+const InferenceListContent: React.FC = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Inference>>({
     queryKey: ['inferences'],
     queryFn: () => getInferenceAction({ mine: true }),
@@ -25,41 +22,7 @@ const InferenceContent: React.FC = () => {
   return <ul>{data.items?.map((item: Inference) => <InferenceItem key={item.id} {...item} />)}</ul>;
 };
 
-const InferenceItem: React.FC<Inference> = (item: Inference) => {
-  return (
-    <Link href={`/inferences/${item.id}`}>
-      <li className='rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800'>
-        <div className='flex gap-4 min-h-16'>
-          <div className='min-w-24'>
-            <p>{formatDate(new Date(item.createdAt))}</p>
-          </div>
-          <div className='flex flex-col items-center'>
-            <div className={`rounded-full ${DECISION_STYLES[item.decision].dotStyle} p-1.5 w-fit`}></div>
-            <div className='h-full w-px bg-border dark:bg-gray-800'></div>
-          </div>
-          <div className='flex gap-4'>
-            <p className='text-dark text-start'>
-              <Badge className={DECISION_STYLES[item.decision].badgeStyle}>{item.decision}</Badge>
-            </p>
-            <p>{item.rate * 100}%</p>
-          </div>
-        </div>
-      </li>
-    </Link>
-  );
-};
-
-const InferenceSkeleton: React.FC = () => {
-  const t = useTranslations();
-
-  return (
-    <ul>
-      <li>{t('loading')}</li>
-    </ul>
-  );
-};
-
-const InferenceList: React.FC = () => {
+export const InferenceList: React.FC = () => {
   const t = useTranslations();
 
   return (
@@ -67,11 +30,9 @@ const InferenceList: React.FC = () => {
       <h5 className='card-title text-dark dark:text-white mb-6'>{t('inference.list')}</h5>
       <div className='flex flex-col mt-2'>
         <Suspense fallback={<InferenceSkeleton />}>
-          <InferenceContent />
+          <InferenceListContent />
         </Suspense>
       </div>
     </div>
   );
 };
-
-export default InferenceList;

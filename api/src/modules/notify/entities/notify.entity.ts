@@ -5,7 +5,7 @@ import {
   Entity,
   FindManyOptions,
   JoinColumn,
-  LessThan,
+  LessThanOrEqual,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -84,7 +84,7 @@ export class Notify extends BaseEntity {
   public static async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Notify, string>> {
     const findOptions: FindManyOptions<Notify> = {
       take: request.limit + 1,
-      skip: request.cursor ? 1 : 0,
+      skip: request.cursor && request.skip ? 1 : 0,
       relations: {
         user: true,
       },
@@ -105,10 +105,12 @@ export class Notify extends BaseEntity {
         },
       });
 
-      findOptions.where = {
-        ...findOptions.where,
-        seq: LessThan(cursor.seq),
-      };
+      if (cursor) {
+        findOptions.where = {
+          ...findOptions.where,
+          seq: LessThanOrEqual(cursor.seq),
+        };
+      }
     }
 
     const items = await this.find(findOptions);

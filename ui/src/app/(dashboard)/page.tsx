@@ -1,7 +1,7 @@
 import React from 'react';
 
-import InferenceList from '@/components/inference/InferenceList';
-import TradeList from '@/components/trade/TradeList';
+import { InferenceList } from '@/components/inference/InferenceList';
+import { TradeList } from '@/components/trade/TradeList';
 
 const Page: React.FC = () => {
   return (
