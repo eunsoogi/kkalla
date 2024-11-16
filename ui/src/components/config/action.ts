@@ -57,6 +57,17 @@ export const postConfigAction = async (url: string, formData: FormData): Promise
   }
 };
 
+export const getIpAction = async (): Promise<string | null> => {
+  const client = await getClient();
+
+  try {
+    const { data } = await client.get('/api/v1/ip');
+    return data;
+  } catch {
+    return null;
+  }
+};
+
 export const postUpbitConfigAction = async (_: State, formData: FormData): Promise<State> => {
   return postConfigAction('/api/v1/upbit/config', formData);
 };

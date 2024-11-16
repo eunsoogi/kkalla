@@ -12,10 +12,42 @@ import { useFormStatus } from 'react-dom';
 import { ApikeyStatus } from '@/enums/apikey.enum';
 import { initialState } from '@/interfaces/state.interface';
 
-import { getUpbitStatusAction, postUpbitConfigAction } from './action';
+import { getIpAction, getUpbitStatusAction, postUpbitConfigAction } from './action';
 import { STATUS_STYLES } from './style';
 
 const badgeQueryKey = ['upbit', 'status'];
+const ipQueryKey = ['upbit', 'ip'];
+
+const UpbitDescription: React.FC = () => {
+  const t = useTranslations();
+
+  const { data } = useSuspenseQuery<string | null>({
+    queryKey: ipQueryKey,
+    queryFn: getIpAction,
+    initialData: t('status.unknown'),
+    staleTime: 0,
+  });
+
+  return (
+    <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
+      {t('upbit.api.description', {
+        ip: data,
+      })}
+    </div>
+  );
+};
+
+const UpbitDescriptionSkeleton: React.FC = () => {
+  const t = useTranslations();
+
+  return (
+    <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
+      {t('upbit.api.description', {
+        ip: t('status.unknown'),
+      })}
+    </div>
+  );
+};
 
 const UpbitStatusBadge: React.FC = () => {
   const t = useTranslations();
@@ -68,7 +100,9 @@ const UpbitForm: React.FC = () => {
             <UpbitStatusBadge />
           </Suspense>
         </div>
-        <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>{t('upbit.api.description')}</div>
+        <Suspense fallback={<UpbitDescriptionSkeleton />}>
+          <UpbitDescription />
+        </Suspense>
         <div className='mt-6'>
           <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
             <div className='lg:col-span-6 col-span-12'>
