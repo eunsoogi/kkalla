@@ -28,5 +28,5 @@ export class RequestOrderDto {
     required: true,
     example: 0.3,
   })
-  rate: number;
+  orderRatio: number;
 }

@@ -34,12 +34,12 @@ export const InferenceDetailItem: React.FC<Inference & { isFocus: boolean }> = (
           </Badge>
           <div className='flex flex-col lg:flex-row lg:gap-6'>
             <h4 className='text-dark dark:text-white'>
-              {item.rate * 100}% {t(`decision.${item.decision}`)}
+              {item.orderRatio * 100}% {t(`decision.${item.decision}`)}
             </h4>
             <p>
               {t('inference.bound', {
-                lower: item.symbolRateLower * 100,
-                upper: item.symbolRateUpper * 100,
+                lower: item.weightLowerBound * 100,
+                upper: item.weightUpperBound * 100,
               })}
             </p>
           </div>

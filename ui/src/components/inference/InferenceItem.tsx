@@ -27,7 +27,7 @@ export const InferenceItem: React.FC<Inference> = (item: Inference) => {
             <p className='text-dark text-start'>
               <Badge className={DECISION_STYLES[item.decision].badgeStyle}>{item.decision}</Badge>
             </p>
-            <p>{item.rate * 100}%</p>
+            <p>{item.orderRatio * 100}%</p>
           </div>
         </div>
       </li>
