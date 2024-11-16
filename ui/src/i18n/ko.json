@@ -36,7 +36,7 @@
     "list": "추론 목록",
     "reason": "추론 내용",
     "reflection": "회귀 내용",
-    "bound": "현금 대비 종목 비율 {lower}~{upper}%"
+    "bound": "포트폴리오 비중 {lower}~{upper}%"
   },
   "decision": {
     "buy": "매수",

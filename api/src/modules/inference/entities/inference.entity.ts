@@ -49,19 +49,19 @@ export class Inference extends BaseEntity {
     type: 'double',
     default: 0,
   })
-  rate: number;
+  orderRatio: number;
 
   @Column({
     type: 'double',
     default: 0,
   })
-  symbolRateLower: number;
+  weightLowerBound: number;
 
   @Column({
     type: 'double',
     default: 0,
   })
-  symbolRateUpper: number;
+  weightUpperBound: number;
 
   @Column({ type: 'text' })
   reason?: string;
