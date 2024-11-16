@@ -10,6 +10,21 @@ HELM_NAMESPACE := default
 clean:
 	@docker system prune -a -f
 
+version-npm:
+	@cd api && npm version $(VERSION)
+	@cd ui && npm version $(VERSION)
+
+version-helm:
+	@sed -i '' "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./api/helm/Chart.yaml
+	@sed -i '' "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./ui/helm/Chart.yaml
+	@sed -i '' "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./helm/Chart.yaml
+
+version-release:
+	@echo $(VERSION) > ./version
+
+.PHONY: version
+version: version-npm version-helm version-release
+
 .PHONY: build
 build:
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
