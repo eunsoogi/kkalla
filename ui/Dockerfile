@@ -1,7 +1,7 @@
 FROM node:22.11.0-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
-COPY package.json .
+COPY package*.json .
 RUN npm install
 COPY . .
 RUN npm run build
@@ -9,7 +9,7 @@ RUN npm run build
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 RUN chown node:node .
-COPY --chown=node:node package.json .
+COPY --chown=node:node package*.json .
 RUN npm install
 COPY --chown=node:node . .
 ENV NODE_ENV=development

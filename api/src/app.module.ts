@@ -6,6 +6,7 @@ import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { FirechartModule } from './modules/firechart/firechart.module';
 import { HealthModule } from './modules/health/health.module';
 import { InferenceModule } from './modules/inference/inference.module';
+import { IpModule } from './modules/ip/ip.module';
 import { NewsModule } from './modules/news/news.module';
 import { NotifyModule } from './modules/notify/notify.module';
 import { OpenaiModule } from './modules/openai/openai.module';
@@ -35,6 +36,7 @@ import { UserModule } from './modules/user/user.module';
     NotifyModule,
     FirechartModule,
     SequenceModule,
+    IpModule,
   ],
 })
 export class AppModule {}

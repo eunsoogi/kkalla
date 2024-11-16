@@ -31,5 +31,5 @@ export interface OrderRequest {
   symbol: string;
   market: string;
   type: OrderTypes;
-  rate: number;
+  orderRatio: number;
 }

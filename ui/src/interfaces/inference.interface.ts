@@ -4,9 +4,9 @@ import { CursorItem, PaginatedItem } from './item.interface';
 export interface Inference {
   id: string;
   decision: InferenceDicisionTypes;
-  rate: number;
-  symbolRateLower: number;
-  symbolRateUpper: number;
+  orderRatio: number;
+  weightLowerBound: number;
+  weightUpperBound: number;
   reason: string;
   reflection: string;
   createdAt: Date;

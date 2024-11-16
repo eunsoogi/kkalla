@@ -40,9 +40,9 @@ export interface InferenceData {
 
 export interface InferenceDecisionData {
   decision: InferenceDecisionTypes;
-  rate: number;
-  symbolRateLower: number;
-  symbolRateUpper: number;
+  orderRatio: number;
+  weightLowerBound: number;
+  weightUpperBound: number;
   reason: string;
 }
 

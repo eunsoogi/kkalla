@@ -78,8 +78,11 @@ export class TradeService {
   }
 
   private async selectInference(user: User, inferences: Inference[], request: TradeRequest) {
-    const rate = await this.upbitService.getSymbolRate(user, request.symbol, request.market);
-    const inference = inferences?.find((item) => item.symbolRateLower <= rate && rate <= item.symbolRateUpper);
+    const orderRatio = await this.upbitService.getOrderRatio(user, request.symbol, request.market);
+
+    const inference = inferences?.find(
+      (item) => item.weightLowerBound <= orderRatio && orderRatio <= item.weightUpperBound,
+    );
 
     if (inference) {
       if (!inference.users) {
@@ -99,7 +102,7 @@ export class TradeService {
         args: {
           decision: inference.decision,
           symbol: inference.symbol,
-          rate: inference.rate * 100,
+          orderRatio: inference.orderRatio * 100,
           reason: inference.reason,
         },
       }),
@@ -125,7 +128,7 @@ export class TradeService {
       const entity = await this.upbitService.order(user, {
         ...request,
         type,
-        rate: inference.rate,
+        orderRatio: inference.orderRatio,
       });
 
       return entity;
