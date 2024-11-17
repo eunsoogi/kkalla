@@ -133,7 +133,15 @@ export class UpbitService {
       : await client.createOrder(ticker, 'market', request.type, tradeVolume);
   }
 
-  public static getOrderType(decision: InferenceDecisionTypes): OrderTypes {
-    return decision === InferenceDecisionTypes.BUY ? OrderTypes.BUY : OrderTypes.SELL;
+  public static getOrderType(decision: InferenceDecisionTypes): OrderTypes | null {
+    switch (decision) {
+      case InferenceDecisionTypes.BUY:
+        return OrderTypes.BUY;
+
+      case InferenceDecisionTypes.SELL:
+        return OrderTypes.SELL;
+    }
+
+    return null;
   }
 }
