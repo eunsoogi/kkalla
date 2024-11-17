@@ -23,14 +23,8 @@ target "api" {
   target = "${BUILD_TARGET}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"]
   platforms = ["linux/arm64"]
-  cache-from = [
-    "type=gha",
-    "type=local,src=/path/to/cache"
-  ]
-  cache-to = [
-    "type=gha,mode=max",
-    "type=local,dest=/path/to/cache,mode=max"
-  ]
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
 
 target "ui" {
@@ -38,12 +32,6 @@ target "ui" {
   target = "${BUILD_TARGET}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
   platforms = ["linux/arm64"]
-    cache-from = [
-    "type=gha",
-    "type=local,src=/path/to/cache"
-  ]
-  cache-to = [
-    "type=gha,mode=max",
-    "type=local,dest=/path/to/cache,mode=max"
-  ]
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
