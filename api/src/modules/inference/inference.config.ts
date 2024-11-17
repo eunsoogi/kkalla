@@ -11,9 +11,9 @@ export const INFERENCE_CONFIG = {
       m15: 96, // 1 day
       h1: 24 * 7, // 7 days
       h4: 6 * 30, // 30 days
-      d1: 90, // 90 days
+      d1: 60, // 60 days
     },
-    newsLimit: 450,
+    newsLimit: 300,
     inferenceLimit: 5 * 6 * 7, // 7 days
   },
 };
