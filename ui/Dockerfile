@@ -1,8 +1,12 @@
+FROM node:22.11.0-alpine AS deps
+WORKDIR /app
+COPY package*.json .
+RUN npm ci
+
 FROM node:22.11.0-alpine AS builder
 WORKDIR /app
-RUN apk add --no-cache libc6-compat
 COPY package*.json .
-RUN npm install
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
@@ -10,7 +14,7 @@ FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 RUN chown node:node .
 COPY --chown=node:node package*.json .
-RUN npm install
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node . .
 ENV NODE_ENV=development
 ENV WATCHPACK_POLLING=true
@@ -21,8 +25,8 @@ CMD ["npm", "run", "start:dev"]
 FROM node:22.11.0-alpine AS production
 WORKDIR /app
 RUN chown node:node .
-COPY --from=builder --chown=node:node /app/package*.json .
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package*.json .
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next ./.next
 LABEL org.opencontainers.image.source=https://github.com/eunsoogi/kkalla

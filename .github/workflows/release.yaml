@@ -25,6 +25,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
       - name: Versioning
         id: version
         run: |
