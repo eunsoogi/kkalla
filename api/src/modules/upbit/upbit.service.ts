@@ -118,7 +118,7 @@ export class UpbitService {
     return this.getVolume(balances, symbol) * orderRatio * 0.9995;
   }
 
-  public async order(user: User, request: OrderRequest): Promise<Order> {
+  public async order(user: User, request: OrderRequest): Promise<Order | null> {
     const client = await this.getClient(user);
     const balances = await client.fetchBalance();
     const ticker = `${request.symbol}/${request.market}`;
@@ -128,9 +128,15 @@ export class UpbitService {
     this.logger.debug(`tradePrice: ${tradePrice}`);
     this.logger.debug(`tradeVolume: ${tradeVolume}`);
 
-    return request.type === OrderTypes.BUY
-      ? await client.createOrder(ticker, 'market', request.type, 1, tradePrice)
-      : await client.createOrder(ticker, 'market', request.type, tradeVolume);
+    switch (request.type) {
+      case OrderTypes.BUY:
+        return await client.createOrder(ticker, 'market', request.type, 1, tradePrice);
+
+      case OrderTypes.SELL:
+        return await client.createOrder(ticker, 'market', request.type, tradeVolume);
+    }
+
+    return null;
   }
 
   public static getOrderType(decision: InferenceDecisionTypes): OrderTypes | null {
