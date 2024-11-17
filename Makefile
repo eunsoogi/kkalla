@@ -46,7 +46,8 @@ push:
 	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
 	IMAGE_TAG=$(IMAGE_TAG) \
 	BUILD_TARGET=$(ENV) \
-	docker buildx bake --push
+	docker buildx bake \
+		--push
 
 .PHONY: create-cluster
 create-cluster:
