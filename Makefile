@@ -27,11 +27,11 @@ version: version-npm version-helm version-release
 
 .PHONY: build
 build:
-	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
-	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
-	IMAGE_TAG=$(IMAGE_TAG) \
-	BUILD_TARGET=$(ENV) \
-	docker buildx bake
+	@docker buildx bake \
+		--set IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
+		--set IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
+		--set IMAGE_TAG=$(IMAGE_TAG) \
+		--set BUILD_TARGET=$(ENV)
 
 .PHONY: import
 import:
@@ -42,13 +42,14 @@ import:
 
 .PHONY: push
 push:
-	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
-	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
-	IMAGE_TAG=$(IMAGE_TAG) \
-	BUILD_TARGET=$(ENV) \
-	docker buildx bake --push \
-	--cache-from=type=local,src=/tmp/.buildx-cache \
-	--cache-to=type=local,dest=/tmp/.buildx-cache
+	@docker buildx bake \
+		--push \
+		--cache-from=type=gha \
+		--cache-to=type=gha,mode=max \
+		--set IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
+		--set IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
+		--set IMAGE_TAG=$(IMAGE_TAG) \
+		--set BUILD_TARGET=$(ENV)
 
 .PHONY: create-cluster
 create-cluster:
