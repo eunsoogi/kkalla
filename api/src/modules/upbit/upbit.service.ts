@@ -18,15 +18,9 @@ export class UpbitService {
   }
 
   public async createConfig(user: User, data: UpbitConfigData): Promise<UpbitConfig> {
-    let config = await this.readConfig(user);
-
-    if (!config) {
-      config = new UpbitConfig();
-    }
-
+    const config = (await this.readConfig(user)) || new UpbitConfig();
     config.user = user;
     Object.assign(config, data);
-
     return config.save();
   }
 
@@ -35,45 +29,34 @@ export class UpbitService {
     return apikey?.secretKey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
   }
 
-  public async getServerClient() {
-    const client = new upbit({
-      apiKey: process.env.UPBIT_ACCESS_KEY!,
-      secret: process.env.UPBIT_SECRET_KEY!,
+  private async createClient(apiKey: string, secretKey: string) {
+    return new upbit({
+      apiKey,
+      secret: secretKey,
       enableRateLimit: true,
     });
+  }
 
-    return client;
+  public async getServerClient() {
+    return this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
   }
 
   public async getClient(user: User) {
-    const apikey = await this.readConfig(user);
-
-    const client = new upbit({
-      apiKey: apikey?.accessKey,
-      secret: apikey?.secretKey,
-      enableRateLimit: true,
-    });
-
-    return client;
+    const { accessKey, secretKey } = await this.readConfig(user);
+    return this.createClient(accessKey, secretKey);
   }
 
   public async getCandles(request: CandleRequest): Promise<Candle[]> {
     const client = await this.getServerClient();
     const ticker = `${request.symbol}/${request.market}`;
+    const candleIntervals = ['15m', '1h', '4h', '1d'];
+    const candles = await Promise.all(
+      candleIntervals.map((interval) => client.fetchOHLCV(ticker, interval, undefined, request.candles[interval])),
+    );
 
-    const candles = {
-      m15: await client.fetchOHLCV(ticker, '15m', undefined, request.candles.m15),
-      h1: await client.fetchOHLCV(ticker, '1h', undefined, request.candles.h1),
-      h4: await client.fetchOHLCV(ticker, '4h', undefined, request.candles.h4),
-      d1: await client.fetchOHLCV(ticker, '1d', undefined, request.candles.d1),
-    };
-
-    return [
-      ...candles.m15.map((item) => this.mapOHLCVToCandle(item, ticker, 15)),
-      ...candles.h1.map((item) => this.mapOHLCVToCandle(item, ticker, 60)),
-      ...candles.h4.map((item) => this.mapOHLCVToCandle(item, ticker, 240)),
-      ...candles.d1.map((item) => this.mapOHLCVToCandle(item, ticker, 1440)),
-    ];
+    return candles.flatMap((items, index) =>
+      items.map((item) => this.mapOHLCVToCandle(item, ticker, [15, 60, 240, 1440][index])),
+    );
   }
 
   private mapOHLCVToCandle(ohlcv: OHLCV, market: string, unit: number): Candle {
@@ -91,44 +74,39 @@ export class UpbitService {
 
   public async getBalances(user: User): Promise<Balances> {
     const client = await this.getClient(user);
-
     return client.fetchBalance();
   }
 
-  public async getOrderRatio(user: User, symbol: string, market: string): Promise<number> {
+  public async getOrderRatio(user: User, symbol: string): Promise<number> {
     const balances = await this.getBalances(user);
-    const symbolPrice = this.getPrice(balances, symbol);
-    const marketPrice = this.getPrice(balances, market);
-    const orderRatio = symbolPrice / (symbolPrice + marketPrice);
+    const orderRatio = this.calculateOrderRatio(balances, symbol);
 
     this.logger.debug(`orderRatio: ${orderRatio}`);
 
     return orderRatio;
   }
 
-  private getPrice(balances: Balances, symbol: string) {
-    const info = balances.info.find((item) => item.currency === symbol);
-
-    if (!info) {
-      return 0;
-    }
-
-    const symbolBalance = Number(info['balance']);
-    const symbolAvgBuyPrice = Number(info['avg_buy_price']) || 1;
-    const price = symbolBalance * symbolAvgBuyPrice;
-
-    this.logger.debug(`price: ${price}`);
-
-    return price;
+  private calculateOrderRatio(balances: Balances, symbol: string): number {
+    const symbolPrice = this.calculatePrice(balances, symbol);
+    const marketPrice = this.calculateTotalPrice(balances);
+    return symbolPrice / marketPrice;
   }
 
-  private getVolume(balances: Balances, symbol: string) {
+  private calculatePrice(balances: Balances, symbol: string): number {
+    const info = balances.info.find((item) => item.currency === symbol) || {};
+    return (Number(info['balance']) || 0) * (Number(info['avg_buy_price']) || 1);
+  }
+
+  private calculateTotalPrice(balances: Balances): number {
+    return balances.info.reduce((total, item) => {
+      const balance = Number(item['balance']) || 0;
+      const avgBuyPrice = Number(item['avg_buy_price']) || 1;
+      return total + balance * avgBuyPrice;
+    }, 0);
+  }
+
+  private getVolume(balances: Balances, symbol: string): number {
     const balance = balances[symbol];
-
-    if (!balance) {
-      return 0;
-    }
-
     const free = Number(balance?.free) || 0;
 
     this.logger.debug(`free: ${free}`);
@@ -136,7 +114,7 @@ export class UpbitService {
     return free;
   }
 
-  private getOrderVolume(balances: Balances, symbol: string, orderRatio: number) {
+  private getOrderVolume(balances: Balances, symbol: string, orderRatio: number): number {
     return this.getVolume(balances, symbol) * orderRatio * 0.9995;
   }
 
@@ -150,30 +128,12 @@ export class UpbitService {
     this.logger.debug(`tradePrice: ${tradePrice}`);
     this.logger.debug(`tradeVolume: ${tradeVolume}`);
 
-    switch (request.type) {
-      case OrderTypes.BUY:
-        return await client.createOrder(ticker, 'market', request.type, 1, tradePrice);
-
-      case OrderTypes.SELL:
-        return await client.createOrder(ticker, 'market', request.type, tradeVolume);
-    }
-
-    return null;
+    return request.type === OrderTypes.BUY
+      ? await client.createOrder(ticker, 'market', request.type, 1, tradePrice)
+      : await client.createOrder(ticker, 'market', request.type, tradeVolume);
   }
 
   public static getOrderType(decision: InferenceDecisionTypes): OrderTypes {
-    let orderType: OrderTypes;
-
-    switch (decision) {
-      case InferenceDecisionTypes.BUY:
-        orderType = OrderTypes.BUY;
-        break;
-
-      case InferenceDecisionTypes.SELL:
-        orderType = OrderTypes.SELL;
-        break;
-    }
-
-    return orderType;
+    return decision === InferenceDecisionTypes.BUY ? OrderTypes.BUY : OrderTypes.SELL;
   }
 }

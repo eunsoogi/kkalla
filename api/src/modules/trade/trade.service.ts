@@ -31,23 +31,16 @@ export class TradeService {
     return this.performInference(request);
   }
 
-  public async trade(user: User, inferences: Inference[], request: TradeRequest): Promise<Trade> {
+  public async trade(user: User, inferences: Inference[], request: TradeRequest): Promise<Trade | null> {
     const inference = await this.selectInference(user, inferences, request);
-
-    if (!inference) {
-      return null;
-    }
+    if (!inference) return null;
 
     this.notifyInferenceResult(user, inference);
 
     const order = await this.performOrder(user, inference, request);
-
-    if (!order) {
-      return null;
-    }
+    if (!order) return null;
 
     const trade = await this.performTrade(user, request, inference, order);
-
     this.notifyTradeResult(user, trade);
 
     return trade;
@@ -55,39 +48,28 @@ export class TradeService {
 
   private async performInference(request: TradeRequest): Promise<Inference[]> {
     this.logger.log(this.i18n.t('logging.inference.start'));
-
     try {
       const data = await this.inferenceService.inference({
         ...INFERENCE_CONFIG.message,
         ...request,
       });
 
-      const items = data.decisions.map((item) => ({
-        ...data,
-        ...item,
-      }));
-
-      const entities = await Promise.all(items.map((item) => this.inferenceService.create(item)));
-
-      return entities;
+      return await Promise.all(data.decisions.map((item) => this.inferenceService.create({ ...data, ...item })));
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.inference.fail'), error as Error);
+      this.logger.error(this.i18n.t('logging.inference.fail'), error);
     }
 
-    return null;
+    return [];
   }
 
-  private async selectInference(user: User, inferences: Inference[], request: TradeRequest) {
-    const orderRatio = await this.upbitService.getOrderRatio(user, request.symbol, request.market);
-
-    const inference = inferences?.find(
+  private async selectInference(user: User, inferences: Inference[], request: TradeRequest): Promise<Inference | null> {
+    const orderRatio = await this.upbitService.getOrderRatio(user, request.symbol);
+    const inference = inferences.find(
       (item) => item.weightLowerBound <= orderRatio && orderRatio <= item.weightUpperBound,
     );
 
     if (inference) {
-      if (!inference.users) {
-        inference.users = [];
-      }
+      inference.users = inference.users || [];
       inference.users.push(user);
       await inference.save();
     }
@@ -109,39 +91,15 @@ export class TradeService {
     );
   }
 
-  private async performOrder(user: User, inference: Inference, request: TradeRequest): Promise<Order> {
-    this.logger.log(
-      this.i18n.t('logging.order.start', {
-        args: {
-          id: user.id,
-        },
-      }),
-    );
-
+  private async performOrder(user: User, inference: Inference, request: TradeRequest): Promise<Order | null> {
+    this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
     try {
       const type = UpbitService.getOrderType(inference.decision);
+      if (!type) return null;
 
-      if (!type) {
-        return null;
-      }
-
-      const entity = await this.upbitService.order(user, {
-        ...request,
-        type,
-        orderRatio: inference.orderRatio,
-      });
-
-      return entity;
+      return await this.upbitService.order(user, { ...request, type, orderRatio: inference.orderRatio });
     } catch (error) {
-      this.logger.error(
-        this.i18n.t('logging.order.fail', {
-          args: {
-            id: user.id,
-          },
-        }),
-        error as Error,
-      );
-
+      this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
       this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
     }
 
@@ -150,26 +108,22 @@ export class TradeService {
 
   public async create(user: User, data: TradeData): Promise<Trade> {
     const trade = new Trade();
-
     Object.assign(trade, data);
     trade.seq = await this.sequenceService.getNextSequence();
     trade.user = user;
-
     return trade.save();
   }
 
   private async performTrade(user: User, request: TradeRequest, inference: Inference, order: Order): Promise<Trade> {
     const type = UpbitService.getOrderType(inference.decision);
     const balances = await this.upbitService.getBalances(user);
-    const trade = await this.create(user, {
+    return this.create(user, {
       ...request,
       type,
       amount: order?.amount ?? order?.cost,
       balances,
       inference,
     });
-
-    return trade;
   }
 
   private notifyTradeResult(user: User, trade: Trade): void {
