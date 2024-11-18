@@ -16,7 +16,6 @@ COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=development
-USER node
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
 
