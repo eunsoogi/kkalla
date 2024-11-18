@@ -12,6 +12,7 @@ COPY . .
 RUN npm run build
 
 FROM scratch AS cache
+WORKDIR /cache
 COPY --from=deps /app/node_modules ./node_modules
 
 FROM node:22.11.0-bookworm AS development
