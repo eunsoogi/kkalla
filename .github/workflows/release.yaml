@@ -70,7 +70,7 @@ jobs:
         with:
           targets: cache
           set: |
-            *.cache-from=type=gha
+            *.cache-from=type=gha,mode=max
             cache-api.output=type=local,dest=./api
             cache-ui.output=type=local,dest=./ui
 
