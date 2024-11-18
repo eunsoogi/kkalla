@@ -62,7 +62,7 @@ jobs:
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
 
-      - name: Export API cache
+      - name: Export build cache
         uses: docker/bake-action@v5
         env:
           DOCKER_BUILDKIT: 1
@@ -71,18 +71,8 @@ jobs:
           targets: cache
           set: |
             *.cache-from=type=gha
-            *.output=type=local,dest=${{ github.workspace }}/api
-
-      - name: Export UI cache
-        uses: docker/bake-action@v5
-        env:
-          DOCKER_BUILDKIT: 1
-          BUILDKIT_PROGRESS: plain
-        with:
-          targets: cache
-          set: |
-            *.cache-from=type=gha
-            *.output=type=local,dest=${{ github.workspace }}/ui
+            cache-api.output=type=local,dest=${{ github.workspace }}/api
+            cache-ui.output=type=local,dest=${{ github.workspace }}/ui
 
   release:
     needs: build-and-push
