@@ -59,7 +59,8 @@ jobs:
         with:
           targets: cache
           set: |
-            ui-cache.cache-from=type=gha,scope=ui
+            ui-cache.cache-from=type=gha,scope=ui,type=gha,scope=ui-cache
+            ui-cache.cache-to=type=gha,scope=ui-cache,mode=max
             ui-cache.output=type=local,dest=./ui
 
   release:
