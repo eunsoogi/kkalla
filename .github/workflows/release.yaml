@@ -34,18 +34,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ./api/node_modules
-            ./ui/node_modules
-            ./ui/.next/cache
+            ${{ github.workspace }}/api/node_modules
+            ${{ github.workspace }}/ui/node_modules
+            ${{ github.workspace }}/ui/.next/cache
           key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-build-
 
       - name: Make build cache directories
         run: |
-          mkdir -p ./api/node_modules
-          mkdir -p ./ui/node_modules
-          mkdir -p ./ui/.next/cache
+          mkdir -p ${{ github.workspace }}/api/node_modules
+          mkdir -p ${{ github.workspace }}/ui/node_modules
+          mkdir -p ${{ github.workspace }}/ui/.next/cache
 
       - name: Build and push
         uses: docker/bake-action@v5
@@ -55,27 +55,28 @@ jobs:
           IMAGE_NAME_PREFIX: kkalla
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
-          load: true
           push: true
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
 
       - name: Export API cache
         uses: docker/build-push-action@v6
         with:
-          load: true
-          context: ./api
+          context: ${{ github.workspace }}/api
           target: cache
+          cache-from: type=gha
           outputs: |
-            type=local,src=/app/node_modules,dest=./api/node_modules
+            type=local,dest=${{ github.workspace }}/api
 
       - name: Export UI cache
         uses: docker/build-push-action@v6
         with:
-          load: true
-          context: ./ui
+          context: ${{ github.workspace }}/ui
           target: cache
+          cache-from: type=gha
           outputs: |
-            type=local,src=/app/node_modules,dest=./ui/node_modules
-            type=local,src=/app/.next/cache,dest=./ui/.next/cache
+            type=local,dest=${{ github.workspace }}/ui
 
   release:
     needs: build-and-push
