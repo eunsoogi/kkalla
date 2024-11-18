@@ -43,13 +43,13 @@ jobs:
 
       - name: Build and push
         uses: docker/bake-action@v5
+        env:
+          BUILD_TARGET: development
+          IMAGE_REGISTRY: ghcr.io/eunsoogi
+          IMAGE_NAME_PREFIX: kkalla
+          IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           push: true
-          env: |
-            BUILD_TARGET: development
-            IMAGE_REGISTRY: ghcr.io/eunsoogi
-            IMAGE_NAME_PREFIX: kkalla
-            IMAGE_TAG: ${{ steps.version.outputs.version }}
 
       - name: Export API cache
         uses: docker/build-push-action@v6
