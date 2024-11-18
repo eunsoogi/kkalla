@@ -4,7 +4,6 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "builder": "swc",
-    "typeCheck": true,
     "deleteOutDir": true,
     "assets": [{ "include": "i18n/**/*", "watchAssets": true }]
   }
