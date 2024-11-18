@@ -59,7 +59,7 @@ jobs:
         with:
           push: true
           set: |
-            *.cache-from=type=gha
+            *.cache-from=type=gha,mode=max
             *.cache-to=type=gha,mode=max
 
       - name: Export build cache
