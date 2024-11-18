@@ -31,3 +31,12 @@ target "ui" {
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
   platforms = ["linux/arm64"]
 }
+
+target "ui-cache" {
+  context = "./ui"
+  target = "cache"
+}
+
+group "cache" {
+  targets = ["ui-cache"]
+}

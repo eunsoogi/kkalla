@@ -7,8 +7,13 @@ FROM node:22.11.0-alpine AS builder
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
+COPY ./.next/cache ./.next/cache
 COPY . .
 RUN npm run build
+
+FROM scratch AS cache
+WORKDIR /cache
+COPY --from=builder /cache/.next/cache ./.next/cache
 
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
