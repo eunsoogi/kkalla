@@ -1,7 +1,6 @@
 FROM node:22.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json .
-COPY ./node_modules ./node_modules
 RUN npm ci
 
 FROM node:22.11.0-alpine AS builder
@@ -10,10 +9,6 @@ COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
-
-FROM scratch AS cache
-WORKDIR /cache
-COPY --from=deps /app/node_modules ./node_modules
 
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app

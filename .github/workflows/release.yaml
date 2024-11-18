@@ -30,23 +30,6 @@ jobs:
         run: |
           echo "version=$(cat version)" >> $GITHUB_OUTPUT
 
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ./api/node_modules
-            ./ui/node_modules
-            ./ui/.next/cache
-          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-
-      - name: Make build cache directories
-        run: |
-          mkdir -p ./api/node_modules
-          mkdir -p ./ui/node_modules
-          mkdir -p ./ui/.next/cache
-
       - name: Build and push
         uses: docker/bake-action@v5
         env:
@@ -61,18 +44,6 @@ jobs:
           set: |
             *.cache-from=type=gha,mode=max
             *.cache-to=type=gha,mode=max
-
-      - name: Export build cache
-        uses: docker/bake-action@v5
-        env:
-          DOCKER_BUILDKIT: 1
-          BUILDKIT_PROGRESS: plain
-        with:
-          targets: cache
-          set: |
-            *.cache-from=type=gha,mode=max
-            cache-api.output=type=local,dest=./api
-            cache-ui.output=type=local,dest=./ui
 
   release:
     needs: build-and-push
