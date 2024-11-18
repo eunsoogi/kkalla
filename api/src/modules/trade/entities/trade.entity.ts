@@ -60,7 +60,6 @@ export class Trade extends BaseEntity {
   balances: Balances;
 
   @ManyToOne(() => Inference, {
-    nullable: false,
     cascade: true,
     eager: true,
     onDelete: 'SET NULL',
