@@ -5,7 +5,7 @@ RUN npm ci
 
 FROM node:22.11.0-alpine AS builder
 WORKDIR /app
-COPY --from=deps /app/package*.json .
+COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
@@ -16,18 +16,17 @@ COPY --from=builder /app/.next/cache ./.next/cache
 
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
-COPY --from=deps /app/package*.json .
+COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=development
 ENV WATCHPACK_POLLING=true
-USER node
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
 
 FROM node:22.11.0-alpine AS production
 WORKDIR /app
-COPY --from=deps /app/package*.json .
+COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
