@@ -11,6 +11,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
+FROM scratch AS cache
+COPY --from=builder /app/node_modules ./node_modules
+
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 RUN chown node:node .

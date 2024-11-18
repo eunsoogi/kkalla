@@ -13,6 +13,7 @@ COPY . .
 RUN npm run build
 
 FROM scratch AS cache
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next/cache ./.next/cache
 
 FROM node:22.11.0-bookworm AS development

@@ -50,7 +50,7 @@ jobs:
       - name: Build and push
         uses: docker/bake-action@v5
         env:
-          BUILD_TARGET: development
+          BUILD_TARGET: production
           IMAGE_REGISTRY: ghcr.io/eunsoogi
           IMAGE_NAME_PREFIX: kkalla
           IMAGE_TAG: ${{ steps.version.outputs.version }}
