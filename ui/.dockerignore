@@ -5,7 +5,8 @@ yarn-debug.log
 yarn-error.log
 
 # Next.js build output
-.next
+.next/*
+!.next/cache
 out
 build
 dist
@@ -31,7 +32,6 @@ dist
 
 # Cache
 .cache
-.npm
 .yarn
 
 # Test related

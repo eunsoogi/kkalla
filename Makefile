@@ -25,8 +25,13 @@ version-release:
 .PHONY: version
 version: version-npm version-helm version-release
 
+make-cache-dir:
+	@mkdir -p ./api/node_modules
+	@mkdir -p ./ui/node_modules
+	@mkdir -p ./ui/.next/cache
+
 .PHONY: build
-build:
+build: make-cache-dir
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
 	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
 	IMAGE_TAG=$(IMAGE_TAG) \
@@ -41,13 +46,12 @@ import:
 		$(IMAGE_REGISTRY)/$(IMAGE_NAME_PREFIX)-ui:$(IMAGE_TAG)
 
 .PHONY: push
-push:
+push: build
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
 	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
 	IMAGE_TAG=$(IMAGE_TAG) \
 	BUILD_TARGET=$(ENV) \
-	docker buildx bake \
-		--push
+	docker buildx bake --push
 
 .PHONY: create-cluster
 create-cluster:
@@ -82,6 +86,10 @@ install: deps
 uninstall:
 	@helm uninstall $(HELM_RELEASE) \
 		-n $(HELM_NAMESPACE)
+
+.PHONY: clean-pvc
+clean-pvc:
+	kubectl delete pvc -n $(HELM_NAMESPACE) data-$(HELM_RELEASE)-mariadb-0
 
 .PHONY: all
 all: build import install
