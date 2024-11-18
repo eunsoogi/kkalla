@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { Firechart } from '@/components/firechart/Firechart';
 import { InferenceList } from '@/components/inference/InferenceList';
 import { TradeList } from '@/components/trade/TradeList';
 
@@ -12,6 +13,9 @@ const Page: React.FC = () => {
         </div>
         <div className='lg:col-span-4 col-span-12'>
           <InferenceList />
+        </div>
+        <div className='lg:col-span-8 col-span-12'>
+          <Firechart />
         </div>
       </div>
     </>

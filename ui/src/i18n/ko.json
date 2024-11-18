@@ -32,6 +32,9 @@
     "title": "Slack",
     "tooltip": "Slack 메시지를 보내기 위한 봇 토큰입니다. 클릭하면 매뉴얼 페이지로 이동합니다."
   },
+  "firechart": {
+    "title": "파이어차트"
+  },
   "inference": {
     "list": "추론 목록",
     "reason": "추론 내용",
