@@ -34,20 +34,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ./ui/.npm
             ./ui/.next/cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('./ui/package-lock.json') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-
-      - name: Make build cache directories
-        run: |
-          mkdir -p ./ui/.next/cache
 
       - name: Build and push
         uses: docker/bake-action@v5
         env:
-          DOCKER_BUILDKIT: 1
-          BUILDKIT_PROGRESS: plain
           BUILD_TARGET: production
           IMAGE_REGISTRY: ghcr.io/eunsoogi
           IMAGE_NAME_PREFIX: kkalla
@@ -55,18 +50,16 @@ jobs:
         with:
           push: true
           set: |
-            *.cache-from=type=gha,mode=max
-            *.cache-to=type=gha,mode=max
+            *.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest
+            *.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest,mode=max
 
       - name: Export build cache
         uses: docker/bake-action@v5
-        env:
-          DOCKER_BUILDKIT: 1
-          BUILDKIT_PROGRESS: plain
         with:
           targets: cache
           set: |
-            *.cache-from=type=gha,mode=max
+            *.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest
+            *.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest,mode=max
             ui-cache.output=type=local,dest=./ui
 
   release:

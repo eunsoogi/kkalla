@@ -32,7 +32,6 @@ dist
 
 # Cache
 .cache
-.npm
 .yarn
 
 # Test related
