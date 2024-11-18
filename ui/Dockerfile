@@ -6,9 +6,13 @@ RUN npm ci
 FROM node:22.11.0-alpine AS builder
 WORKDIR /app
 COPY package*.json .
+COPY ./.next/cache ./.next/cache
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
+
+FROM scratch AS cache
+COPY --from=builder /app/.next/cache ./.next/cache
 
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
@@ -27,8 +31,9 @@ WORKDIR /app
 RUN chown node:node .
 COPY --chown=node:node package*.json .
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
+RUN rm -rf ./.next/cache
 LABEL org.opencontainers.image.source=https://github.com/eunsoogi/kkalla
 ENV NODE_ENV=production
 USER node
