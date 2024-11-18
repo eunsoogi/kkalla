@@ -45,11 +45,11 @@ jobs:
         uses: docker/bake-action@v5
         with:
           push: true
-          set: |
-            *.BUILD_TARGET=development
-            *.IMAGE_REGISTRY=ghcr.io/eunsoogi
-            *.IMAGE_NAME_PREFIX=kkalla
-            *.IMAGE_TAG=${{ steps.version.outputs.version }}
+          env: |
+            BUILD_TARGET: development
+            IMAGE_REGISTRY: ghcr.io/eunsoogi
+            IMAGE_NAME_PREFIX: kkalla
+            IMAGE_TAG: ${{ steps.version.outputs.version }}
 
       - name: Export API cache
         uses: docker/build-push-action@v6
