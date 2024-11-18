@@ -35,6 +35,9 @@
   "firechart": {
     "title": "파이어차트"
   },
+  "feargreed": {
+    "title": "공포 탐욕 지수"
+  },
   "inference": {
     "list": "추론 목록",
     "mine": "내 추론만 보기",
