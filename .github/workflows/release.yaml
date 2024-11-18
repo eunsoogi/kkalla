@@ -42,11 +42,12 @@ jobs:
         run: make push ENV=production IMAGE_TAG=${{ steps.version.outputs.version }}
 
       - name: Export Next.js cache
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ github.workspace }}/ui
           target: cache
-          output: type=local,src=/app/.next/cache,dest=./ui/.next/cache
+          outputs: |
+            type=local,src=/app/.next/cache,dest=./ui/.next/cache
 
   release:
     needs: build-and-push
