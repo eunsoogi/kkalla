@@ -12,12 +12,16 @@ import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { InferenceDetailItem, InferenceDetailSkeleton } from './InferenceDetailItem';
 import { getInferenceCursorAction } from './action';
 
-const InferenceDetailListContent: React.FC = () => {
+interface InferenceDetailListContentProps {
+  mine: boolean;
+}
+
+const InferenceDetailListContent: React.FC<InferenceDetailListContentProps> = ({ mine }) => {
   const t = useTranslations();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
-    queryKey: ['inferences', 'cursor'],
-    queryFn: ({ pageParam = null }) => getInferenceCursorAction({ cursor: pageParam as string }),
+    queryKey: ['inferences', 'cursor', mine],
+    queryFn: ({ pageParam = null }) => getInferenceCursorAction({ cursor: pageParam as string, mine }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });
@@ -43,10 +47,14 @@ const InferenceDetailListContent: React.FC = () => {
   );
 };
 
-export const InferenceDetailList: React.FC = () => {
+interface InferenceDetailListProps {
+  mine: boolean;
+}
+
+export const InferenceDetailList: React.FC<InferenceDetailListProps> = ({ mine }) => {
   return (
     <Suspense fallback={<InferenceDetailSkeleton />}>
-      <InferenceDetailListContent />
+      <InferenceDetailListContent mine={mine} />
     </Suspense>
   );
 };

@@ -13,6 +13,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'asset.coinness.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
