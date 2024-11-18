@@ -34,7 +34,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ./ui/.npm
             ./ui/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
@@ -49,17 +48,12 @@ jobs:
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           push: true
-          set: |
-            *.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest
-            *.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest,mode=max
 
       - name: Export build cache
         uses: docker/bake-action@v5
         with:
           targets: cache
           set: |
-            *.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest
-            *.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache:latest,mode=max
             ui-cache.output=type=local,dest=./ui
 
   release:
