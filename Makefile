@@ -83,5 +83,9 @@ uninstall:
 	@helm uninstall $(HELM_RELEASE) \
 		-n $(HELM_NAMESPACE)
 
+.PHONY: clean-pvc
+clean-pvc:
+	kubectl delete pvc -n $(HELM_NAMESPACE) data-$(HELM_RELEASE)-mariadb-0
+
 .PHONY: all
 all: build import install

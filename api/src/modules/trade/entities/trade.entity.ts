@@ -6,7 +6,6 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -60,7 +59,9 @@ export class Trade extends BaseEntity {
   })
   balances: Balances;
 
-  @OneToOne(() => Inference, {
+  @ManyToOne(() => Inference, {
+    nullable: false,
+    cascade: true,
     eager: true,
     onDelete: 'SET NULL',
   })
