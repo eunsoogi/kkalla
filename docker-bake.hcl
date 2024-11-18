@@ -35,13 +35,11 @@ target "ui" {
 target "cache-api" {
   context = "./api"
   target = "cache"
-  output = ["type=cacheonly"]
 }
 
 target "cache-ui" {
   context = "./ui"
   target = "cache"
-  output = ["type=cacheonly"]
 }
 
 group "cache" {
