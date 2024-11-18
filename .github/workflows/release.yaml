@@ -41,6 +41,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-
 
+      - name: Make build cache directories
+        run: |
+          mkdir -p ./api/node_modules
+          mkdir -p ./ui/node_modules
+          mkdir -p ./ui/.next/cache
+
       - name: Build and push
         uses: docker/bake-action@v5
         env:
@@ -57,7 +63,7 @@ jobs:
           context: ./api
           target: cache
           outputs: |
-            type=local,src=/app/node_modules,dest=./ui/node_modules
+            type=local,src=/app/node_modules,dest=./api/node_modules
 
       - name: Export UI cache
         uses: docker/build-push-action@v6
