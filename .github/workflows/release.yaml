@@ -55,11 +55,13 @@ jobs:
           IMAGE_NAME_PREFIX: kkalla
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
+          load: true
           push: true
 
       - name: Export API cache
         uses: docker/build-push-action@v6
         with:
+          load: true
           context: ./api
           target: cache
           cache-from: type=gha
@@ -70,6 +72,7 @@ jobs:
       - name: Export UI cache
         uses: docker/build-push-action@v6
         with:
+          load: true
           context: ./ui
           target: cache
           outputs: |
