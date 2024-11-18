@@ -30,23 +30,42 @@ jobs:
         run: |
           echo "version=$(cat version)" >> $GITHUB_OUTPUT
 
-      - name: Restore Next.js cache
+      - name: Restore build cache
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/ui/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+          path: |
+            ./api/node_modules
+            ./ui/node_modules
+            ./ui/.next/cache
+          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-
+            ${{ runner.os }}-build-
 
       - name: Build and push
-        run: make push ENV=production IMAGE_TAG=${{ steps.version.outputs.version }}
+        uses: docker/bake-action@v5
+        with:
+          push: true
+          set: |
+            *.BUILD_TARGET=development
+            *.IMAGE_REGISTRY=ghcr.io/eunsoogi
+            *.IMAGE_NAME_PREFIX=kkalla
+            *.IMAGE_TAG=${{ steps.version.outputs.version }}
 
-      - name: Export Next.js cache
+      - name: Export API cache
         uses: docker/build-push-action@v6
         with:
-          context: ${{ github.workspace }}/ui
+          context: ./api
           target: cache
           outputs: |
+            type=local,src=/app/node_modules,dest=./ui/node_modules
+
+      - name: Export UI cache
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ui
+          target: cache
+          outputs: |
+            type=local,src=/app/node_modules,dest=./ui/node_modules
             type=local,src=/app/.next/cache,dest=./ui/.next/cache
 
   release:
