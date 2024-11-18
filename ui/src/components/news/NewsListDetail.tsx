@@ -69,16 +69,18 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
         <div className='flex items-start'>
           <div className='flex flex-col lg:flex-row items-start lg:items-center gap-2'>
             <span className={NEWS_STYLES[item.importance].textStyle}>{item.source}</span>
-            {item.labels.map((label, i) => (
-              <Badge key={i} color='muted' className='text-white bg-stone-600'>
-                {label}
-              </Badge>
-            ))}
-            {item.relatedStocks.map((stock, i) => (
-              <Badge key={i} color='muted' className='text-white bg-stone-600'>
-                {stock}
-              </Badge>
-            ))}
+            <div className='flex flex-row gap-2'>
+              {item.labels.map((label, i) => (
+                <Badge key={i} color='muted' className='text-white bg-stone-600'>
+                  {label}
+                </Badge>
+              ))}
+              {item.relatedStocks.map((stock, i) => (
+                <Badge key={i} color='muted' className='text-white bg-stone-600'>
+                  {stock}
+                </Badge>
+              ))}
+            </div>
           </div>
           <div className='flex items-center ms-auto gap-1'>
             <TbPoint size={15} className={NEWS_STYLES[item.importance].textStyle} />
