@@ -62,6 +62,8 @@ jobs:
         with:
           context: ./api
           target: cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           outputs: |
             type=local,src=/app/node_modules,dest=./api/node_modules
 
