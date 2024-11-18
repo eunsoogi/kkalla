@@ -21,7 +21,7 @@ export class RequestOrderDto {
     required: true,
     example: OrderTypes.BUY,
   })
-  type: OrderTypes;
+  type: () => OrderTypes;
 
   @Type(() => Number)
   @ApiProperty({
