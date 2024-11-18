@@ -48,12 +48,18 @@ jobs:
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           push: true
+          set: |
+            api.cache-from=type=gha,scope=api
+            api.cache-to=type=gha,scope=api,mode=max
+            ui.cache-from=type=gha,scope=ui
+            ui.cache-to=type=gha,scope=ui,mode=max
 
       - name: Export build cache
         uses: docker/bake-action@v5
         with:
           targets: cache
           set: |
+            ui-cache.cache-from=type=gha,scope=ui
             ui-cache.output=type=local,dest=./ui
 
   release:
