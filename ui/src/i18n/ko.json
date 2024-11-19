@@ -36,7 +36,12 @@
     "title": "파이어차트"
   },
   "feargreed": {
-    "title": "공포 탐욕 지수"
+    "title": "공포 탐욕 지수",
+    "date": "날짜",
+    "score": "점수",
+    "change": "변화",
+    "stage": "단계",
+    "history": "히스토리"
   },
   "inference": {
     "list": "추론 목록",

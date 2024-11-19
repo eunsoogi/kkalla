@@ -24,7 +24,7 @@ interface ProvidersProps {
 
 export function Providers({ children, locale, timeZone, messages }: ProvidersProps) {
   return (
-    <NextIntlClientProvider locale={locale} timeZone={timeZone} messages={messages}>
+    <NextIntlClientProvider locale={locale} timeZone={timeZone} messages={messages} now={new Date()}>
       <SessionProvider>
         <QueryClientProvider client={queryClient}>
           {children}
