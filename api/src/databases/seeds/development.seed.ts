@@ -29,7 +29,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
       {
         seq: (await new Sequence().save()).value,
@@ -39,7 +38,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
       {
         seq: (await new Sequence().save()).value,
@@ -50,7 +48,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
       {
         seq: (await new Sequence().save()).value,
@@ -60,7 +57,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
       {
         seq: (await new Sequence().save()).value,
@@ -71,7 +67,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
       {
         seq: (await new Sequence().save()).value,
@@ -81,7 +76,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
       {
         seq: (await new Sequence().save()).value,
@@ -91,7 +85,6 @@ export const seeds = {
         weightLowerBound: 0.2,
         weightUpperBound: 0.4,
         reason: '테스트 추론 내용입니다.',
-        reflection: '테스트 회귀 내용입니다.',
       },
     ]);
   },

@@ -8,7 +8,6 @@ export interface Inference {
   weightLowerBound: number;
   weightUpperBound: number;
   reason: string;
-  reflection: string;
   createdAt: Date;
   updatedAt: Date;
 }
