@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ matrix.project }}
-        run: npm ci
+        run: npm i --no-save --prefer-offline
 
       - name: Run lint
         working-directory: ${{ matrix.project }}

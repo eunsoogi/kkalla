@@ -32,12 +32,16 @@ target "ui" {
   platforms = ["linux/arm64"]
 }
 
-target "cache-ui" {
-  context = "./ui"
-  tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"]
+group "cache" {
+  targets = ["cache-api", "cache-ui"]
+}
+
+target "cache-api" {
+  context = "./api"
   target = "cache"
 }
 
-group "cache" {
-  targets = ["cache-ui"]
+target "cache-ui" {
+  context = "./ui"
+  target = "cache"
 }

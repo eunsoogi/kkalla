@@ -25,8 +25,15 @@ version-release:
 .PHONY: version
 version: version-npm version-helm version-release
 
+make-cache-dir:
+	@mkdir -p api/.npm
+	@mkdir -p api/node_modules
+	@mkdir -p ui/.npm
+	@mkdir -p ui/node_modules
+	@mkdir -p ui/.next/cache
+
 .PHONY: build
-build:
+build: make-cache-dir
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
 	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
 	IMAGE_TAG=$(IMAGE_TAG) \
@@ -41,7 +48,7 @@ import:
 		$(IMAGE_REGISTRY)/$(IMAGE_NAME_PREFIX)-ui:$(IMAGE_TAG)
 
 .PHONY: push
-push: build
+push: make-cache-dir
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
 	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
 	IMAGE_TAG=$(IMAGE_TAG) \
