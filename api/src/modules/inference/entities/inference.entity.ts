@@ -66,9 +66,6 @@ export class Inference extends BaseEntity {
   @Column({ type: 'text' })
   reason?: string;
 
-  @Column({ type: 'text' })
-  reflection?: string;
-
   @CreateDateColumn()
   createdAt: Date;
 

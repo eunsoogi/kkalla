@@ -62,21 +62,11 @@ export class InferenceService {
 
     const firechart: string = await this.firechartService.getFirechart();
 
-    this.logger.log(this.i18n.t('logging.inference.loading'));
-
-    const inferenceResult: PaginatedItem<Inference> = await this.paginate({
-      page: 1,
-      perPage: request.inferenceLimit,
-    });
-
-    const prevInferences: Inference[] = inferenceResult.items;
-
     const data: InferenceMessage = {
       candles,
       news,
       feargreed,
       firechart,
-      prevInferences,
     };
 
     return data;
@@ -110,6 +100,8 @@ export class InferenceService {
     const client: OpenAI = await this.openaiService.getServerClient();
 
     const message: InferenceMessage = await this.getMessage(request);
+
+    this.logger.log(this.i18n.t('logging.inference.loading'));
 
     const response: ChatCompletion = await this.retry(
       () =>

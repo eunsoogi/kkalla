@@ -1,7 +1,6 @@
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { News } from '../news/news.interface';
 import { Candle } from '../upbit/upbit.interface';
-import { Inference } from './entities/inference.entity';
 import { InferenceDecisionTypes } from './inference.enum';
 
 export interface InferenceFilter {
@@ -28,14 +27,12 @@ export interface InferenceMessage {
   news: News[];
   feargreed: Feargreed;
   firechart: string;
-  prevInferences: Inference[];
 }
 
 export interface InferenceData {
   decisions: InferenceDecisionData[];
   symbol: string;
   reason: string;
-  reflection: string;
 }
 
 export interface InferenceDecisionData {
@@ -48,7 +45,6 @@ export interface InferenceDecisionData {
 
 export interface InferenceItem extends InferenceDecisionData {
   symbol: string;
-  reflection: string;
 }
 
 export interface RetryOptions {

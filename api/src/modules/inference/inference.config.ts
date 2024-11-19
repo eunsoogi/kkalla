@@ -2,19 +2,18 @@ export const INFERENCE_MODEL = 'gpt-4o-mini';
 
 export const INFERENCE_CONFIG = {
   maxCompletionTokens: 2048,
-  temperature: 0.4,
-  topP: 0.75,
-  presencePenalty: 0.1,
-  frequencyPenalty: 0.1,
+  temperature: 0.2,
+  topP: 0.7,
+  presencePenalty: 0,
+  frequencyPenalty: 0,
   message: {
     candles: {
-      m15: 96, // 1 day
-      h1: 24 * 7, // 7 days
-      h4: 6 * 30, // 30 days
-      d1: 60, // 60 days
+      m15: 96 * 7, // 7 days
+      h1: 24 * 14, // 14 days
+      h4: 6 * 60, // 60 days
+      d1: 90, // 90 days
     },
     newsLimit: 300,
-    inferenceLimit: 5 * 6 * 7, // 7 days
   },
 };
 
@@ -50,11 +49,8 @@ export const INFERENCE_RESPONSE_SCHEMA = {
     symbol: {
       type: 'string',
     },
-    reflection: {
-      type: 'string',
-    },
   },
-  required: ['decisions', 'symbol', 'reflection'],
+  required: ['decisions', 'symbol'],
   additionalProperties: false,
 };
 
@@ -121,8 +117,8 @@ export const INFERENCE_VALIDATION = {
     },
   },
   reason: {
-    minLength: 300,
-    maxLength: 500,
+    minLength: 800,
+    maxLength: 1000,
     required: [
       {
         type: 'technical',
@@ -164,12 +160,11 @@ export const INFERENCE_VALIDATION = {
         minLength: 50,
       },
     ],
-    errorChecks: ['RSI 과매수/과매도 용어 정확성', '지표간 모순된 해석 여부', '누락된 필수 지표 확인'],
-  },
-  reflection: {
-    minLength: 300,
-    maxLength: 500,
-    required: ['이전 판단의 정확성', '시장 상황 변화', '개선점'],
+    errorChecks: [
+      '실제 데이터에 기반하여 분석해야 함',
+      '각 판단마다 동일한 데이터를 참조해야 함',
+      '누락된 필수 지표를 포함해야 함',
+    ],
   },
   responseExample: {
     decisions: [
@@ -182,7 +177,6 @@ export const INFERENCE_VALIDATION = {
       },
     ],
     symbol: 'BTC/KRW',
-    reflection: '이전 추론에 대한 복기 내용',
   },
 };
 
@@ -277,58 +271,6 @@ export const INFERENCE_RULES = {
         },
       ],
     },
-    zoneStrategies: [
-      {
-        weightLowerBound: 0,
-        weightUpperBound: 0.2,
-        strategy: '적극적 매수 구간',
-        conditions: {
-          technical: ['RSI < 30', 'MACD 골든크로스 임박'],
-          volume: '평균 이상',
-          sentiment: '공포구간',
-        },
-      },
-      {
-        weightLowerBound: 0.2,
-        weightUpperBound: 0.4,
-        strategy: '선별적 매수 구간',
-        conditions: {
-          technical: ['RSI < 40', '주요 지지선 근접'],
-          volume: '평균 대비 증가',
-          sentiment: '중립~공포',
-        },
-      },
-      {
-        weightLowerBound: 0.4,
-        weightUpperBound: 0.6,
-        strategy: '중립 구간',
-        conditions: {
-          technical: ['추세 추종'],
-          volume: '평균 수준',
-          sentiment: '중립',
-        },
-      },
-      {
-        weightLowerBound: 0.6,
-        weightUpperBound: 0.8,
-        strategy: '선별적 매도 구간',
-        conditions: {
-          technical: ['RSI > 60', '주요 저항선 근접'],
-          volume: '평균 대비 증가',
-          sentiment: '중립~탐욕',
-        },
-      },
-      {
-        weightLowerBound: 0.8,
-        weightUpperBound: 1.0,
-        strategy: '적극적 매도 구간',
-        conditions: {
-          technical: ['RSI > 70', 'MACD 데드크로스 임박'],
-          volume: '평균 이상',
-          sentiment: '탐욕구간',
-        },
-      },
-    ],
   },
 };
 
@@ -361,7 +303,7 @@ orderRatio:
 # 분석 요구사항
 
 ## 기술적 분석
-각 지표는 다음 형식으로 반드시 포함되어야 합니다:
+각 지표는 다음 형식으로 반드시 포함되어야 함:
 
 ${INFERENCE_RULES.analysis.technical.required
   .map(
@@ -371,10 +313,10 @@ ${indicator.indicator}:
 - 표시형식: ${indicator.format}
 `,
   )
-  .join('\n')}
+  .join('')}
 
 ## 시장 분석
-다음 지표들의 분석이 필수적으로 포함되어야 합니다:
+다음 지표들의 분석이 반드시 포함되어야 함:
 
 ${INFERENCE_RULES.analysis.market.required
   .map(
@@ -384,10 +326,10 @@ ${metric.metric}:
 - 표시형식: ${metric.format}
 `,
   )
-  .join('\n')}
+  .join('')}
 
 ## 심리 분석
-다음 지표들의 분석이 필수적으로 포함되어야 합니다:
+다음 지표들의 분석이 반드시 포함되어야 함:
 
 ${INFERENCE_RULES.analysis.sentiment.required
   .map(
@@ -397,42 +339,21 @@ ${metric.metric}:
 - 표시형식: ${metric.format}
 `,
   )
-  .join('\n')}
-
-
-# 구간별 매매 전략
-각 구간은 다음 전략을 따라야 합니다:
-
-${INFERENCE_RULES.strategy.zoneStrategies
-  .map(
-    (zone) => `
-${zone.weightLowerBound * 100}-${zone.weightUpperBound * 100}% 구간:
-- 전략: ${zone.strategy}
-- 필요조건:
-  * 기술적: ${zone.conditions.technical.join(', ')}
-  * 거래량: ${zone.conditions.volume}
-  * 심리: ${zone.conditions.sentiment}
-`,
-  )
-  .join('\n')}
+  .join('')}
 
 
 # 분석 문서화 요구사항
 reason:
-- 각 decision마다 다음 내용을 포함해야 함:
+- 각 decision마다 반드시 다음 내용을 포함해야 함:
   * 최소 ${INFERENCE_VALIDATION.reason.required.map((req) => `${req.type}: ${req.minMetrics}개 지표`).join(', ')}
   * 분석구조: ${INFERENCE_VALIDATION.reason.structure.join(' → ')}
-  * 글자수: ${INFERENCE_VALIDATION.reason.minLength}-${INFERENCE_VALIDATION.reason.maxLength}자
-
-reflection:
-- 다음 내용을 포함해야 함: ${INFERENCE_VALIDATION.reflection.required.join(', ')}
-- 글자수: ${INFERENCE_VALIDATION.reflection.minLength}-${INFERENCE_VALIDATION.reflection.maxLength}자
+- 반드시 ${INFERENCE_VALIDATION.reason.minLength}~${INFERENCE_VALIDATION.reason.maxLength}글자여야 함
 
 
 # 분석 요구사항 보강
 
 ## 종합 분석
-각 지표는 다음 항목과의 연관성을 반드시 분석해야 합니다:
+각 지표는 다음 항목과의 연관성을 반드시 분석해야 함:
 ${INFERENCE_VALIDATION.analysis.required.crossValidation
   .map(
     (validation) => `
@@ -441,15 +362,15 @@ ${validation.primary} 분석시:
 - 필수사항: ${validation.description}
 `,
   )
-  .join('\n')}
+  .join('')}
 
 ## 가격 분석
-다음 요소를 반드시 포함해야 합니다:
+다음 요소를 반드시 포함해야 함:
 ${INFERENCE_VALIDATION.analysis.required.priceAction.required.map((item) => `- ${item}`).join('\n')}
 형식: ${INFERENCE_VALIDATION.analysis.required.priceAction.format}
 
 ## 상세 분석 구조
-각 구간의 분석은 다음 섹션을 포함해야 합니다:
+각 구간의 분석은 다음 섹션을 포함해야 함:
 ${INFERENCE_VALIDATION.reason.sections
   .map(
     (section) => `
@@ -458,10 +379,10 @@ ${section.name}:
 - 최소 길이: ${section.minLength}자
 `,
   )
-  .join('\n')}
+  .join('')}
 
 ## 리스크 관리
-각 매매 결정에는 다음 내용이 포함되어야 합니다:
+각 매매 결정에는 다음 내용이 포함되어야 함:
 ${INFERENCE_RULES.strategy.riskManagement.required
   .map(
     (risk) => `
@@ -469,10 +390,10 @@ ${risk.metric}:
 - 형식: ${risk.format}
 `,
   )
-  .join('\n')}
+  .join('')}
 
 ## 검증 항목
-다음 사항을 반드시 확인해야 합니다:
+다음 사항을 반드시 확인해야 함:
 ${INFERENCE_VALIDATION.reason.errorChecks.map((check) => `- ${check}`).join('\n')}
 
 
