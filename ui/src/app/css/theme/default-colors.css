@@ -21,5 +21,9 @@
   --color-muted: #EFF4FA;
   --color-darklink: #7b8893;
   --color-lightgray: #f4f7fb;
+  --color-feargreed-extreme-fear: #E84141;
+  --color-feargreed-fear: #E87941;
+  --color-feargreed-neutral: #E8D741;
+  --color-feargreed-greed: #5DE841;
+  --color-feargreed-extreme-greed: #41E884;
 }
-

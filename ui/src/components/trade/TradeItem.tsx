@@ -16,11 +16,11 @@ export const TradeItem = (item: Trade) => {
       <Table.Cell className='whitespace-nowrap'>
         <Badge className={TRADE_STYLES[item.type].badgeStyle}>{item.type}</Badge>
       </Table.Cell>
-      <Table.Cell className='p-2 lg:px-4 lg:py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
-      <Table.Cell className='p-2 lg:px-4 lg:py-3 whitespace-nowrap'>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>
         {item.symbol}/{item.market}
       </Table.Cell>
-      <Table.Cell className='p-2 lg:px-4 lg:py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
     </Table.Row>
   );
 };

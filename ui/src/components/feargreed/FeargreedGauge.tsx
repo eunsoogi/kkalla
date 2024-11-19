@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 
 import { Feargreed } from '@/interfaces/feargreed.interface';
 
-import { FeargreedItem, FeargreedSkeleton } from './FeargreedItem';
+import { FeargreedGuageItem, FeargreedGuageSkeleton } from './FeargreedGuageItem';
 import { getFeargreedAction } from './action';
 
 const FeargreedGaugeContent: React.FC = () => {
@@ -24,7 +24,7 @@ const FeargreedGaugeContent: React.FC = () => {
     return null;
   }
 
-  return <FeargreedItem {...data} />;
+  return <FeargreedGuageItem {...data} />;
 };
 
 export const FeargreedGauge = () => {
@@ -34,7 +34,7 @@ export const FeargreedGauge = () => {
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
       <h5 className='card-title text-dark dark:text-white mb-6'>{t('feargreed.title')}</h5>
       <div className='flex flex-col mt-2'>
-        <Suspense fallback={<FeargreedSkeleton />}>
+        <Suspense fallback={<FeargreedGuageSkeleton />}>
           <FeargreedGaugeContent />
         </Suspense>
       </div>
