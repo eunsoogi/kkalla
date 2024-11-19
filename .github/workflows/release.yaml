@@ -35,10 +35,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            **/node_modules
             **/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-
+            ${{ runner.os }}-buildx-
 
       - name: Build and push
         uses: docker/bake-action@v5
@@ -50,22 +51,18 @@ jobs:
         with:
           push: true
           set: |
-            api.cache-from=type=gha,scope=api
-            api.cache-to=type=gha,scope=api,mode=max
-            ui.cache-from=type=gha,scope=ui
-            ui.cache-to=type=gha,scope=ui,mode=max
-
+            api.cache-from=type=registry,ref=eunsoogi/kkalla-cache-api
+            api.cache-to=type=registry,ref=eunsoogi/kkalla-cache-api,mode=max
+            ui.cache-from=type=registry,ref=eunsoogi/kkalla-cache-ui
+            ui.cache-to=type=registry,ref=eunsoogi/kkalla-cache-ui,mode=max
       - name: Export build cache
         uses: docker/bake-action@v5
-        env:
-          IMAGE_REGISTRY: ghcr.io/eunsoogi
-          IMAGE_NAME_PREFIX: kkalla
-          IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           targets: cache
           set: |
-            cache-ui.cache-from=type=gha,scope=ui
-            cache-ui.cache-to=type=gha,scope=ui,mode=max
+            cache-api.cache-from=type=registry,ref=eunsoogi/kkalla-cache-api
+            cache-api.output=type=local,dest=api
+            cache-ui.cache-from=type=registry,ref=eunsoogi/kkalla-cache-ui
             cache-ui.output=type=local,dest=ui
 
   release:
