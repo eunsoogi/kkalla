@@ -32,11 +32,16 @@ target "ui" {
   platforms = ["linux/arm64"]
 }
 
-target "ui-cache" {
-  context = "./ui"
+group "cache" {
+  targets = ["cache-api", "cache-ui"]
+}
+
+target "cache-api" {
+  context = "./api"
   target = "cache"
 }
 
-group "cache" {
-  targets = ["ui-cache"]
+target "cache-ui" {
+  context = "./ui"
+  target = "cache"
 }
