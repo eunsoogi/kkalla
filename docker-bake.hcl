@@ -33,7 +33,7 @@ target "ui" {
 }
 
 group "cache" {
-  targets = ["cache-ui"]
+  targets = ["cache-api", "cache-ui"]
 }
 
 target "cache-ui" {
