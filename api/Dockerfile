@@ -1,6 +1,7 @@
 FROM node:22.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json .
+COPY ./node_modules ./node_modules
 RUN npm ci
 
 FROM node:22.11.0-alpine AS builder
