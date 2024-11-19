@@ -44,15 +44,9 @@ export const InferenceDetailItem: React.FC<Inference & { isFocus: boolean }> = (
             </p>
           </div>
         </div>
-        <div className='grid grid-cols-12 lg:gap-x-30'>
-          <div className='lg:col-span-6 col-span-12'>
-            <h4 className='my-3 text-dark dark:text-white'>{t('inference.reason')}</h4>
-            <div className='my-3'>{item.reason}</div>
-          </div>
-          <div className='lg:col-span-6 col-span-12'>
-            <h4 className='my-3 text-dark dark:text-white'>{t('inference.reflection')}</h4>
-            <div className='my-3'>{item.reflection}</div>
-          </div>
+        <div className='flex flex-col mt-3 gap-x-4 gap-y-3 lg:gap-x-30'>
+          <h4 className='text-dark dark:text-white'>{t('inference.reason')}</h4>
+          <div>{item.reason}</div>
         </div>
         <div className='flex'>
           <div className='flex gap-1 items-center ms-auto'>
@@ -71,15 +65,9 @@ export const InferenceDetailSkeleton: React.FC = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark relative w-full break-words'>
       <div className='p-6'>
-        <div className='grid grid-cols-12 gap-x-4 lg:gap-x-30'>
-          <div className='lg:col-span-6 col-span-12'>
-            <h4 className='my-3'>{t('inference.reason')}</h4>
-            <div className='my-3 lg:line-clamp-4'>{t('nothing')}</div>
-          </div>
-          <div className='lg:col-span-6 col-span-12'>
-            <h4 className='my-3'>{t('inference.reflection')}</h4>
-            <div className='my-3 lg:line-clamp-4'>{t('nothing')}</div>
-          </div>
+        <div className='flex flex-col mt-3 gap-x-4 gap-y-3 lg:gap-x-30'>
+          <h4 className='text-dark dark:text-white'>{t('inference.reason')}</h4>
+          <div>{t('nothing')}</div>
         </div>
         <div className='flex'>
           <div className='flex gap-1 items-center ms-auto'>
