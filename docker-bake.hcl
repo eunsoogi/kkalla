@@ -36,7 +36,7 @@ group "cache" {
   targets = ["cache-api", "cache-ui"]
 }
 
-target "cache-ui" {
+target "cache-api" {
   context = "./api"
   target = "cache"
 }
