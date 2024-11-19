@@ -2,7 +2,7 @@ FROM node:22.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json .
 COPY ./node_modules ./node_modules
-RUN npm ci
+RUN npm i --no-save --prefer-offline
 
 FROM node:22.11.0-alpine AS builder
 WORKDIR /app
