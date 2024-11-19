@@ -60,10 +60,10 @@ jobs:
         with:
           push: true
           set: |
-            api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api
-            api.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api,mode=max
-            ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui
-            ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui,mode=max
+            api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache
+            api.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache,mode=max
+            ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache
+            ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache,mode=max
 
   cache:
     needs: build-and-push
@@ -98,9 +98,9 @@ jobs:
         with:
           targets: cache
           set: |
-            cache-api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api
+            cache-api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache-output
             cache-api.output=type=local,dest=api
-            cache-ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui
+            cache-ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache-output
             cache-ui.output=type=local,dest=ui
 
   release:
