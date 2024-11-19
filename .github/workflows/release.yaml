@@ -55,6 +55,27 @@ jobs:
             api.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api,mode=max
             ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui
             ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui,mode=max
+
+  cache:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            **/.next/cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
       - name: Export build cache
         uses: docker/bake-action@v5
         with:
