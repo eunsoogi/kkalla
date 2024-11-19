@@ -99,8 +99,10 @@ jobs:
           targets: cache
           set: |
             cache-api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache-output
+            cache-api.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache-output,mode=max
             cache-api.output=type=local,dest=api
             cache-ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache-output
+            cache-ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache-output,mode=max
             cache-ui.output=type=local,dest=ui
 
   release:
