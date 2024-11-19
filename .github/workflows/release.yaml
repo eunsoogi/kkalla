@@ -75,6 +75,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Make cache directories
+        run: |
+          mkdir -p api/.npm
+          mkdir -p api/node_modules
+          mkdir -p ui/.npm
+          mkdir -p ui/node_modules
+          mkdir -p ui/.next/cache
+
       - name: Restore build cache
         uses: actions/cache@v4
         with:
