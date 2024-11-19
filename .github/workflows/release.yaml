@@ -33,7 +33,9 @@ jobs:
 
       - name: Make cache directories
         run: |
+          mkdir -p api/.npm
           mkdir -p api/node_modules
+          mkdir -p ui/.npm
           mkdir -p ui/node_modules
           mkdir -p ui/.next/cache
 
@@ -41,6 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            **/.npm
             **/node_modules
             **/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
