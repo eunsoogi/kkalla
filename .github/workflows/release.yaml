@@ -51,18 +51,18 @@ jobs:
         with:
           push: true
           set: |
-            api.cache-from=type=registry,ref=eunsoogi/kkalla-cache-api
-            api.cache-to=type=registry,ref=eunsoogi/kkalla-cache-api,mode=max
-            ui.cache-from=type=registry,ref=eunsoogi/kkalla-cache-ui
-            ui.cache-to=type=registry,ref=eunsoogi/kkalla-cache-ui,mode=max
+            api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api
+            api.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api,mode=max
+            ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui
+            ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui,mode=max
       - name: Export build cache
         uses: docker/bake-action@v5
         with:
           targets: cache
           set: |
-            cache-api.cache-from=type=registry,ref=eunsoogi/kkalla-cache-api
+            cache-api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-api
             cache-api.output=type=local,dest=api
-            cache-ui.cache-from=type=registry,ref=eunsoogi/kkalla-cache-ui
+            cache-ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-cache-ui
             cache-ui.output=type=local,dest=ui
 
   release:
