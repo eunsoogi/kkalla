@@ -45,9 +45,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            **/.npm
-            **/node_modules
-            **/.next/cache
+            api/.npm
+            api/node_modules
+            ui/.npm
+            ui/node_modules
+            ui/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
