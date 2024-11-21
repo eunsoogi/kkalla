@@ -67,7 +67,7 @@ jobs:
             ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache,mode=max
 
   cache:
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -114,7 +114,7 @@ jobs:
             cache-ui.output=type=local,dest=ui
 
   release:
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
