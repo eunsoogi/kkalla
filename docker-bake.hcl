@@ -21,11 +21,15 @@ group "deps" {
 target "deps-api" {
   context = "./api"
   target = "deps"
+  cache-from = ["type=gha,scope=deps-api"]
+  cache-to = ["type=gha,scope=deps-api,mode=max"]
 }
 
 target "deps-ui" {
   context = "./ui"
   target = "deps"
+  cache-from = ["type=gha,scope=deps-ui"]
+  cache-to = ["type=gha,scope=deps-ui,mode=max"]
 }
 
 group "builder" {
@@ -35,11 +39,21 @@ group "builder" {
 target "builder-api" {
   context = "./api"
   target = "builder"
+  cache-from = [
+    "type=gha,scope=deps-api",
+    "type=gha,scope=builder-api",
+  ]
+  cache-to = ["type=gha,scope=builder-api,mode=max"]
 }
 
 target "builder-ui" {
   context = "./ui"
   target = "builder"
+  cache-from = [
+    "type=gha,scope=deps-ui",
+    "type=gha,scope=builder-ui",
+  ]
+  cache-to = ["type=gha,scope=builder-ui,mode=max"]
 }
 
 group "cache" {
@@ -49,11 +63,19 @@ group "cache" {
 target "cache-api" {
   context = "./api"
   target = "cache"
+  cache-from = [
+    "type=gha,scope=deps-api",
+    "type=gha,scope=builder-api",
+  ]
 }
 
 target "cache-ui" {
   context = "./ui"
   target = "cache"
+  cache-from = [
+    "type=gha,scope=deps-ui",
+    "type=gha,scope=builder-ui",
+  ]
 }
 
 group "default" {
@@ -65,6 +87,12 @@ target "api" {
   target = "${BUILD_TARGET}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"]
   platforms = ["linux/arm64"]
+  cache-from = [
+    "type=gha,scope=deps-api",
+    "type=gha,scope=builder-api",
+    "type=gha,scope=prod-api",
+  ]
+  cache-to = ["type=gha,scope=prod-api,mode=max"]
 }
 
 target "ui" {
@@ -72,4 +100,10 @@ target "ui" {
   target = "${BUILD_TARGET}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
   platforms = ["linux/arm64"]
+  cache-from = [
+    "type=gha,scope=deps-ui",
+    "type=gha,scope=builder-ui",
+    "type=gha,scope=prod-ui",
+  ]
+  cache-to = ["type=gha,scope=prod-ui,mode=max"]
 }

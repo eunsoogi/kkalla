@@ -42,23 +42,11 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: deps
-          set: |
-            deps-api.cache-from=type=gha,scope=deps-api
-            deps-api.cache-to=type=gha,scope=deps-api,mode=max
-            deps-ui.cache-from=type=gha,scope=deps-ui
-            deps-ui.cache-to=type=gha,scope=deps-ui,mode=max
 
       - name: Build builder stage
         uses: docker/bake-action@v5
         with:
           targets: builder
-          set: |
-            builder-api.cache-from=type=gha,scope=deps-api
-            builder-api.cache-from=type=gha,scope=builder-api
-            builder-api.cache-to=type=gha,scope=builder-api,mode=max
-            builder-ui.cache-from=type=gha,scope=deps-ui
-            builder-ui.cache-from=type=gha,scope=builder-ui
-            builder-ui.cache-to=type=gha,scope=builder-ui,mode=max
 
   cache:
     needs: pre-build
@@ -69,14 +57,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Make cache directories
-        run: |
-          mkdir -p api/.npm
-          mkdir -p api/node_modules
-          mkdir -p ui/.npm
-          mkdir -p ui/node_modules
-          mkdir -p ui/.next/cache
 
       - name: Restore build cache
         uses: actions/cache@v4
@@ -93,13 +73,14 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: cache
-          set: |
-            cache-api.cache-from=type=gha,scope=deps-api
-            cache-api.cache-from=type=gha,scope=builder-api
-            cache-api.output=type=local,dest=api
-            cache-ui.cache-from=type=gha,scope=deps-ui
-            cache-ui.cache-from=type=gha,scope=builder-ui
-            cache-ui.output=type=local,dest=ui
+
+      - name: Print cache directories
+        run: |
+          ls -la api/.npm
+          ls -la api/node_modules
+          ls -la ui/.npm
+          ls -la ui/node_modules
+          ls -la ui/.next/cache
 
   build:
     needs: cache
@@ -153,11 +134,6 @@ jobs:
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           push: true
-          set: |
-            *.cache-from=type=gha,scope=deps
-            *.cache-from=type=gha,scope=builder
-            *.cache-from=type=gha,scope=prod
-            *.cache-to=type=gha,scope=prod,mode=max
 
   release:
     needs: build
