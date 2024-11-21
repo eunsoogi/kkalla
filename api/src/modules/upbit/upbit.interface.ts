@@ -30,6 +30,6 @@ export interface Candle {
 export interface OrderRequest {
   symbol: string;
   market: string;
-  type: OrderTypes;
+  type: () => OrderTypes;
   orderRatio: number;
 }

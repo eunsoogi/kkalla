@@ -93,15 +93,18 @@ export class UpbitService {
   }
 
   private calculatePrice(balances: Balances, symbol: string): number {
-    const info = balances.info.find((item) => item.currency === symbol) || {};
-    return (Number(info['balance']) || 0) * (Number(info['avg_buy_price']) || 1);
+    const { balance = 0, locked = 0, avg_buy_price = 0 } = balances.info.find((item) => item.currency === symbol) || {};
+    const totalBalance = parseFloat(balance) + parseFloat(locked);
+    const averageBuyPrice = parseFloat(avg_buy_price) || 1;
+    return totalBalance * averageBuyPrice;
   }
 
   private calculateTotalPrice(balances: Balances): number {
     return balances.info.reduce((total, item) => {
-      const balance = Number(item['balance']) || 0;
-      const avgBuyPrice = Number(item['avg_buy_price']) || 1;
-      return total + balance * avgBuyPrice;
+      const { balance = 0, locked = 0, avg_buy_price = 0 } = item;
+      const totalBalance = parseFloat(balance) + parseFloat(locked);
+      const averageBuyPrice = parseFloat(avg_buy_price) || 1;
+      return total + totalBalance * averageBuyPrice;
     }, 0);
   }
 
@@ -128,12 +131,12 @@ export class UpbitService {
     this.logger.debug(`tradePrice: ${tradePrice}`);
     this.logger.debug(`tradeVolume: ${tradeVolume}`);
 
-    switch (request.type) {
+    switch (request.type()) {
       case OrderTypes.BUY:
-        return await client.createOrder(ticker, 'market', request.type, 1, tradePrice);
+        return await client.createOrder(ticker, 'market', request.type(), 1, tradePrice);
 
       case OrderTypes.SELL:
-        return await client.createOrder(ticker, 'market', request.type, tradeVolume);
+        return await client.createOrder(ticker, 'market', request.type(), tradeVolume);
     }
 
     return null;
