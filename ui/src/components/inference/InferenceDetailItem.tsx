@@ -48,23 +48,23 @@ const InferenceHeader: React.FC<{ item: InferenceDetailProps }> = ({ item }) => 
   const t = useTranslations();
 
   return (
-    <div className='flex items-center gap-6'>
+    <div className='flex flex-row gap-6'>
       <Badge color='muted' className={DECISION_STYLES[item.decision].badgeStyle}>
         {item.decision}
       </Badge>
-      <div className='flex items-center flex-grow gap-6'>
+      <div className='flex flex-col lg:flex-row lg:gap-6'>
         <h4 className='text-dark dark:text-white'>
           {item.orderRatio * 100}% {t(`decision.${item.decision}`)}
         </h4>
-        <div className='flex items-center justify-between flex-grow'>
-          <p>
-            {t('inference.bound', {
-              lower: item.weightLowerBound * 100,
-              upper: item.weightUpperBound * 100,
-            })}
-          </p>
-          <CopyLinkButton inferenceId={item.id} />
-        </div>
+        <p>
+          {t('inference.bound', {
+            lower: item.weightLowerBound * 100,
+            upper: item.weightUpperBound * 100,
+          })}
+        </p>
+      </div>
+      <div className='ml-auto'>
+        <CopyLinkButton inferenceId={item.id} />
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ export const InferenceDetailItem: React.FC<InferenceDetailProps> = ({ isFocus = 
           <h4 className='text-dark dark:text-white'>{t('inference.reason')}</h4>
           <div className='whitespace-pre-wrap'>{item.reason}</div>
         </div>
-        <div className='flex mt-4'>
+        <div className='flex mt-3'>
           <div className='flex gap-1 items-center ms-auto'>
             <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />
             <time className='text-sm text-darklink'>{formatDate(new Date(item.createdAt))}</time>
