@@ -111,7 +111,7 @@ jobs:
           generate_release_notes: true
 
   deploy:
-    needs: release
+    needs: build
     runs-on: ubuntu-latest
     environment: production
     steps:
