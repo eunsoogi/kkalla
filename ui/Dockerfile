@@ -16,7 +16,6 @@ RUN npm run build
 
 FROM scratch AS cache
 WORKDIR /cache
-COPY --from=deps /root/.npm ./.npm
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next/cache ./.next/cache
 
