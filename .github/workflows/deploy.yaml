@@ -10,7 +10,7 @@ on:
       - version
 
 jobs:
-  pre-build:
+  deps:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -44,8 +44,38 @@ jobs:
         with:
           targets: builder
 
+  builder:
+    needs: deps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Make cache directories
+        run: |
+          mkdir -p api/.cache
+          mkdir -p ui/.cache
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/.cache/**/node_modules
+            **/.cache/**/.next/cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build builder stage
+        uses: docker/bake-action@v5
+        with:
+          targets: builder
+
   cache:
-    needs: pre-build
+    needs: builder
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -73,10 +103,6 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: cache
-
-      - name: Print cache directories
-        run: |
-          ls -al **/.cache
 
   build:
     needs: cache
