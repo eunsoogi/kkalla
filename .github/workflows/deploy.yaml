@@ -74,6 +74,10 @@ jobs:
         with:
           targets: cache
 
+      - name: Print cache directories
+        run: |
+          ls -al **/.cache
+
   build:
     needs: cache
     runs-on: ubuntu-latest
