@@ -1,3 +1,6 @@
+# Cache
+.cache
+
 # Development dependencies
 /node_modules
 npm-debug.log
