@@ -11,7 +11,7 @@ on:
 
 jobs:
   builder:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
 
   cache:
     needs: builder
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
 
   build:
     needs: builder
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm64
     permissions:
       packages: write
     steps:
