@@ -30,7 +30,6 @@ dist
 *.sublime-project
 
 # Cache
-.cache
 .yarn
 
 # Test related
