@@ -76,11 +76,9 @@ jobs:
 
       - name: Print cache directories
         run: |
-          ls -la api/.npm
-          ls -la api/node_modules
-          ls -la ui/.npm
-          ls -la ui/node_modules
-          ls -la ui/.next/cache
+          ls -al **/.npm
+          ls -al **/node_modules
+          ls -al **/.next/cache
 
   build:
     needs: cache
