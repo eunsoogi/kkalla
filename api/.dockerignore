@@ -49,7 +49,3 @@ docker-compose*
 
 # Helm
 helm
-
-# Cache
-.cache/*
-!.cache/**/node_modules

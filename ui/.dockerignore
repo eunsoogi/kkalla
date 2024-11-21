@@ -57,8 +57,3 @@ next-env.d.ts
 
 # Helm
 helm
-
-# Cache
-.cache/*
-!.cache/**/node_modules
-!.cache/**/.next/cache
