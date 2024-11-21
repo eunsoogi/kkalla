@@ -21,8 +21,8 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p api/.cache/linux_arm64
-          mkdir -p ui/.cache/linux_arm64
+          mkdir -p api/.cache
+          mkdir -p ui/.cache
 
       - name: Restore build cache
         uses: actions/cache@v4
@@ -56,8 +56,8 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p api/.cache/linux_arm64
-          mkdir -p ui/.cache/linux_arm64
+          mkdir -p api/.cache
+          mkdir -p ui/.cache
 
       - name: Restore build cache
         uses: actions/cache@v4
@@ -104,8 +104,8 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p api/.cache/linux_arm64
-          mkdir -p ui/.cache/linux_arm64
+          mkdir -p api/.cache
+          mkdir -p ui/.cache
 
       - name: Restore build cache
         uses: actions/cache@v4
