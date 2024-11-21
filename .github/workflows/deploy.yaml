@@ -10,7 +10,7 @@ on:
       - version
 
 jobs:
-  cache:
+  pre-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -43,26 +43,62 @@ jobs:
         with:
           targets: deps
           set: |
-            *.cache-from=type=gha,scope=deps
-            *.cache-to=type=gha,scope=deps,mode=max
+            deps-api.cache-from=type=gha,scope=deps-api
+            deps-api.cache-to=type=gha,scope=deps-api,mode=max
+            deps-ui.cache-from=type=gha,scope=deps-ui
+            deps-ui.cache-to=type=gha,scope=deps-ui,mode=max
 
       - name: Build builder stage
         uses: docker/bake-action@v5
         with:
           targets: builder
           set: |
-            *.cache-from=type=gha,scope=deps
-            *.cache-from=type=gha,scope=builder
-            *.cache-to=type=gha,scope=builder,mode=max
+            builder-api.cache-from=type=gha,scope=deps-api
+            builder-api.cache-from=type=gha,scope=builder-api
+            builder-api.cache-to=type=gha,scope=builder-api,mode=max
+            builder-ui.cache-from=type=gha,scope=deps-ui
+            builder-ui.cache-from=type=gha,scope=builder-ui
+            builder-ui.cache-to=type=gha,scope=builder-ui,mode=max
+
+  cache:
+    needs: pre-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Make cache directories
+        run: |
+          mkdir -p api/.npm
+          mkdir -p api/node_modules
+          mkdir -p ui/.npm
+          mkdir -p ui/node_modules
+          mkdir -p ui/.next/cache
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/.npm
+            **/node_modules
+            **/.next/cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
       - name: Build cache stage
         uses: docker/bake-action@v5
         with:
           targets: cache
           set: |
-            *.cache-from=type=gha,scope=deps
-            *.cache-from=type=gha,scope=builder
+            cache-api.cache-from=type=gha,scope=deps-api
+            cache-api.cache-from=type=gha,scope=builder-api
             cache-api.output=type=local,dest=api
+            cache-ui.cache-from=type=gha,scope=deps-ui
+            cache-ui.cache-from=type=gha,scope=builder-ui
             cache-ui.output=type=local,dest=ui
 
   build:
