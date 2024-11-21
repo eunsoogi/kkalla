@@ -19,6 +19,10 @@ jobs:
       - name: Setup docker bake environment
         uses: ./.github/actions/docker-bake-setup
 
+      - name: Print cache directories
+        run: |
+          ls -al **/.cache
+
       - name: Build builder stage
         uses: docker/bake-action@v5
         with:
