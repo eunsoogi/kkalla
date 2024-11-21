@@ -5,6 +5,7 @@ import { Order } from 'ccxt';
 import { ApikeyStatus } from '../apikey/apikey.enum';
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { CreateUpbitConfigDto } from './dto/create-config.dto';
+import { GetOrderRatioDto } from './dto/get-order-ratio.dto';
 import { RequestOrderDto } from './dto/request-order.dto';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { UpbitService } from './upbit.service';
@@ -17,6 +18,12 @@ export class UpbitController {
   @UseGuards(GoogleTokenAuthGuard)
   public async postOrder(@Req() req, @Body() request: RequestOrderDto): Promise<Order> {
     return this.upbitService.order(req.user, request);
+  }
+
+  @Post('order-ratio')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async getOrderRatio(@Req() req, @Body() request: GetOrderRatioDto): Promise<number> {
+    return this.upbitService.getOrderRatio(req.user, request.symbol);
   }
 
   @Post('config')
