@@ -54,14 +54,30 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      - name: Build dependency stage
+        uses: docker/bake-action@v5
+        with:
+          targets: deps
+          set: |
+            *.cache-from=type=gha,scope=deps
+            *.cache-to=type=gha,scope=deps,mode=max
+
+      - name: Build builder stage
+        uses: docker/bake-action@v5
+        with:
+          targets: builder
+          set: |
+            *.cache-from=type=gha,scope=deps
+            *.cache-from=type=gha,scope=builder
+            *.cache-to=type=gha,scope=builder,mode=max
+
       - name: Build cache stage
         uses: docker/bake-action@v5
         with:
           targets: cache
           set: |
-            *.cache-from=type=gha,scope=cache
-            *.cache-from=type=gha,scope=prod
-            *.cache-to=type=gha,scope=cache,mode=max
+            *.cache-from=type=gha,scope=deps
+            *.cache-from=type=gha,scope=builder
             cache-api.output=type=local,dest=api
             cache-ui.output=type=local,dest=ui
 
@@ -75,7 +91,8 @@ jobs:
         with:
           push: true
           set: |
-            *.cache-from=type=gha,scope=cache
+            *.cache-from=type=gha,scope=deps
+            *.cache-from=type=gha,scope=builder
             *.cache-from=type=gha,scope=prod
             *.cache-to=type=gha,scope=prod,mode=max
 
