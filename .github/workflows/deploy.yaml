@@ -10,22 +10,7 @@ on:
       - version
 
 jobs:
-  deps:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup docker bake environment
-        uses: ./.github/actions/docker-bake-setup
-
-      - name: Build dependency stage
-        uses: docker/bake-action@v5
-        with:
-          targets: deps
-
   builder:
-    needs: deps
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -55,7 +40,7 @@ jobs:
           targets: cache
 
   build:
-    needs: cache
+    needs: builder
     runs-on: ubuntu-latest
     permissions:
       packages: write
