@@ -4,13 +4,10 @@ description: Sets up the environment for Docker Bake builds with caching
 runs:
   using: composite
   steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up docker buildx
+    - name: Setup docker buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Make cache directories
+    - name: Create cache directories
       shell: bash
       run: |
         mkdir -p api/.cache
