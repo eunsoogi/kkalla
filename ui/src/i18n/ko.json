@@ -69,5 +69,9 @@
   "token": "토큰",
   "channel": "채널",
   "profile": "프로필",
-  "more": "더 보기"
+  "more": "더 보기",
+  "copy": {
+    "link": "링크 복사",
+    "complete": "복사되었습니다."
+  }
 }
