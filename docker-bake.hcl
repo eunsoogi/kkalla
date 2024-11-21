@@ -21,7 +21,6 @@ group "builder" {
 target "builder-api" {
   context = "api"
   target = "builder"
-  platforms = ["linux/arm64"]
   cache-from = ["type=gha,scope=builder-api"]
   cache-to = ["type=gha,scope=builder-api,mode=max"]
 }
@@ -29,7 +28,6 @@ target "builder-api" {
 target "builder-ui" {
   context = "ui"
   target = "builder"
-  platforms = ["linux/arm64"]
   cache-from = ["type=gha,scope=builder-ui"]
   cache-to = ["type=gha,scope=builder-ui,mode=max"]
 }
@@ -41,7 +39,6 @@ group "cache" {
 target "cache-api" {
   context = "api"
   target = "cache"
-  platforms = ["linux/arm64"]
   cache-from = ["type=gha,scope=builder-api"]
   output = ["type=local,dest=api/.cache"]
 }
@@ -49,7 +46,6 @@ target "cache-api" {
 target "cache-ui" {
   context = "ui"
   target = "cache"
-  platforms = ["linux/arm64"]
   cache-from = ["type=gha,scope=builder-ui"]
   output = ["type=local,dest=ui/.cache"]
 }

@@ -6,8 +6,6 @@ runs:
   steps:
     - name: Setup docker buildx
       uses: docker/setup-buildx-action@v3
-      with:
-        platforms: linux/arm64
 
     - name: Create cache directories
       shell: bash
