@@ -18,8 +18,6 @@ const FeargreedGaugeContent: React.FC = () => {
     staleTime: 0,
   });
 
-  console.log(data);
-
   if (!data) {
     return null;
   }

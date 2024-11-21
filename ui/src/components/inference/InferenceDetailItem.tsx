@@ -20,12 +20,15 @@ interface InferenceDetailProps extends Inference {
 const CopyLinkButton: React.FC<{ inferenceId: string }> = ({ inferenceId }) => {
   const t = useTranslations();
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     const url = `${window.location.origin}/inferences/${inferenceId}`;
-    navigator.clipboard
-      .writeText(url)
-      .then(() => alert(t('copy.complete')))
-      .catch((err) => console.error('Failed to copy:', err));
+
+    try {
+      await navigator.clipboard.writeText(url);
+      alert(t('copy.complete'));
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   return (
