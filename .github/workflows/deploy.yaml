@@ -21,19 +21,15 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p api/.npm
-          mkdir -p api/node_modules
-          mkdir -p ui/.npm
-          mkdir -p ui/node_modules
-          mkdir -p ui/.next/cache
+          mkdir -p .cache/api
+          mkdir -p .cache/ui
 
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            **/.npm
-            **/node_modules
-            **/.next/cache
+            .cache/**/node_modules
+            .cache/**/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
@@ -58,13 +54,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Make cache directories
+        run: |
+          mkdir -p .cache/api
+          mkdir -p .cache/ui
+
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            **/.npm
-            **/node_modules
-            **/.next/cache
+            .cache/**/node_modules
+            .cache/**/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
@@ -73,12 +73,6 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: cache
-
-      - name: Print cache directories
-        run: |
-          ls -al **/.npm
-          ls -al **/node_modules
-          ls -al **/.next/cache
 
   build:
     needs: cache
@@ -106,19 +100,15 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p api/.npm
-          mkdir -p api/node_modules
-          mkdir -p ui/.npm
-          mkdir -p ui/node_modules
-          mkdir -p ui/.next/cache
+          mkdir -p .cache/api
+          mkdir -p .cache/ui
 
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            **/.npm
-            **/node_modules
-            **/.next/cache
+            .cache/**/node_modules
+            .cache/**/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-

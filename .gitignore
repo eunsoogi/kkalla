@@ -1,3 +1,6 @@
+# Cache
+.cache
+
 # Build and Output
 dist
 build

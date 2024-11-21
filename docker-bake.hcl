@@ -67,6 +67,7 @@ target "cache-api" {
     "type=gha,scope=deps-api",
     "type=gha,scope=builder-api",
   ]
+  output = ["type=local,dest=.cache/api"]
 }
 
 target "cache-ui" {
@@ -76,6 +77,7 @@ target "cache-ui" {
     "type=gha,scope=deps-ui",
     "type=gha,scope=builder-ui",
   ]
+  output = ["type=local,dest=.cache/ui"]
 }
 
 group "default" {

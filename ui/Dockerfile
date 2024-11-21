@@ -1,8 +1,7 @@
 FROM node:22.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json .
-COPY ./.npm /root/.npm
-COPY ./node_modules ./node_modules
+COPY ../.cache/${TARGETOS}_${TARGETARCH} .
 RUN npm i --no-save --prefer-offline
 
 FROM node:22.11.0-alpine AS builder
