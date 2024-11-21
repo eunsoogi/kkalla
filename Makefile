@@ -26,11 +26,8 @@ version-release:
 version: version-npm version-helm version-release
 
 make-cache-dir:
-	@mkdir -p api/.npm
-	@mkdir -p api/node_modules
-	@mkdir -p ui/.npm
-	@mkdir -p ui/node_modules
-	@mkdir -p ui/.next/cache
+	@mkdir -p .cache/api/linux_arm64
+	@mkdir -p .cache/ui/linux_arm64
 
 .PHONY: build
 build: make-cache-dir

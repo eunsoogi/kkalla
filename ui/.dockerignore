@@ -1,11 +1,11 @@
 # Development dependencies
+/node_modules
 npm-debug.log
 yarn-debug.log
 yarn-error.log
 
 # Next.js build output
-.next/*
-!.next/cache
+/.next
 out
 build
 dist
@@ -30,7 +30,6 @@ dist
 *.sublime-project
 
 # Cache
-.cache
 .yarn
 
 # Test related

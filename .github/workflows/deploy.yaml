@@ -10,7 +10,37 @@ on:
       - version
 
 jobs:
+  builder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup docker bake environment
+        uses: ./.github/actions/docker-bake-setup
+
+      - name: Build builder stage
+        uses: docker/bake-action@v5
+        with:
+          targets: builder
+
+  cache:
+    needs: builder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup docker bake environment
+        uses: ./.github/actions/docker-bake-setup
+
+      - name: Build cache stage
+        uses: docker/bake-action@v5
+        with:
+          targets: cache
+
   build:
+    needs: builder
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -18,8 +48,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Setup docker bake environment
+        uses: ./.github/actions/docker-bake-setup
 
       - name: Login to registry
         uses: docker/login-action@v3
@@ -33,28 +63,7 @@ jobs:
         run: |
           echo "version=$(cat version)" >> $GITHUB_OUTPUT
 
-      - name: Make cache directories
-        run: |
-          mkdir -p api/.npm
-          mkdir -p api/node_modules
-          mkdir -p ui/.npm
-          mkdir -p ui/node_modules
-          mkdir -p ui/.next/cache
-
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            api/.npm
-            ui/.npm
-            api/node_modules
-            ui/node_modules
-            ui/.next/cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Build and push
+      - name: Build production stage
         uses: docker/bake-action@v5
         env:
           BUILD_TARGET: production
@@ -63,61 +72,6 @@ jobs:
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           push: true
-          set: |
-            api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache
-            api.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache,mode=max
-            ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache
-            ui.cache-to=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache,mode=max
-
-  cache:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Make cache directories
-        run: |
-          mkdir -p api/.npm
-          mkdir -p api/node_modules
-          mkdir -p ui/.npm
-          mkdir -p ui/node_modules
-          mkdir -p ui/.next/cache
-
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            api/.npm
-            ui/.npm
-            api/node_modules
-            ui/node_modules
-            ui/.next/cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Export build cache
-        uses: docker/bake-action@v5
-        with:
-          targets: cache
-          set: |
-            cache-api.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-api:cache
-            cache-api.output=type=local,dest=api
-            cache-ui.cache-from=type=registry,ref=ghcr.io/eunsoogi/kkalla-ui:cache
-            cache-ui.output=type=local,dest=ui
 
   release:
     needs: build
@@ -142,7 +96,7 @@ jobs:
           generate_release_notes: true
 
   deploy:
-    needs: release
+    needs: build
     runs-on: ubuntu-latest
     environment: production
     steps:

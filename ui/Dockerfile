@@ -1,42 +1,45 @@
-FROM node:22.11.0-alpine AS deps
+FROM node:22.11.0-alpine AS base
+
+FROM --platform=${BUILDPLATFORM} base AS deps
 WORKDIR /app
 COPY package*.json .
-COPY ./.npm /root/.npm
-COPY ./node_modules ./node_modules
+COPY ./.cache .
 RUN npm i --no-save --prefer-offline
 
-FROM node:22.11.0-alpine AS builder
+FROM --platform=${BUILDPLATFORM} base AS builder
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN rm -rf .cache
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 RUN npm run build
 
-FROM scratch AS cache
-WORKDIR /cache
-COPY --from=deps /root/.npm ./.npm
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next/cache ./.next/cache
+FROM --platform=${BUILDPLATFORM} scratch AS cache
+COPY --from=deps /app/node_modules /node_modules
+COPY --from=builder /app/.next/cache /.next/cache
 
 FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN rm -rf .cache
 ENV NODE_ENV=development
 ENV WATCHPACK_POLLING=true
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
 
-FROM node:22.11.0-alpine AS production
+FROM base AS production
 WORKDIR /app
 COPY package*.json .
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/.next/standalone .
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-RUN rm -rf ./.next/cache
 LABEL org.opencontainers.image.source=https://github.com/eunsoogi/kkalla
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 USER node
 EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
+CMD ["node", "server.js"]
