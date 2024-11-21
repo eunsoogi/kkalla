@@ -21,15 +21,15 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p .cache/api/linux_arm64
-          mkdir -p .cache/ui/linux_arm64
+          mkdir -p api/.cache/linux_arm64
+          mkdir -p ui/.cache/linux_arm64
 
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            .cache/**/node_modules
-            .cache/**/.next/cache
+            **/.cache/**/node_modules
+            **/.cache/**/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
@@ -56,15 +56,15 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p .cache/api/linux_arm64
-          mkdir -p .cache/ui/linux_arm64
+          mkdir -p api/.cache/linux_arm64
+          mkdir -p ui/.cache/linux_arm64
 
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            .cache/**/node_modules
-            .cache/**/.next/cache
+            **/.cache/**/node_modules
+            **/.cache/**/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
@@ -100,15 +100,15 @@ jobs:
 
       - name: Make cache directories
         run: |
-          mkdir -p .cache/api/linux_arm64
-          mkdir -p .cache/ui/linux_arm64
+          mkdir -p api/.cache/linux_arm64
+          mkdir -p ui/.cache/linux_arm64
 
       - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
-            .cache/**/node_modules
-            .cache/**/.next/cache
+            **/.cache/**/node_modules
+            **/.cache/**/.next/cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-buildx-

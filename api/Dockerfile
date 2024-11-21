@@ -3,7 +3,7 @@ WORKDIR /app
 ARG TARGETOS
 ARG TARGETARCH
 COPY package*.json .
-COPY ../.cache/api/${TARGETOS}_${TARGETARCH} .
+COPY ./.cache/${TARGETOS}_${TARGETARCH} .
 RUN npm i --no-save --prefer-offline
 
 FROM node:22.11.0-alpine AS builder
