@@ -19,12 +19,9 @@ jobs:
       - name: Setup docker bake environment
         uses: ./.github/actions/docker-bake-setup
 
-      - name: Install tree
-        run: sudo apt-get install -y tree
-
       - name: Print cache directories
         run: |
-          tree -L 3 **/.cache
+          ls -al **/.cache
 
       - name: Build builder stage
         uses: docker/bake-action@v5
