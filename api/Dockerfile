@@ -11,6 +11,7 @@ WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN rm -rf .cache
 RUN npm run build
 
 FROM scratch AS cache
@@ -22,6 +23,7 @@ WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN rm -rf .cache
 ENV NODE_ENV=development
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
