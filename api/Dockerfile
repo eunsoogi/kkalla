@@ -1,12 +1,12 @@
-FROM --platform=${BUILDPLATFORM} node:22.11.0-alpine AS base
+FROM node:22.11.0-alpine AS base
 
-FROM base AS deps
+FROM --platform=${BUILDPLATFORM} base AS deps
 WORKDIR /app
 COPY package*.json .
 COPY ./.cache .
 RUN npm i --no-save --prefer-offline
 
-FROM base AS builder
+FROM --platform=${BUILDPLATFORM} base AS builder
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
@@ -17,7 +17,7 @@ RUN npm run build
 FROM --platform=${BUILDPLATFORM} scratch AS cache
 COPY --from=deps /app/node_modules /node_modules
 
-FROM --platform=${TARGETPLATFORM} node:22.11.0-bookworm AS development
+FROM node:22.11.0-bookworm AS development
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
@@ -27,7 +27,7 @@ ENV NODE_ENV=development
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
 
-FROM --platform=${TARGETPLATFORM} node:22.11.0-bookworm AS production
+FROM base AS production
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
