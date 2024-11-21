@@ -1,0 +1,27 @@
+name: Setup docker bake environment
+description: Sets up the environment for Docker Bake builds with caching
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up docker buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Make cache directories
+      shell: bash
+      run: |
+        mkdir -p api/.cache
+        mkdir -p ui/.cache
+
+    - name: Restore build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          **/.cache/**/node_modules
+          **/.cache/**/.next/cache
+        key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
