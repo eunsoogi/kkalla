@@ -26,8 +26,8 @@ version-release:
 version: version-npm version-helm version-release
 
 make-cache-dir:
-	@mkdir -p .cache/api/linux_arm64
-	@mkdir -p .cache/ui/linux_arm64
+	@mkdir -p api/.cache
+	@mkdir -p ui/.cache
 
 .PHONY: build
 build: make-cache-dir
@@ -43,14 +43,6 @@ import:
 		-c $(CLUSTER_NAME) \
 		$(IMAGE_REGISTRY)/$(IMAGE_NAME_PREFIX)-api:$(IMAGE_TAG) \
 		$(IMAGE_REGISTRY)/$(IMAGE_NAME_PREFIX)-ui:$(IMAGE_TAG)
-
-.PHONY: push
-push: make-cache-dir
-	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
-	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
-	IMAGE_TAG=$(IMAGE_TAG) \
-	BUILD_TARGET=$(ENV) \
-	docker buildx bake --push
 
 .PHONY: create-cluster
 create-cluster:
