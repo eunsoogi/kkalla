@@ -58,20 +58,12 @@ target "api" {
   context = "api"
   target = "${BUILD_TARGET}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"]
-  cache-from = [
-    "type=gha,scope=builder-api",
-    "type=gha,scope=prod-api",
-  ]
-  cache-to = ["type=gha,scope=prod-api,mode=max"]
+  cache-from = ["type=gha,scope=builder-api"]
 }
 
 target "ui" {
   context = "ui"
   target = "${BUILD_TARGET}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
-  cache-from = [
-    "type=gha,scope=builder-ui",
-    "type=gha,scope=prod-ui",
-  ]
-  cache-to = ["type=gha,scope=prod-ui,mode=max"]
+  cache-from = ["type=gha,scope=builder-api"]
 }
