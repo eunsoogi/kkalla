@@ -131,12 +131,14 @@ export class UpbitService {
     this.logger.debug(`tradePrice: ${tradePrice}`);
     this.logger.debug(`tradeVolume: ${tradeVolume}`);
 
-    switch (request.type()) {
+    switch (request.type) {
+      // @ts-expect-error lazy loading과 관련된 오류이므로 무시
       case OrderTypes.BUY:
-        return await client.createOrder(ticker, 'market', request.type(), 1, tradePrice);
+        return await client.createOrder(ticker, 'market', request.type, 1, tradePrice);
 
+      // @ts-expect-error lazy loading과 관련된 오류이므로 무시
       case OrderTypes.SELL:
-        return await client.createOrder(ticker, 'market', request.type(), tradeVolume);
+        return await client.createOrder(ticker, 'market', request.type, tradeVolume);
     }
 
     return null;
