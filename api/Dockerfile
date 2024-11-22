@@ -2,6 +2,10 @@ FROM node:22.11.0-alpine AS base
 FROM node:22.11.0-bookworm AS base-dev
 
 FROM --platform=${BUILDPLATFORM} base AS deps
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+RUN echo ${BUILDPLATFORM}
+RUN echo ${TARGETPLATFORM}
 WORKDIR /app
 COPY package*.json .
 COPY ./.cache .
