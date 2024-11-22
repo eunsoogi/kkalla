@@ -23,8 +23,6 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: builder
-          set: |
-            *.platform=linux/arm64
 
   cache:
     needs: builder
@@ -40,8 +38,6 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: cache
-          set: |
-            *.platform=linux/arm64
 
   build:
     needs: builder
@@ -78,6 +74,7 @@ jobs:
           push: true
           set: |
             *.platform=linux/arm64
+            *.args.BUILDPLATFORM=${{ runner.os }}/${{ runner.arch }}
 
   release:
     needs: build
