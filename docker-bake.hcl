@@ -10,7 +10,7 @@ variable "IMAGE_TAG" {
     default = ""
 }
 
-variable "BUILD_TARGET" {
+variable "ENV" {
     default = ""
 }
 
@@ -56,22 +56,20 @@ group "default" {
 
 target "api" {
   context = "api"
-  target = "${BUILD_TARGET}"
+  target = "runner-${ENV}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"]
   cache-from = [
     "type=gha,scope=builder-api",
-    "type=gha,scope=prod-api",
+    "type=registry,ref=${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"
   ]
-  cache-to = ["type=gha,scope=prod-api,mode=max"]
 }
 
 target "ui" {
   context = "ui"
-  target = "${BUILD_TARGET}"
+  target = "runner-${ENV}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
   cache-from = [
     "type=gha,scope=builder-ui",
-    "type=gha,scope=prod-ui",
+    "type=registry,ref=${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"
   ]
-  cache-to = ["type=gha,scope=prod-ui,mode=max"]
 }

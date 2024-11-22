@@ -66,7 +66,7 @@ jobs:
       - name: Build production stage
         uses: docker/bake-action@v5
         env:
-          BUILD_TARGET: production
+          ENV: production
           IMAGE_REGISTRY: ghcr.io/eunsoogi
           IMAGE_NAME_PREFIX: kkalla
           IMAGE_TAG: ${{ steps.version.outputs.version }}
