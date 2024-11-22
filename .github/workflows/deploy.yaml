@@ -23,6 +23,8 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: builder
+          set: |
+            *.platform=linux/arm64
 
   cache:
     needs: builder
@@ -38,6 +40,8 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: cache
+          set: |
+            *.platform=linux/arm64
 
   build:
     needs: builder
@@ -66,7 +70,7 @@ jobs:
       - name: Build production stage
         uses: docker/bake-action@v5
         env:
-          BUILD_TARGET: production
+          ENV: production
           IMAGE_REGISTRY: ghcr.io/eunsoogi
           IMAGE_NAME_PREFIX: kkalla
           IMAGE_TAG: ${{ steps.version.outputs.version }}
