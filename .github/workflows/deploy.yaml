@@ -74,7 +74,7 @@ jobs:
           push: true
           set: |
             *.platform=linux/arm64
-            *.args.BUILDPLATFORM=${{ runner.os }}/${{ runner.arch }}
+            *.build-arg.BUILDPLATFORM=${{ runner.os }}/${{ runner.arch }}
 
   release:
     needs: build

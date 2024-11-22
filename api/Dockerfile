@@ -1,13 +1,13 @@
 FROM node:22.11.0-alpine AS base
 FROM node:22.11.0-bookworm AS base-dev
 
-FROM --platform=${BUILDPLATFORM} base-dev AS deps
+FROM --platform=${BUILDPLATFORM} base AS deps
 WORKDIR /app
 COPY package*.json .
 COPY ./.cache .
 RUN npm i --no-save --prefer-offline
 
-FROM --platform=${BUILDPLATFORM} base-dev AS builder
+FROM --platform=${BUILDPLATFORM} base AS builder
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
