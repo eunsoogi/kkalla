@@ -65,5 +65,5 @@ target "ui" {
   context = "ui"
   target = "runner-${ENV}"
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
-  cache-from = ["type=gha,scope=builder-api"]
+  cache-from = ["type=gha,scope=builder-ui"]
 }
