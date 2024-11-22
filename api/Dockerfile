@@ -1,12 +1,10 @@
-FROM node:22.11.0-alpine AS base
-
-FROM --platform=${BUILDPLATFORM} base AS deps
+FROM --platform=${BUILDPLATFORM} node:22.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json .
 COPY ./.cache .
 RUN npm i --no-save --prefer-offline
 
-FROM --platform=${BUILDPLATFORM} base AS builder
+FROM --platform=${BUILDPLATFORM} node:22.11.0-alpine AS builder
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
@@ -27,7 +25,7 @@ ENV NODE_ENV=development
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
 
-FROM base AS production
+FROM node:22.11.0-alpine AS production
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
