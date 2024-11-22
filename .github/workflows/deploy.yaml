@@ -72,6 +72,8 @@ jobs:
           IMAGE_TAG: ${{ steps.version.outputs.version }}
         with:
           push: true
+          set: |
+            *.platform=linux/arm64
 
   release:
     needs: build

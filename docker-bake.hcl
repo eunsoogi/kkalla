@@ -57,7 +57,6 @@ group "default" {
 target "api" {
   context = "api"
   target = "${BUILD_TARGET}"
-  platforms = ["linux/arm64"]
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"]
   cache-from = [
     "type=gha,scope=builder-api",
@@ -69,7 +68,6 @@ target "api" {
 target "ui" {
   context = "ui"
   target = "${BUILD_TARGET}"
-  platforms = ["linux/arm64"]
   tags = ["${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"]
   cache-from = [
     "type=gha,scope=builder-ui",
