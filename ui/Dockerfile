@@ -18,7 +18,7 @@ FROM --platform=${BUILDPLATFORM} scratch AS cache
 COPY --from=deps /app/node_modules /node_modules
 COPY --from=builder /app/.next/cache /.next/cache
 
-FROM node:22.11.0-bookworm AS development
+FROM --platform=${TARGETPLATFORM} node:22.11.0-bookworm AS development
 WORKDIR /app
 COPY package*.json .
 COPY --from=deps /app/node_modules ./node_modules
@@ -29,9 +29,8 @@ ENV WATCHPACK_POLLING=true
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
 
-FROM node:22.11.0-alpine AS production
+FROM --platform=${TARGETPLATFORM} node:22.11.0-alpine AS production
 WORKDIR /app
-COPY package*.json .
 COPY --from=builder /app/.next/standalone .
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
