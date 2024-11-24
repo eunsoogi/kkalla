@@ -1,5 +1,6 @@
 import {
   BaseEntity,
+  Between,
   Column,
   CreateDateColumn,
   Entity,
@@ -7,10 +8,12 @@ import {
   JoinTable,
   LessThanOrEqual,
   ManyToMany,
+  MoreThanOrEqual,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { User } from '@/modules/user/entities/user.entity';
 
@@ -73,14 +76,28 @@ export class Inference extends BaseEntity {
   updatedAt: Date;
 
   public static async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+    const where: any = {};
+
+    if (request.users) {
+      where.users = request.users;
+    }
+
+    if (request.decision) {
+      where.decision = request.decision;
+    }
+
+    if (request.createdAt) {
+      where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
+    }
+
+    const sortDirection = request.sortDirection ?? SortDirection.DESC;
+
     const findOptions: FindManyOptions<Inference> = {
       take: request.perPage,
       skip: (request.page - 1) * request.perPage,
-      where: {
-        users: request.users,
-      },
+      where,
       order: {
-        seq: 'DESC',
+        seq: sortDirection,
       },
     };
 
@@ -96,16 +113,21 @@ export class Inference extends BaseEntity {
   }
 
   public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
-    const findOptions: FindManyOptions<Inference> = {
-      take: request.limit + 1,
-      skip: request.cursor && request.skip ? 1 : 0,
-      where: {
-        users: request.users,
-      },
-      order: {
-        seq: 'DESC',
-      },
-    };
+    const where: any = {};
+
+    if (request.users) {
+      where.users = request.users;
+    }
+
+    if (request.decision) {
+      where.decision = request.decision;
+    }
+
+    if (request.createdAt) {
+      where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
+    }
+
+    const sortDirection = request.sortDirection ?? SortDirection.DESC;
 
     if (request.cursor) {
       const cursor = await this.findOne({
@@ -115,12 +137,18 @@ export class Inference extends BaseEntity {
       });
 
       if (cursor) {
-        findOptions.where = {
-          ...findOptions.where,
-          seq: LessThanOrEqual(cursor.seq),
-        };
+        where.seq = sortDirection === SortDirection.DESC ? LessThanOrEqual(cursor.seq) : MoreThanOrEqual(cursor.seq);
       }
     }
+
+    const findOptions: FindManyOptions<Inference> = {
+      take: request.limit + 1,
+      skip: request.cursor && request.skip ? 1 : 0,
+      where,
+      order: {
+        seq: sortDirection,
+      },
+    };
 
     const items = await this.find(findOptions);
     let total = items.length;

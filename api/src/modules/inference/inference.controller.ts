@@ -8,7 +8,7 @@ import { GetInferenceDto } from './dto/get-inference.dto';
 import { PostInferenceDto } from './dto/post-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG } from './inference.config';
-import { InferenceData } from './inference.interface';
+import { InferenceData, InferenceMessageRequest } from './inference.interface';
 import { InferenceService } from './inference.service';
 
 @Controller('api/v1/inferences')
@@ -18,33 +18,70 @@ export class InferenceController {
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
   public get(@Req() req, @Query() params: GetInferenceDto): Promise<PaginatedItem<Inference>> {
-    return this.inferenceService.paginate({
-      ...params,
-      ...(Boolean(params.mine) && {
-        users: {
-          id: req.user.id,
-        },
-      }),
-    });
+    const filters: any = {
+      page: params.page,
+      perPage: params.perPage,
+      sortDirection: params.sortDirection,
+      decision: params.decision,
+    };
+
+    if (params.mine) {
+      filters.users = {
+        id: req.user.id,
+      };
+    }
+
+    if (params.startDate || params.endDate) {
+      filters.createdAt = {};
+
+      if (params.startDate) {
+        filters.createdAt.gte = params.startDate;
+      }
+
+      if (params.endDate) {
+        filters.createdAt.lte = params.endDate;
+      }
+    }
+
+    return this.inferenceService.paginate(filters);
   }
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  public cursor(@Req() req, @Query() params: GetInferenceCursorDto): Promise<CursorItem<Inference, string>> {
-    return this.inferenceService.cursor({
-      ...params,
-      ...(Boolean(params.mine) && {
-        users: {
-          id: req.user.id,
-        },
-      }),
-    });
+  public async cursor(@Req() req, @Query() params: GetInferenceCursorDto): Promise<CursorItem<Inference, string>> {
+    const filters: any = {
+      cursor: params.cursor,
+      limit: params.limit,
+      skip: params.skip,
+      sortDirection: params.sortDirection,
+      decision: params.decision,
+    };
+
+    if (params.mine) {
+      filters.users = {
+        id: req.user.id,
+      };
+    }
+
+    if (params.startDate || params.endDate) {
+      filters.createdAt = {};
+
+      if (params.startDate) {
+        filters.createdAt.gte = params.startDate;
+      }
+
+      if (params.endDate) {
+        filters.createdAt.lte = params.endDate;
+      }
+    }
+
+    return this.inferenceService.cursor(filters);
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
   public post(@Body() body: PostInferenceDto): Promise<InferenceData> {
-    return this.inferenceService.inference({
+    return this.inferenceService.inference(<InferenceMessageRequest>{
       ...INFERENCE_CONFIG.message,
       ...body,
     });

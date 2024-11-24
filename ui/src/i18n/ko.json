@@ -47,12 +47,25 @@
     "list": "추론 목록",
     "mine": "내 추론만 보기",
     "reason": "추론 내용",
-    "bound": "포트폴리오 비중 {lower}~{upper}%"
+    "bound": "포트폴리오 비중 {lower}~{upper}%",
+    "decision": "매매 결정"
+  },
+  "date": {
+    "start": "시작일",
+    "end": "종료일",
+    "today": "오늘",
+    "clear": "초기화"
+  },
+  "sort": {
+    "label": "정렬 순서",
+    "desc": "최신순",
+    "asc": "오래된순"
   },
   "decision": {
     "buy": "매수",
     "sell": "매도",
-    "hold": "홀드"
+    "hold": "홀드",
+    "label": "결정"
   },
   "trade": {
     "list": "거래 목록",
@@ -73,5 +86,6 @@
   "copy": {
     "link": "링크 복사",
     "complete": "복사되었습니다."
-  }
+  },
+  "all": "전체"
 }
