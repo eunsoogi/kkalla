@@ -30,11 +30,16 @@ export const getInferenceAction = async (params: InferenceParams): Promise<Pagin
   }
 };
 
-export interface InferenceCursorParams {
+interface InferenceCursorParams {
   cursor?: string;
   limit?: number;
   skip?: boolean;
   mine?: boolean;
+  decision?: string;
+  sortBy?: string;
+  sortDirection?: string;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export const getInferenceCursorAction = async (params: InferenceCursorParams): Promise<CursorItem<Inference>> => {

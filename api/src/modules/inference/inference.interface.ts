@@ -1,4 +1,5 @@
 import { Feargreed } from '../feargreed/feargreed.interface';
+import { SortDirection } from '../item/item.enum';
 import { News } from '../news/news.interface';
 import { Candle } from '../upbit/upbit.interface';
 import { InferenceDecisionTypes } from './inference.enum';
@@ -6,6 +7,12 @@ import { InferenceDecisionTypes } from './inference.enum';
 export interface InferenceFilter {
   users?: {
     id: string;
+  };
+  decision?: InferenceDecisionTypes;
+  sortDirection?: SortDirection;
+  createdAt?: {
+    gte?: Date;
+    lte?: Date;
   };
 }
 

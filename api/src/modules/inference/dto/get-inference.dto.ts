@@ -2,7 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { Type } from 'class-transformer';
 
+import { SortDirection } from '@/modules/item/item.enum';
 import { ToBoolean } from '@/transforms/boolean.transform';
+import { ToDate } from '@/transforms/date.transform';
+
+import { InferenceDecisionTypes } from '../inference.enum';
 
 export class GetInferenceDto {
   @ToBoolean()
@@ -25,4 +29,31 @@ export class GetInferenceDto {
     example: 6,
   })
   perPage: number = 6;
+
+  @ApiProperty({
+    required: false,
+    enum: SortDirection,
+    default: SortDirection.DESC,
+  })
+  sortDirection?: SortDirection = SortDirection.DESC;
+
+  @ApiProperty({
+    required: false,
+    enum: InferenceDecisionTypes,
+  })
+  decision?: InferenceDecisionTypes;
+
+  @ToDate()
+  @ApiProperty({
+    required: false,
+    type: Date,
+  })
+  startDate?: Date;
+
+  @ToDate()
+  @ApiProperty({
+    required: false,
+    type: Date,
+  })
+  endDate?: Date;
 }
