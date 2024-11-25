@@ -1,14 +1,31 @@
-export const DECISION_STYLES = {
-  buy: {
-    dotStyle: 'bg-success',
-    badgeStyle: 'text-success bg-lightsuccess dark:text-white dark:bg-success',
-  },
-  hold: {
-    dotStyle: 'bg-warning',
-    badgeStyle: 'text-warning bg-lightwarning dark:text-white dark:bg-warning',
-  },
-  sell: {
-    dotStyle: 'bg-error',
-    badgeStyle: 'text-error bg-lighterror dark:text-white dark:bg-error',
-  },
-} as const;
+import { DecisionTypes } from '@/enums/decision.enum';
+
+export const getDecisionDotStyle = (decision?: string): string | undefined => {
+  if (!decision) return undefined;
+
+  switch (decision.toLowerCase()) {
+    case DecisionTypes.BUY:
+      return 'bg-success';
+    case DecisionTypes.HOLD:
+      return 'bg-warning';
+    case DecisionTypes.SELL:
+      return 'bg-error';
+  }
+
+  return undefined;
+};
+
+export const getDecisionBadgeStyle = (decision?: string): string | undefined => {
+  if (!decision) return undefined;
+
+  switch (decision.toLowerCase()) {
+    case DecisionTypes.BUY:
+      return 'text-success bg-lightsuccess dark:text-white dark:bg-success';
+    case DecisionTypes.HOLD:
+      return 'text-warning bg-lightwarning dark:text-white dark:bg-warning';
+    case DecisionTypes.SELL:
+      return 'text-error bg-lighterror dark:text-white dark:bg-error';
+  }
+
+  return undefined;
+};
