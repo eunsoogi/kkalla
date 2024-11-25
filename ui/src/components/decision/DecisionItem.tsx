@@ -18,7 +18,7 @@ export const DecisionItem: React.FC<DecisionItemProps> = ({ item }) => {
   return (
     <div className='flex flex-col w-full my-3'>
       <div className='flex flex-row gap-6'>
-        <Badge className={DECISION_STYLES[item.decision].badgeStyle}>{item.decision}</Badge>
+        <Badge className={DECISION_STYLES[item?.decision]?.badgeStyle}>{item.decision}</Badge>
         <div className='flex flex-col'>
           <h4 className='text-dark dark:text-white'>
             {item.orderRatio * 100}% {t(`decision.${item.decision}`)}
