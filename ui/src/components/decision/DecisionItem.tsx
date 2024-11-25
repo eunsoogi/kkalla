@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Decision } from '@/interfaces/decision.interface';
 
 import { CopyLinkButton } from '../common/CopyLinkButton';
-import { DECISION_STYLES } from './style';
+import { getDecisionBadgeStyle } from './style';
 
 interface DecisionItemProps {
   item: Decision;
@@ -14,14 +14,15 @@ interface DecisionItemProps {
 
 export const DecisionItem: React.FC<DecisionItemProps> = ({ item }) => {
   const t = useTranslations();
+  const decision = item?.decision?.toLowerCase();
 
   return (
     <div className='flex flex-col w-full my-3'>
       <div className='flex flex-row gap-6'>
-        <Badge className={DECISION_STYLES[item?.decision]?.badgeStyle}>{item.decision}</Badge>
+        <Badge className={getDecisionBadgeStyle(decision)}>{decision}</Badge>
         <div className='flex flex-col'>
           <h4 className='text-dark dark:text-white'>
-            {item.orderRatio * 100}% {t(`decision.${item.decision}`)}
+            {item.orderRatio * 100}% {t(`decision.${decision}`)}
           </h4>
           <p>
             {t('inference.bound', {
