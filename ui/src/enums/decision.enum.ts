@@ -1,4 +1,4 @@
-export enum InferenceDecisionTypes {
+export enum DecisionTypes {
   BUY = 'buy',
   SELL = 'sell',
   HOLD = 'hold',

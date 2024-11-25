@@ -6,7 +6,7 @@ import { SortDirection } from '@/modules/item/item.enum';
 import { ToBoolean } from '@/transforms/boolean.transform';
 import { ToDate } from '@/transforms/date.transform';
 
-export class GetInferenceCursorDto extends GetCursorDto<string> {
+export class GetDecisionCursorDto extends GetCursorDto<string> {
   @ToBoolean()
   @ApiProperty({
     required: true,

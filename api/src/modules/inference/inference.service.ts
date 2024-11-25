@@ -6,6 +6,7 @@ import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } 
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
+import { DecisionService } from '../decision/decision.service';
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { FeargreedService } from '../feargreed/feargreed.service';
 import { FirechartService } from '../firechart/firechart.service';
@@ -21,7 +22,6 @@ import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE
 import {
   InferenceData,
   InferenceFilter,
-  InferenceItem,
   InferenceMessage,
   InferenceMessageRequest,
   RetryOptions,
@@ -34,6 +34,7 @@ export class InferenceService {
   constructor(
     private readonly i18n: I18nService,
     private readonly sequenceService: SequenceService,
+    private readonly decisionService: DecisionService,
     private readonly openaiService: OpenaiService,
     private readonly upbitService: UpbitService,
     private readonly newsService: NewsService,
@@ -154,11 +155,12 @@ export class InferenceService {
     throw new Error(this.i18n.t('logging.retry.failed'));
   }
 
-  public async create(data: InferenceItem): Promise<Inference> {
+  public async create(data: InferenceData): Promise<Inference> {
     const inference = new Inference();
 
     Object.assign(inference, data);
     inference.seq = await this.sequenceService.getNextSequence();
+    inference.decisions = await Promise.all(data.decisions.map(async (item) => this.decisionService.create(item)));
 
     return inference.save();
   }

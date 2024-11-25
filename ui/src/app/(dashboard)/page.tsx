@@ -1,9 +1,9 @@
 import React from 'react';
 
+import { DecisionLine } from '@/components/decision/DecisionLine';
 import { FeargreedGauge } from '@/components/feargreed/FeargreedGauge';
 import { FeargreedTable } from '@/components/feargreed/FeargreedTable';
 import { Firechart } from '@/components/firechart/Firechart';
-import { InferenceList } from '@/components/inference/InferenceList';
 import { TradeList } from '@/components/trade/TradeList';
 
 const Page: React.FC = () => {
@@ -14,7 +14,7 @@ const Page: React.FC = () => {
           <TradeList />
         </div>
         <div className='lg:col-span-4 col-span-12'>
-          <InferenceList />
+          <DecisionLine />
         </div>
         <div className='lg:col-span-4 col-span-12'>
           <FeargreedGauge />

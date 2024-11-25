@@ -1,24 +1,31 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 import {
   BaseEntity,
   Between,
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
   LessThanOrEqual,
+  ManyToMany,
+  ManyToOne,
   MoreThanOrEqual,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Decision } from '@/modules/decision/entities/decision.entity';
+import { Inference } from '@/modules/inference/entities/inference.entity';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { User } from '@/modules/user/entities/user.entity';
 
-import { InferenceFilter } from '../inference.interface';
+import { DecisionTypes } from '../decision.enum';
+import { DecisionFilter } from '../decision.interface';
 
 @Entity()
-export class Inference extends BaseEntity {
+export class Decision extends BaseEntity {
+  @ApiProperty()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -28,23 +35,69 @@ export class Inference extends BaseEntity {
   })
   seq: number;
 
-  @Column()
-  symbol: string;
-
-  @OneToMany(() => Decision, (decision) => decision.inference, {
-    eager: true,
-    cascade: true,
+  @ManyToOne(() => Inference, (inference) => inference.decisions, {
+    onDelete: 'CASCADE',
   })
-  decisions: Decision[];
+  inference: Inference;
 
+  @ApiProperty({ type: () => [User] })
+  @ManyToMany(() => User)
+  @JoinTable()
+  users: User[];
+
+  @ApiProperty({ enum: DecisionTypes })
+  @Column({
+    type: 'enum',
+    enum: DecisionTypes,
+    nullable: false,
+  })
+  decision: DecisionTypes;
+
+  @ApiProperty()
+  @Column({
+    type: 'double',
+    default: 0,
+  })
+  orderRatio: number;
+
+  @ApiProperty()
+  @Column({
+    type: 'double',
+    default: 0,
+  })
+  weightLowerBound: number;
+
+  @ApiProperty()
+  @Column({
+    type: 'double',
+    default: 0,
+  })
+  weightUpperBound: number;
+
+  @ApiProperty()
+  @Column({
+    type: 'text',
+  })
+  reason: string;
+
+  @ApiProperty()
   @CreateDateColumn()
   createdAt: Date;
 
+  @ApiProperty()
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+  public static async paginate(request: ItemRequest & DecisionFilter): Promise<PaginatedItem<Decision>> {
     const where: any = {};
+
+    if (request.users) {
+      where.users = request.users;
+    }
+
+    if (request.decision) {
+      where.decision = request.decision;
+    }
 
     if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
@@ -54,8 +107,9 @@ export class Inference extends BaseEntity {
 
     const findOptions = {
       where,
+      relations: ['users', 'inference'],
       order: {
-        seq: sortDirection,
+        createdAt: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,
@@ -72,8 +126,16 @@ export class Inference extends BaseEntity {
     };
   }
 
-  public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
+  public static async cursor(request: CursorRequest<string> & DecisionFilter): Promise<CursorItem<Decision, string>> {
     const where: any = {};
+
+    if (request.users) {
+      where.users = request.users;
+    }
+
+    if (request.decision) {
+      where.decision = request.decision;
+    }
 
     if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
@@ -93,8 +155,9 @@ export class Inference extends BaseEntity {
 
     const findOptions = {
       where,
+      relations: ['users', 'inference'],
       order: {
-        seq: sortDirection,
+        createdAt: sortDirection,
       },
       take: request.limit + 1,
     };

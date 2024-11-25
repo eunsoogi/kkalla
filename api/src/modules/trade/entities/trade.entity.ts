@@ -10,7 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Inference } from '@/modules/inference/entities/inference.entity';
+import { Decision } from '@/modules/decision/entities/decision.entity';
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
@@ -59,13 +59,14 @@ export class Trade extends BaseEntity {
   })
   balances: Balances;
 
-  @ManyToOne(() => Inference, {
+  @ManyToOne(() => Decision, {
+    nullable: true,
     cascade: true,
     eager: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn()
-  inference: Inference;
+  decision: Decision;
 
   @CreateDateColumn()
   createdAt: Date;

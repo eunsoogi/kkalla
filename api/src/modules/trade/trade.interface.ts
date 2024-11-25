@@ -1,6 +1,6 @@
 import { Balances } from 'ccxt';
 
-import { Inference } from '../inference/entities/inference.entity';
+import { Decision } from '../decision/entities/decision.entity';
 import { OrderTypes } from '../upbit/upbit.enum';
 
 export interface TradeRequest {
@@ -14,5 +14,5 @@ export interface TradeData {
   market: string;
   amount: number;
   balances: Balances;
-  inference: Inference;
+  decision: Decision;
 }

@@ -17,6 +17,7 @@
     "@tanstack/react-query-devtools": "^5.60.5",
     "axios": "^1.7.7",
     "axios-retry": "^4.5.0",
+    "class-transformer": "^0.5.1",
     "eslint-config-prettier": "^9.1.0",
     "flowbite": "2.5.2",
     "flowbite-react": "0.10.2",

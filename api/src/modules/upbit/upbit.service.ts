@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Balances, OHLCV, Order, upbit } from 'ccxt';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
-import { InferenceDecisionTypes } from '../inference/inference.enum';
+import { DecisionTypes } from '../decision/decision.enum';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
@@ -144,15 +144,14 @@ export class UpbitService {
     return null;
   }
 
-  public static getOrderType(decision: InferenceDecisionTypes): OrderTypes | null {
+  public static getOrderType(decision: DecisionTypes): OrderTypes | null {
     switch (decision) {
-      case InferenceDecisionTypes.BUY:
+      case DecisionTypes.BUY:
         return OrderTypes.BUY;
-
-      case InferenceDecisionTypes.SELL:
+      case DecisionTypes.SELL:
         return OrderTypes.SELL;
+      default:
+        return null;
     }
-
-    return null;
   }
 }
