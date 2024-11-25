@@ -50,9 +50,25 @@ export class Inference extends BaseEntity {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
     }
 
+    if (request.decision) {
+      where.decisions = {
+        decision: request.decision,
+      };
+    }
+
+    if (request.users?.id) {
+      where.decisions = {
+        ...where.decisions,
+        users: {
+          id: request.users.id,
+        },
+      };
+    }
+
     const sortDirection = request.sortDirection ?? SortDirection.DESC;
 
     const findOptions = {
+      relations: ['decisions', 'decisions.users'],
       where,
       order: {
         seq: sortDirection,
@@ -62,6 +78,19 @@ export class Inference extends BaseEntity {
     };
 
     const [items, total] = await this.findAndCount(findOptions);
+
+    items.forEach((inference) => {
+      inference.decisions = inference.decisions.filter((decision) => {
+        let match = true;
+        if (request.decision) {
+          match = match && decision.decision === request.decision;
+        }
+        if (request.users?.id) {
+          match = match && decision.users.some((user) => user.id === request.users.id);
+        }
+        return match;
+      });
+    });
 
     return {
       items,
@@ -79,6 +108,21 @@ export class Inference extends BaseEntity {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
     }
 
+    if (request.decision) {
+      where.decisions = {
+        decision: request.decision,
+      };
+    }
+
+    if (request.users?.id) {
+      where.decisions = {
+        ...where.decisions,
+        users: {
+          id: request.users.id,
+        },
+      };
+    }
+
     const sortDirection = request.sortDirection ?? SortDirection.DESC;
 
     if (request.cursor) {
@@ -92,6 +136,7 @@ export class Inference extends BaseEntity {
     }
 
     const findOptions = {
+      relations: ['decisions', 'decisions.users'],
       where,
       order: {
         seq: sortDirection,
@@ -100,6 +145,19 @@ export class Inference extends BaseEntity {
     };
 
     const items = await this.find(findOptions);
+
+    items.forEach((inference) => {
+      inference.decisions = inference.decisions.filter((decision) => {
+        let match = true;
+        if (request.decision) {
+          match = match && decision.decision === request.decision;
+        }
+        if (request.users?.id) {
+          match = match && decision.users.some((user) => user.id === request.users.id);
+        }
+        return match;
+      });
+    });
 
     let total = items.length;
     const hasNextPage = total > request.limit;

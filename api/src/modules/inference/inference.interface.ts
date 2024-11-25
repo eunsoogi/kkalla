@@ -12,6 +12,9 @@ export interface InferenceFilter {
     gte?: Date;
     lte?: Date;
   };
+  users?: {
+    id?: string;
+  };
 }
 
 export interface InferenceMessageRequest {

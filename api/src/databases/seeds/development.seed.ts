@@ -29,14 +29,14 @@ export const seeds = {
         seq: (await new Sequence().save()).value,
         symbol: 'BTC',
         decisions: await Promise.all(
-          weightBounds.map(async (lowerBound) => ({
+          weightBounds.map(async (lowerBound, index) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
-            users,
+            users: index < 1 ? users : [],
           })),
         ),
       },
@@ -44,13 +44,14 @@ export const seeds = {
         seq: (await new Sequence().save()).value,
         symbol: 'BTC',
         decisions: await Promise.all(
-          weightBounds.map(async (lowerBound) => ({
+          weightBounds.map(async (lowerBound, index) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: index < 1 ? users : [],
           })),
         ),
       },
@@ -58,14 +59,14 @@ export const seeds = {
         seq: (await new Sequence().save()).value,
         symbol: 'ETH',
         decisions: await Promise.all(
-          weightBounds.map(async (lowerBound) => ({
+          weightBounds.map(async (lowerBound, index) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
-            users,
+            users: index < 1 ? users : [],
           })),
         ),
       },
@@ -94,7 +95,6 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
-            users,
           })),
         ),
       },
@@ -123,7 +123,6 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
-            users,
           })),
         ),
       },
