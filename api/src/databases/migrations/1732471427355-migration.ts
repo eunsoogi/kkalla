@@ -8,7 +8,7 @@ export class Migration1732471427355 implements MigrationInterface {
         columns: [
           {
             name: 'id',
-            type: 'varchar',
+            type: 'uuid',
             isPrimary: true,
           },
           {
@@ -18,7 +18,7 @@ export class Migration1732471427355 implements MigrationInterface {
           },
           {
             name: 'inference_id',
-            type: 'varchar',
+            type: 'uuid',
             isNullable: true,
           },
           {
@@ -92,6 +92,7 @@ export class Migration1732471427355 implements MigrationInterface {
         referencedColumnNames: ['id'],
         referencedTableName: 'inference',
         onDelete: 'CASCADE',
+        onUpdate: 'NO ACTION',
       }),
     );
 
@@ -101,29 +102,37 @@ export class Migration1732471427355 implements MigrationInterface {
         columns: [
           {
             name: 'decision_id',
-            type: 'varchar',
+            type: 'uuid',
           },
           {
             name: 'user_id',
-            type: 'varchar',
-          },
-        ],
-        foreignKeys: [
-          {
-            columnNames: ['decision_id'],
-            referencedColumnNames: ['id'],
-            referencedTableName: 'decision',
-            onDelete: 'CASCADE',
-          },
-          {
-            columnNames: ['user_id'],
-            referencedColumnNames: ['id'],
-            referencedTableName: 'user',
-            onDelete: 'CASCADE',
+            type: 'uuid',
           },
         ],
       }),
       true,
+    );
+
+    await queryRunner.createForeignKey(
+      'decision_users_user',
+      new TableForeignKey({
+        columnNames: ['decision_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'decision',
+        onDelete: 'CASCADE',
+        onUpdate: 'NO ACTION',
+      }),
+    );
+
+    await queryRunner.createForeignKey(
+      'decision_users_user',
+      new TableForeignKey({
+        columnNames: ['user_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'user',
+        onDelete: 'CASCADE',
+        onUpdate: 'NO ACTION',
+      }),
     );
 
     await queryRunner.createIndex(

@@ -6,6 +6,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   JoinTable,
   LessThanOrEqual,
   ManyToMany,
@@ -38,6 +39,7 @@ export class Decision extends BaseEntity {
   @ManyToOne(() => Inference, (inference) => inference.decisions, {
     onDelete: 'CASCADE',
   })
+  @JoinColumn()
   inference: Inference;
 
   @ApiProperty({ type: () => [User] })

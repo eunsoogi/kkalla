@@ -2,24 +2,14 @@ import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey, TableInd
 
 export class Migration1732495067226 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const table = await queryRunner.getTable('trade');
-    const foreignKey = table.foreignKeys.find((fk) => fk.columnNames.indexOf('inference_id') !== -1);
-    if (foreignKey) {
-      await queryRunner.dropForeignKey('trade', foreignKey);
-    }
-
-    await queryRunner.dropColumn('trade', 'inference_id');
-
-    const trades = await queryRunner.query(`SELECT * FROM trade`);
-    for (const trade of trades) {
-      const decisions = await queryRunner.query(
-        `SELECT d.id FROM decision d INNER JOIN inference i ON i.id = d.inference_id WHERE i.id = ?`,
-        [trade.inference_id],
-      );
-      if (!decisions || !decisions[0]) continue;
-
-      await queryRunner.query(`UPDATE trade SET decision_id = ? WHERE id = ?`, [decisions[0].id, trade.id]);
-    }
+    await queryRunner.addColumn(
+      'trade',
+      new TableColumn({
+        name: 'decision_id',
+        type: 'uuid',
+        isNullable: true,
+      }),
+    );
 
     await queryRunner.createIndex(
       'trade',
@@ -35,9 +25,28 @@ export class Migration1732495067226 implements MigrationInterface {
         referencedColumnNames: ['id'],
         referencedTableName: 'decision',
         onDelete: 'SET NULL',
+        onUpdate: 'NO ACTION',
       }),
     );
 
+    const trades = await queryRunner.query(`SELECT * FROM trade`);
+    for (const trade of trades) {
+      const decisions = await queryRunner.query(
+        `SELECT d.id FROM decision d INNER JOIN inference i ON i.id = d.inference_id WHERE i.id = ?`,
+        [trade.inference_id],
+      );
+      if (!decisions || !decisions[0]) continue;
+
+      await queryRunner.query(`UPDATE trade SET decision_id = ? WHERE id = ?`, [decisions[0].id, trade.id]);
+    }
+
+    const table = await queryRunner.getTable('trade');
+    const foreignKey = table.foreignKeys.find((fk) => fk.columnNames.indexOf('inference_id') !== -1);
+    if (foreignKey) {
+      await queryRunner.dropForeignKey('trade', foreignKey);
+    }
+
+    await queryRunner.dropColumn('trade', 'inference_id');
     await queryRunner.dropTable('inference_users_user');
   }
 
@@ -68,7 +77,7 @@ export class Migration1732495067226 implements MigrationInterface {
       'trade',
       new TableColumn({
         name: 'inference_id',
-        type: 'varchar',
+        type: 'uuid',
         isNullable: true,
       }),
     );
@@ -87,6 +96,7 @@ export class Migration1732495067226 implements MigrationInterface {
         referencedColumnNames: ['id'],
         referencedTableName: 'inference',
         onDelete: 'SET NULL',
+        onUpdate: 'NO ACTION',
       }),
     );
 
