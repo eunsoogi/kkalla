@@ -1,18 +1,19 @@
+import { DecisionTypes } from '../decision/decision.enum';
+import { DecisionData } from '../decision/decision.interface';
 import { Feargreed } from '../feargreed/feargreed.interface';
 import { SortDirection } from '../item/item.enum';
 import { News } from '../news/news.interface';
 import { Candle } from '../upbit/upbit.interface';
-import { InferenceDecisionTypes } from './inference.enum';
 
 export interface InferenceFilter {
-  users?: {
-    id: string;
-  };
-  decision?: InferenceDecisionTypes;
+  decision?: DecisionTypes;
   sortDirection?: SortDirection;
   createdAt?: {
     gte?: Date;
     lte?: Date;
+  };
+  users?: {
+    id?: string;
   };
 }
 
@@ -26,7 +27,6 @@ export interface InferenceMessageRequest {
     d1: number;
   };
   newsLimit: number;
-  inferenceLimit: number;
 }
 
 export interface InferenceMessage {
@@ -37,20 +37,7 @@ export interface InferenceMessage {
 }
 
 export interface InferenceData {
-  decisions: InferenceDecisionData[];
-  symbol: string;
-  reason: string;
-}
-
-export interface InferenceDecisionData {
-  decision: InferenceDecisionTypes;
-  orderRatio: number;
-  weightLowerBound: number;
-  weightUpperBound: number;
-  reason: string;
-}
-
-export interface InferenceItem extends InferenceDecisionData {
+  decisions: DecisionData[];
   symbol: string;
 }
 

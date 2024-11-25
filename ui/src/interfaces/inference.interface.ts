@@ -1,15 +1,13 @@
-import { InferenceDicisionTypes } from '../enums/inference.enum';
+import { Decision } from './decision.interface';
 import { CursorItem, PaginatedItem } from './item.interface';
 
 export interface Inference {
   id: string;
-  decision: InferenceDicisionTypes;
-  orderRatio: number;
-  weightLowerBound: number;
-  weightUpperBound: number;
-  reason: string;
-  createdAt: Date;
-  updatedAt: Date;
+  seq: number;
+  symbol: string;
+  decisions: Decision[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const initialPaginatedState: PaginatedItem<Inference> = {

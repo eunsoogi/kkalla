@@ -5,9 +5,9 @@ import { Type } from 'class-transformer';
 import { SortDirection } from '@/modules/item/item.enum';
 import { ToDate } from '@/transforms/date.transform';
 
-import { DecisionTypes } from '../../decision/decision.enum';
+import { DecisionTypes } from '../decision.enum';
 
-export class GetInferenceDto {
+export class GetDecisionDto {
   @ApiProperty({
     required: true,
     example: false,

@@ -5,10 +5,11 @@ import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 import { GoogleTokenAuthGuard } from '../auth/google.guard';
 import { GetInferenceCursorDto } from './dto/get-inference-cursor.dto';
 import { GetInferenceDto } from './dto/get-inference.dto';
+import { InferenceDto } from './dto/inference.dto';
 import { PostInferenceDto } from './dto/post-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG } from './inference.config';
-import { InferenceData, InferenceMessageRequest } from './inference.interface';
+import { InferenceMessageRequest } from './inference.interface';
 import { InferenceService } from './inference.service';
 
 @Controller('api/v1/inferences')
@@ -80,7 +81,7 @@ export class InferenceController {
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public post(@Body() body: PostInferenceDto): Promise<InferenceData> {
+  public post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
     return this.inferenceService.inference(<InferenceMessageRequest>{
       ...INFERENCE_CONFIG.message,
       ...body,

@@ -28,10 +28,10 @@ export class ScheduleService {
     // TO-DO: dynamic symbol & market
     const request = new PostTradeDto();
 
-    const inferences = await this.tradeService.inference(request);
+    const inference = await this.tradeService.inference(request);
 
     const trades = await Promise.all(
-      schedules.map((schedule) => this.tradeService.trade(schedule.user, inferences, request)),
+      schedules.map((schedule) => this.tradeService.trade(schedule.user, inference, request)),
     );
 
     this.logger.log(this.i18n.t('logging.schedule.end'));

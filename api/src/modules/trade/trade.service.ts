@@ -5,6 +5,7 @@ import { I18nService } from 'nestjs-i18n';
 
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
+import { Decision } from '../decision/entities/decision.entity';
 import { Inference } from '../inference/entities/inference.entity';
 import { INFERENCE_CONFIG } from '../inference/inference.config';
 import { InferenceService } from '../inference/inference.service';
@@ -27,26 +28,26 @@ export class TradeService {
     private readonly notifyService: NotifyService,
   ) {}
 
-  public async inference(request: TradeRequest): Promise<Inference[]> {
+  public async inference(request: TradeRequest): Promise<Inference> {
     return this.performInference(request);
   }
 
-  public async trade(user: User, inferences: Inference[], request: TradeRequest): Promise<Trade | null> {
-    const inference = await this.selectInference(user, inferences, request);
-    if (!inference) return null;
+  public async trade(user: User, inference: Inference, request: TradeRequest): Promise<Trade | null> {
+    const decision = await this.selectDecision(user, inference, request);
+    if (!decision) return null;
 
-    this.notifyInferenceResult(user, inference);
+    this.notifyInferenceResult(user, inference, decision);
 
-    const order = await this.performOrder(user, inference, request);
+    const order = await this.performOrder(user, decision, request);
     if (!order) return null;
 
-    const trade = await this.performTrade(user, request, inference, order);
+    const trade = await this.performTrade(user, request, decision, order);
     this.notifyTradeResult(user, trade);
 
     return trade;
   }
 
-  private async performInference(request: TradeRequest): Promise<Inference[]> {
+  private async performInference(request: TradeRequest): Promise<Inference> {
     this.logger.log(this.i18n.t('logging.inference.start'));
     try {
       const data = await this.inferenceService.inference({
@@ -54,50 +55,51 @@ export class TradeService {
         ...request,
       });
 
-      return await Promise.all(data.decisions.map((item) => this.inferenceService.create({ ...data, ...item })));
+      return this.inferenceService.create(data);
     } catch (error) {
       this.logger.error(this.i18n.t('logging.inference.fail'), error);
     }
 
-    return [];
+    return null;
   }
 
-  private async selectInference(user: User, inferences: Inference[], request: TradeRequest): Promise<Inference | null> {
+  private async selectDecision(user: User, inference: Inference, request: TradeRequest): Promise<Decision | null> {
     const orderRatio = await this.upbitService.getOrderRatio(user, request.symbol);
-    const inference = inferences.find(
+    const decision = inference.decisions.find(
       (item) => item.weightLowerBound <= orderRatio && orderRatio <= item.weightUpperBound,
     );
 
-    if (inference) {
-      inference.users = inference.users || [];
-      inference.users.push(user);
-      await inference.save();
+    if (decision) {
+      decision.users = decision.users || [];
+      decision.users.push(user);
+      await decision.save();
     }
 
-    return inference;
+    return decision;
   }
 
-  private notifyInferenceResult(user: User, inference: Inference): void {
+  private notifyInferenceResult(user: User, inference: Inference, decision: Decision): void {
     this.notifyService.notify(
       user,
       this.i18n.t('notify.inference.result', {
         args: {
-          decision: inference.decision,
           symbol: inference.symbol,
-          orderRatio: inference.orderRatio * 100,
-          reason: inference.reason,
+          decision: decision.decision,
+          orderRatio: decision.orderRatio * 100,
+          reason: decision.reason,
         },
       }),
     );
   }
 
-  private async performOrder(user: User, inference: Inference, request: TradeRequest): Promise<Order | null> {
+  private async performOrder(user: User, decision: Decision, request: TradeRequest): Promise<Order | null> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
     try {
-      const type = UpbitService.getOrderType(inference.decision);
+      const type = UpbitService.getOrderType(decision.decision);
       if (!type) return null;
 
-      return await this.upbitService.order(user, { ...request, type, orderRatio: inference.orderRatio });
+      // @ts-expect-error lazy loading과 관련된 오류이므로 무시
+      return await this.upbitService.order(user, { ...request, type, orderRatio: decision.orderRatio });
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
       this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
@@ -114,15 +116,15 @@ export class TradeService {
     return trade.save();
   }
 
-  private async performTrade(user: User, request: TradeRequest, inference: Inference, order: Order): Promise<Trade> {
-    const type = UpbitService.getOrderType(inference.decision);
+  private async performTrade(user: User, request: TradeRequest, decision: Decision, order: Order): Promise<Trade> {
+    const type = UpbitService.getOrderType(decision.decision);
     const balances = await this.upbitService.getBalances(user);
     return this.create(user, {
       ...request,
       type,
       amount: order?.amount ?? order?.cost,
       balances,
-      inference,
+      decision,
     });
   }
 

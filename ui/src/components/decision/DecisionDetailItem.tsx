@@ -6,17 +6,17 @@ import React from 'react';
 import { Icon } from '@iconify/react';
 import { useTranslations } from 'next-intl';
 
-import { Inference } from '@/interfaces/inference.interface';
+import { Decision } from '@/interfaces/decision.interface';
 import { formatDate } from '@/utils/date';
 
-import { DecisionItem } from '../decision/DecisionItem';
+import { DecisionItem } from './DecisionItem';
 import UserImg from '/public/images/profile/user-ai.png';
 
-interface InferenceDetailProps extends Inference {
+interface DecisionDetailProps extends Decision {
   isFocus?: boolean;
 }
 
-export const InferenceDetailItem: React.FC<InferenceDetailProps> = ({ isFocus = false, ...item }) => {
+export const DecisionDetailItem: React.FC<DecisionDetailProps> = ({ isFocus = false, ...item }) => {
   const t = useTranslations();
 
   return (
@@ -36,11 +36,9 @@ export const InferenceDetailItem: React.FC<InferenceDetailProps> = ({ isFocus = 
         />
       </div>
       <div className='p-6'>
-        <h4 className='text-dark dark:text-white mt-3'>{item.symbol}</h4>
-        <div className='grid grid-cols-1 lg:grid-cols-2 mt-3 gap-3'>
-          {item.decisions.map((item) => (
-            <DecisionItem key={item.id} item={item} />
-          ))}
+      <h4 className='text-dark dark:text-white mt-3'>{item.symbol}</h4>
+        <div className='mt-3'>
+          <DecisionItem item={item} />
         </div>
         <div className='flex mt-3'>
           <div className='flex gap-1 items-center ms-auto'>
@@ -53,7 +51,7 @@ export const InferenceDetailItem: React.FC<InferenceDetailProps> = ({ isFocus = 
   );
 };
 
-export const InferenceDetailSkeleton: React.FC = () => {
+export const DecisionDetailSkeleton: React.FC = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark relative w-full break-words animate-pulse'>
       <div className='p-6'>

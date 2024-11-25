@@ -6,18 +6,18 @@ import React from 'react';
 import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
-import { Inference } from '@/interfaces/inference.interface';
+import { Decision } from '@/interfaces/decision.interface';
 import { formatDate } from '@/utils/date';
 
 import { DECISION_STYLES } from './style';
 
-export const InferenceItem: React.FC<Inference> = (item: Inference) => {
+export const DecisionLineItem: React.FC<Decision> = (item: Decision) => {
   return (
-    <Link href={`/inferences/${item.id}`}>
+    <Link href={`/decisions/${item.id}`}>
       <li className='rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800'>
         <div className='flex gap-4 min-h-16'>
           <div className='min-w-24'>
-            <p>{formatDate(new Date(item.createdAt))}</p>
+            <p>{formatDate(new Date(item.createdAt || ''))}</p>
           </div>
           <div className='flex flex-col items-center'>
             <div className={`rounded-full ${DECISION_STYLES[item.decision].dotStyle} p-1.5 w-fit`}></div>
@@ -35,7 +35,7 @@ export const InferenceItem: React.FC<Inference> = (item: Inference) => {
   );
 };
 
-export const InferenceSkeleton: React.FC = () => {
+export const DecisionLineSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return (

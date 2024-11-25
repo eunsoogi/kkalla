@@ -34,7 +34,7 @@ build: make-cache-dir
 	@IMAGE_REGISTRY=$(IMAGE_REGISTRY) \
 	IMAGE_NAME_PREFIX=$(IMAGE_NAME_PREFIX) \
 	IMAGE_TAG=$(IMAGE_TAG) \
-	BUILD_TARGET=$(ENV) \
+	ENV=$(ENV) \
 	docker buildx bake
 
 .PHONY: import
