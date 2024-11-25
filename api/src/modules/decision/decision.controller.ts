@@ -6,7 +6,6 @@ import { DecisionService } from './decision.service';
 import { DecisionDto } from './dto/decision.dto';
 import { GetDecisionCursorDto } from './dto/get-decision-cursor.dto';
 import { GetDecisionDto } from './dto/get-decision.dto';
-import { Decision } from './entities/decision.entity';
 
 @Controller('/api/v1/decisions')
 export class DecisionController {
@@ -14,7 +13,7 @@ export class DecisionController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  async findAll(@Req() req, @Query() params: GetDecisionDto): Promise<PaginatedItem<Decision>> {
+  async findAll(@Req() req, @Query() params: GetDecisionDto): Promise<PaginatedItem<DecisionDto>> {
     const filters: any = {
       page: params.page,
       perPage: params.perPage,
@@ -40,12 +39,19 @@ export class DecisionController {
       }
     }
 
-    return this.decisionService.paginate(filters);
+    const result = await this.decisionService.paginate(filters);
+    return {
+      ...result,
+      items: result.items.map((decision) => ({
+        ...decision,
+        symbol: decision.inference.symbol,
+      })),
+    };
   }
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  async cursor(@Req() req, @Query() params: GetDecisionCursorDto): Promise<CursorItem<Decision, string>> {
+  async cursor(@Req() req, @Query() params: GetDecisionCursorDto): Promise<CursorItem<DecisionDto, string>> {
     const filters: any = {
       cursor: params.cursor,
       limit: params.limit,
@@ -72,12 +78,23 @@ export class DecisionController {
       }
     }
 
-    return this.decisionService.cursor(filters);
+    const result = await this.decisionService.cursor(filters);
+    return {
+      ...result,
+      items: result.items.map((decision) => ({
+        ...decision,
+        symbol: decision.inference.symbol,
+      })),
+    };
   }
 
   @Get(':id')
   @UseGuards(GoogleTokenAuthGuard)
   async findOne(@Param('id') id: string): Promise<DecisionDto> {
-    return await this.decisionService.findOne(id);
+    const decision = await this.decisionService.findOne(id);
+    return {
+      ...decision,
+      symbol: decision.inference.symbol,
+    };
   }
 }

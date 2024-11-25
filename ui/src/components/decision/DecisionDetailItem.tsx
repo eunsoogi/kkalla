@@ -36,6 +36,7 @@ export const DecisionDetailItem: React.FC<DecisionDetailProps> = ({ isFocus = fa
         />
       </div>
       <div className='p-6'>
+      <h4 className='text-dark dark:text-white mt-3'>{item.symbol}</h4>
         <div className='mt-3'>
           <DecisionItem item={item} />
         </div>

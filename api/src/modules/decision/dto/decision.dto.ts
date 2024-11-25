@@ -1,7 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { User } from '@/modules/user/entities/user.entity';
-
 import { DecisionTypes } from '../decision.enum';
 
 export class DecisionDto {
@@ -11,8 +9,8 @@ export class DecisionDto {
   @ApiProperty()
   seq: number;
 
-  @ApiProperty({ type: () => [User] })
-  users: User[];
+  @ApiProperty()
+  symbol: string;
 
   @ApiProperty({ enum: DecisionTypes })
   decision: DecisionTypes;
