@@ -1,7 +1,9 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import { EncryptionOptions, decrypt } from 'typeorm-encrypted';
+import { EncryptionOptions } from 'typeorm-encrypted';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+
+import { decrypt } from '@/utils/key';
 
 export const typeORMConfig: TypeOrmModuleOptions = {
   type: 'mariadb',
@@ -20,7 +22,7 @@ export const typeORMConfig: TypeOrmModuleOptions = {
 };
 
 export const typeORMEncryptionConfig: EncryptionOptions = {
-  key: process.env.DB_SECRET ? decrypt(process.env.DB_SECRET) : 'default',
+  key: process.env.DB_SECRET ? decrypt(process.env.DB_SECRET) : '',
   algorithm: 'aes-256-gcm',
   ivLength: 16,
 };
