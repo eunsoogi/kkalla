@@ -1,7 +1,7 @@
 export const INFERENCE_MODEL = 'gpt-4o-mini';
 
 export const INFERENCE_CONFIG = {
-  maxCompletionTokens: 2048,
+  maxCompletionTokens: 4096,
   temperature: 0.2,
   topP: 0.7,
   presencePenalty: 0,
