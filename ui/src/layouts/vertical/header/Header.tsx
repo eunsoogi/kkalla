@@ -78,6 +78,3 @@ const Header = () => {
 };
 
 export default Header;
-function useTranslation(): { t: any } {
-  throw new Error('Function not implemented.');
-}
