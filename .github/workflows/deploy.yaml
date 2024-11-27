@@ -139,6 +139,8 @@ jobs:
             upbit:
               accessKey: ${{ secrets.UPBIT_ACCESS_KEY }}
               secretKey: ${{ secrets.UPBIT_SECRET_KEY }}
+            admin:
+              email: ${{ secrets.ADMIN_EMAIL }}
           ui:
             publicUrl: ${{ vars.PUBLIC_URL }}
             auth:
