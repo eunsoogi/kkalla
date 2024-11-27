@@ -37,7 +37,9 @@ export const InferenceDetailItem: React.FC<InferenceDetailProps> = ({ isFocus = 
       </div>
       <div className='p-6'>
         <h4 className='text-dark dark:text-white mt-3'>{item.symbol}</h4>
-        <div className={`grid grid-cols-1 lg:grid-cols-${Math.min(item.decisions.length, 2)} mt-3 gap-3`}>
+        <div
+          className={`grid grid-cols-1 ${item.decisions.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-1'} mt-3 gap-3`}
+        >
           {item.decisions.map((item) => (
             <DecisionItem key={item.id} item={item} />
           ))}
