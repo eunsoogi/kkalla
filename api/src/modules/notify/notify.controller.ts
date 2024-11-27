@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { GetCursorDto } from '../item/dto/get-cursor.dto';
 import { CursorItem, PaginatedItem } from '../item/item.interface';
+import { User } from '../user/entities/user.entity';
 import { GetNotifyDto } from './dto/get-notify.dto';
 import { NotifyResponse } from './dto/notify-response.dto';
 import { PostNotifyDto } from './dto/post-notify.dto';
@@ -14,8 +16,8 @@ export class NotifyController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public async get(@Req() req, @Query() params: GetNotifyDto): Promise<PaginatedItem<NotifyResponse>> {
-    const result = await this.notifyService.paginate(req.user, params);
+  public async get(@CurrentUser() user: User, @Query() params: GetNotifyDto): Promise<PaginatedItem<NotifyResponse>> {
+    const result = await this.notifyService.paginate(user, params);
 
     return {
       ...result,
@@ -30,8 +32,11 @@ export class NotifyController {
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  public async cursor(@Req() req, @Query() params: GetCursorDto<string>): Promise<CursorItem<NotifyResponse, string>> {
-    const result = await this.notifyService.cursor(req.user, params);
+  public async cursor(
+    @CurrentUser() user: User,
+    @Query() params: GetCursorDto<string>,
+  ): Promise<CursorItem<NotifyResponse, string>> {
+    const result = await this.notifyService.cursor(user, params);
 
     return {
       ...result,
@@ -46,8 +51,8 @@ export class NotifyController {
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public async post(@Req() req, @Body() body: PostNotifyDto): Promise<NotifyResponse> {
-    const result = await this.notifyService.create(req.user, body);
+  public async post(@CurrentUser() user: User, @Body() body: PostNotifyDto): Promise<NotifyResponse> {
+    const result = await this.notifyService.create(user, body);
 
     return {
       id: result.id,

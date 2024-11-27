@@ -10,8 +10,19 @@
     "service": "서비스",
     "dashboard": "대시보드",
     "newsList": "뉴스 목록",
-    "inferenceList": "추론 목록"
-
+    "inferenceList": "추론 목록",
+    "userManagement": "사용자 관리"
+  },
+  "error": {
+    "forbidden": {
+      "title": "접근 권한이 없습니다",
+      "description": "이 페이지에 접근할 수 있는 권한이 없습니다. 관리자에게 문의해주세요."
+    },
+    "notFound": {
+      "title": "페이지를 찾을 수 없습니다",
+      "description": "요청하신 페이지를 찾을 수 없습니다.",
+      "home": "홈으로 이동"
+    }
   },
   "status": {
     "registered": "등록됨",
@@ -50,6 +61,14 @@
     "bound": "포트폴리오 비중 {lower}~{upper}%",
     "decision": "매매 결정"
   },
+  "user": {
+    "email": "이메일",
+    "role": "권한"
+  },
+  "createdAt": "생성일",
+  "updatedAt": "수정일",
+  "pagination": "{start}부터 {end}까지 {total}개의 결과 표시",
+  "all": "전체",
   "date": {
     "start": "시작일",
     "end": "종료일",
@@ -86,6 +105,5 @@
   "copy": {
     "link": "링크 복사",
     "complete": "복사되었습니다."
-  },
-  "all": "전체"
+  }
 }

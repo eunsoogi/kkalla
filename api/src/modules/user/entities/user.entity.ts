@@ -1,4 +1,20 @@
-import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  BaseEntity,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinTable,
+  Like,
+  ManyToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+import { SortDirection } from '@/modules/item/item.enum';
+import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+
+import { UserFilter } from '../user.interface';
+import { Role } from './role.entity';
 
 @Entity({
   orderBy: {
@@ -12,6 +28,12 @@ export class User extends BaseEntity {
   @Column({ nullable: false, unique: true })
   email: string;
 
+  @ManyToMany(() => Role, (role) => role.users, {
+    eager: true,
+  })
+  @JoinTable()
+  roles: Role[];
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -20,5 +42,35 @@ export class User extends BaseEntity {
 
   public static async findByEmail(email: string): Promise<User> {
     return this.findOne({ where: { email } });
+  }
+
+  public static async paginate(request: ItemRequest & UserFilter): Promise<PaginatedItem<User>> {
+    const where: any = {};
+
+    if (request.search) {
+      where.email = Like(`%${request.search}%`);
+    }
+
+    const sortDirection = request.sortDirection ?? SortDirection.DESC;
+
+    const findOptions = {
+      relations: ['roles'],
+      where,
+      order: {
+        email: sortDirection,
+      },
+      skip: (request.page - 1) * request.perPage,
+      take: request.perPage,
+    };
+
+    const [items, total] = await this.findAndCount(findOptions);
+
+    return {
+      items,
+      total,
+      page: request.page,
+      perPage: request.perPage,
+      totalPages: Math.ceil(total / request.perPage),
+    };
   }
 }

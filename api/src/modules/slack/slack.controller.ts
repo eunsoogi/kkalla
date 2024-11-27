@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
 import { ChatPostMessageResponse } from '@slack/web-api';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
+import { User } from '../user/entities/user.entity';
 import { SlackConfigResponseDto } from './dto/config-response';
 import { PostSlackConfigDto } from './dto/post-config.dto';
 import { SendSlackMessageDto } from './dto/send-message.dto';
@@ -15,14 +17,14 @@ export class SlackController {
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public async send(@Req() req, @Body() body: SendSlackMessageDto): Promise<ChatPostMessageResponse> {
-    return this.slackService.send(req.user, body);
+  public async send(@CurrentUser() user: User, @Body() body: SendSlackMessageDto): Promise<ChatPostMessageResponse> {
+    return this.slackService.send(user, body);
   }
 
   @Get('config')
   @UseGuards(GoogleTokenAuthGuard)
-  public async getConfig(@Req() req): Promise<SlackConfigResponseDto> {
-    const result = await this.slackService.readConfig(req.user);
+  public async getConfig(@CurrentUser() user: User): Promise<SlackConfigResponseDto> {
+    const result = await this.slackService.readConfig(user);
 
     return {
       channel: result?.channel,
@@ -31,8 +33,11 @@ export class SlackController {
 
   @Post('config')
   @UseGuards(GoogleTokenAuthGuard)
-  public async postConfig(@Req() req, @Body() body: PostSlackConfigDto): Promise<SlackConfigResponseDto> {
-    const result = await this.slackService.createConfig(req.user, body);
+  public async postConfig(
+    @CurrentUser() user: User,
+    @Body() body: PostSlackConfigDto,
+  ): Promise<SlackConfigResponseDto> {
+    const result = await this.slackService.createConfig(user, body);
 
     return {
       channel: result?.channel,
@@ -41,7 +46,7 @@ export class SlackController {
 
   @Get('status')
   @UseGuards(GoogleTokenAuthGuard)
-  public async status(@Req() req): Promise<ApikeyStatus> {
-    return this.slackService.status(req.user);
+  public async status(@CurrentUser() user: User): Promise<ApikeyStatus> {
+    return this.slackService.status(user);
   }
 }

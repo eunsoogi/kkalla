@@ -143,5 +143,5 @@ upbit:
   accessKey: ""
   secretKey: ""
 
-test:
+admin:
   email: ""

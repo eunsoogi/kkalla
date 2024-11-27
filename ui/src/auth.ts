@@ -4,6 +4,9 @@ import { NextAuthOptions } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import GoogleProvider from 'next-auth/providers/google';
 
+import { Role } from './interfaces/role.interface';
+import { getClientWithAccessToken } from './utils/api';
+
 export const refreshAccessToken = async (token: JWT): Promise<JWT> => {
   try {
     const { data: refreshedTokens } = await axios.post(
@@ -31,6 +34,12 @@ export const refreshAccessToken = async (token: JWT): Promise<JWT> => {
     console.error(err);
     return token;
   }
+};
+
+const fetchRoles = async (accessToken?: string): Promise<Role[]> => {
+  const client = await getClientWithAccessToken(accessToken);
+  const response = await client.get('/api/v1/auth/roles');
+  return response.data;
 };
 
 export const authOptions: NextAuthOptions = {
@@ -66,6 +75,10 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       session.accessToken = token?.accessToken as string;
+
+      const roles = await fetchRoles(session.accessToken);
+      session.roles = roles;
+      session.permissions = [...new Set(roles?.flatMap((role) => role?.permissions))];
 
       console.debug(session);
 

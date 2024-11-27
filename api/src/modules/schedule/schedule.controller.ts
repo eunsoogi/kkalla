@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
+import { User } from '../user/entities/user.entity';
 import { CreateScheduleDto } from './dto/update-schedule.dto';
 import { ScheduleService } from './schedule.service';
 
@@ -10,13 +12,13 @@ export class ScheduleController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public async get(@Req() req) {
-    return this.scheduleService.read(req.user);
+  public async get(@CurrentUser() user: User) {
+    return this.scheduleService.read(user);
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public async post(@Req() req, @Body() createScheduleDto: CreateScheduleDto) {
-    return this.scheduleService.create(req.user, createScheduleDto);
+  public async post(@CurrentUser() user: User, @Body() createScheduleDto: CreateScheduleDto) {
+    return this.scheduleService.create(user, createScheduleDto);
   }
 }
