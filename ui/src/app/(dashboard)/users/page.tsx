@@ -12,6 +12,6 @@ const Page: React.FC = () => {
       <UsersTable />
     </PermissionGuard>
   );
-}
+};
 
 export default Page;

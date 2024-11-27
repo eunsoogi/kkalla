@@ -51,7 +51,9 @@ const UsersTableBase = ({ items }: UsersTableProps) => {
               {items.items.map((user) => (
                 <Table.Row key={user.id} className='hover:bg-gray-50 dark:hover:bg-gray-700'>
                   <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{user.roles.map((role) => role.name).join(', ')}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>
+                    {user.roles.map((role) => role.name).join(', ')}
+                  </Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{new Date(user.createdAt).toLocaleString()}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{new Date(user.updatedAt).toLocaleString()}</Table.Cell>
                 </Table.Row>
