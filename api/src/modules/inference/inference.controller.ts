@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 
 import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
+import { User } from '../user/entities/user.entity';
 import { GetInferenceCursorDto } from './dto/get-inference-cursor.dto';
 import { GetInferenceDto } from './dto/get-inference.dto';
 import { InferenceDto } from './dto/inference.dto';
@@ -18,7 +20,7 @@ export class InferenceController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public get(@Req() req, @Query() params: GetInferenceDto): Promise<PaginatedItem<Inference>> {
+  public get(@CurrentUser() user: User, @Query() params: GetInferenceDto): Promise<PaginatedItem<Inference>> {
     const filters: any = {
       page: params.page,
       perPage: params.perPage,
@@ -28,7 +30,7 @@ export class InferenceController {
 
     if (params.mine) {
       filters.users = {
-        id: req.user.id,
+        id: user.id,
       };
     }
 
@@ -49,7 +51,10 @@ export class InferenceController {
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  public async cursor(@Req() req, @Query() params: GetInferenceCursorDto): Promise<CursorItem<Inference, string>> {
+  public async cursor(
+    @CurrentUser() user: User,
+    @Query() params: GetInferenceCursorDto,
+  ): Promise<CursorItem<Inference, string>> {
     const filters: any = {
       cursor: params.cursor,
       limit: params.limit,
@@ -60,7 +65,7 @@ export class InferenceController {
 
     if (params.mine) {
       filters.users = {
-        id: req.user.id,
+        id: user.id,
       };
     }
 

@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 
 import { PaginatedItem } from '@/modules/item/item.interface';
 
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
+import { User } from '../user/entities/user.entity';
 import { GetTradeDto } from './dto/get-trade.dto';
 import { PostTradeDto } from './dto/post-trade.dto';
 import { Trade } from './entities/trade.entity';
@@ -14,14 +16,14 @@ export class TradeController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public async get(@Req() req, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
-    return this.tradeService.paginate(req.user, request);
+  public async get(@CurrentUser() user: User, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
+    return this.tradeService.paginate(user, request);
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public async post(@Req() req, @Body() body: PostTradeDto): Promise<Trade> {
+  public async post(@CurrentUser() user: User, @Body() body: PostTradeDto): Promise<Trade> {
     const inferences = await this.tradeService.inference(body);
-    return this.tradeService.trade(req.user, inferences, body);
+    return this.tradeService.trade(user, inferences, body);
   }
 }

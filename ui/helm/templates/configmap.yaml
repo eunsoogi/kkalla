@@ -5,5 +5,5 @@ metadata:
   name: {{ include "ui.fullname" . }}
 data:
   TZ: "Asia/Seoul"
-  NEXTAUTH_URL: "{{ .Values.publicUrl }}"
-  API_URL: "{{ tpl .Values.api.url . }}"
+  NEXTAUTH_URL: {{ .Values.publicUrl | quote }}
+  API_URL: {{ tpl .Values.api.url . | quote }}

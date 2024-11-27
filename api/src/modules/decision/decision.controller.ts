@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { CursorItem, PaginatedItem } from '../item/item.interface';
+import { User } from '../user/entities/user.entity';
 import { DecisionService } from './decision.service';
 import { DecisionDto } from './dto/decision.dto';
 import { GetDecisionCursorDto } from './dto/get-decision-cursor.dto';
@@ -13,7 +15,7 @@ export class DecisionController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  async findAll(@Req() req, @Query() params: GetDecisionDto): Promise<PaginatedItem<DecisionDto>> {
+  async findAll(@CurrentUser() user: User, @Query() params: GetDecisionDto): Promise<PaginatedItem<DecisionDto>> {
     const filters: any = {
       page: params.page,
       perPage: params.perPage,
@@ -23,7 +25,7 @@ export class DecisionController {
 
     if (params.mine) {
       filters.users = {
-        id: req.user.id,
+        id: user.id,
       };
     }
 
@@ -51,7 +53,10 @@ export class DecisionController {
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  async cursor(@Req() req, @Query() params: GetDecisionCursorDto): Promise<CursorItem<DecisionDto, string>> {
+  async cursor(
+    @CurrentUser() user: User,
+    @Query() params: GetDecisionCursorDto,
+  ): Promise<CursorItem<DecisionDto, string>> {
     const filters: any = {
       cursor: params.cursor,
       limit: params.limit,
@@ -62,7 +67,7 @@ export class DecisionController {
 
     if (params.mine) {
       filters.users = {
-        id: req.user.id,
+        id: user.id,
       };
     }
 

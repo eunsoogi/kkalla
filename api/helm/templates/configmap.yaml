@@ -6,11 +6,11 @@ metadata:
 data:
   TZ: "Asia/Seoul"
   TZ_OFFSET: "+09:00"
-  DB_HOST: "{{ tpl .Values.db.host . }}"
-  DB_PORT: "{{ .Values.db.port }}"
-  DB_DATABASE: "{{ .Values.db.database }}"
-  DB_USER: "{{ .Values.db.username }}"
-  OPENAI_SECRET_KEY: "{{ .Values.openai.secretKey }}"
-  UPBIT_ACCESS_KEY: "{{ .Values.upbit.accessKey }}"
-  UPBIT_SECRET_KEY: "{{ .Values.upbit.secretKey }}"
-  TEST_EMAIL: "{{ .Values.test.email }}"
+  DB_HOST: {{ tpl .Values.db.host . | quote }}
+  DB_PORT: {{ .Values.db.port | quote }}
+  DB_DATABASE: {{ .Values.db.database | quote }}
+  DB_USER: {{ .Values.db.username | quote }}
+  OPENAI_SECRET_KEY: {{ .Values.openai.secretKey | quote }}
+  UPBIT_ACCESS_KEY: {{ .Values.upbit.accessKey | quote }}
+  UPBIT_SECRET_KEY: {{ .Values.upbit.secretKey | quote }}
+  ADMIN_EMAIL: {{ .Values.admin.email | quote }}

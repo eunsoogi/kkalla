@@ -1,10 +1,18 @@
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 
 import { DataSource } from 'typeorm';
+import { runSeeder } from 'typeorm-extension';
 
-import { seedOrder as developmentSeedOrder, seeds as developmentSeeds } from './seeds/development.seed';
+import { seeders as developmentSeeders } from './seeds/development.seed';
+import { seeders as productionSeeders } from './seeds/production.seed';
+import { RoleSeeder } from './seeds/role.seed';
+import { seeders as stagingSeeders } from './seeds/staging.seed';
 
-export class Seeder {
+@Injectable()
+export class TypeOrmSeeder {
+  private readonly logger = new Logger(TypeOrmSeeder.name);
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -12,32 +20,40 @@ export class Seeder {
     this.seedAll();
   }
 
-  private static readonly seedMap = {
-    development: developmentSeeds,
-  };
+  async seedAll() {
+    const env = process.env.NODE_ENV || 'development';
+    let seeders: any[] = [];
 
-  private static readonly seedOrderMap = {
-    development: developmentSeedOrder,
-  };
+    switch (env) {
+      case 'production':
+        seeders = productionSeeders;
+        break;
+      case 'staging':
+        seeders = stagingSeeders;
+        break;
+      case 'development':
+      default:
+        seeders = developmentSeeders;
+        break;
+    }
 
-  public async seedAll() {
-    const environment = process.env.NODE_ENV || 'development';
-    const seedFunc = Seeder.seedMap[environment];
-    const seedOrder = Seeder.seedOrderMap[environment];
-
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    this.logger.log(`Running seeders for ${env} environment...`);
 
     try {
-      for (const entityName of seedOrder) {
-        await seedFunc[entityName]();
+      this.logger.log('Running RoleSeeder...');
+
+      await runSeeder(this.dataSource, RoleSeeder);
+
+      this.logger.log('Successfully ran RoleSeeder');
+
+      for (const seeder of seeders) {
+        await runSeeder(this.dataSource, seeder);
+        this.logger.log(`Successfully ran seeder: ${seeder.name}`);
       }
-      await queryRunner.commitTransaction();
-    } catch {
-      await queryRunner.rollbackTransaction();
-    } finally {
-      await queryRunner.release();
+      this.logger.log('Seeding completed successfully');
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
     }
   }
 }

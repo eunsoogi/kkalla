@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
 import { Order } from 'ccxt';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
-import { GoogleTokenAuthGuard } from '../auth/google.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
+import { User } from '../user/entities/user.entity';
 import { CreateUpbitConfigDto } from './dto/create-config.dto';
 import { GetOrderRatioDto } from './dto/get-order-ratio.dto';
 import { RequestOrderDto } from './dto/request-order.dto';
@@ -16,25 +18,25 @@ export class UpbitController {
 
   @Post('order')
   @UseGuards(GoogleTokenAuthGuard)
-  public async postOrder(@Req() req, @Body() request: RequestOrderDto): Promise<Order> {
-    return this.upbitService.order(req.user, request);
+  public async postOrder(@CurrentUser() user: User, @Body() request: RequestOrderDto): Promise<Order> {
+    return this.upbitService.order(user, request);
   }
 
   @Post('order-ratio')
   @UseGuards(GoogleTokenAuthGuard)
-  public async getOrderRatio(@Req() req, @Body() request: GetOrderRatioDto): Promise<number> {
-    return this.upbitService.getOrderRatio(req.user, request.symbol);
+  public async getOrderRatio(@CurrentUser() user: User, @Body() request: GetOrderRatioDto): Promise<number> {
+    return this.upbitService.getOrderRatio(user, request.symbol);
   }
 
   @Post('config')
   @UseGuards(GoogleTokenAuthGuard)
-  public async postConfig(@Req() req, @Body() request: CreateUpbitConfigDto): Promise<UpbitConfig> {
-    return this.upbitService.createConfig(req.user, request);
+  public async postConfig(@CurrentUser() user: User, @Body() request: CreateUpbitConfigDto): Promise<UpbitConfig> {
+    return this.upbitService.createConfig(user, request);
   }
 
   @Get('status')
   @UseGuards(GoogleTokenAuthGuard)
-  public async status(@Req() req): Promise<ApikeyStatus> {
-    return this.upbitService.status(req.user);
+  public async status(@CurrentUser() user: User): Promise<ApikeyStatus> {
+    return this.upbitService.status(user);
   }
 }

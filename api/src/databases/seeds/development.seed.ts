@@ -1,3 +1,5 @@
+import { Seeder } from 'typeorm-extension';
+
 import { DecisionTypes } from '@/modules/decision/decision.enum';
 import { Decision } from '@/modules/decision/entities/decision.entity';
 import { Inference } from '@/modules/inference/entities/inference.entity';
@@ -5,19 +7,30 @@ import { Notify } from '@/modules/notify/entities/notify.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
+import { Role } from '@/modules/user/entities/role.entity';
 import { User } from '@/modules/user/entities/user.entity';
 
-export const seeds = {
-  users: async () => {
-    const email = process.env.TEST_EMAIL!;
+export class UserSeeder implements Seeder {
+  async run(): Promise<void> {
+    const email = process.env.ADMIN_EMAIL!;
     let user = await User.findOneBy({ email });
+
     if (!user) {
       user = new User();
       user.email = email;
     }
+
+    const adminRole = await Role.findOneBy({ name: 'ADMIN' });
+    if (adminRole) {
+      user.roles = [adminRole];
+    }
+
     await user.save();
-  },
-  inferences: async () => {
+  }
+}
+
+export class InferenceSeeder implements Seeder {
+  async run(): Promise<void> {
     const users = await User.find();
     await Inference.delete({});
     await Decision.delete({});
@@ -81,6 +94,7 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: [],
           })),
         ),
       },
@@ -95,6 +109,7 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: [],
           })),
         ),
       },
@@ -109,6 +124,7 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: [],
           })),
         ),
       },
@@ -123,6 +139,7 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: [],
           })),
         ),
       },
@@ -137,6 +154,7 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: [],
           })),
         ),
       },
@@ -151,15 +169,20 @@ export const seeds = {
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.2,
             reason: '테스트 추론 내용입니다.',
+            users: [],
           })),
         ),
       },
     ]);
-  },
-  trades: async () => {
+  }
+}
+
+export class TradeSeeder implements Seeder {
+  async run(): Promise<void> {
     const users = await User.find();
     const decisions = await Decision.find();
     await Trade.delete({});
+
     await Trade.save([
       {
         seq: (await new Sequence().save()).value,
@@ -180,10 +203,14 @@ export const seeds = {
         decision: decisions[1],
       },
     ]);
-  },
-  notify: async () => {
+  }
+}
+
+export class NotifySeeder implements Seeder {
+  async run(): Promise<void> {
     const users = await User.find();
     await Notify.delete({});
+
     await Notify.save([
       {
         seq: (await new Sequence().save()).value,
@@ -198,7 +225,7 @@ export const seeds = {
           '`테스트 메시지 2`입니다. *테스트 메시지 2*입니다. 테스트 메시지 2입니다. 테스트 메시지 2입니다. 테스트 메시지 2입니다.',
       },
     ]);
-  },
-};
+  }
+}
 
-export const seedOrder = ['users', 'inferences', 'trades', 'notify'];
+export const seeders = [UserSeeder, InferenceSeeder, TradeSeeder, NotifySeeder];

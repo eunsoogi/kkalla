@@ -32,11 +32,11 @@ AI 질의를 위한 OpenAI API 암호키입니다. 자세한 내용은 [이곳](
 
 #### `api.upbit.secretKey`
 
-마켓 데이터를 불러오기 위한 업비트 API 암호키입니다. 자세한 내용은 [이곳](https://upbit.com/service_center/open_api_guide)을 참조하세요.
+마켓 데이터를 불러오기 위한 업비트 API 암호키입니다. 자세한 내용은 [이곳](https://upbit.com/service_center/open_api_guide)을 참조합니다.
 
-#### `api.test.email`
+#### `api.admin.email`
 
-개발 환경에서 dummy seed를 생성할 대상 이메일 계정입니다.
+초기 관리자 이메일 계정입니다.
 
 ### 개발 환경
 
