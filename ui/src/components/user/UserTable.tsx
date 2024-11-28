@@ -8,18 +8,20 @@ import { Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
+import { ColoredBadge } from '@/components/common/ColoredBadge';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { User, initialPaginatedState } from '@/interfaces/user.interface';
+import { formatYearDate } from '@/utils/date';
 
 import { getUsersAction } from './action';
 
 const usersQueryKey = ['users'];
 
-export interface UsersTableProps {
+export interface UserTableProps {
   items: PaginatedItem<User>;
 }
 
-const UsersTableBase = ({ items }: UsersTableProps) => {
+const UserTableBase = ({ items }: UserTableProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations();
@@ -52,10 +54,12 @@ const UsersTableBase = ({ items }: UsersTableProps) => {
                 <Table.Row key={user.id} className='hover:bg-gray-50 dark:hover:bg-gray-700'>
                   <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>
-                    {user.roles.map((role) => role.name).join(', ')}
+                    {user.roles.map((role) => (
+                      <ColoredBadge key={role.name} text={role.name} className='mr-1' />
+                    ))}
                   </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{new Date(user.createdAt).toLocaleString()}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{new Date(user.updatedAt).toLocaleString()}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.createdAt))}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.updatedAt))}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
@@ -92,7 +96,7 @@ const UsersTableBase = ({ items }: UsersTableProps) => {
   );
 };
 
-const UsersTableSkeleton = () => {
+const UserTableSkeleton = () => {
   const t = useTranslations();
 
   return (
@@ -115,7 +119,7 @@ const UsersTableSkeleton = () => {
   );
 };
 
-const UsersTableData = () => {
+const UserTableData = () => {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1', 10);
   const perPage = 10;
@@ -127,13 +131,13 @@ const UsersTableData = () => {
     staleTime: 0,
   });
 
-  return <UsersTableBase items={data} />;
+  return <UserTableBase items={data} />;
 };
 
-export const UsersTable = () => {
+export const UserTable = () => {
   return (
-    <Suspense fallback={<UsersTableSkeleton />}>
-      <UsersTableData />
+    <Suspense fallback={<UserTableSkeleton />}>
+      <UserTableData />
     </Suspense>
   );
 };

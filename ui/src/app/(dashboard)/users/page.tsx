@@ -4,12 +4,12 @@ import React from 'react';
 
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { ForbiddenError } from '@/components/error/403';
-import { UsersTable } from '@/components/users/UsersTable';
+import { UserTable } from '@/components/user/UserTable';
 
 const Page: React.FC = () => {
   return (
     <PermissionGuard permissions={['view:users']} fallback={<ForbiddenError />}>
-      <UsersTable />
+      <UserTable />
     </PermissionGuard>
   );
 };
