@@ -10,7 +10,7 @@ export class DecisionDto {
   seq: number;
 
   @ApiProperty()
-  symbol: string;
+  ticker: string;
 
   @ApiProperty({ enum: DecisionTypes })
   decision: DecisionTypes;

@@ -25,6 +25,7 @@ export class InferenceController {
       page: params.page,
       perPage: params.perPage,
       sortDirection: params.sortDirection,
+      category: params.category,
       decision: params.decision,
     };
 
@@ -46,7 +47,7 @@ export class InferenceController {
       }
     }
 
-    return this.inferenceService.paginate(filters);
+    return this.inferenceService.paginate(user, filters);
   }
 
   @Get('cursor')
@@ -60,6 +61,7 @@ export class InferenceController {
       limit: params.limit,
       skip: params.skip,
       sortDirection: params.sortDirection,
+      category: params.category,
       decision: params.decision,
     };
 
@@ -81,13 +83,13 @@ export class InferenceController {
       }
     }
 
-    return this.inferenceService.cursor(filters);
+    return this.inferenceService.cursor(user, filters);
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
-    return this.inferenceService.inference(<InferenceMessageRequest>{
+  public async post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
+    return this.inferenceService.infer(<InferenceMessageRequest>{
       ...INFERENCE_CONFIG.message,
       ...body,
     });

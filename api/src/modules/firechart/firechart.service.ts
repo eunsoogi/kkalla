@@ -10,22 +10,22 @@ import { LoungeApiResponse, LoungeRecord, LoungeRequest } from './firechart.inte
 export class FirechartService {
   constructor(private readonly httpService: HttpService) {}
 
-  public async get(request: LoungeRequest): Promise<LoungeRecord[]> {
+  public async getLoungeRecord(request: LoungeRequest): Promise<LoungeRecord[]> {
     const { data } = await firstValueFrom(
       this.httpService.get<LoungeApiResponse>(API_URL, {
         params: request,
       }),
     );
 
-    return this.transform(data);
+    return this.toLoungeRecord(data);
   }
 
-  private transform(response: LoungeApiResponse): LoungeRecord[] {
+  private toLoungeRecord(response: LoungeApiResponse): LoungeRecord[] {
     return response.records;
   }
 
   public async getFirechart(): Promise<string> {
-    const records = await this.get({
+    const records = await this.getLoungeRecord({
       keyword: FIRECHART_KEYWORD,
       limit: 1,
     });

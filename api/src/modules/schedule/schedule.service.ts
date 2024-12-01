@@ -3,7 +3,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { I18nService } from 'nestjs-i18n';
 
-import { PostTradeDto } from '../trade/dto/post-trade.dto';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeService } from '../trade/trade.service';
 import { User } from '../user/entities/user.entity';
@@ -20,19 +19,11 @@ export class ScheduleService {
   ) {}
 
   @Cron(CronExpression.EVERY_4_HOURS)
-  public async tradeSchedule(): Promise<Trade[]> {
+  public async inferAndTradeSchedule(): Promise<Trade[]> {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     const schedules = await Schedule.findByEnabled();
-
-    // TO-DO: dynamic symbol & market
-    const request = new PostTradeDto();
-
-    const inference = await this.tradeService.inference(request);
-
-    const trades = await Promise.all(
-      schedules.map((schedule) => this.tradeService.trade(schedule.user, inference, request)),
-    );
+    const trades = await this.tradeService.tradeWithUsers(schedules.map((schedule) => schedule.user));
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
 

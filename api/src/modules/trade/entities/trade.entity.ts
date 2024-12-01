@@ -42,10 +42,7 @@ export class Trade extends BaseEntity {
   type!: OrderTypes;
 
   @Column({ nullable: false })
-  symbol!: string;
-
-  @Column({ nullable: false })
-  market!: string;
+  ticker!: string;
 
   @Column({
     type: 'double',

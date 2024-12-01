@@ -27,5 +27,5 @@ export const getDecisionBadgeStyle = (decision?: string): string | undefined => 
       return 'text-error bg-lighterror dark:text-white dark:bg-error';
   }
 
-  return undefined;
+  return 'text-gray-800 bg-gray-200';
 };

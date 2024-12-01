@@ -1,10 +1,10 @@
 {
   "inference": {
-    "result": "추론 결과: `{decision}` {symbol} ({orderRatio}%)\n> {reason}",
+    "result": "추론 결과: `{decision}` {ticker} ({orderRatio}%)\n> {reason}",
     "fail": "추론에 실패했습니다."
   },
   "order": {
-    "result": "주문 결과: `{type}` {symbol}/{market} ({amount})",
+    "result": "주문 결과: `{type}` {ticker} ({amount})",
     "fail": "주문에 실패했습니다."
   }
 }

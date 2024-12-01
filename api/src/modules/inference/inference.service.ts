@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 import OpenAI from 'openai';
@@ -7,25 +7,21 @@ import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
 import { DecisionService } from '../decision/decision.service';
-import { Feargreed } from '../feargreed/feargreed.interface';
+import { CompactFeargreed } from '../feargreed/feargreed.interface';
 import { FeargreedService } from '../feargreed/feargreed.service';
-import { FirechartService } from '../firechart/firechart.service';
 import { NewsTypes } from '../news/news.enum';
-import { News } from '../news/news.interface';
+import { CompactNews } from '../news/news.interface';
 import { NewsService } from '../news/news.service';
 import { OpenaiService } from '../openai/openai.service';
 import { SequenceService } from '../sequence/sequence.service';
-import { Candle } from '../upbit/upbit.interface';
+import { CompactCandle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
+import { User } from '../user/entities/user.entity';
+import { Permission } from '../user/user.enum';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
-import {
-  InferenceData,
-  InferenceFilter,
-  InferenceMessage,
-  InferenceMessageRequest,
-  RetryOptions,
-} from './inference.interface';
+import { InferenceCategory } from './inference.enum';
+import { InferenceData, InferenceFilter, InferenceMessageRequest, RetryOptions } from './inference.interface';
 
 @Injectable()
 export class InferenceService {
@@ -39,51 +35,40 @@ export class InferenceService {
     private readonly upbitService: UpbitService,
     private readonly newsService: NewsService,
     private readonly feargreedService: FeargreedService,
-    private readonly firechartService: FirechartService,
   ) {}
 
-  public async getMessage(request: InferenceMessageRequest): Promise<InferenceMessage> {
-    this.logger.log(this.i18n.t('logging.upbit.candle.loading'));
+  private addMessage(messages: ChatCompletionMessageParam[], role: 'system' | 'assistant' | 'user', content: string) {
+    messages.push({ role, content });
+  }
 
-    const candles: Candle[] = await this.upbitService.getCandles(request);
+  public async getMessageParams(request: InferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
+    const messages: ChatCompletionMessageParam[] = [];
+
+    this.addMessage(messages, 'system', INFERENCE_PROMPT);
 
     this.logger.log(this.i18n.t('logging.news.loading'));
-
-    const news: News[] = await this.newsService.getNews({
+    const news: CompactNews[] = await this.newsService.getCompactNews({
       type: NewsTypes.COIN,
       limit: request.newsLimit,
       skip: true,
     });
+    this.logger.debug(news);
+    this.addMessage(messages, 'assistant', this.i18n.t('prompt.input.news'));
+    this.addMessage(messages, 'user', JSON.stringify(news || '{}'));
 
     this.logger.log(this.i18n.t('logging.feargreed.loading'));
+    const feargreed: CompactFeargreed = await this.feargreedService.getCompactFeargreed(request.symbol);
+    this.logger.debug(feargreed);
+    this.addMessage(messages, 'assistant', this.i18n.t('prompt.input.feargreed'));
+    this.addMessage(messages, 'user', JSON.stringify(feargreed || '{}'));
 
-    const feargreed: Feargreed = await this.feargreedService.getFeargreed();
+    this.logger.log(this.i18n.t('logging.upbit.candle.loading', { args: request }));
+    const candles: CompactCandle = await this.upbitService.getCandles(request);
+    this.logger.debug(candles);
+    this.addMessage(messages, 'assistant', this.i18n.t('prompt.input.candle'));
+    this.addMessage(messages, 'user', JSON.stringify(candles || '{}'));
 
-    this.logger.log(this.i18n.t('logging.firechart.loading'));
-
-    const firechart: string = await this.firechartService.getFirechart();
-
-    const data: InferenceMessage = {
-      candles,
-      news,
-      feargreed,
-      firechart,
-    };
-
-    return data;
-  }
-
-  public getMessageParams(message: InferenceMessage): ChatCompletionMessageParam[] {
-    return [
-      {
-        role: 'system',
-        content: INFERENCE_PROMPT,
-      },
-      {
-        role: 'user',
-        content: JSON.stringify(message),
-      },
-    ];
+    return messages;
   }
 
   public getResponseFormat(): ResponseFormatJSONSchema {
@@ -97,13 +82,13 @@ export class InferenceService {
     };
   }
 
-  public async inference(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
-    const client: OpenAI = await this.openaiService.getServerClient();
-
-    const message: InferenceMessage = await this.getMessage(request);
+  public async infer(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
+    const messages: ChatCompletionMessageParam[] = await this.getMessageParams(request);
+    const responseFormat: ResponseFormatJSONSchema = this.getResponseFormat();
 
     this.logger.log(this.i18n.t('logging.inference.loading'));
 
+    const client: OpenAI = await this.openaiService.getServerClient();
     const response: ChatCompletion = await this.retry(
       () =>
         client.chat.completions.create({
@@ -113,14 +98,14 @@ export class InferenceService {
           top_p: INFERENCE_CONFIG.topP,
           presence_penalty: INFERENCE_CONFIG.presencePenalty,
           frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
-          messages: this.getMessageParams(message),
-          response_format: this.getResponseFormat(),
+          response_format: responseFormat,
+          messages,
           stream: false,
         }),
       retryOptions,
     );
 
-    this.logger.log(response);
+    this.logger.debug(response);
 
     const data: InferenceData = JSON.parse(response.choices[0].message?.content || '{}');
 
@@ -155,6 +140,29 @@ export class InferenceService {
     throw new Error(this.i18n.t('logging.retry.failed'));
   }
 
+  private getCategoryPermission(category: InferenceCategory): Permission {
+    switch (category) {
+      case InferenceCategory.NASDAQ:
+        return Permission.VIEW_INFERENCE_NASDAQ;
+      case InferenceCategory.COIN_MAJOR:
+        return Permission.VIEW_INFERENCE_COIN_MAJOR;
+      case InferenceCategory.COIN_MINOR:
+        return Permission.VIEW_INFERENCE_COIN_MINOR;
+      default:
+        throw new Error(
+          this.i18n.t('logging.inference.permission.unknown_category', {
+            args: { category },
+          }),
+        );
+    }
+  }
+
+  private validateCategoryPermission(user: User, category: InferenceCategory): boolean {
+    const userPermissions = user.roles.flatMap((role) => role.permissions || []);
+    const requiredPermission = this.getCategoryPermission(category);
+    return userPermissions.includes(requiredPermission);
+  }
+
   public async create(data: InferenceData): Promise<Inference> {
     const inference = new Inference();
 
@@ -165,11 +173,22 @@ export class InferenceService {
     return inference.save();
   }
 
-  public async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+  public async paginate(user: User, request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+    if (!this.validateCategoryPermission(user, request.category)) {
+      throw new ForbiddenException(this.i18n.t('logging.inference.permission.category_access_denied'));
+    }
+
     return Inference.paginate(request);
   }
 
-  public async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
+  public async cursor(
+    user: User,
+    request: CursorRequest<string> & InferenceFilter,
+  ): Promise<CursorItem<Inference, string>> {
+    if (!this.validateCategoryPermission(user, request.category)) {
+      throw new ForbiddenException(this.i18n.t('logging.inference.permission.category_access_denied'));
+    }
+
     return Inference.cursor(request);
   }
 }

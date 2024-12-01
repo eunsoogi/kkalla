@@ -1,5 +1,3 @@
-import { ApiProperty } from '@nestjs/swagger';
-
 import {
   BaseEntity,
   Between,
@@ -26,7 +24,6 @@ import { DecisionFilter } from '../decision.interface';
 
 @Entity()
 export class Decision extends BaseEntity {
-  @ApiProperty()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -42,12 +39,10 @@ export class Decision extends BaseEntity {
   @JoinColumn()
   inference: Inference;
 
-  @ApiProperty({ type: () => [User] })
   @ManyToMany(() => User)
   @JoinTable()
   users: User[];
 
-  @ApiProperty({ enum: DecisionTypes })
   @Column({
     type: 'enum',
     enum: DecisionTypes,
@@ -55,38 +50,27 @@ export class Decision extends BaseEntity {
   })
   decision: DecisionTypes;
 
-  @ApiProperty()
   @Column({
     type: 'double',
     default: 0,
   })
   orderRatio: number;
 
-  @ApiProperty()
   @Column({
     type: 'double',
     default: 0,
   })
   weightLowerBound: number;
 
-  @ApiProperty()
   @Column({
     type: 'double',
     default: 0,
   })
   weightUpperBound: number;
 
-  @ApiProperty()
-  @Column({
-    type: 'text',
-  })
-  reason: string;
-
-  @ApiProperty()
   @CreateDateColumn()
   createdAt: Date;
 
-  @ApiProperty()
   @UpdateDateColumn()
   updatedAt: Date;
 

@@ -5,8 +5,7 @@ import { PaginatedItem } from './item.interface';
 export interface Trade {
   id: number;
   type: TradeTypes;
-  symbol: string;
-  market: string;
+  ticker: string;
   amount: number;
   balances: object;
   inference: Inference;
