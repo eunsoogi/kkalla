@@ -1,39 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { Type } from 'class-transformer';
-
-import { SortDirection } from '@/modules/item/item.enum';
+import { GetPaginationDto } from '@/modules/item/dto/get-pagination.dto';
 import { ToDate } from '@/transforms/date.transform';
 
 import { DecisionTypes } from '../../decision/decision.enum';
+import { InferenceCategory } from '../inference.enum';
 
-export class GetInferenceDto {
+export class GetInferenceDto extends GetPaginationDto {
   @ApiProperty({
     required: true,
     example: false,
   })
   mine: boolean = false;
 
-  @Type(() => Number)
   @ApiProperty({
     required: true,
-    example: 1,
+    enum: InferenceCategory,
   })
-  page: number = 1;
-
-  @Type(() => Number)
-  @ApiProperty({
-    required: true,
-    example: 6,
-  })
-  perPage: number = 6;
-
-  @ApiProperty({
-    required: false,
-    enum: SortDirection,
-    default: SortDirection.DESC,
-  })
-  sortDirection?: SortDirection = SortDirection.DESC;
+  category: InferenceCategory;
 
   @ApiProperty({
     required: false,

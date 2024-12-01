@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Balances, OHLCV, Order, upbit } from 'ccxt';
+import { Balances, Order, upbit } from 'ccxt';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
 import { DecisionTypes } from '../decision/decision.enum';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
-import { Candle, CandleRequest, OrderRequest, UpbitConfigData } from './upbit.interface';
+import { CandleRequest, CompactCandle, OrderRequest, UpbitConfigData } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
@@ -46,30 +46,22 @@ export class UpbitService {
     return this.createClient(accessKey, secretKey);
   }
 
-  public async getCandles(request: CandleRequest): Promise<Candle[]> {
+  public async getCandles(request: CandleRequest): Promise<CompactCandle> {
     const client = await this.getServerClient();
     const ticker = `${request.symbol}/${request.market}`;
     const candleIntervals = ['15m', '1h', '4h', '1d'];
-    const candles = await Promise.all(
-      candleIntervals.map((interval) => client.fetchOHLCV(ticker, interval, undefined, request.candles[interval])),
-    );
 
-    return candles.flatMap((items, index) =>
-      items.map((item) => this.mapOHLCVToCandle(item, ticker, [15, 60, 240, 1440][index])),
-    );
-  }
-
-  private mapOHLCVToCandle(ohlcv: OHLCV, market: string, unit: number): Candle {
-    return {
-      market,
-      unit,
-      timestamp: new Date(ohlcv[0]),
-      openPrice: ohlcv[1],
-      highPrice: ohlcv[2],
-      lowPrice: ohlcv[3],
-      closePrice: ohlcv[4],
-      volume: ohlcv[5],
+    const candles: CompactCandle = {
+      ticker,
+      series: await Promise.all(
+        candleIntervals.map(async (interval) => ({
+          interval,
+          data: await client.fetchOHLCV(ticker, interval, undefined, request.candles[interval]),
+        })),
+      ),
     };
+
+    return candles;
   }
 
   public async getBalances(user: User): Promise<Balances> {

@@ -16,6 +16,12 @@ export interface News {
   publishedAt: string;
 }
 
+export interface CompactNews {
+  title: string;
+  importance: ImportanceLevel;
+  timestamp: number;
+}
+
 export interface NewsRequest extends CursorRequest<number> {
   type?: NewsTypes;
 }

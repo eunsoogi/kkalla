@@ -15,6 +15,7 @@ import { Decision } from '@/modules/decision/entities/decision.entity';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
+import { InferenceCategory } from '../inference.enum';
 import { InferenceFilter } from '../inference.interface';
 
 @Entity()
@@ -28,14 +29,25 @@ export class Inference extends BaseEntity {
   })
   seq: number;
 
-  @Column()
-  symbol: string;
+  @Column({
+    type: 'enum',
+    enum: InferenceCategory,
+  })
+  category: InferenceCategory;
 
   @OneToMany(() => Decision, (decision) => decision.inference, {
     eager: true,
     cascade: true,
   })
   decisions: Decision[];
+
+  @Column({
+    type: 'text',
+  })
+  reason: string;
+
+  @Column()
+  ticker: string;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -44,7 +56,9 @@ export class Inference extends BaseEntity {
   updatedAt: Date;
 
   public static async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
-    const where: any = {};
+    const where: any = {
+      category: request.category,
+    };
 
     if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
@@ -102,7 +116,9 @@ export class Inference extends BaseEntity {
   }
 
   public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
-    const where: any = {};
+    const where: any = {
+      category: request.category,
+    };
 
     if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());

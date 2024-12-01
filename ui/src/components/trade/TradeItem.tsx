@@ -17,9 +17,7 @@ export const TradeItem = (item: Trade) => {
         <Badge className={TRADE_STYLES[item.type].badgeStyle}>{item.type}</Badge>
       </Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
-      <Table.Cell className='px-3 py-3 whitespace-nowrap'>
-        {item.symbol}/{item.market}
-      </Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.ticker}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
     </Table.Row>
   );

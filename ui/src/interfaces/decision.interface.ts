@@ -4,7 +4,7 @@ import { PaginatedItem } from './item.interface';
 export interface Decision {
   id: string;
   seq: number;
-  symbol: string;
+  ticker: string;
   decision: DecisionTypes;
   orderRatio: number;
   weightLowerBound: number;

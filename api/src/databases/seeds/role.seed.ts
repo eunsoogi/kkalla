@@ -14,7 +14,7 @@ export class RoleSeeder implements Seeder {
       {
         name: UserRole.USER,
         description: 'Regular user with basic access',
-        permissions: [],
+        permissions: [Permission.VIEW_INFERENCE_COIN_MAJOR, Permission.TRADE_COIN_MAJOR],
       },
     ];
 
@@ -23,9 +23,10 @@ export class RoleSeeder implements Seeder {
 
       if (!role) {
         role = new Role();
-        Object.assign(role, roleData);
-        await role.save();
       }
+
+      Object.assign(role, roleData);
+      await role.save();
     }
   }
 }
