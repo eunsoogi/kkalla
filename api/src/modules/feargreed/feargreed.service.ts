@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
 import { API_URL } from './feargreed.config';
-import { Feargreed, FeargreedApiResponse } from './feargreed.interface';
+import { CompactFeargreed, Feargreed, FeargreedApiResponse } from './feargreed.interface';
 
 @Injectable()
 export class FeargreedService {
@@ -12,11 +12,10 @@ export class FeargreedService {
 
   public async getFeargreed(): Promise<Feargreed> {
     const { data } = await firstValueFrom(this.httpService.get<FeargreedApiResponse>(API_URL));
-
-    return this.transform(data);
+    return this.toFeargreed(data);
   }
 
-  private transform(response: FeargreedApiResponse): Feargreed {
+  private toFeargreed(response: FeargreedApiResponse): Feargreed {
     return {
       at: response.at,
       today: {
@@ -38,15 +37,24 @@ export class FeargreedService {
         stage: item.stage_en,
         comment: item.comment,
       })),
-      pair: response.pair?.map((item) => ({
+      pairs: response.pairs?.map((item) => ({
         date: item.date,
         code: item.code,
-        koreanName: item.korean_name,
-        changeRate: item.change_rate,
-        clsPrc: item.cls_prc,
+        currency: item.currency,
         score: item.score,
+        diff: item.change_rate,
         stage: item.stage_en,
       })),
     };
+  }
+
+  public async getCompactFeargreed(symbol: string): Promise<CompactFeargreed> {
+    const item = await this.getFeargreed();
+    return this.toCompactFeargreed(item, symbol);
+  }
+
+  private toCompactFeargreed(item: Feargreed, symbol: string): CompactFeargreed {
+    const pair = item.pairs?.find((pair) => pair.currency === symbol);
+    return pair;
   }
 }

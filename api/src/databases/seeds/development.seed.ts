@@ -3,6 +3,7 @@ import { Seeder } from 'typeorm-extension';
 import { DecisionTypes } from '@/modules/decision/decision.enum';
 import { Decision } from '@/modules/decision/entities/decision.entity';
 import { Inference } from '@/modules/inference/entities/inference.entity';
+import { InferenceCategory } from '@/modules/inference/inference.enum';
 import { Notify } from '@/modules/notify/entities/notify.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';
@@ -35,143 +36,168 @@ export class InferenceSeeder implements Seeder {
     await Inference.delete({});
     await Decision.delete({});
 
-    const weightBounds = Array.from({ length: 5 }, (_, i) => i * 0.2);
+    const weightBounds = Array.from({ length: 8 }, (_, i) => i * 0.125);
 
     await Inference.save([
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.COIN_MAJOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound, index) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: index < 1 ? users : [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.COIN_MAJOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound, index) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: index < 1 ? users : [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'ETH',
+        category: InferenceCategory.COIN_MINOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound, index) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: index < 1 ? users : [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'ETH/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'ETH',
+        category: InferenceCategory.COIN_MINOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.BUY,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'ETH/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.NASDAQ,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.SELL,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.NASDAQ,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.SELL,
             orderRatio: 0.3,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.COIN_MAJOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.HOLD,
-            orderRatio: 0,
+            orderRatio: 1,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.COIN_MAJOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.HOLD,
-            orderRatio: 0,
+            orderRatio: 1,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
       {
         seq: (await new Sequence().save()).value,
-        symbol: 'BTC',
+        category: InferenceCategory.COIN_MINOR,
         decisions: await Promise.all(
           weightBounds.map(async (lowerBound) => ({
             seq: (await new Sequence().save()).value,
             decision: DecisionTypes.HOLD,
-            orderRatio: 0,
+            orderRatio: 1,
             weightLowerBound: lowerBound,
-            weightUpperBound: lowerBound + 0.2,
-            reason: '테스트 추론 내용입니다.',
+            weightUpperBound: lowerBound + 0.125,
             users: [],
           })),
         ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
+      },
+      {
+        seq: (await new Sequence().save()).value,
+        category: InferenceCategory.COIN_MINOR,
+        decisions: await Promise.all(
+          weightBounds.map(async (lowerBound) => ({
+            seq: (await new Sequence().save()).value,
+            decision: DecisionTypes.HOLD,
+            orderRatio: 1,
+            weightLowerBound: lowerBound,
+            weightUpperBound: lowerBound + 0.125,
+            users: [],
+          })),
+        ),
+        reason: '테스트 추론 내용입니다.',
+        ticker: 'BTC/KRW',
       },
     ]);
   }
@@ -188,8 +214,7 @@ export class TradeSeeder implements Seeder {
         seq: (await new Sequence().save()).value,
         user: users[0],
         type: OrderTypes.BUY,
-        symbol: 'BTC',
-        market: 'KRW',
+        ticker: 'BTC/KRW',
         amount: 1000000,
         decision: decisions[0],
       },
@@ -197,8 +222,7 @@ export class TradeSeeder implements Seeder {
         seq: (await new Sequence().save()).value,
         user: users[0],
         type: OrderTypes.SELL,
-        symbol: 'BTC',
-        market: 'KRW',
+        ticker: 'BTC/KRW',
         amount: 0.05,
         decision: decisions[1],
       },

@@ -59,7 +59,15 @@
     "mine": "내 추론만 보기",
     "reason": "추론 내용",
     "bound": "포트폴리오 비중 {lower}~{upper}%",
-    "decision": "매매 결정"
+    "decision": "매매 결정",
+    "category": {
+      "label": "카테고리",
+      "coin": {
+        "major": "메이저 코인",
+        "minor": "마이너 코인"
+      },
+      "nasdaq": "나스닥"
+    }
   },
   "user": {
     "email": "이메일",

@@ -1,12 +1,17 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { I18nService } from 'nestjs-i18n';
+
 import { Permission } from '../../user/user.enum';
 import { PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private i18n: I18nService,
+  ) {}
 
   public async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(PERMISSIONS_KEY, [
@@ -21,14 +26,18 @@ export class PermissionGuard implements CanActivate {
     const { user } = ctx.switchToHttp().getRequest();
 
     if (!user) {
-      throw new ForbiddenException('No user found in request');
+      throw new ForbiddenException(this.i18n.t('logging.auth.permission.no_user'));
     }
 
     const userPermissions = user.roles?.flatMap((role) => role.permissions) || [];
     const hasPermission = requiredPermissions.every((permission) => userPermissions.includes(permission));
 
     if (!hasPermission) {
-      throw new ForbiddenException(`You don't have required permissions: ${requiredPermissions.join(', ')}`);
+      throw new ForbiddenException(
+        this.i18n.t('logging.auth.permission.insufficient_permissions', {
+          args: { permissions: requiredPermissions.join(', ') },
+        }),
+      );
     }
 
     return true;

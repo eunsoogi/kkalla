@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { CursorItem } from '@/modules/item/item.interface';
 
 import { API_URL } from './news.config';
-import { News, NewsApiResponse, NewsRequest } from './news.interface';
+import { CompactNews, News, NewsApiResponse, NewsRequest } from './news.interface';
 import { ImportanceLevel } from './news.type';
 
 @Injectable()
@@ -26,10 +26,10 @@ export class NewsService {
       }),
     );
 
-    return this.transform(data);
+    return this.toNews(data);
   }
 
-  private transform(response: NewsApiResponse): News[] {
+  private toNews(response: NewsApiResponse): News[] {
     const news = response.docs.map(
       (item): News => ({
         id: item._id,
@@ -46,6 +46,19 @@ export class NewsService {
     );
 
     return news;
+  }
+
+  public async getCompactNews(request: NewsRequest): Promise<CompactNews[]> {
+    const items = await this.getNews(request);
+    return this.toCompactNews(items);
+  }
+
+  private toCompactNews(items: News[]): CompactNews[] {
+    return items.map((item) => ({
+      title: item.title,
+      importance: item.importance,
+      timestamp: new Date(item.publishedAt).getTime(),
+    }));
   }
 
   public async cursor(request: NewsRequest): Promise<CursorItem<News, number>> {

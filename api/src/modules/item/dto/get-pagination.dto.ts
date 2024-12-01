@@ -2,27 +2,22 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { Type } from 'class-transformer';
 
-import { ToBoolean } from '@/transforms/boolean.transform';
-
 import { SortDirection } from '../item.enum';
 
-export class GetCursorDto<C> {
-  @ApiProperty()
-  cursor: C;
+export class GetPaginationDto {
+  @Type(() => Number)
+  @ApiProperty({
+    required: true,
+    example: 1,
+  })
+  page: number = 1;
 
   @Type(() => Number)
   @ApiProperty({
     required: true,
-    example: 10,
+    example: 6,
   })
-  limit: number = 10;
-
-  @ToBoolean()
-  @ApiProperty({
-    required: true,
-    example: true,
-  })
-  skip: boolean = true;
+  perPage: number = 10;
 
   @ApiProperty({
     required: false,

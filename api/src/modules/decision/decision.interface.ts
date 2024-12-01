@@ -6,7 +6,6 @@ export interface DecisionData {
   orderRatio: number;
   weightLowerBound: number;
   weightUpperBound: number;
-  reason: string;
 }
 
 export interface DecisionFilter {

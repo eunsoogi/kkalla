@@ -2,14 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class PostInferenceDto {
   @ApiProperty({
-    required: true,
     example: 'BTC',
   })
-  symbol: string = 'BTC';
+  symbol: string;
 
   @ApiProperty({
-    required: true,
     example: 'KRW',
   })
-  market: string = 'KRW';
+  market: string;
 }

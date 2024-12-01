@@ -46,7 +46,8 @@ export class DecisionController {
       ...result,
       items: result.items.map((decision) => ({
         ...decision,
-        symbol: decision.inference.symbol,
+        ticker: decision.inference.ticker,
+        reason: decision.inference.reason,
       })),
     };
   }
@@ -88,7 +89,8 @@ export class DecisionController {
       ...result,
       items: result.items.map((decision) => ({
         ...decision,
-        symbol: decision.inference.symbol,
+        ticker: decision.inference.ticker,
+        reason: decision.inference.reason,
       })),
     };
   }
@@ -99,7 +101,8 @@ export class DecisionController {
     const decision = await this.decisionService.findOne(id);
     return {
       ...decision,
-      symbol: decision.inference.symbol,
+      ticker: decision.inference.ticker,
+      reason: decision.inference.reason,
     };
   }
 }

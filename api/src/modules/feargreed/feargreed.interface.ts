@@ -19,15 +19,20 @@ export interface Feargreed {
     stage: string;
     comment: string;
   }[];
-  pair: {
+  pairs: {
     date: string;
     code: string;
-    koreanName: string;
-    changeRate: number;
-    clsPrc: number;
+    currency: string;
     score: number;
+    diff: number;
     stage: string;
   }[];
+}
+
+export interface CompactFeargreed {
+  score: number;
+  diff: number;
+  stage: string;
 }
 
 export interface FeargreedApiResponse {
@@ -56,7 +61,7 @@ export interface FeargreedApiResponse {
     stage_en: string;
     comment: string;
   }[];
-  pair: {
+  pairs: {
     code: string;
     currency: string;
     korean_name: string;
