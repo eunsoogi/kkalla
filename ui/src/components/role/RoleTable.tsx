@@ -60,7 +60,7 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
                 >
                   <Table.Cell className='whitespace-nowrap'>{role.name}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{role.description}</Table.Cell>
-                  <Table.Cell className='flex flex-col gap-1'>
+                  <Table.Cell className='whitespace-nowrap flex flex-col gap-1'>
                     {role.permissions?.map((permission) => <ColoredBadge key={permission} text={permission} />)}
                   </Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(role.createdAt))}</Table.Cell>
