@@ -2,7 +2,6 @@ import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
 export class Migration1733057762607 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1. 먼저 nullable한 컬럼들 추가
     await queryRunner.addColumns('inference', [
       new TableColumn({
         name: 'category',
