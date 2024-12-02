@@ -57,7 +57,7 @@ const UserTableBase = ({ items }: UserTableProps) => {
                   onClick={() => router.push(`./users/${user.id}`)}
                 >
                   <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
-                  <Table.Cell className='flex flex-col gap-1'>
+                  <Table.Cell className='whitespace-nowrap flex flex-col gap-1'>
                     {user.roles.map((role) => (
                       <ColoredBadge key={role.name} text={role.name} />
                     ))}
