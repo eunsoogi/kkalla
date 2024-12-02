@@ -16,6 +16,7 @@ import { Permission } from '../permission/permission.enum';
 import { SequenceService } from '../sequence/sequence.service';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
+import { Permission } from '../user/user.enum';
 import { Trade } from './entities/trade.entity';
 import { InferenceWithDecision, Ticker, TradeData } from './trade.interface';
 
