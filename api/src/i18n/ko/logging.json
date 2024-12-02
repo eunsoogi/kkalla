@@ -36,5 +36,21 @@
   "retry": {
     "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중...",
     "failed": "재시도 실패."
+  },
+  "user": {
+    "error": {
+      "not_found": "ID가 \"{id}\"인 사용자를 찾을 수 없습니다.",
+      "email_exists": "이메일 \"{email}\"이(가) 이미 존재합니다."
+    },
+    "success": {
+      "created": "사용자가 생성되었습니다.",
+      "updated": "사용자 정보가 업데이트되었습니다.",
+      "deleted": "사용자가 삭제되었습니다."
+    }
+  },
+  "role": {
+    "error": {
+      "not_found": "역할을 찾을 수 없습니다."
+    }
   }
 }

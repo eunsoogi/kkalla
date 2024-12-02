@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 
 import { I18nService } from 'nestjs-i18n';
 
-import { Permission } from '../../user/user.enum';
+import { Permission } from '../../permission/permission.enum';
 import { PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
 
 @Injectable()

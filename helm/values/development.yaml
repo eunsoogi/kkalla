@@ -21,6 +21,10 @@ api:
   service:
     type: LoadBalancer
     port: 3001
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
 
 ui:
   image:
@@ -42,6 +46,10 @@ ui:
     enabled: false
   service:
     type: LoadBalancer
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
   publicUrl: http://localhost:3000/
   api:
     url: "http://{{ .Release.Name }}-api.{{ .Release.Namespace }}.svc.cluster.local:3001/"

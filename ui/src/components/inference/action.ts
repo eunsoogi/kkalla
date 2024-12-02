@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { Inference, initialCursorState, initialPaginatedState } from '@/interfaces/inference.interface';
 import { CursorItem, PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
@@ -11,6 +13,7 @@ export interface InferenceParams {
 
 export const getInferenceAction = async (params: InferenceParams): Promise<PaginatedItem<Inference>> => {
   const client = await getClient();
+  const t = await getTranslations();
 
   try {
     const { data } = await client.get('/api/v1/inferences', {
@@ -25,7 +28,7 @@ export const getInferenceAction = async (params: InferenceParams): Promise<Pagin
     return {
       ...initialPaginatedState,
       success: false,
-      message: String(error),
+      message: t('error.fetch_failed', { error: String(error) }),
     };
   }
 };
@@ -44,6 +47,7 @@ interface InferenceCursorParams {
 
 export const getInferenceCursorAction = async (params: InferenceCursorParams): Promise<CursorItem<Inference>> => {
   const client = await getClient();
+  const t = await getTranslations();
 
   try {
     const { data } = await client.get('/api/v1/inferences/cursor', {
@@ -58,7 +62,7 @@ export const getInferenceCursorAction = async (params: InferenceCursorParams): P
     return {
       ...initialCursorState,
       success: false,
-      message: String(error),
+      message: t('error.fetch_failed', { error: String(error) }),
     };
   }
 };

@@ -1,17 +1,20 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { Decision, initialPaginatedState } from '@/interfaces/decision.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
 
 export const getDecisionAction = async (id: string): Promise<Decision | null> => {
   const client = await getClient();
+  const t = await getTranslations();
 
   try {
     const { data } = await client.get(`/api/v1/decisions/${id}`);
     return data;
   } catch (error) {
-    console.error(error);
+    console.error(t('error.fetch_failed', { error: String(error) }));
     return null;
   }
 };
@@ -23,6 +26,7 @@ export interface DecisionParams {
 
 export const getDecisionsAction = async (params: DecisionParams): Promise<PaginatedItem<Decision>> => {
   const client = await getClient();
+  const t = await getTranslations();
 
   try {
     const { data } = await client.get('/api/v1/decisions', {
@@ -37,7 +41,7 @@ export const getDecisionsAction = async (params: DecisionParams): Promise<Pagina
     return {
       ...initialPaginatedState,
       success: false,
-      message: String(error),
+      message: t('error.fetch_failed', { error: String(error) }),
     };
   }
 };
