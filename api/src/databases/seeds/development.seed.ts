@@ -145,7 +145,7 @@ export class InferenceSeeder implements Seeder {
             orderRatio: 1,
             weightLowerBound: lowerBound,
             weightUpperBound: lowerBound + 0.125,
-            users: [],
+            users,
           })),
         ),
         reason: '테스트 추론 내용입니다.',

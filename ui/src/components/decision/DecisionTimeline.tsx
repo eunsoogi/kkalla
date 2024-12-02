@@ -7,6 +7,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
+import { DecisionTypes } from '@/enums/decision.enum';
 import { Decision, initialPaginatedState } from '@/interfaces/decision.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
@@ -40,7 +41,9 @@ const DecisionTimelineItem: React.FC = () => {
                   <Badge className={getDecisionBadgeStyle(item.decision)}>{item.decision}</Badge>
                 </p>
                 <p>{item.ticker}</p>
-                <p>{Math.floor(item.orderRatio * 100)}%</p>
+                {(item.decision === DecisionTypes.BUY || item.decision === DecisionTypes.SELL) && (
+                  <p>{Math.floor(item.orderRatio * 100)}%</p>
+                )}
               </div>
             </div>
           </li>
