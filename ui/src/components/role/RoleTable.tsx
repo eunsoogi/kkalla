@@ -1,27 +1,28 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Table } from 'flowbite-react';
+import { Button, Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { ColoredBadge } from '@/components/common/ColoredBadge';
 import { PaginatedItem } from '@/interfaces/item.interface';
-import { User, initialPaginatedState } from '@/interfaces/user.interface';
+import { Role, initialPaginatedState } from '@/interfaces/role.interface';
 import { formatYearDate } from '@/utils/date';
 
-import { getUsersAction } from './action';
+import { getRolesAction } from './action';
 
-const usersQueryKey = ['users'];
+const rolesQueryKey = ['roles'];
 
-export interface UserTableProps {
-  items: PaginatedItem<User>;
+export interface RoleTableProps {
+  items: PaginatedItem<Role>;
 }
 
-const UserTableBase = ({ items }: UserTableProps) => {
+const RoleTableBase = ({ items }: RoleTableProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations();
@@ -38,32 +39,32 @@ const UserTableBase = ({ items }: UserTableProps) => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-full break-words'>
       <div className='px-6'>
-        <h5 className='card-title text-dark dark:text-white mb-6'>{t('menu.userManagement')}</h5>
+        <h5 className='card-title text-dark dark:text-white mb-6'>{t('menu.roleManagement')}</h5>
       </div>
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
             <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('user.email')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('user.role')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap'>{t('role.name')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap'>{t('role.description')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap'>{t('role.permissions')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('createdAt')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
             </Table.Head>
             <Table.Body className='divide-y divide-border dark:divide-gray-800'>
-              {items.items.map((user) => (
+              {items.items.map((role) => (
                 <Table.Row
-                  key={user.id}
+                  key={role.id}
                   className='hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
-                  onClick={() => router.push(`./users/${user.id}`)}
+                  onClick={() => router.push(`./roles/${role.id}`)}
                 >
-                  <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{role.name}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{role.description}</Table.Cell>
                   <Table.Cell className='flex flex-col gap-1'>
-                    {user.roles.map((role) => (
-                      <ColoredBadge key={role.name} text={role.name} />
-                    ))}
+                    {role.permissions?.map((permission) => <ColoredBadge key={permission} text={permission} />)}
                   </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.createdAt))}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.updatedAt))}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(role.createdAt))}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(role.updatedAt))}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
@@ -96,17 +97,22 @@ const UserTableBase = ({ items }: UserTableProps) => {
           ))}
         </div>
       </div>
+      <div className='px-6 pb-6 flex justify-end'>
+        <Link href='./roles/create'>
+          <Button color='primary'>{t('role.create')}</Button>
+        </Link>
+      </div>
     </div>
   );
 };
 
-const UserTableSkeleton = () => {
+const RoleTableSkeleton = () => {
   const t = useTranslations();
 
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-full break-words'>
       <div className='px-6'>
-        <h5 className='card-title text-dark dark:text-white mb-6'>{t('menu.userManagement')}</h5>
+        <h5 className='card-title text-dark dark:text-white mb-6'>{t('menu.roleManagement')}</h5>
       </div>
       <SimpleBar>
         <div className='overflow-x-auto'>
@@ -123,25 +129,25 @@ const UserTableSkeleton = () => {
   );
 };
 
-const UserTableData = () => {
+const RoleTableData = () => {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1', 10);
   const perPage = 10;
 
-  const { data } = useSuspenseQuery<PaginatedItem<User>>({
-    queryKey: [...usersQueryKey, page],
-    queryFn: () => getUsersAction({ page, perPage }),
+  const { data } = useSuspenseQuery<PaginatedItem<Role>>({
+    queryKey: [...rolesQueryKey, page],
+    queryFn: () => getRolesAction({ page, perPage }),
     initialData: initialPaginatedState,
     staleTime: 0,
   });
 
-  return <UserTableBase items={data} />;
+  return <RoleTableBase items={data} />;
 };
 
-export const UserTable = () => {
+export const RoleTable = () => {
   return (
-    <Suspense fallback={<UserTableSkeleton />}>
-      <UserTableData />
+    <Suspense fallback={<RoleTableSkeleton />}>
+      <RoleTableData />
     </Suspense>
   );
 };

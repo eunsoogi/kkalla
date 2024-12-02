@@ -69,7 +69,7 @@ export const getRolesAction = async (): Promise<Role[]> => {
   const client = await getClient();
 
   try {
-    const { data } = await client.get('/api/v1/roles');
+    const { data } = await client.get('/api/v1/roles/all');
     return data;
   } catch (error) {
     console.error('Failed to fetch roles:', error);

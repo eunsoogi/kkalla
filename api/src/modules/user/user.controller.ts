@@ -4,10 +4,10 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { PaginatedItem } from '../item/item.interface';
+import { Permission } from '../permission/permission.enum';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDto } from './dto/user.dto';
-import { Permission } from './user.enum';
 import { UserService } from './user.service';
 
 @Controller('/api/v1/users')

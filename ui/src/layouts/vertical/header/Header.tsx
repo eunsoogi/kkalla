@@ -50,11 +50,11 @@ const Header = () => {
               </span>
               <PermissionGuard permissions={['manage:users']}>
                 <Link
-                  href='/users'
+                  href='/admin'
                   className='h-10 w-10 flex text-black dark:text-white text-opacity-65 hover:text-primary hover:bg-lightprimary rounded-full justify-center items-center cursor-pointer'
-                  title={t('menu.userManagement')}
+                  title={t('menu.admin')}
                 >
-                  <Icon icon='solar:users-group-rounded-line-duotone' height={21} />
+                  <Icon icon='solar:settings-line-duotone' height={21} />
                 </Link>
               </PermissionGuard>
               <Notification />

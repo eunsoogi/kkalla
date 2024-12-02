@@ -2,8 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 
+import { PaginatedItem } from '../item/item.interface';
+import { GetRolesDto } from './dto/get-roles.dto';
 import { RoleDto } from './dto/role.dto';
 import { Role } from './entities/role.entity';
+import { RoleData } from './role.interface';
 
 @Injectable()
 export class RoleService {
@@ -27,26 +30,29 @@ export class RoleService {
     return role;
   }
 
-  public async create(roleDto: RoleDto): Promise<Role> {
-    const role = Role.create({
-      name: roleDto.name,
-    });
-
-    await role.save();
-    return role;
+  public async create(data: RoleData): Promise<Role> {
+    const role = new Role();
+    Object.assign(role, data);
+    return role.save();
   }
 
-  public async update(id: string, roleDto: RoleDto): Promise<Role> {
+  public async update(id: string, data: RoleData): Promise<Role> {
     const role = await this.findById(id);
-
-    Object.assign(role, roleDto);
-    await role.save();
-
-    return role;
+    Object.assign(role, data);
+    return role.save();
   }
 
   public async delete(id: string): Promise<void> {
     const role = await this.findById(id);
     await role.remove();
+  }
+
+  public async paginate(params: GetRolesDto): Promise<PaginatedItem<RoleDto>> {
+    const roles = await Role.paginate(params);
+
+    return {
+      ...roles,
+      items: roles.items.map((role) => new RoleDto(role)),
+    };
   }
 }

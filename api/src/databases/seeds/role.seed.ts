@@ -1,7 +1,8 @@
 import { Seeder } from 'typeorm-extension';
 
+import { Permission } from '@/modules/permission/permission.enum';
 import { Role } from '@/modules/role/entities/role.entity';
-import { Permission, UserRole } from '@/modules/user/user.enum';
+import { UserRole } from '@/modules/user/user.enum';
 
 export class RoleSeeder implements Seeder {
   public async run(): Promise<void> {
