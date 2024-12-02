@@ -5,10 +5,10 @@ import { Decision } from '@/modules/decision/entities/decision.entity';
 import { Inference } from '@/modules/inference/entities/inference.entity';
 import { InferenceCategory } from '@/modules/inference/inference.enum';
 import { Notify } from '@/modules/notify/entities/notify.entity';
+import { Role } from '@/modules/role/entities/role.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
-import { Role } from '@/modules/user/entities/role.entity';
 import { User } from '@/modules/user/entities/user.entity';
 
 export class UserSeeder implements Seeder {

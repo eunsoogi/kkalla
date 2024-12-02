@@ -8,8 +8,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Permission } from '../user.enum';
-import { User } from './user.entity';
+import { User } from '../../user/entities/user.entity';
+import { Permission } from '../../user/user.enum';
 
 @Entity()
 export class Role extends BaseEntity {

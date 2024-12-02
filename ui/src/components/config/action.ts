@@ -1,5 +1,7 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
+
 import { ApikeyStatus } from '@/enums/apikey.enum';
 import { Schedule, initialState as initialScheduleState } from '@/interfaces/schedule.interface';
 import { SlackConfig, initialState as initialSlackState } from '@/interfaces/slack.interface';
@@ -41,18 +43,19 @@ export const getSlackConfigAction = async (): Promise<SlackConfig> => {
 
 export const postConfigAction = async (url: string, formData: FormData): Promise<State> => {
   const client = await getClient();
+  const t = await getTranslations();
 
   try {
     await client.post(url, formData);
 
     return {
       success: true,
-      message: '업데이트했습니다.',
+      message: t('updated'),
     };
   } catch (error) {
     return {
       success: false,
-      message: String(error),
+      message: t('error.update_failed', { error: String(error) }),
     };
   }
 };

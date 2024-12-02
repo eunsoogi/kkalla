@@ -10,6 +10,7 @@ import { IpModule } from './modules/ip/ip.module';
 import { NewsModule } from './modules/news/news.module';
 import { NotifyModule } from './modules/notify/notify.module';
 import { OpenaiModule } from './modules/openai/openai.module';
+import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { SequenceModule } from './modules/sequence/sequence.module';
 import { SlackModule } from './modules/slack/slack.module';
@@ -37,6 +38,7 @@ import { UserModule } from './modules/user/user.module';
     FirechartModule,
     SequenceModule,
     IpModule,
+    RoleModule,
   ],
 })
 export class AppModule {}

@@ -51,12 +51,18 @@ const UserTableBase = ({ items }: UserTableProps) => {
             </Table.Head>
             <Table.Body className='divide-y divide-border dark:divide-gray-800'>
               {items.items.map((user) => (
-                <Table.Row key={user.id} className='hover:bg-gray-50 dark:hover:bg-gray-700'>
+                <Table.Row
+                  key={user.id}
+                  className='hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
+                  onClick={() => router.push(`/users/${user.id}`)}
+                >
                   <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>
-                    {user.roles.map((role) => (
-                      <ColoredBadge key={role.name} text={role.name} className='mr-1' />
-                    ))}
+                    <div className='flex flex-row items-center gap-1'>
+                      {user.roles.map((role) => (
+                        <ColoredBadge key={role.name} text={role.name} />
+                      ))}
+                    </div>
                   </Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.createdAt))}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.updatedAt))}</Table.Cell>

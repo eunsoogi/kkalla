@@ -12,9 +12,9 @@ import {
 
 import { SortDirection } from '@/modules/item/item.enum';
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { Role } from '@/modules/role/entities/role.entity';
 
 import { UserFilter } from '../user.interface';
-import { Role } from './role.entity';
 
 @Entity({
   orderBy: {

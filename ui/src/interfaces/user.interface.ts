@@ -1,12 +1,10 @@
 import { PaginatedItem } from './item.interface';
+import { Role } from './role.interface';
 
 export interface User {
   id: string;
   email: string;
-  roles: {
-    id: string;
-    name: string;
-  }[];
+  roles: Role[];
   createdAt: string;
   updatedAt: string;
 }

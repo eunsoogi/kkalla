@@ -524,5 +524,3 @@ ${risk.metric}:
 # 응답 예시
 ${JSON.stringify(INFERENCE_VALIDATION.responseExample, null, 2)}
 `;
-
-console.log(INFERENCE_PROMPT);

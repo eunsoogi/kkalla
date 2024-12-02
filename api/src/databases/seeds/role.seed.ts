@@ -1,6 +1,6 @@
 import { Seeder } from 'typeorm-extension';
 
-import { Role } from '@/modules/user/entities/role.entity';
+import { Role } from '@/modules/role/entities/role.entity';
 import { Permission, UserRole } from '@/modules/user/user.enum';
 
 export class RoleSeeder implements Seeder {
