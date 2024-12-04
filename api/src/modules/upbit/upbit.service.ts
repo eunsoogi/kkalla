@@ -157,6 +157,7 @@ export class UpbitService {
       }
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
+      this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
     }
 
     return null;
