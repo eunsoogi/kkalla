@@ -15,68 +15,8 @@
     "roleManagement": "권한 관리",
     "admin": "관리"
   },
-  "error": {
-    "forbidden": {
-      "title": "접근 권한이 없습니다",
-      "description": "이 페이지에 접근할 수 있는 권한이 없습니다. 관리자에게 문의해주세요."
-    },
-    "notFound": {
-      "title": "페이지를 찾을 수 없습니다",
-      "description": "요청하신 페이지를 찾을 수 없습니다.",
-      "home": "홈으로 이동"
-    },
-    "fetch_failed": "데이터를 불러오는 데 실패했습니다: {error}",
-    "update_failed": "업데이트에 실패했습니다: {error}",
-    "create_failed": "생성에 실패했습니다: {error}",
-    "delete_failed": "삭제에 실패했습니다: {error}"
-  },
-  "created": "성공적으로 생성되었습니다.",
-  "updated": "성공적으로 수정되었습니다.",
-  "deleted": "성공적으로 삭제되었습니다.",
-  "status": {
-    "registered": "등록됨",
-    "unknown": "알 수 없음"
-  },
-  "schedule": {
-    "title": "매매 스케줄",
-    "tooltip": "등록된 API 키를 활용해 4시간마다 추론 및 매매를 수행합니다."
-  },
-  "upbit": {
-    "title": "업비트",
-    "tooltip": "업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.",
-    "api": {
-      "description": "이 API 키는 자산조회, 주문하기 권한이 필요합니다. 허용해야 하는 IP는 {ip}입니다."
-    }
-  },
-  "slack": {
-    "title": "Slack",
-    "tooltip": "Slack 메시지를 보내기 위한 봇 토큰입니다. 클릭하면 매뉴얼 페이지로 이동합니다."
-  },
-  "firechart": {
-    "title": "파이어차트"
-  },
-  "feargreed": {
-    "title": "공포 탐욕 지수",
-    "date": "날짜",
-    "score": "점수",
-    "change": "변화",
-    "stage": "단계",
-    "history": "히스토리"
-  },
-  "inference": {
-    "list": "추론 목록",
-    "mine": "내 추론만 보기",
-    "reason": "추론 내용",
-    "bound": "포트폴리오 비중 {lower}~{upper}%",
-    "decision": "매매 결정",
-    "category": {
-      "label": "카테고리",
-      "coin": {
-        "major": "메이저 코인",
-        "minor": "마이너 코인"
-      },
-      "nasdaq": "나스닥"
-    }
+  "title": {
+    "coin": "코인"
   },
   "user": {
     "email": "이메일",
@@ -99,10 +39,58 @@
     "update": "권한 수정",
     "delete_confirm": "정말로 이 권한을 삭제하시겠습니까?"
   },
-  "createdAt": "생성일",
-  "updatedAt": "수정일",
-  "pagination": "{start}부터 {end}까지 {total}개의 결과 표시",
-  "all": "전체",
+  "feargreed": {
+    "title": "공포 탐욕 지수",
+    "date": "날짜",
+    "score": "점수",
+    "change": "변화",
+    "stage": "단계",
+    "history": "히스토리"
+  },
+  "inference": {
+    "list": "추론 목록",
+    "mine": "내 추론만 보기",
+    "ticker": "종목",
+    "reason": "추론 내용",
+    "category": {
+      "label": "카테고리",
+      "coin": {
+        "major": "메이저 코인",
+        "minor": "마이너 코인"
+      },
+      "nasdaq": "나스닥"
+    }
+  },
+  "trade": {
+    "list": "거래 목록",
+    "type": "거래",
+    "date": "날짜",
+    "ticker": "종목",
+    "cost": "비용"
+  },
+  "upbit": {
+    "title": "업비트",
+    "tooltip": "업비트 주문을 호출하기 위한 업비트 API 키입니다. 클릭하면 매뉴얼 페이지로 이동합니다.",
+    "api": {
+      "description": "이 API 키는 자산조회, 주문하기 권한이 필요합니다. 허용해야 하는 IP는 {ip}입니다."
+    }
+  },
+  "slack": {
+    "title": "Slack",
+    "tooltip": "Slack 메시지를 보내기 위한 봇 토큰입니다. 클릭하면 매뉴얼 페이지로 이동합니다."
+  },
+  "status": {
+    "registered": "등록됨",
+    "unknown": "알 수 없음"
+  },
+  "schedule": {
+    "title": "매매 스케줄",
+    "tooltip": "등록된 API 키를 활용해 4시간마다 추론 및 매매를 수행합니다."
+  },
+  "copy": {
+    "link": "링크 복사",
+    "complete": "복사되었습니다."
+  },
   "date": {
     "start": "시작일",
     "end": "종료일",
@@ -114,19 +102,28 @@
     "desc": "최신순",
     "asc": "오래된순"
   },
-  "decision": {
-    "buy": "매수",
-    "sell": "매도",
-    "hold": "홀드",
-    "label": "결정"
+  "error": {
+    "forbidden": {
+      "title": "접근 권한이 없습니다",
+      "description": "이 페이지에 접근할 수 있는 권한이 없습니다. 관리자에게 문의해주세요."
+    },
+    "notFound": {
+      "title": "페이지를 찾을 수 없습니다",
+      "description": "요청하신 페이지를 찾을 수 없습니다.",
+      "home": "홈으로 이동"
+    },
+    "fetch_failed": "데이터를 불러오는 데 실패했습니다: {error}",
+    "update_failed": "업데이트에 실패했습니다: {error}",
+    "create_failed": "생성에 실패했습니다: {error}",
+    "delete_failed": "삭제에 실패했습니다: {error}"
   },
-  "trade": {
-    "list": "거래 목록",
-    "type": "거래",
-    "date": "날짜",
-    "ticker": "종목",
-    "cost": "비용"
-  },
+  "created": "성공적으로 생성되었습니다.",
+  "updated": "성공적으로 수정되었습니다.",
+  "deleted": "성공적으로 삭제되었습니다.",
+  "createdAt": "생성일",
+  "updatedAt": "수정일",
+  "pagination": "{start}부터 {end}까지 {total}개의 결과 표시",
+  "all": "전체",
   "save": "저장",
   "delete": "삭제",
   "config": "설정",
@@ -136,9 +133,5 @@
   "token": "토큰",
   "channel": "채널",
   "profile": "프로필",
-  "more": "더 보기",
-  "copy": {
-    "link": "링크 복사",
-    "complete": "복사되었습니다."
-  }
+  "more": "더 보기"
 }

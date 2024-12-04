@@ -5,13 +5,12 @@ import {
   CreateDateColumn,
   Entity,
   LessThanOrEqual,
+  Like,
   MoreThanOrEqual,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Decision } from '@/modules/decision/entities/decision.entity';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
@@ -35,11 +34,11 @@ export class Inference extends BaseEntity {
   })
   category: InferenceCategory;
 
-  @OneToMany(() => Decision, (decision) => decision.inference, {
-    eager: true,
-    cascade: true,
+  @Column({
+    type: 'double',
+    default: 0,
   })
-  decisions: Decision[];
+  rate: number;
 
   @Column({
     type: 'text',
@@ -60,29 +59,17 @@ export class Inference extends BaseEntity {
       category: request.category,
     };
 
+    if (request.ticker) {
+      where.ticker = Like(`%${request.ticker}%`);
+    }
+
     if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
-    }
-
-    if (request.decision) {
-      where.decisions = {
-        decision: request.decision,
-      };
-    }
-
-    if (request.users?.id) {
-      where.decisions = {
-        ...where.decisions,
-        users: {
-          id: request.users.id,
-        },
-      };
     }
 
     const sortDirection = request.sortDirection ?? SortDirection.DESC;
 
     const findOptions = {
-      relations: ['decisions', 'decisions.users'],
       where,
       order: {
         seq: sortDirection,
@@ -92,19 +79,6 @@ export class Inference extends BaseEntity {
     };
 
     const [items, total] = await this.findAndCount(findOptions);
-
-    items.forEach((inference) => {
-      inference.decisions = inference.decisions.filter((decision) => {
-        let match = true;
-        if (request.decision) {
-          match = match && decision.decision === request.decision;
-        }
-        if (request.users?.id) {
-          match = match && decision.users.some((user) => user.id === request.users.id);
-        }
-        return match;
-      });
-    });
 
     return {
       items,
@@ -120,23 +94,12 @@ export class Inference extends BaseEntity {
       category: request.category,
     };
 
+    if (request.ticker) {
+      where.ticker = Like(`%${request.ticker}%`);
+    }
+
     if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
-    }
-
-    if (request.decision) {
-      where.decisions = {
-        decision: request.decision,
-      };
-    }
-
-    if (request.users?.id) {
-      where.decisions = {
-        ...where.decisions,
-        users: {
-          id: request.users.id,
-        },
-      };
     }
 
     const sortDirection = request.sortDirection ?? SortDirection.DESC;
@@ -152,7 +115,6 @@ export class Inference extends BaseEntity {
     }
 
     const findOptions = {
-      relations: ['decisions', 'decisions.users'],
       where,
       order: {
         seq: sortDirection,
@@ -161,19 +123,6 @@ export class Inference extends BaseEntity {
     };
 
     const items = await this.find(findOptions);
-
-    items.forEach((inference) => {
-      inference.decisions = inference.decisions.filter((decision) => {
-        let match = true;
-        if (request.decision) {
-          match = match && decision.decision === request.decision;
-        }
-        if (request.users?.id) {
-          match = match && decision.users.some((user) => user.id === request.users.id);
-        }
-        return match;
-      });
-    });
 
     let total = items.length;
     const hasNextPage = total > request.limit;

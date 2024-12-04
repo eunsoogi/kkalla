@@ -1,4 +1,4 @@
-import { OHLCV } from 'ccxt';
+import { Balances, OHLCV } from 'ccxt';
 
 import { OrderTypes } from './upbit.enum';
 
@@ -8,8 +8,7 @@ export interface UpbitConfigData {
 }
 
 export interface CandleRequest {
-  symbol: string;
-  market: string;
+  ticker: string;
   candles: {
     '15m': number;
     '1h': number;
@@ -27,8 +26,13 @@ export interface CompactCandle {
 }
 
 export interface OrderRequest {
-  symbol: string;
-  market: string;
-  type: () => OrderTypes;
-  orderRatio: number;
+  ticker: string;
+  type: OrderTypes;
+  amount: number;
+}
+
+export interface AdjustOrderRequest {
+  ticker: string;
+  rate: number;
+  balances: Balances;
 }

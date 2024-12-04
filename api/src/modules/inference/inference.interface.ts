@@ -1,24 +1,19 @@
-import { DecisionTypes } from '../decision/decision.enum';
-import { DecisionData } from '../decision/decision.interface';
 import { SortDirection } from '../item/item.enum';
 import { InferenceCategory } from './inference.enum';
 
 export interface InferenceFilter {
-  decision?: DecisionTypes;
-  sortDirection?: SortDirection;
+  ticker?: string;
   category?: InferenceCategory;
   createdAt?: {
     gte?: Date;
     lte?: Date;
   };
-  users?: {
-    id?: string;
-  };
+  sortDirection?: SortDirection;
 }
 
 export interface InferenceMessageRequest {
-  market: string;
-  symbol: string;
+  ticker: string;
+  category: InferenceCategory;
   candles: {
     '15m': number;
     '1h': number;
@@ -28,10 +23,13 @@ export interface InferenceMessageRequest {
   newsLimit: number;
 }
 
-export interface InferenceData {
+export interface InferenceItem {
   ticker: string;
   category: InferenceCategory;
-  decisions: DecisionData[];
+}
+
+export interface InferenceData extends InferenceItem {
+  rate: number;
   reason: string;
 }
 

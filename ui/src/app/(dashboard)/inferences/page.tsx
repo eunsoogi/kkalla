@@ -2,66 +2,60 @@
 
 import React, { useState } from 'react';
 
-import { Datepicker, Label, Select } from 'flowbite-react';
+import { Datepicker, Label, Select, TextInput } from 'flowbite-react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { InferenceDetail } from '@/components/inference/InferenceDetail';
 import { InferenceCategory } from '@/enums/inference.enum';
 import { SortDirection } from '@/enums/sort.enum';
+import { Permission } from '@/interfaces/permission.interface';
 
 const Page: React.FC = () => {
   const t = useTranslations();
   const locale = useLocale();
-  const [mine, setMine] = useState(false);
-  const [decision, setDecision] = useState('');
+  const [ticker, setTicker] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<SortDirection>(SortDirection.DESC);
   const [category, setCategory] = useState<InferenceCategory>(InferenceCategory.COIN_MAJOR);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(SortDirection.DESC);
 
   return (
     <>
       <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-6 mb-4'>
-        <div className='col-span-1 lg:col-span-2 flex flex-col gap-2 justify-end'>
-          <label className='flex items-center h-10 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 px-3 rounded-lg'>
-            <input
-              type='checkbox'
-              id='mineCheckbox'
-              checked={mine}
-              onChange={() => setMine(!mine)}
-              className='form-checkbox h-5 w-5 text-primary border-gray-300 rounded'
-            />
-            <span className='ml-2 text-sm text-gray-700 dark:text-gray-400 select-none'>{t('inference.mine')}</span>
-          </label>
+        <div className='col-span-2 flex flex-col gap-2'>
+          <Label htmlFor='ticker' value={t('inference.ticker')} />
+          <TextInput id='ticker' value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder='BTC/KRW' />
         </div>
 
-        <div className='col-span-2 lg:col-span-2 flex flex-col gap-2'>
+        <div className='col-span-2 flex flex-col gap-2'>
           <Label htmlFor='category' value={t('inference.category.label')} />
           <Select id='category' value={category} onChange={(e) => setCategory(e.target.value as InferenceCategory)}>
-            <PermissionGuard permissions={['view:inference:coin:major']}>
+            <PermissionGuard permissions={[Permission.VIEW_INFERENCE_COIN_MAJOR]}>
               <option value={InferenceCategory.COIN_MAJOR}>{t('inference.category.coin.major')}</option>
             </PermissionGuard>
-            <PermissionGuard permissions={['view:inference:coin:minor']}>
+            <PermissionGuard permissions={[Permission.VIEW_INFERENCE_COIN_MINOR]}>
               <option value={InferenceCategory.COIN_MINOR}>{t('inference.category.coin.minor')}</option>
             </PermissionGuard>
-            <PermissionGuard permissions={['view:inference:nasdaq']}>
+            <PermissionGuard permissions={[Permission.VIEW_INFERENCE_NASDAQ]}>
               <option value={InferenceCategory.NASDAQ}>{t('inference.category.nasdaq')}</option>
             </PermissionGuard>
           </Select>
         </div>
 
-        <div className='col-span-2 lg:col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='decision' value={t('inference.decision')} />
-          <Select id='decision' value={decision} onChange={(e) => setDecision(e.target.value)}>
-            <option value=''>{t('all')}</option>
-            <option value='buy'>{t('decision.buy')}</option>
-            <option value='sell'>{t('decision.sell')}</option>
-            <option value='hold'>{t('decision.hold')}</option>
+        <div className='col-span-2 flex flex-col gap-2'>
+          <Label htmlFor='sortDirection' value={t('sort.label')} />
+          <Select
+            id='sortDirection'
+            value={sortDirection}
+            onChange={(e) => setSortDirection(e.target.value as SortDirection)}
+          >
+            <option value={SortDirection.DESC}>{t('sort.desc')}</option>
+            <option value={SortDirection.ASC}>{t('sort.asc')}</option>
           </Select>
         </div>
 
-        <div className='col-span-1 lg:col-span-2 flex flex-col gap-2'>
+        <div className='col-span-1 lg:col-span-3 xl:col-span-2 flex flex-col gap-2'>
           <Label htmlFor='startDate' value={t('date.start')} />
           <Datepicker
             id='startDate'
@@ -74,7 +68,7 @@ const Page: React.FC = () => {
           />
         </div>
 
-        <div className='col-span-1 lg:col-span-2 flex flex-col gap-2'>
+        <div className='col-span-1 lg:col-span-3 xl:col-span-2 flex flex-col gap-2'>
           <Label htmlFor='endDate' value={t('date.end')} />
           <Datepicker
             id='endDate'
@@ -94,22 +88,9 @@ const Page: React.FC = () => {
             }}
           />
         </div>
-
-        <div className='col-span-2 lg:col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='sortDirection' value={t('sort.label')} />
-          <Select
-            id='sortDirection'
-            value={sortDirection}
-            onChange={(e) => setSortDirection(e.target.value as SortDirection)}
-          >
-            <option value={SortDirection.DESC}>{t('sort.desc')}</option>
-            <option value={SortDirection.ASC}>{t('sort.asc')}</option>
-          </Select>
-        </div>
       </div>
       <InferenceDetail
-        mine={mine}
-        decision={decision}
+        ticker={ticker}
         category={category}
         sortDirection={sortDirection}
         startDate={startDate}

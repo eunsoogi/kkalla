@@ -143,5 +143,8 @@ upbit:
   accessKey: ""
   secretKey: ""
 
+accumulation:
+  secretKey: ""
+
 admin:
   email: ""

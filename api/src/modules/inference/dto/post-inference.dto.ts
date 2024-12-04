@@ -1,13 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { InferenceCategory } from '../inference.enum';
+
 export class PostInferenceDto {
   @ApiProperty({
-    example: 'BTC',
+    required: true,
+    example: 'BTC/KRW',
   })
-  symbol: string;
+  ticker: string;
 
   @ApiProperty({
-    example: 'KRW',
+    required: true,
+    example: InferenceCategory.COIN_MAJOR,
+    enum: InferenceCategory,
   })
-  market: string;
+  category: InferenceCategory;
 }

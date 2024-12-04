@@ -69,7 +69,9 @@ Create the name of the service account to use
 {{- $secret := lookup "v1" "Secret" .Release.Namespace $secretName }}
 {{- if .Values.db.secret }}
 {{- .Values.db.secret }}
-{{- else if $secret }}
+{{- else if and $secret (index $secret.data "DB_SECRET") }}
+{{- index $secret.data "DB_SECRET" }}
+{{- else if and $secret (index $secret.data "db-secret") }}
 {{- index $secret.data "db-secret" }}
 {{- else }}
 {{- randAlphaNum 32 | b64enc }}

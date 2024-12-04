@@ -1,17 +1,23 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 
+import { I18nService } from 'nestjs-i18n';
 import { firstValueFrom } from 'rxjs';
 
 import { CursorItem } from '@/modules/item/item.interface';
 
+import { InferenceCategory } from '../inference/inference.enum';
 import { API_URL } from './news.config';
+import { NewsTypes } from './news.enum';
 import { CompactNews, News, NewsApiResponse, NewsRequest } from './news.interface';
 import { ImportanceLevel } from './news.type';
 
 @Injectable()
 export class NewsService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly i18n: I18nService,
+    private readonly httpService: HttpService,
+  ) {}
 
   public async getNews(request: NewsRequest): Promise<News[]> {
     const { data } = await firstValueFrom(
@@ -59,6 +65,24 @@ export class NewsService {
       importance: item.importance,
       timestamp: new Date(item.publishedAt).getTime(),
     }));
+  }
+
+  public getNewsType(category: InferenceCategory): NewsTypes {
+    switch (category) {
+      case InferenceCategory.COIN_MAJOR:
+      case InferenceCategory.COIN_MINOR:
+        return NewsTypes.COIN;
+
+      case InferenceCategory.NASDAQ:
+        return NewsTypes.OVERSEAS_STOCK;
+
+      default:
+        throw new Error(
+          this.i18n.t('logging.inference.unknown_category', {
+            args: { category },
+          }),
+        );
+    }
   }
 
   public async cursor(request: NewsRequest): Promise<CursorItem<News, number>> {

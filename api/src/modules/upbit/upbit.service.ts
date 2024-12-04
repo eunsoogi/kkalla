@@ -1,17 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { Balances, Order, upbit } from 'ccxt';
+import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
-import { DecisionTypes } from '../decision/decision.enum';
+import { NotifyService } from '../notify/notify.service';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
-import { CandleRequest, CompactCandle, OrderRequest, UpbitConfigData } from './upbit.interface';
+import { AdjustOrderRequest, CandleRequest, CompactCandle, OrderRequest, UpbitConfigData } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
   private readonly logger = new Logger(UpbitService.name);
+  private serverClient: upbit;
+  private client: upbit[] = [];
+
+  constructor(
+    private readonly notifyService: NotifyService,
+    private readonly i18n: I18nService,
+  ) {}
 
   public async readConfig(user: User): Promise<UpbitConfig> {
     return UpbitConfig.findByUser(user);
@@ -38,25 +46,30 @@ export class UpbitService {
   }
 
   public async getServerClient() {
-    return this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
+    if (!this.serverClient) {
+      this.serverClient = await this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
+    }
+    return this.serverClient;
   }
 
   public async getClient(user: User) {
-    const { accessKey, secretKey } = await this.readConfig(user);
-    return this.createClient(accessKey, secretKey);
+    if (!this.client[user.id]) {
+      const { accessKey, secretKey } = await this.readConfig(user);
+      this.client[user.id] = this.createClient(accessKey, secretKey);
+    }
+    return this.client[user.id];
   }
 
   public async getCandles(request: CandleRequest): Promise<CompactCandle> {
     const client = await this.getServerClient();
-    const ticker = `${request.symbol}/${request.market}`;
     const candleIntervals = ['15m', '1h', '4h', '1d'];
 
     const candles: CompactCandle = {
-      ticker,
+      ticker: request.ticker,
       series: await Promise.all(
         candleIntervals.map(async (interval) => ({
           interval,
-          data: await client.fetchOHLCV(ticker, interval, undefined, request.candles[interval]),
+          data: await client.fetchOHLCV(request.ticker, interval, undefined, request.candles[interval]),
         })),
       ),
     };
@@ -66,32 +79,22 @@ export class UpbitService {
 
   public async getBalances(user: User): Promise<Balances> {
     const client = await this.getClient(user);
-    return client.fetchBalance();
+
+    try {
+      return client.fetchBalance();
+    } catch {
+      this.notifyService.notify(user, this.i18n.t('notify.balance.fail'));
+    }
   }
 
-  public async getOrderRatio(user: User, symbol: string): Promise<number> {
-    const balances = await this.getBalances(user);
-    const orderRatio = this.calculateOrderRatio(balances, symbol);
-
-    this.logger.debug(`orderRatio: ${orderRatio}`);
-
-    return orderRatio;
-  }
-
-  private calculateOrderRatio(balances: Balances, symbol: string): number {
-    const symbolPrice = this.calculatePrice(balances, symbol);
-    const marketPrice = this.calculateTotalPrice(balances);
-    return symbolPrice / marketPrice;
-  }
-
-  private calculatePrice(balances: Balances, symbol: string): number {
+  public calculatePrice(balances: Balances, symbol: string): number {
     const { balance = 0, locked = 0, avg_buy_price = 0 } = balances.info.find((item) => item.currency === symbol) || {};
     const totalBalance = parseFloat(balance) + parseFloat(locked);
     const averageBuyPrice = parseFloat(avg_buy_price) || 1;
     return totalBalance * averageBuyPrice;
   }
 
-  private calculateTotalPrice(balances: Balances): number {
+  public calculateTotalPrice(balances: Balances): number {
     return balances.info.reduce((total, item) => {
       const { balance = 0, locked = 0, avg_buy_price = 0 } = item;
       const totalBalance = parseFloat(balance) + parseFloat(locked);
@@ -100,7 +103,7 @@ export class UpbitService {
     }, 0);
   }
 
-  private getVolume(balances: Balances, symbol: string): number {
+  public getVolume(balances: Balances, symbol: string): number {
     const balance = balances[symbol];
     const free = Number(balance?.free) || 0;
 
@@ -109,41 +112,53 @@ export class UpbitService {
     return free;
   }
 
-  private getOrderVolume(balances: Balances, symbol: string, orderRatio: number): number {
-    return this.getVolume(balances, symbol) * orderRatio * 0.9995;
-  }
-
   public async order(user: User, request: OrderRequest): Promise<Order | null> {
     const client = await this.getClient(user);
-    const balances = await client.fetchBalance();
-    const ticker = `${request.symbol}/${request.market}`;
-    const tradePrice = this.getOrderVolume(balances, request.market, request.orderRatio);
-    const tradeVolume = this.getOrderVolume(balances, request.symbol, request.orderRatio);
-
-    this.logger.debug(`tradePrice: ${tradePrice}`);
-    this.logger.debug(`tradeVolume: ${tradeVolume}`);
 
     switch (request.type) {
-      // @ts-expect-error lazy loading과 관련된 오류이므로 무시
       case OrderTypes.BUY:
-        return await client.createOrder(ticker, 'market', request.type, 1, tradePrice);
+        return client.createOrder(request.ticker, 'market', request.type, 1, request.amount);
 
-      // @ts-expect-error lazy loading과 관련된 오류이므로 무시
       case OrderTypes.SELL:
-        return await client.createOrder(ticker, 'market', request.type, tradeVolume);
+        return client.createOrder(request.ticker, 'market', request.type, request.amount);
+    }
+  }
+
+  public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<Order | null> {
+    this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
+
+    try {
+      const ticker = request.ticker;
+      const [symbol] = ticker.split('/');
+      const tickerVolume = this.getVolume(request.balances, symbol);
+      const tickerPrice = this.calculatePrice(request.balances, symbol);
+      const marketPrice = this.calculateTotalPrice(request.balances);
+      const tickerRate = tickerPrice / marketPrice;
+
+      // 매매 비율 결정
+      const orderRate = request.rate;
+      const diff = (orderRate - tickerRate) / tickerRate;
+
+      // 매수해야 할 경우
+      if (diff > 0) {
+        return this.order(user, {
+          ticker,
+          type: OrderTypes.BUY,
+          amount: tickerPrice * diff * 0.9995,
+        });
+      }
+      // 매도해야 할 경우
+      else if (diff < 0) {
+        return this.order(user, {
+          ticker,
+          type: OrderTypes.SELL,
+          amount: tickerVolume * diff * -1,
+        });
+      }
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
     }
 
     return null;
-  }
-
-  public static getOrderType(decision: DecisionTypes): OrderTypes | null {
-    switch (decision) {
-      case DecisionTypes.BUY:
-        return OrderTypes.BUY;
-      case DecisionTypes.SELL:
-        return OrderTypes.SELL;
-      default:
-        return null;
-    }
   }
 }
