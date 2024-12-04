@@ -33,6 +33,6 @@ export interface OrderRequest {
 
 export interface AdjustOrderRequest {
   ticker: string;
-  rate: number;
+  diff: number;
   balances: Balances;
 }

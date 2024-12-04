@@ -5,7 +5,7 @@ import { OrderTypes } from '../upbit/upbit.enum';
 
 export interface TradeRequest {
   ticker: string;
-  rate: number;
+  diff: number;
   balances: Balances;
   inference?: Inference;
 }

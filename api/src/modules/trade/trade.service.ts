@@ -93,46 +93,63 @@ export class TradeService {
     return inferences.filter((inference) => this.validateCategoryPermission(user, inference.category));
   }
 
+  public getDiff(balances: Balances, ticker: string, rate: number, category: InferenceCategory): number {
+    switch (category) {
+      case InferenceCategory.COIN_MAJOR:
+      case InferenceCategory.COIN_MINOR:
+        return this.upbitService.getDiff(balances, ticker, rate);
+    }
+
+    return 0;
+  }
+
   public getNonInferenceTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
-    return balances.info
+    const tradeRequests: TradeRequest[] = balances.info
       .filter((item) => {
         const ticker = `${item.currency}/${item.unit_currency}`;
         return item.currency !== item.unit_currency && !inferences.some((inference) => inference.ticker === ticker);
       })
       .map((item) => ({
         ticker: `${item.currency}/${item.unit_currency}`,
-        rate: 0,
+        diff: -1,
         balances,
       }));
+
+    return tradeRequests;
   }
 
   public getIncludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
-    const filteredInferences = inferences
-      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매수 비율 제한
-      .sort((a, b) => b.rate - a.rate)
+    const filteredInferences: Inference[] = inferences
+      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매매 비율 제한
+      .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
       .slice(0, this.TOP_INFERENCE_COUNT); // 포트폴리오 개수 제한
 
     const count = filteredInferences.length;
 
-    return filteredInferences.map((inference) => ({
-      ticker: inference.ticker,
-      rate: inference.rate / count,
-      balances,
-    }));
+    const tradeRequests: TradeRequest[] = filteredInferences
+      .map((inference) => ({
+        ticker: inference.ticker,
+        diff: this.getDiff(balances, inference.ticker, inference.rate / count, inference.category),
+        balances,
+      }))
+      .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬
+
+    return tradeRequests;
   }
 
   public getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
-    const filteredInferences = inferences
-      .sort((a, b) => b.rate - a.rate)
-      // 매도 비율이거나 포트폴리오 개수 제한 초과일 때
-      .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT)
-      .sort((a, b) => a.rate - b.rate);
+    const filteredInferences: Inference[] = inferences
+      .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
+      .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT) // 매매 비율 또는 포트폴리오 개수 제한
+      .sort((a, b) => a.rate - b.rate); // 오름차순으로 정렬
 
-    return filteredInferences.map((inference) => ({
+    const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
       ticker: inference.ticker,
-      rate: 0,
+      diff: -1,
       balances,
     }));
+
+    return tradeRequests;
   }
 
   public async adjustPortfolios(users: User[]): Promise<Trade[]> {
