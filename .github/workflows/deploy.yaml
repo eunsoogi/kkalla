@@ -12,6 +12,8 @@ on:
 jobs:
   builder:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,6 +29,8 @@ jobs:
   cache:
     needs: builder
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,6 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,6 +105,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment: production
     steps:
       - name: Checkout code
