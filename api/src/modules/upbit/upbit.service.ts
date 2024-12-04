@@ -91,8 +91,7 @@ export class UpbitService {
     const tickerPrice = this.calculatePrice(balances, ticker);
     const marketPrice = this.calculateTotalPrice(balances);
     const tickerRate = tickerPrice / marketPrice;
-    const orderRate = rate;
-    const diff = (orderRate - tickerRate) / tickerRate;
+    const diff = (rate - tickerRate) / (tickerRate || 1);
 
     return diff;
   }
@@ -140,7 +139,7 @@ export class UpbitService {
       }
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
-      this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
+      this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
     }
 
     return null;
@@ -150,30 +149,33 @@ export class UpbitService {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
     try {
-      const ticker = request.ticker;
+      const { ticker, diff, balances } = request;
       const [symbol] = ticker.split('/');
-      const tickerVolume = this.getVolume(request.balances, symbol);
-      const tickerPrice = this.calculatePrice(request.balances, ticker);
+      const tickerPrice = this.calculatePrice(balances, ticker);
+      const tickerVolume = this.getVolume(balances, symbol);
+      const marketPrice = this.calculateTotalPrice(balances);
+      const tradePrice = (tickerPrice || marketPrice) * diff * 0.9995;
+      const tradeVolume = tickerVolume * diff * -1;
 
-      // 매수해야할 경우
-      if (request.diff > 0) {
+      // 매수해야 할 경우
+      if (diff > 0) {
         return await this.order(user, {
           ticker,
           type: OrderTypes.BUY,
-          amount: tickerPrice * request.diff * 0.9995,
+          amount: tradePrice,
         });
       }
-      // 매도해야할 경우
-      else if (request.diff < 0) {
+      // 매도해야 할 경우
+      else if (diff < 0) {
         return await this.order(user, {
           ticker,
           type: OrderTypes.SELL,
-          amount: tickerVolume * request.diff * -1,
+          amount: tradeVolume,
         });
       }
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
-      this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
+      this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
     }
 
     return null;
