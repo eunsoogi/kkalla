@@ -93,11 +93,11 @@ export class TradeService {
     return inferences.filter((inference) => this.validateCategoryPermission(user, inference.category));
   }
 
-  public getDiff(balances: Balances, ticker: string, rate: number, category: InferenceCategory): number {
+  public calculateDiff(balances: Balances, ticker: string, rate: number, category: InferenceCategory): number {
     switch (category) {
       case InferenceCategory.COIN_MAJOR:
       case InferenceCategory.COIN_MINOR:
-        return this.upbitService.getDiff(balances, ticker, rate);
+        return this.upbitService.calculateDiff(balances, ticker, rate);
     }
 
     return 0;
@@ -129,7 +129,7 @@ export class TradeService {
     const tradeRequests: TradeRequest[] = filteredInferences
       .map((inference) => ({
         ticker: inference.ticker,
-        diff: this.getDiff(balances, inference.ticker, inference.rate / count, inference.category),
+        diff: this.calculateDiff(balances, inference.ticker, inference.rate / count, inference.category),
         balances,
       }))
       .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬

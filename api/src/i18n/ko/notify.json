@@ -7,7 +7,7 @@
     "fail": "추론에 실패했습니다."
   },
   "order": {
-    "result": "주문 결과: `{type}` {ticker} ({amount})",
+    "result": "주문 결과: {ticker} {amount}",
     "fail": "주문에 실패했습니다."
   }
 }

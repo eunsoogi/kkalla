@@ -31,7 +31,7 @@ import {
 export class InferenceService {
   private readonly logger = new Logger(InferenceService.name);
   private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY = 1000;
+  private readonly RETRY_DELAY = 60000;
 
   constructor(
     private readonly i18n: I18nService,
