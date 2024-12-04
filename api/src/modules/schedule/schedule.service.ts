@@ -19,7 +19,12 @@ export class ScheduleService {
   ) {}
 
   @Cron(CronExpression.EVERY_4_HOURS)
-  public async inferAndTradeSchedule(): Promise<Trade[]> {
+  public async adjustPortfoliosSchedule(): Promise<Trade[]> {
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(this.i18n.t('logging.schedule.skip'));
+      return [];
+    }
+
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     const schedules = await Schedule.findByEnabled();
