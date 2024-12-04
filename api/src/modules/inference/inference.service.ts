@@ -115,7 +115,7 @@ export class InferenceService {
     const responseFormat = this.getResponseFormat();
     const client = await this.openaiService.getServerClient();
 
-    this.logger.log(this.i18n.t('logging.inference.loading'));
+    this.logger.log(this.i18n.t('logging.inference.loading', { args: request }));
 
     const response = await this.retry(() => this.createChatCompletion(client, messages, responseFormat), retryOptions);
     const inferenceData = JSON.parse(response.choices[0].message?.content || '{}');
@@ -142,7 +142,7 @@ export class InferenceService {
   }
 
   public async getInference(item: InferenceItem): Promise<Inference> {
-    this.logger.log(this.i18n.t('logging.inference.start'));
+    this.logger.log(this.i18n.t('logging.inference.start', { args: item }));
 
     try {
       const data = await this.requestInference({
@@ -156,7 +156,7 @@ export class InferenceService {
         category: item.category,
       });
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.inference.fail'), error);
+      this.logger.error(this.i18n.t('logging.inference.fail', { args: item }), error);
       return null;
     }
   }
