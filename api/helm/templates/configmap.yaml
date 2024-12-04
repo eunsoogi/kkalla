@@ -10,7 +10,4 @@ data:
   DB_PORT: {{ .Values.db.port | quote }}
   DB_DATABASE: {{ .Values.db.database | quote }}
   DB_USER: {{ .Values.db.username | quote }}
-  OPENAI_SECRET_KEY: {{ .Values.openai.secretKey | quote }}
-  UPBIT_ACCESS_KEY: {{ .Values.upbit.accessKey | quote }}
-  UPBIT_SECRET_KEY: {{ .Values.upbit.secretKey | quote }}
   ADMIN_EMAIL: {{ .Values.admin.email | quote }}

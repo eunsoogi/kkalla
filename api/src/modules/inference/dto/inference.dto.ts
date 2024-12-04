@@ -1,19 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { DecisionTypes } from '../../decision/decision.enum';
-
 export class InferenceDto {
   @ApiProperty({
-    example: DecisionTypes.BUY,
-    enum: DecisionTypes,
+    example: 0.7,
   })
-  decision?: DecisionTypes;
-
-  @ApiProperty()
-  reason?: string;
+  rate: number;
 
   @ApiProperty({
     example: 'BTC/KRW',
   })
-  ticker?: string;
+  ticker: string;
+
+  @ApiProperty()
+  reason: string;
 }

@@ -7,26 +7,21 @@ import { OrderTypes } from '../upbit.enum';
 export class RequestOrderDto {
   @ApiProperty({
     required: true,
-    example: 'BTC',
+    example: 'BTC/KRW',
   })
-  symbol: string;
-
-  @ApiProperty({
-    required: true,
-    example: 'KRW',
-  })
-  market: string;
+  ticker: string;
 
   @ApiProperty({
     required: true,
     example: OrderTypes.BUY,
+    enum: OrderTypes,
   })
-  type: () => OrderTypes;
+  type: OrderTypes;
 
   @Type(() => Number)
   @ApiProperty({
     required: true,
-    example: 0.3,
+    example: 1000000,
   })
-  orderRatio: number;
+  amount: number;
 }

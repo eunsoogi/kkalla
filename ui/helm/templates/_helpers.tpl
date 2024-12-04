@@ -69,7 +69,9 @@ Create the name of the service account to use
 {{- $secret := (lookup "v1" "Secret" .Release.Namespace $secretName) }}
 {{- if .Values.auth.secret }}
 {{- .Values.auth.secret }}
-{{- else if $secret }}
+{{- else if and $secret (index $secret.data "NEXTAUTH_SECRET") }}
+{{- index $secret.data "NEXTAUTH_SECRET" }}
+{{- else if and $secret (index $secret.data "auth-secret") }}
 {{- index $secret.data "auth-secret" }}
 {{- else }}
 {{- randAlphaNum 32 | b64enc }}

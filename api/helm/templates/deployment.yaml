@@ -44,27 +44,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "api.fullname" . }}
-          env:
-            - name: GOOGLE_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "api.fullname" . }}
-                  key: auth-google-id
-            - name: GOOGLE_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "api.fullname" . }}
-                  key: auth-google-secret
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "api.fullname" . }}
-                  key: db-password
-            - name: DB_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "api.fullname" . }}
-                  key: db-secret
+            - secretRef:
+                name: {{ include "api.fullname" . }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:

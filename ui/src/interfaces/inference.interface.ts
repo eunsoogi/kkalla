@@ -1,14 +1,13 @@
 import { InferenceCategory } from '@/enums/inference.enum';
 
-import { Decision } from './decision.interface';
 import { CursorItem, PaginatedItem } from './item.interface';
 
 export interface Inference {
   id: string;
   seq: number;
   ticker: string;
+  rate: number;
   category: InferenceCategory;
-  decisions: Decision[];
   reason: string;
   createdAt?: string;
   updatedAt?: string;

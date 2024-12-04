@@ -1,138 +1,188 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Order } from 'ccxt';
+import { Balances } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
-import { DecisionTypes } from '../decision/decision.enum';
-import { Decision } from '../decision/entities/decision.entity';
+import { AccumulationService } from '../accumulation/accumulation.service';
+import { GetAccumulationDto } from '../accumulation/dto/get-accumulation.dto';
 import { Inference } from '../inference/entities/inference.entity';
-import { INFERENCE_CONFIG } from '../inference/inference.config';
 import { InferenceCategory } from '../inference/inference.enum';
+import { InferenceItem } from '../inference/inference.interface';
 import { InferenceService } from '../inference/inference.service';
+import { SortDirection } from '../item/item.enum';
 import { NotifyService } from '../notify/notify.service';
 import { Permission } from '../permission/permission.enum';
 import { SequenceService } from '../sequence/sequence.service';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { Trade } from './entities/trade.entity';
-import { InferenceWithDecision, Ticker, TradeData } from './trade.interface';
+import { TradeData, TradeRequest } from './trade.interface';
 
 @Injectable()
 export class TradeService {
   private readonly logger = new Logger(TradeService.name);
 
-  private readonly coinMajor = [
-    { symbol: 'BTC', market: 'KRW' },
-    { symbol: 'ETH', market: 'KRW' },
-  ] as const;
+  private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
+  private readonly COIN_MINOR_REQUEST: GetAccumulationDto = {
+    market: 'KRW',
+    open: true,
+    distinct: true,
+    display: 20,
+    order: 'strength',
+    sortDirection: SortDirection.DESC,
+    priceRateUpper: 0.02,
+  };
+  private readonly MINIMUM_TRADE_RATE = 0.5;
+  private readonly TOP_INFERENCE_COUNT = 10;
 
   constructor(
     private readonly i18n: I18nService,
     private readonly sequenceService: SequenceService,
     private readonly inferenceService: InferenceService,
+    private readonly accumulationService: AccumulationService,
     private readonly upbitService: UpbitService,
     private readonly notifyService: NotifyService,
   ) {}
 
-  public async infers(): Promise<Inference[]> {
-    const infers = await Promise.all([this.inferByCoinMajor(), this.inferByCoinMinor(), this.inferByNasdaq()]);
-    return infers.flat();
+  public async getInferenceItems(): Promise<InferenceItem[]> {
+    const items = [
+      ...(await this.getInferenceItemByCoinMajor()),
+      ...(await this.getInferenceItemByCoinMinor()),
+      ...(await this.getInferenceItemByNasdaq()),
+    ];
+
+    const filteredItems = items.filter(
+      (item, index, self) => index === self.findIndex((t) => t.ticker === item.ticker),
+    );
+
+    return filteredItems;
   }
 
-  private async inferByCoinMajor(): Promise<Inference[]> {
-    return Promise.all(this.coinMajor.map((coin) => this.performInfer(coin, InferenceCategory.COIN_MAJOR)));
+  private getInferenceItemByCoinMajor(): InferenceItem[] {
+    return this.COIN_MAJOR.map((ticker) => ({
+      ticker,
+      category: InferenceCategory.COIN_MAJOR,
+    }));
   }
 
-  // TO-DO: 마이너 코인 종목 추론
-  private async inferByCoinMinor(): Promise<Inference[]> {
-    return Promise.all([]);
+  private async getInferenceItemByCoinMinor(): Promise<InferenceItem[]> {
+    const items = await this.accumulationService.getAllAccumulations(this.COIN_MINOR_REQUEST);
+
+    return items.map((item) => ({
+      ticker: `${item.symbol}/${item.market}`,
+      category: InferenceCategory.COIN_MINOR,
+    }));
   }
 
   // TO-DO: NASDAQ 종목 추론
-  private async inferByNasdaq(): Promise<Inference[]> {
-    return Promise.all([]);
+  private getInferenceItemByNasdaq(): InferenceItem[] {
+    return [];
   }
 
-  private async performInfer(ticker: Ticker, category: InferenceCategory): Promise<Inference> {
-    this.logger.log(this.i18n.t('logging.inference.start'));
-    try {
-      const data = await this.inferenceService.infer({
-        ...INFERENCE_CONFIG.message,
-        ...ticker,
-      });
+  private async performInferences(): Promise<Inference[]> {
+    const items = await this.getInferenceItems();
+    const inferences = await Promise.all(items.map((item) => this.inferenceService.getInference(item)));
 
-      return this.inferenceService.create({
-        ...data,
-        category,
-      });
-    } catch (error) {
-      this.logger.error(this.i18n.t('logging.inference.fail'), error);
-    }
-    return null;
+    return inferences.filter((item) => item !== null);
   }
 
-  public async tradeWithUsers(users: User[]): Promise<Trade[]> {
-    const infers = await this.infers();
-    const trades = await Promise.all(users.map((user) => this.tradeAll(user, infers)));
+  public getAuthorizedInferences(user: User, inferences: Inference[]): Inference[] {
+    return inferences.filter((inference) => this.validateCategoryPermission(user, inference.category));
+  }
+
+  public getNonInferenceTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+    return balances.info
+      .filter((item) => {
+        const ticker = `${item.currency}/${item.unit_currency}`;
+        return item.currency !== item.unit_currency && !inferences.some((inference) => inference.ticker === ticker);
+      })
+      .map((item) => ({
+        ticker: `${item.currency}/${item.unit_currency}`,
+        rate: 0,
+        balances,
+      }));
+  }
+
+  public getIncludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+    const filteredInferences = inferences
+      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매수 비율 제한
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, this.TOP_INFERENCE_COUNT); // 포트폴리오 개수 제한
+
+    const count = filteredInferences.length;
+
+    return filteredInferences.map((inference) => ({
+      ticker: inference.ticker,
+      rate: inference.rate / count,
+      balances,
+    }));
+  }
+
+  public getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+    const filteredInferences = inferences
+      .sort((a, b) => b.rate - a.rate)
+      // 매도 비율이거나 포트폴리오 개수 제한 초과일 때
+      .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT)
+      .sort((a, b) => a.rate - b.rate);
+
+    return filteredInferences.map((inference) => ({
+      ticker: inference.ticker,
+      rate: 0,
+      balances,
+    }));
+  }
+
+  public async adjustPortfolios(users: User[]): Promise<Trade[]> {
+    const inferences = await this.performInferences();
+    const trades = await Promise.all(users.map((user) => this.adjustPortfolio(user, inferences)));
+
     return trades.flat();
   }
 
-  public async tradeAll(user: User, infers: Inference[]): Promise<Trade[]> {
+  public async adjustPortfolio(user: User, inferences: Inference[]): Promise<Trade[]> {
     // 권한이 있는 추론만 필터링
-    const authorizedInfers = infers.filter((infer) => this.validateCategoryPermission(user, infer.category));
+    const authorizedInferences = this.getAuthorizedInferences(user, inferences);
 
-    // 각 추론에 대한 결정 선택
-    const infersWithDecisions: InferenceWithDecision[] = await Promise.all(
-      authorizedInfers.map(async (infer) => {
-        const decision = await this.selectDecision(user, infer);
-        return { infer, decision };
-      }),
+    authorizedInferences.map((inference) => {
+      this.notifyService.notify(
+        user,
+        this.i18n.t('notify.inference.result', {
+          args: {
+            ...inference,
+            rate: inference.rate * 100,
+          },
+        }),
+      );
+    });
+
+    // 유저 계좌 조회
+    const balances = await this.upbitService.getBalances(user);
+
+    if (!balances) return [];
+
+    // 편입/편출 결정 분리
+    const nonInferenceTradeRequests: TradeRequest[] = this.getNonInferenceTradeRequests(balances, authorizedInferences);
+    const excludedTradeRequests: TradeRequest[] = this.getExcludedTradeRequests(balances, authorizedInferences);
+    const includedTradeRequests: TradeRequest[] = this.getIncludedTradeRequests(balances, authorizedInferences);
+
+    // 편출 처리
+    const nonInferenceTrades: Trade[] = await Promise.all(
+      nonInferenceTradeRequests.map((request) => this.trade(user, request)),
     );
 
-    // 결정이 있는 추론만 필터링
-    const validInfers: InferenceWithDecision[] = infersWithDecisions.filter((item) => item.decision !== null);
-
-    // 매도/매수 결정 분리
-    const sellInfers: InferenceWithDecision[] = validInfers.filter(
-      (item) => item.decision.decision === DecisionTypes.SELL,
-    );
-    const buyInfers: InferenceWithDecision[] = validInfers.filter(
-      (item) => item.decision.decision === DecisionTypes.BUY,
+    const excludedTrades: Trade[] = await Promise.all(
+      excludedTradeRequests.map((request) => this.trade(user, request)),
     );
 
-    // 매수 결정의 orderRatio 조정
-    this.adjustBuyRatio(buyInfers);
+    // 편입 처리
+    const includedTrades: Trade[] = await Promise.all(
+      includedTradeRequests.map((request) => this.trade(user, request)),
+    );
 
-    // 매도 먼저 처리
-    const sellTrades = await Promise.all(sellInfers.map(({ infer, decision }) => this.trade(user, infer, decision)));
-
-    // 매수 처리
-    const buyTrades = await Promise.all(buyInfers.map(({ infer, decision }) => this.trade(user, infer, decision)));
-
-    return [...sellTrades, ...buyTrades].filter((item) => item !== null);
-  }
-
-  private adjustBuyRatio(infers: InferenceWithDecision[]): void {
-    const buyCount = infers.length;
-    if (buyCount > 0) {
-      infers.forEach((item) => {
-        item.decision.orderRatio = item.decision.orderRatio / buyCount;
-      });
-    }
-  }
-
-  public async trade(user: User, infer: Inference, decision: Decision): Promise<Trade> {
-    this.notifyInferenceResult(user, infer, decision);
-
-    const order = await this.performOrder(user, infer, decision);
-    if (!order) return null;
-
-    const trade = await this.performTrade(user, order, decision);
-    this.notifyTradeResult(user, trade);
-
-    return trade;
+    return [...nonInferenceTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
   }
 
   private validateCategoryPermission(user: User, category: InferenceCategory): boolean {
@@ -145,86 +195,35 @@ export class TradeService {
     switch (category) {
       case InferenceCategory.NASDAQ:
         return Permission.TRADE_NASDAQ;
+
       case InferenceCategory.COIN_MAJOR:
         return Permission.TRADE_COIN_MAJOR;
+
       case InferenceCategory.COIN_MINOR:
         return Permission.TRADE_COIN_MINOR;
+
       default:
         throw new Error(
-          this.i18n.t('logging.inference.permission.unknown_category', {
+          this.i18n.t('logging.inference.unknown_category', {
             args: { category },
           }),
         );
     }
   }
 
-  private getTicker(ticker: string): Ticker {
-    const [symbol, market] = ticker.split('/');
+  public async trade(user: User, request: TradeRequest): Promise<Trade> {
+    const order = await this.upbitService.adjustOrder(user, request);
 
-    return {
-      symbol,
-      market,
-    };
-  }
+    if (!order) return null;
 
-  private async selectDecision(user: User, infer: Inference): Promise<Decision | null> {
-    const ticker = this.getTicker(infer.ticker);
-    const orderRatio = await this.upbitService.getOrderRatio(user, ticker.symbol);
-
-    const decision = infer.decisions.find(
-      (item) => item.weightLowerBound <= orderRatio && orderRatio <= item.weightUpperBound,
-    );
-
-    if (decision) {
-      decision.users = decision.users || [];
-      decision.users.push(user);
-      await decision.save();
-    }
-
-    return decision;
-  }
-
-  private async performOrder(user: User, infer: Inference, decision: Decision): Promise<Order | null> {
-    this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
-
-    try {
-      const ticker = this.getTicker(infer.ticker);
-      const type = UpbitService.getOrderType(decision.decision);
-      // @ts-expect-error lazy loading과 관련된 오류이므로 무시
-      return await this.upbitService.order(user, { ...ticker, type, orderRatio: decision.orderRatio });
-    } catch (error) {
-      this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
-      return null;
-    }
-  }
-
-  private async performTrade(user: User, order: Order, decision: Decision): Promise<Trade> {
-    const type = UpbitService.getOrderType(decision.decision);
-    const balances = await this.upbitService.getBalances(user);
-    return this.create(user, {
-      ticker: order.symbol,
-      type,
+    const trade = await this.create(user, {
+      ticker: request.ticker,
+      type: OrderTypes[order.side],
       amount: order?.amount ?? order?.cost,
-      balances,
-      decision,
+      balances: request.balances,
+      inference: request.inference,
     });
-  }
 
-  private notifyInferenceResult(user: User, inference: Inference, decision: Decision): void {
-    this.notifyService.notify(
-      user,
-      this.i18n.t('notify.inference.result', {
-        args: {
-          ticker: inference.ticker,
-          decision: decision.decision,
-          orderRatio: decision.orderRatio * 100,
-          reason: inference.reason,
-        },
-      }),
-    );
-  }
-
-  private notifyTradeResult(user: User, trade: Trade): void {
     this.notifyService.notify(
       user,
       this.i18n.t('notify.order.result', {
@@ -234,6 +233,8 @@ export class TradeService {
         },
       }),
     );
+
+    return trade;
   }
 
   public async create(user: User, data: TradeData): Promise<Trade> {

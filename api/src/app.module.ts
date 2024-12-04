@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 
 import { TypeOrmModule } from './databases/typeorm.module';
+import { AccumulationModule } from './modules/accumulation/accumulation.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
-import { FirechartModule } from './modules/firechart/firechart.module';
 import { HealthModule } from './modules/health/health.module';
 import { InferenceModule } from './modules/inference/inference.module';
 import { IpModule } from './modules/ip/ip.module';
@@ -25,22 +25,22 @@ import { UserModule } from './modules/user/user.module';
     HealthModule,
     TranslateModule,
     TypeOrmModule,
+    SequenceModule,
     AuthModule,
+    RoleModule,
+    PermissionModule,
     UserModule,
+    IpModule,
     OpenaiModule,
     UpbitModule,
     NewsModule,
     FeargreedModule,
+    AccumulationModule,
     InferenceModule,
     TradeModule,
     ScheduleModule,
     SlackModule,
     NotifyModule,
-    FirechartModule,
-    SequenceModule,
-    IpModule,
-    RoleModule,
-    PermissionModule,
   ],
 })
 export class AppModule {}

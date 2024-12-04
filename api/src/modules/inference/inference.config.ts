@@ -20,28 +20,8 @@ export const INFERENCE_CONFIG = {
 export const INFERENCE_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
-    decisions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          decision: {
-            type: 'string',
-            enum: ['buy', 'sell', 'hold'],
-          },
-          orderRatio: {
-            type: 'number',
-          },
-          weightLowerBound: {
-            type: 'number',
-          },
-          weightUpperBound: {
-            type: 'number',
-          },
-        },
-        required: ['decision', 'orderRatio', 'weightLowerBound', 'weightUpperBound'],
-        additionalProperties: false,
-      },
+    rate: {
+      type: 'number',
     },
     reason: {
       type: 'string',
@@ -50,23 +30,15 @@ export const INFERENCE_RESPONSE_SCHEMA = {
       type: 'string',
     },
   },
-  required: ['decisions', 'reason', 'ticker'],
+  required: ['rate', 'reason', 'ticker'],
   additionalProperties: false,
 };
 
 export const INFERENCE_VALIDATION = {
-  decisions: {
-    types: {
-      values: ['buy', 'sell', 'hold'],
-      constraints: {
-        hold: 'orderRatio는 반드시 0이어야 함',
-      },
-    },
-    orderRatio: {
-      min: 0,
-      max: 1,
-      description: '매매 비율을 계산해야 함',
-    },
+  rate: {
+    min: 0,
+    max: 1,
+    description: '종목의 매력도를 계산해야 함.',
   },
   analysis: {
     required: {
@@ -117,56 +89,7 @@ export const INFERENCE_VALIDATION = {
     ],
   },
   responseExample: {
-    decisions: [
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0,
-        weightUpperBound: 0.125,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.125,
-        weightUpperBound: 0.25,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.25,
-        weightUpperBound: 0.375,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.375,
-        weightUpperBound: 0.5,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.5,
-        weightUpperBound: 0.625,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.625,
-        weightUpperBound: 0.75,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.75,
-        weightUpperBound: 0.875,
-      },
-      {
-        decision: 'buy|sell|hold',
-        orderRatio: 0.3,
-        weightLowerBound: 0.875,
-        weightUpperBound: 1,
-      },
-    ],
+    rate: 0.8,
     reason: [
       '{코인명}은 현재 {현재가}원에 거래되고 있으며, 전일 대비 {변동률}% 변동했습니다.',
       '일봉 차트에서 {저항선}원대와 {지지선}원대가 중요한 가격대로 형성되어 있어 이 구간에서의 움직임을 주시해야 합니다. 특히 {이평선} 이동평균선 {이평가격}원을 기준으로 {추세방향} 추세가 형성되고 있어, 이 레벨이 단기 지지/저항선 역할을 할 것으로 예상됩니다.',
@@ -315,37 +238,14 @@ export const INFERENCE_RULES = {
     },
   },
   strategy: {
-    decisions: {
-      buy: {
-        conditions: [
-          '기술적 지표 다수가 상승 신호를 보일 때',
-          '주요 지지선 근처에서 반등이 확인될 때',
-          '상승 추세에서 조정 후 매수 신호가 나올 때',
-          '과매도 상태에서 반등 신호가 확인될 때',
-        ],
-      },
-      sell: {
-        conditions: [
-          '기술적 지표 다수가 하락 신호를 보일 때',
-          '주요 저항선 근처에서 매도 신호가 나올 때',
-          '하락 추세에서 반등 후 매도 신호가 나올 때',
-          '과매수 상태에서 하락 신호가 확인될 때',
-        ],
-      },
-      hold: {
-        conditions: [
-          '명확한 매수/매도 신호가 없을 때',
-          '현재 추세가 지속될 것으로 예상될 때',
-          '중요한 지지/저항 구간에서 방향성이 불분명할 때',
-        ],
-      },
-      orderRatio: {
-        conditions: [
-          '신호가 강할수록 더 높은 비율 적용',
-          '리스크가 클수록 더 낮은 비율 적용',
-          '거래량과 변동성을 고려하여 조절',
-        ],
-      },
+    rate: {
+      conditions: [
+        '0.5 이상은 매수를 의미함',
+        '0.5 미만은 매도를 의미함',
+        '신호가 강할수록 더 높은 비율 적용',
+        '리스크가 클수록 더 낮은 비율 적용',
+        '거래량과 변동성을 고려하여 조절',
+      ],
     },
     riskManagement: {
       required: [
@@ -370,33 +270,10 @@ export const INFERENCE_PROMPT = `
 당신은 투자 전문가입니다. 다음 규칙에 따라 투자 분석과 결정을 수행하십시오:
 
 # 필드별 제약조건
-decisions[].decision:
-- 허용값: ${INFERENCE_VALIDATION.decisions.types.values.join(', ')}
-${Object.entries(INFERENCE_VALIDATION.decisions.types.constraints)
-  .map(([type, constraint]) => `- ${type}: ${constraint}`)
-  .join('\n')}
-- 매수(buy) 결정 조건:
-${INFERENCE_RULES.strategy.decisions.buy.conditions.map((condition) => `  * ${condition}`).join('\n')}
-- 매도(sell) 결정 조건:
-${INFERENCE_RULES.strategy.decisions.sell.conditions.map((condition) => `  * ${condition}`).join('\n')}
-- 홀드(hold) 결정 조건:
-${INFERENCE_RULES.strategy.decisions.hold.conditions.map((condition) => `  * ${condition}`).join('\n')}
-
-decisions[].orderRatio:
-- ${INFERENCE_VALIDATION.decisions.orderRatio.description}
-- ${INFERENCE_VALIDATION.decisions.orderRatio.min}과 ${INFERENCE_VALIDATION.decisions.orderRatio.max} 사이의 숫자만 가능
-${INFERENCE_RULES.strategy.decisions.orderRatio.conditions.map((condition) => `- ${condition}`).join('\n')}
-
-
-# 포트폴리오 비중 기반 매매 결정
-- weightLowerBound와 weightUpperBound는 현재 보유하고 있는 포트폴리오 비중을 나타냄
-- 비중별 매매 전략:
-  * 비중 0-10%: 현금 보유량이 매우 많음. 강한 매수 신호 시 적극적 매수 고려
-  * 비중 10-30%: 현금 보유량이 많음. 매수 신호 시 단계적 매수 고려
-  * 비중 30-50%: 적절한 현금 보유. 시장 상황에 따라 매수/매도 결정
-  * 비중 50-70%: 종목 보유량이 많음. 매도 신호 시 일부 매도 고려
-  * 비중 70-90%: 종목 보유량이 매우 많음. 강한 매도 신호 시 적극적 매도 고려
-  * 비중 90-100%: 최대 보유량. 추가 매수는 신중히 고려하고, 매도 신호 시 적극적 매도
+rate:
+- ${INFERENCE_VALIDATION.rate.description}
+- ${INFERENCE_VALIDATION.rate.min}과 ${INFERENCE_VALIDATION.rate.max} 사이의 숫자만 가능
+${INFERENCE_RULES.strategy.rate.conditions.map((condition) => `- ${condition}`).join('\n')}
 
 
 # 분석 요구사항
@@ -519,10 +396,10 @@ ${risk.metric}:
 - 모든 캔들 차트 데이터를 분석해야 함
 - 각 판단마다 동일한 데이터를 참조해야 함
 - 누락된 필수 지표를 포함해야 함
+- 숫자는 천단위 구분 기호를 표시해야 함
+- 숫자 단위가 맞는지 검증해야 함
 
 
 # 응답 예시
 ${JSON.stringify(INFERENCE_VALIDATION.responseExample, null, 2)}
 `;
-
-console.log(INFERENCE_PROMPT);

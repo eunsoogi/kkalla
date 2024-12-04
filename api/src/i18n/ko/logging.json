@@ -1,23 +1,21 @@
 {
   "upbit": {
     "candle": {
-      "loading": "{symbol}/{market} 캔들 차트 불러오는 중..."
+      "loading": "{ticker} 캔들 차트 불러오는 중..."
     }
   },
   "news": {
-    "loading": "뉴스 불러오는 중..."
+    "loading": "{category} 뉴스 불러오는 중..."
   },
   "feargreed": {
-    "loading": "공포 탐욕 지수 불러오는 중..."
+    "loading": "{symbol} 공포 탐욕 지수 불러오는 중..."
   },
   "inference": {
     "loading": "추론 중...",
     "start": "추론 시작...",
     "fail": "추론 실패.",
-    "permission": {
-      "category_access_denied": "카테고리에 대한 접근 권한이 없습니다.",
-      "unknown_category": "알 수 없는 카테고리: {category}"
-    }
+    "category_access_denied": "카테고리에 대한 접근 권한이 없습니다.",
+    "unknown_category": "알 수 없는 카테고리: {category}"
   },
   "auth": {
     "permission": {

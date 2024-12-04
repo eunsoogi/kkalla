@@ -22,18 +22,12 @@ export class InferenceController {
   @UseGuards(GoogleTokenAuthGuard)
   public get(@CurrentUser() user: User, @Query() params: GetInferenceDto): Promise<PaginatedItem<Inference>> {
     const filters: any = {
+      ticker: params.ticker,
+      category: params.category,
       page: params.page,
       perPage: params.perPage,
       sortDirection: params.sortDirection,
-      category: params.category,
-      decision: params.decision,
     };
-
-    if (params.mine) {
-      filters.users = {
-        id: user.id,
-      };
-    }
 
     if (params.startDate || params.endDate) {
       filters.createdAt = {};
@@ -60,16 +54,10 @@ export class InferenceController {
       cursor: params.cursor,
       limit: params.limit,
       skip: params.skip,
-      sortDirection: params.sortDirection,
+      ticker: params.ticker,
       category: params.category,
-      decision: params.decision,
+      sortDirection: params.sortDirection,
     };
-
-    if (params.mine) {
-      filters.users = {
-        id: user.id,
-      };
-    }
 
     if (params.startDate || params.endDate) {
       filters.createdAt = {};
@@ -89,7 +77,7 @@ export class InferenceController {
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
   public async post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
-    return this.inferenceService.infer(<InferenceMessageRequest>{
+    return this.inferenceService.requestInference(<InferenceMessageRequest>{
       ...INFERENCE_CONFIG.message,
       ...body,
     });

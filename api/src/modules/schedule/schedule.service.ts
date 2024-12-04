@@ -23,7 +23,7 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     const schedules = await Schedule.findByEnabled();
-    const trades = await this.tradeService.tradeWithUsers(schedules.map((schedule) => schedule.user));
+    const trades = await this.tradeService.adjustPortfolios(schedules.map((schedule) => schedule.user));
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
 

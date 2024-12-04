@@ -3,15 +3,14 @@ import { ApiProperty } from '@nestjs/swagger';
 import { GetPaginationDto } from '@/modules/item/dto/get-pagination.dto';
 import { ToDate } from '@/transforms/date.transform';
 
-import { DecisionTypes } from '../../decision/decision.enum';
 import { InferenceCategory } from '../inference.enum';
 
 export class GetInferenceDto extends GetPaginationDto {
   @ApiProperty({
-    required: true,
-    example: false,
+    required: false,
+    example: 'BTC/KRW',
   })
-  mine: boolean = false;
+  ticker?: string;
 
   @ApiProperty({
     required: true,
@@ -21,21 +20,15 @@ export class GetInferenceDto extends GetPaginationDto {
 
   @ApiProperty({
     required: false,
-    enum: DecisionTypes,
-  })
-  decision?: DecisionTypes;
-
-  @ToDate()
-  @ApiProperty({
-    required: false,
     type: Date,
   })
+  @ToDate()
   startDate?: Date;
 
-  @ToDate()
   @ApiProperty({
     required: false,
     type: Date,
   })
+  @ToDate()
   endDate?: Date;
 }

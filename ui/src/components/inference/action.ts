@@ -9,6 +9,8 @@ import { getClient } from '@/utils/api';
 export interface InferenceParams {
   page?: number | null;
   mine?: boolean;
+  ticker?: string;
+  category?: string;
 }
 
 export const getInferenceAction = async (params: InferenceParams): Promise<PaginatedItem<Inference>> => {
@@ -38,7 +40,8 @@ interface InferenceCursorParams {
   limit?: number;
   skip?: boolean;
   mine?: boolean;
-  decision?: string;
+  ticker?: string;
+  category?: string;
   sortBy?: string;
   sortDirection?: string;
   startDate?: Date;

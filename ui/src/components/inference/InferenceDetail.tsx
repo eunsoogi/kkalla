@@ -5,6 +5,7 @@ import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { InferenceCategory } from '@/enums/inference.enum';
@@ -14,16 +15,14 @@ import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
 import { CopyLinkButton } from '../common/CopyLinkButton';
-import { DecisionHorizontalProgressBar } from '../decision/DecisionHorizontalProgressBar';
-import { DecisionVerticalProgressBar } from '../decision/DecisionVerticalProgressBar';
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { getInferenceCursorAction } from './action';
+import { getRateColor } from './style';
 import UserImg from '/public/images/profile/user-ai.png';
 
 interface InferenceDetailListContentProps {
-  mine: boolean;
-  category: InferenceCategory;
-  decision?: string;
+  ticker?: string;
+  category?: InferenceCategory;
   sortDirection: SortDirection;
   startDate?: Date;
   endDate?: Date;
@@ -71,17 +70,12 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = (params) 
                   />
                 </div>
                 <div className='p-6'>
-                  <div className='flex flex-row gap-6'>
+                  <div className='flex flex-row gap-6 items-center'>
                     <h4 className='text-dark dark:text-white'>{item.ticker}</h4>
+                    <Badge style={getRateColor(item.rate)}>{Math.floor(item.rate * 100)}%</Badge>
                     <div className='ml-auto'>
                       <CopyLinkButton path={`/inferences/${item.id}`} />
                     </div>
-                  </div>
-                  <div className='lg:hidden mt-3'>
-                    <DecisionVerticalProgressBar decisions={item.decisions} />
-                  </div>
-                  <div className='hidden lg:block mt-3'>
-                    <DecisionHorizontalProgressBar decisions={item.decisions} />
                   </div>
                   <div className='flex flex-col mt-3'>
                     <h4 className='text-dark dark:text-white'>{t('inference.reason')}</h4>
@@ -120,8 +114,8 @@ export const InferenceDetailSkeleton: React.FC = () => {
 };
 
 interface InferenceDetailProps {
-  mine: boolean;
-  category: InferenceCategory;
+  ticker?: string;
+  category?: InferenceCategory;
   decision?: string;
   sortDirection: SortDirection;
   startDate?: Date;
@@ -129,9 +123,8 @@ interface InferenceDetailProps {
 }
 
 export const InferenceDetail: React.FC<InferenceDetailProps> = ({
-  mine,
+  ticker,
   category,
-  decision,
   sortDirection,
   startDate,
   endDate,
@@ -139,9 +132,8 @@ export const InferenceDetail: React.FC<InferenceDetailProps> = ({
   return (
     <Suspense fallback={<InferenceDetailSkeleton />}>
       <InferenceDetailItem
-        mine={mine}
+        ticker={ticker}
         category={category}
-        decision={decision}
         sortDirection={sortDirection}
         startDate={startDate}
         endDate={endDate}
