@@ -87,6 +87,16 @@ export class UpbitService {
     }
   }
 
+  public calculateDiff(balances: Balances, ticker: string, rate: number): number {
+    const tickerPrice = this.calculatePrice(balances, ticker);
+    const marketPrice = this.calculateTotalPrice(balances);
+    const tickerRate = tickerPrice / marketPrice;
+    const orderRate = rate;
+    const diff = (orderRate - tickerRate) / tickerRate;
+
+    return diff;
+  }
+
   public calculatePrice(balances: Balances, ticker: string): number {
     const {
       balance = 0,
@@ -120,13 +130,20 @@ export class UpbitService {
   public async order(user: User, request: OrderRequest): Promise<Order | null> {
     const client = await this.getClient(user);
 
-    switch (request.type) {
-      case OrderTypes.BUY:
-        return client.createOrder(request.ticker, 'market', request.type, 1, request.amount);
+    try {
+      switch (request.type) {
+        case OrderTypes.BUY:
+          return await client.createOrder(request.ticker, 'market', request.type, 1, request.amount);
 
-      case OrderTypes.SELL:
-        return client.createOrder(request.ticker, 'market', request.type, request.amount);
+        case OrderTypes.SELL:
+          return await client.createOrder(request.ticker, 'market', request.type, request.amount);
+      }
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
+      this.notifyService.notify(user, this.i18n.t('notify.order.fail'));
     }
+
+    return null;
   }
 
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<Order | null> {
@@ -140,7 +157,7 @@ export class UpbitService {
 
       // 매수해야할 경우
       if (request.diff > 0) {
-        return this.order(user, {
+        return await this.order(user, {
           ticker,
           type: OrderTypes.BUY,
           amount: tickerPrice * request.diff * 0.9995,
@@ -148,7 +165,7 @@ export class UpbitService {
       }
       // 매도해야할 경우
       else if (request.diff < 0) {
-        return this.order(user, {
+        return await this.order(user, {
           ticker,
           type: OrderTypes.SELL,
           amount: tickerVolume * request.diff * -1,
@@ -160,15 +177,5 @@ export class UpbitService {
     }
 
     return null;
-  }
-
-  public getDiff(balances: Balances, ticker: string, rate: number): number {
-    const tickerPrice = this.calculatePrice(balances, ticker);
-    const marketPrice = this.calculateTotalPrice(balances);
-    const tickerRate = tickerPrice / marketPrice;
-    const orderRate = rate;
-    const diff = (orderRate - tickerRate) / tickerRate;
-
-    return diff;
   }
 }
