@@ -87,8 +87,13 @@ export class UpbitService {
     }
   }
 
-  public calculatePrice(balances: Balances, symbol: string): number {
-    const { balance = 0, locked = 0, avg_buy_price = 0 } = balances.info.find((item) => item.currency === symbol) || {};
+  public calculatePrice(balances: Balances, ticker: string): number {
+    const {
+      balance = 0,
+      locked = 0,
+      avg_buy_price = 0,
+    } = balances.info.find((item) => ticker === `${item.currency}/${item.unit_currency}`) || {};
+
     const totalBalance = parseFloat(balance) + parseFloat(locked);
     const averageBuyPrice = parseFloat(avg_buy_price) || 1;
     return totalBalance * averageBuyPrice;
@@ -131,28 +136,22 @@ export class UpbitService {
       const ticker = request.ticker;
       const [symbol] = ticker.split('/');
       const tickerVolume = this.getVolume(request.balances, symbol);
-      const tickerPrice = this.calculatePrice(request.balances, symbol);
-      const marketPrice = this.calculateTotalPrice(request.balances);
-      const tickerRate = tickerPrice / marketPrice;
+      const tickerPrice = this.calculatePrice(request.balances, ticker);
 
-      // 매매 비율 결정
-      const orderRate = request.rate;
-      const diff = (orderRate - tickerRate) / tickerRate;
-
-      // 매수해야 할 경우
-      if (diff > 0) {
+      // 매수해야할 경우
+      if (request.diff > 0) {
         return this.order(user, {
           ticker,
           type: OrderTypes.BUY,
-          amount: tickerPrice * diff * 0.9995,
+          amount: tickerPrice * request.diff * 0.9995,
         });
       }
-      // 매도해야 할 경우
-      else if (diff < 0) {
+      // 매도해야할 경우
+      else if (request.diff < 0) {
         return this.order(user, {
           ticker,
           type: OrderTypes.SELL,
-          amount: tickerVolume * diff * -1,
+          amount: tickerVolume * request.diff * -1,
         });
       }
     } catch (error) {
@@ -161,5 +160,15 @@ export class UpbitService {
     }
 
     return null;
+  }
+
+  public getDiff(balances: Balances, ticker: string, rate: number): number {
+    const tickerPrice = this.calculatePrice(balances, ticker);
+    const marketPrice = this.calculateTotalPrice(balances);
+    const tickerRate = tickerPrice / marketPrice;
+    const orderRate = rate;
+    const diff = (orderRate - tickerRate) / tickerRate;
+
+    return diff;
   }
 }
