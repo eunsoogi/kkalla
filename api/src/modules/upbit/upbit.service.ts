@@ -157,11 +157,9 @@ export class UpbitService {
       const marketPrice = this.calculateTotalPrice(balances);
       const tradePrice = (tickerPrice || marketPrice) * diff * 0.9995;
       const tradeVolume = tickerVolume * diff * -1;
-      const buyPrice = tickerPrice * diff * 0.9995;
-      const sellPrice = tickerPrice * diff * -1;
 
       // 매수해야 할 경우
-      if (diff > 0 && buyPrice > this.MINIMUM_TRADE_PRICE) {
+      if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {
         return await this.order(user, {
           ticker,
           type: OrderTypes.BUY,
@@ -169,7 +167,7 @@ export class UpbitService {
         });
       }
       // 매도해야 할 경우
-      else if (diff < 0 && sellPrice > this.MINIMUM_TRADE_PRICE) {
+      else if (diff < 0 && tradeVolume > 0) {
         return await this.order(user, {
           ticker,
           type: OrderTypes.SELL,
