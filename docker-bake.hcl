@@ -40,14 +40,14 @@ target "cache-api" {
   context = "api"
   target = "cache"
   cache-from = ["type=gha,scope=builder-api"]
-  output = ["type=local,dest=api/.cache"]
+  output = ["type=local,dest=api/.cache,mode=max"]
 }
 
 target "cache-ui" {
   context = "ui"
   target = "cache"
   cache-from = ["type=gha,scope=builder-ui"]
-  output = ["type=local,dest=ui/.cache"]
+  output = ["type=local,dest=ui/.cache,mode=max"]
 }
 
 group "default" {
