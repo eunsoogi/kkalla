@@ -246,6 +246,7 @@ export class TradeService {
       this.i18n.t('notify.order.result', {
         args: {
           ...trade,
+          type: this.i18n.t(`label.order.type.${trade.type}`),
           amount: trade.amount.toLocaleString(),
         },
       }),

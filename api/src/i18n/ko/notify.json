@@ -6,7 +6,7 @@
     "result": "추론 결과: {ticker} ({rate}%)\n> {reason}"
   },
   "order": {
-    "result": "주문 결과: {ticker} {amount}",
+    "result": "주문 결과: {ticker} {type}, {amount}",
     "fail": "{ticker} 주문에 실패했습니다."
   }
 }
