@@ -32,29 +32,31 @@ export class InferenceSeeder implements Seeder {
   public async run(): Promise<void> {
     await Inference.delete({});
 
-    await Inference.save([
-      {
-        seq: (await new Sequence().save()).value,
-        category: InferenceCategory.COIN_MAJOR,
-        rate: 0.8,
-        reason: '메이저 코인 추론 내용입니다.',
-        ticker: 'BTC/KRW',
-      },
-      {
-        seq: (await new Sequence().save()).value,
-        category: InferenceCategory.COIN_MINOR,
-        rate: 0,
-        reason: '마이너 코인 추론 내용입니다.',
-        ticker: 'XRP/KRW',
-      },
-      {
-        seq: (await new Sequence().save()).value,
-        category: InferenceCategory.NASDAQ,
-        rate: 0.6,
-        reason: '나스닥 종목 추론 내용입니다.',
-        ticker: 'AAPL',
-      },
-    ]);
+    for (let i = 0; i < 11; i++) {
+      await Inference.save([
+        {
+          seq: (await new Sequence().save()).value,
+          category: InferenceCategory.COIN_MAJOR,
+          rate: 0.8,
+          reason: `${i + 1}) 메이저 코인 추론 내용입니다.`,
+          ticker: 'BTC/KRW',
+        },
+        {
+          seq: (await new Sequence().save()).value,
+          category: InferenceCategory.COIN_MINOR,
+          rate: 0,
+          reason: `${i + 1}) 마이너 코인 추론 내용입니다.`,
+          ticker: 'XRP/KRW',
+        },
+        {
+          seq: (await new Sequence().save()).value,
+          category: InferenceCategory.NASDAQ,
+          rate: 0.6,
+          reason: `${i + 1}) 나스닥 종목 추론 내용입니다.`,
+          ticker: 'AAPL',
+        },
+      ]);
+    }
   }
 }
 
