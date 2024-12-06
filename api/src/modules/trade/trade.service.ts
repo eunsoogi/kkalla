@@ -235,7 +235,7 @@ export class TradeService {
 
     const trade = await this.create(user, {
       ticker: request.ticker,
-      type: OrderTypes[order.side],
+      type: order.side as OrderTypes,
       amount: order?.amount ?? order?.cost,
       balances: request.balances,
       inference: request.inference,
