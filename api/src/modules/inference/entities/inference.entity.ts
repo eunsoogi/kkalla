@@ -120,6 +120,7 @@ export class Inference extends BaseEntity {
         seq: sortDirection,
       },
       take: request.limit + 1,
+      skip: request.cursor && request.skip ? 1 : 0,
     };
 
     const items = await this.find(findOptions);
