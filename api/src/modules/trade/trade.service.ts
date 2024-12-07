@@ -50,10 +50,10 @@ export class TradeService {
 
   public async getInferenceItems(): Promise<InferenceItem[]> {
     const items = [
+      ...(await this.getInferenceItemFromTradeHistory()),
       ...(await this.getInferenceItemByCoinMajor()),
       ...(await this.getInferenceItemByCoinMinor()),
       ...(await this.getInferenceItemByNasdaq()),
-      ...(await this.getInferenceItemFromTradeHistory()),
     ];
 
     const filteredItems = items.filter(
@@ -61,6 +61,15 @@ export class TradeService {
     );
 
     return filteredItems;
+  }
+
+  private async getInferenceItemFromTradeHistory(): Promise<InferenceItem[]> {
+    const items = await TradeHistory.find();
+
+    return items.map((item) => ({
+      ticker: item.ticker,
+      category: item.category,
+    }));
   }
 
   private async getInferenceItemByCoinMajor(): Promise<InferenceItem[]> {
@@ -82,15 +91,6 @@ export class TradeService {
   // TO-DO: NASDAQ 종목 추론
   private async getInferenceItemByNasdaq(): Promise<InferenceItem[]> {
     return [];
-  }
-
-  private async getInferenceItemFromTradeHistory(): Promise<InferenceItem[]> {
-    const items = await TradeHistory.find();
-
-    return items.map((item) => ({
-      ticker: item.ticker,
-      category: item.category,
-    }));
   }
 
   private async performInferences(): Promise<Inference[]> {
