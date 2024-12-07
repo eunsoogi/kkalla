@@ -292,16 +292,16 @@ export class TradeService {
     return trade.save();
   }
 
-  public async createTradeHistory(inferences: Inference[]): Promise<TradeHistory[]> {
+  public async createTradeHistory(items: InferenceItem[]): Promise<TradeHistory[]> {
     await TradeHistory.delete({});
 
     return TradeHistory.save(
-      inferences.map((inference) => {
-        const tradeHistory = new TradeHistory();
-        tradeHistory.ticker = inference.ticker;
-        tradeHistory.category = inference.category;
-        return tradeHistory;
-      }),
+      items.map((item) =>
+        TradeHistory.create({
+          ticker: item.ticker,
+          category: item.category,
+        }),
+      ),
     );
   }
 

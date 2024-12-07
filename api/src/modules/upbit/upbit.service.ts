@@ -79,13 +79,14 @@ export class UpbitService {
   }
 
   public async getBalances(user: User): Promise<Balances> {
-    const client = await this.getClient(user);
-
     try {
-      return client.fetchBalance();
+      const client = await this.getClient(user);
+      return await client.fetchBalance();
     } catch {
       this.notifyService.notify(user, this.i18n.t('notify.balance.fail'));
     }
+
+    return null;
   }
 
   public calculateDiff(balances: Balances, ticker: string, rate: number): number {
@@ -128,9 +129,9 @@ export class UpbitService {
   }
 
   public async order(user: User, request: OrderRequest): Promise<Order | null> {
-    const client = await this.getClient(user);
-
     try {
+      const client = await this.getClient(user);
+
       switch (request.type) {
         case OrderTypes.BUY:
           return await client.createOrder(request.ticker, 'market', request.type, 1, request.amount);

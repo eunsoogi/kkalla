@@ -21,7 +21,7 @@ export class TradeController {
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public async post(@CurrentUser() user: User): Promise<Trade[]> {
+  public async requestTrade(@CurrentUser() user: User): Promise<Trade[]> {
     return await this.tradeService.adjustPortfolios([user]);
   }
 }
