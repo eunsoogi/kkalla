@@ -18,6 +18,7 @@ import { SequenceService } from '../sequence/sequence.service';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
+import { TradeHistory } from './entities/trade-history.entity';
 import { Trade } from './entities/trade.entity';
 import { TradeData, TradeRequest } from './trade.interface';
 
@@ -52,6 +53,7 @@ export class TradeService {
       ...(await this.getInferenceItemByCoinMajor()),
       ...(await this.getInferenceItemByCoinMinor()),
       ...(await this.getInferenceItemByNasdaq()),
+      ...(await this.getInferenceItemFromTradeHistory()),
     ];
 
     const filteredItems = items.filter(
@@ -61,7 +63,7 @@ export class TradeService {
     return filteredItems;
   }
 
-  private getInferenceItemByCoinMajor(): InferenceItem[] {
+  private async getInferenceItemByCoinMajor(): Promise<InferenceItem[]> {
     return this.COIN_MAJOR.map((ticker) => ({
       ticker,
       category: InferenceCategory.COIN_MAJOR,
@@ -78,8 +80,17 @@ export class TradeService {
   }
 
   // TO-DO: NASDAQ 종목 추론
-  private getInferenceItemByNasdaq(): InferenceItem[] {
+  private async getInferenceItemByNasdaq(): Promise<InferenceItem[]> {
     return [];
+  }
+
+  private async getInferenceItemFromTradeHistory(): Promise<InferenceItem[]> {
+    const items = await TradeHistory.find();
+
+    return items.map((item) => ({
+      ticker: item.ticker,
+      category: item.category,
+    }));
   }
 
   private async performInferences(): Promise<Inference[]> {
@@ -118,12 +129,17 @@ export class TradeService {
     return tradeRequests;
   }
 
-  public getIncludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
-    const filteredInferences: Inference[] = inferences
+  private getIncludedInferences(inferences: Inference[]): Inference[] {
+    const filteredInferences = inferences
       .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매매 비율 제한
       .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
       .slice(0, this.TOP_INFERENCE_COUNT); // 포트폴리오 개수 제한
 
+    return filteredInferences;
+  }
+
+  private getIncludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+    const filteredInferences = this.getIncludedInferences(inferences);
     const count = filteredInferences.length;
 
     const tradeRequests: TradeRequest[] = filteredInferences
@@ -131,22 +147,30 @@ export class TradeService {
         ticker: inference.ticker,
         diff: this.calculateDiff(balances, inference.ticker, inference.rate / count, inference.category),
         balances,
+        inference,
       }))
       .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬
 
     return tradeRequests;
   }
 
-  public getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
-    const filteredInferences: Inference[] = inferences
+  private getExcludedInferences(inferences: Inference[]): Inference[] {
+    const filteredInferences = inferences
       .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
       .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT) // 매매 비율 또는 포트폴리오 개수 제한
       .sort((a, b) => a.rate - b.rate); // 오름차순으로 정렬
+
+    return filteredInferences;
+  }
+
+  private getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+    const filteredInferences = this.getExcludedInferences(inferences);
 
     const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
       ticker: inference.ticker,
       diff: -1,
       balances,
+      inference,
     }));
 
     return tradeRequests;
@@ -155,6 +179,9 @@ export class TradeService {
   public async adjustPortfolios(users: User[]): Promise<Trade[]> {
     const inferences = await this.performInferences();
     const trades = await Promise.all(users.map((user) => this.adjustPortfolio(user, inferences)));
+    const includedInferences = this.getIncludedInferences(inferences);
+
+    await this.createTradeHistory(includedInferences);
 
     return trades.flat();
   }
@@ -233,7 +260,7 @@ export class TradeService {
 
     if (!order) return null;
 
-    const trade = await this.create(user, {
+    const trade = await this.createTrade(user, {
       ticker: request.ticker,
       type: order.side as OrderTypes,
       amount: order?.amount ?? order?.cost,
@@ -255,7 +282,7 @@ export class TradeService {
     return trade;
   }
 
-  public async create(user: User, data: TradeData): Promise<Trade> {
+  public async createTrade(user: User, data: TradeData): Promise<Trade> {
     const trade = new Trade();
 
     Object.assign(trade, data);
@@ -263,6 +290,19 @@ export class TradeService {
     trade.user = user;
 
     return trade.save();
+  }
+
+  public async createTradeHistory(inferences: Inference[]): Promise<TradeHistory[]> {
+    TradeHistory.delete({});
+
+    const tradeHistories = inferences.map((inference) => {
+      const tradeHistory = new TradeHistory();
+      tradeHistory.ticker = inference.ticker;
+      tradeHistory.category = inference.category;
+      return tradeHistory;
+    });
+
+    return TradeHistory.save(tradeHistories);
   }
 
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
