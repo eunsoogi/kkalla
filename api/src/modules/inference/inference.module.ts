@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { ErrorModule } from '../error/error.module';
 import { FeargreedModule } from '../feargreed/feargreed.module';
 import { NewsModule } from '../news/news.module';
 import { OpenaiModule } from '../openai/openai.module';
@@ -9,7 +10,7 @@ import { InferenceController } from './inference.controller';
 import { InferenceService } from './inference.service';
 
 @Module({
-  imports: [SequenceModule, OpenaiModule, UpbitModule, NewsModule, FeargreedModule],
+  imports: [ErrorModule, SequenceModule, OpenaiModule, UpbitModule, NewsModule, FeargreedModule],
   controllers: [InferenceController],
   providers: [InferenceService],
   exports: [InferenceService],
