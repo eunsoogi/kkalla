@@ -81,6 +81,8 @@ export class AccumulationService {
 
     const filteredItems = items.filter(
       (item) =>
+        (!request.strengthLower || item.strength >= request.strengthLower) &&
+        (!request.strengthUpper || item.strength <= request.strengthUpper) &&
         (!request.priceRateLower || item.priceRate >= request.priceRateLower) &&
         (!request.priceRateUpper || item.priceRate <= request.priceRateUpper),
     );

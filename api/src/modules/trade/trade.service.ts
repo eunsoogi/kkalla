@@ -31,12 +31,13 @@ export class TradeService {
     market: 'KRW',
     open: true,
     distinct: true,
-    display: 20,
+    display: 10,
     order: 'strength',
     sortDirection: SortDirection.DESC,
+    strengthLower: 0.8,
     priceRateUpper: 0.02,
   };
-  private readonly MINIMUM_TRADE_RATE = 0.5;
+  private readonly MINIMUM_TRADE_RATE = 0.65;
   private readonly TOP_INFERENCE_COUNT = 10;
 
   constructor(
