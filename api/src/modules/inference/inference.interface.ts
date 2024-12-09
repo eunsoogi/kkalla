@@ -32,8 +32,3 @@ export interface InferenceData extends InferenceItem {
   rate: number;
   reason: string;
 }
-
-export interface RetryOptions {
-  maxRetries?: number;
-  retryDelay?: number;
-}

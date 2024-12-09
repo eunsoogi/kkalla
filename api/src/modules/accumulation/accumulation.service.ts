@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { firstValueFrom } from 'rxjs';
 
+import { RetryOptions } from '../error/error.interface';
+import { ErrorService } from '../error/error.service';
 import { PaginatedItem } from '../item/item.interface';
 import { API_URL } from './accumulation.config';
 import { Accumulation, AccumulationApiResponse } from './accumulation.interface';
@@ -10,7 +12,10 @@ import { GetAccumulationDto } from './dto/get-accumulation.dto';
 
 @Injectable()
 export class AccumulationService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly errorService: ErrorService,
+    private readonly httpService: HttpService,
+  ) {}
 
   private getUrl(path: string): string {
     return `${API_URL}/${path}`;
@@ -20,17 +25,24 @@ export class AccumulationService {
     return Buffer.from(process.env.ACCUMULATION_SECRET_KEY!).toString('base64');
   }
 
-  public async getAccumulations(request: GetAccumulationDto): Promise<PaginatedItem<Accumulation>> {
-    const { data } = await firstValueFrom(
-      this.httpService.get<AccumulationApiResponse>(this.getUrl('api/v1/target'), {
-        params: {
-          ...request,
-          order: `${request.order}$${request.sortDirection}`,
-        },
-        headers: {
-          Authorization: `Bearer ${this.getSecretKey()}`,
-        },
-      }),
+  public async getAccumulations(
+    request: GetAccumulationDto,
+    retryOptions?: RetryOptions,
+  ): Promise<PaginatedItem<Accumulation>> {
+    const { data } = await this.errorService.retry(
+      async () =>
+        firstValueFrom(
+          this.httpService.get<AccumulationApiResponse>(this.getUrl('api/v1/target'), {
+            params: {
+              ...request,
+              order: `${request.order}$${request.sortDirection}`,
+            },
+            headers: {
+              Authorization: `Bearer ${this.getSecretKey()}`,
+            },
+          }),
+        ),
+      retryOptions,
     );
 
     return this.toPaginatedAccumulation(request, data);

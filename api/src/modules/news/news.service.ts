@@ -6,6 +6,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { CursorItem } from '@/modules/item/item.interface';
 
+import { RetryOptions } from '../error/error.interface';
+import { ErrorService } from '../error/error.service';
 import { InferenceCategory } from '../inference/inference.enum';
 import { API_URL } from './news.config';
 import { NewsTypes } from './news.enum';
@@ -16,20 +18,25 @@ import { ImportanceLevel } from './news.type';
 export class NewsService {
   constructor(
     private readonly i18n: I18nService,
+    private readonly errorService: ErrorService,
     private readonly httpService: HttpService,
   ) {}
 
-  public async getNews(request: NewsRequest): Promise<News[]> {
-    const { data } = await firstValueFrom(
-      this.httpService.get<NewsApiResponse>(API_URL, {
-        params: {
-          q: JSON.stringify({
-            t1: request.type,
+  public async getNews(request: NewsRequest, retryOptions?: RetryOptions): Promise<News[]> {
+    const { data } = await this.errorService.retry(
+      async () =>
+        firstValueFrom(
+          this.httpService.get<NewsApiResponse>(API_URL, {
+            params: {
+              q: JSON.stringify({
+                t1: request.type,
+              }),
+              seq: request.cursor,
+              limit: request.limit,
+            },
           }),
-          seq: request.cursor,
-          limit: request.limit,
-        },
-      }),
+        ),
+      retryOptions,
     );
 
     return this.toNews(data);

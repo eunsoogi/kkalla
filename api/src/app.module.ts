@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from './databases/typeorm.module';
 import { AccumulationModule } from './modules/accumulation/accumulation.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ErrorModule } from './modules/error/error.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { HealthModule } from './modules/health/health.module';
 import { InferenceModule } from './modules/inference/inference.module';
@@ -22,6 +23,7 @@ import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
+    ErrorModule,
     HealthModule,
     TranslateModule,
     TypeOrmModule,

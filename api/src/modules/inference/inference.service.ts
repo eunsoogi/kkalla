@@ -6,6 +6,8 @@ import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } 
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
+import { RetryOptions } from '../error/error.interface';
+import { ErrorService } from '../error/error.service';
 import { CompactFeargreed } from '../feargreed/feargreed.interface';
 import { FeargreedService } from '../feargreed/feargreed.service';
 import { CompactNews } from '../news/news.interface';
@@ -19,22 +21,15 @@ import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
 import { InferenceCategory } from './inference.enum';
-import {
-  InferenceData,
-  InferenceFilter,
-  InferenceItem,
-  InferenceMessageRequest,
-  RetryOptions,
-} from './inference.interface';
+import { InferenceData, InferenceFilter, InferenceItem, InferenceMessageRequest } from './inference.interface';
 
 @Injectable()
 export class InferenceService {
   private readonly logger = new Logger(InferenceService.name);
-  private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY = 60000;
 
   constructor(
     private readonly i18n: I18nService,
+    private readonly errorService: ErrorService,
     private readonly sequenceService: SequenceService,
     private readonly openaiService: OpenaiService,
     private readonly upbitService: UpbitService,
@@ -117,7 +112,10 @@ export class InferenceService {
 
     this.logger.log(this.i18n.t('logging.inference.loading', { args: request }));
 
-    const response = await this.retry(() => this.createChatCompletion(client, messages, responseFormat), retryOptions);
+    const response = await this.errorService.retry(
+      () => this.createChatCompletion(client, messages, responseFormat),
+      retryOptions,
+    );
     const inferenceData = JSON.parse(response.choices[0].message?.content || '{}');
 
     return inferenceData;
@@ -159,29 +157,6 @@ export class InferenceService {
       this.logger.error(this.i18n.t('logging.inference.fail', { args: item }), error);
       return null;
     }
-  }
-
-  private async retry<T>(operation: () => Promise<T>, options?: RetryOptions): Promise<T> {
-    const maxRetries = options?.maxRetries || this.MAX_RETRIES;
-    const retryDelay = options?.retryDelay || this.RETRY_DELAY;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        if (attempt === maxRetries) throw error;
-
-        this.logger.warn(
-          this.i18n.t('logging.retry.attempt', {
-            args: { attempt, maxRetries },
-          }),
-        );
-
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      }
-    }
-
-    throw new Error(this.i18n.t('logging.retry.failed'));
   }
 
   private getCategoryPermission(category: InferenceCategory): Permission {

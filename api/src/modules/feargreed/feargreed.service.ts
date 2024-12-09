@@ -3,15 +3,24 @@ import { Injectable } from '@nestjs/common';
 
 import { firstValueFrom } from 'rxjs';
 
+import { RetryOptions } from '../error/error.interface';
+import { ErrorService } from '../error/error.service';
 import { API_URL } from './feargreed.config';
 import { CompactFeargreed, Feargreed, FeargreedApiResponse } from './feargreed.interface';
 
 @Injectable()
 export class FeargreedService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly errorService: ErrorService,
+    private readonly httpService: HttpService,
+  ) {}
 
-  public async getFeargreed(): Promise<Feargreed> {
-    const { data } = await firstValueFrom(this.httpService.get<FeargreedApiResponse>(API_URL));
+  public async getFeargreed(retryOptions?: RetryOptions): Promise<Feargreed> {
+    const { data } = await this.errorService.retry(
+      async () => firstValueFrom(this.httpService.get<FeargreedApiResponse>(API_URL)),
+      retryOptions,
+    );
+
     return this.toFeargreed(data);
   }
 
