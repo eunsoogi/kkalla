@@ -48,7 +48,7 @@ jobs:
         with:
           targets: cache
 
-      - name: Store cache
+      - name: Rolling cache
         run: |
           rm -rf api/.cache
           rm -rf ui/.cache
