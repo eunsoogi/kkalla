@@ -10,7 +10,15 @@ import { formatDate } from '@/utils/date';
 
 import { TRADE_STYLES } from './style';
 
-export const TradeItem = (item: Trade) => {
+const getProfitColor = (profit: number) => {
+  return profit > 0 ? 'text-green-500' : profit < 0 ? 'text-red-500' : 'text-gray-500';
+};
+
+const getProfitPrefix = (profit: number) => {
+  return profit > 0 ? '+' : '';
+};
+
+export const TradeListItem: React.FC<Trade> = (item) => {
   return (
     <Table.Row>
       <Table.Cell className='whitespace-nowrap'>
@@ -19,11 +27,15 @@ export const TradeItem = (item: Trade) => {
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.ticker}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
+      <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getProfitColor(item.profit)}`}>
+        {getProfitPrefix(item.profit)}
+        {item.profit.toLocaleString()}
+      </Table.Cell>
     </Table.Row>
   );
 };
 
-export const TradeSkeleton = () => {
+export const TradeListItemSkeleton = () => {
   const t = useTranslations();
 
   return (

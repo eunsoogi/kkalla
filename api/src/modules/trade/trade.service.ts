@@ -15,12 +15,11 @@ import { SortDirection } from '../item/item.enum';
 import { NotifyService } from '../notify/notify.service';
 import { Permission } from '../permission/permission.enum';
 import { SequenceService } from '../sequence/sequence.service';
-import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { TradeHistory } from './entities/trade-history.entity';
 import { Trade } from './entities/trade.entity';
-import { TradeData, TradeRequest } from './trade.interface';
+import { ProfitData, TradeData, TradeRequest } from './trade.interface';
 
 @Injectable()
 export class TradeService {
@@ -261,11 +260,15 @@ export class TradeService {
 
     if (!order) return null;
 
+    const type = this.upbitService.getOrderType(order);
+    const amount = this.upbitService.calculateAmount(order);
+    const profit = this.upbitService.calculateProfit(request.balances, order, amount);
+
     const trade = await this.createTrade(user, {
       ticker: request.ticker,
-      type: order.side as OrderTypes,
-      amount: order?.amount ?? order?.cost,
-      balances: request.balances,
+      type,
+      amount,
+      profit,
       inference: request.inference,
     });
 
@@ -276,6 +279,7 @@ export class TradeService {
           ...trade,
           type: this.i18n.t(`label.order.type.${trade.type}`),
           amount: trade.amount.toLocaleString(),
+          profit: trade.profit.toLocaleString(),
         },
       }),
     );
@@ -308,5 +312,14 @@ export class TradeService {
 
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
     return Trade.paginate(user, request);
+  }
+
+  public async getProfit(user: User): Promise<ProfitData> {
+    const trades = await Trade.findAllByUser(user);
+    const profit = trades.reduce((acc, trade) => acc + trade.profit, 0);
+
+    return {
+      profit,
+    };
   }
 }

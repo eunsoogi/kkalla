@@ -66,7 +66,8 @@
     "type": "거래",
     "date": "날짜",
     "ticker": "종목",
-    "cost": "비용"
+    "amount": "거래금",
+    "profit": "수익금"
   },
   "upbit": {
     "title": "업비트",

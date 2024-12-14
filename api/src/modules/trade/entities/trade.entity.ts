@@ -1,4 +1,3 @@
-import { Balances } from 'ccxt';
 import {
   BaseEntity,
   Column,
@@ -51,10 +50,10 @@ export class Trade extends BaseEntity {
   amount!: number;
 
   @Column({
-    type: 'json',
-    default: '{}',
+    type: 'double',
+    default: 0,
   })
-  balances: Balances;
+  profit: number = 0;
 
   @ManyToOne(() => Inference, {
     nullable: true,
@@ -70,6 +69,19 @@ export class Trade extends BaseEntity {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  public static async findAllByUser(user: User): Promise<Trade[]> {
+    return this.find({
+      relations: {
+        user: true,
+      },
+      where: {
+        user: {
+          id: user.id,
+        },
+      },
+    });
+  }
 
   public static async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
     const [items, total] = await this.findAndCount({
