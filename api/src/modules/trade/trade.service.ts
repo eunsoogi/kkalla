@@ -17,6 +17,7 @@ import { Permission } from '../permission/permission.enum';
 import { SequenceService } from '../sequence/sequence.service';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
+import { PostTradeDto } from './dto/post-trade.dto';
 import { TradeHistory } from './entities/trade-history.entity';
 import { Trade } from './entities/trade.entity';
 import { ProfitData, TradeData, TradeRequest } from './trade.interface';
@@ -261,8 +262,8 @@ export class TradeService {
     if (!order) return null;
 
     const type = this.upbitService.getOrderType(order);
-    const amount = this.upbitService.calculateAmount(order);
-    const profit = this.upbitService.calculateProfit(request.balances, order, amount);
+    const amount = await this.upbitService.calculateAmount(order);
+    const profit = await this.upbitService.calculateProfit(request.balances, order, amount);
 
     const trade = await this.createTrade(user, {
       ticker: request.ticker,
@@ -308,6 +309,15 @@ export class TradeService {
         }),
       ),
     );
+  }
+
+  public async postTrade(user: User, request: PostTradeDto): Promise<Trade> {
+    const balances = await this.upbitService.getBalances(user);
+
+    return this.trade(user, {
+      ...request,
+      balances,
+    });
   }
 
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {

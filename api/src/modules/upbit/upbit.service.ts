@@ -38,7 +38,7 @@ export class UpbitService {
     return apikey?.secretKey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
   }
 
-  private async createClient(apiKey: string, secretKey: string) {
+  private async createClient(apiKey: string, secretKey: string): Promise<upbit> {
     return new upbit({
       apiKey,
       secret: secretKey,
@@ -46,14 +46,14 @@ export class UpbitService {
     });
   }
 
-  public async getServerClient() {
+  public async getServerClient(): Promise<upbit> {
     if (!this.serverClient) {
       this.serverClient = await this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
     }
     return this.serverClient;
   }
 
-  public async getClient(user: User) {
+  public async getClient(user: User): Promise<upbit> {
     if (!this.client[user.id]) {
       const { accessKey, secretKey } = await this.readConfig(user);
       this.client[user.id] = this.createClient(accessKey, secretKey);
@@ -122,34 +122,29 @@ export class UpbitService {
     return order.side as OrderTypes;
   }
 
-  public calculateAmount(order: Order): number {
-    const type = this.getOrderType(order);
-    const fee = order.fee.cost;
-    let amount = order.filled * order.average;
-
-    switch (type) {
-      case OrderTypes.BUY:
-        amount += fee;
-        break;
-
-      case OrderTypes.SELL:
-        amount -= fee;
-        break;
+  public async calculateAmount(order: Order): Promise<number> {
+    if (order?.cost) {
+      return order.cost;
+    } else if (order?.amount) {
+      const client = await this.getServerClient();
+      const ticker = await client.fetchTicker(order.symbol);
+      const amount = order.amount * ticker.last;
+      return amount;
     }
 
-    return amount;
+    return 0;
   }
 
-  public calculateProfit(balances: Balances, order: Order, amount: number): number {
+  public async calculateProfit(balances: Balances, order: Order, amount: number): Promise<number> {
     const type = this.getOrderType(order);
 
     if (type === OrderTypes.BUY) return 0;
 
-    const ticker = order.symbol;
-    const orderAvgPrice = order.average;
-    const { avg_buy_price = 0 } = this.getBalance(balances, ticker);
+    const client = await this.getServerClient();
+    const ticker = await client.fetchTicker(order.symbol);
+    const { avg_buy_price = 0 } = this.getBalance(balances, order.symbol);
     const avgBuyPrice = parseFloat(avg_buy_price) || 1;
-    const rate = orderAvgPrice / avgBuyPrice;
+    const rate = ticker.last / avgBuyPrice;
     const profit = amount - amount / rate;
 
     return profit;
