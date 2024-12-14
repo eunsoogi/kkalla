@@ -38,7 +38,7 @@ export class TradeService {
     priceRateUpper: 0.02,
   };
   private readonly MINIMUM_TRADE_RATE = 0.65;
-  private readonly TOP_INFERENCE_COUNT = 10;
+  private readonly TOP_INFERENCE_COUNT = 5;
 
   constructor(
     private readonly i18n: I18nService,
