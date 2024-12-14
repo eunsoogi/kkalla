@@ -38,15 +38,22 @@ jobs:
       - name: Setup docker bake environment
         uses: ./.github/actions/docker-bake-setup
 
-      - name: Clean cache
+      - name: Create cache directories
         run: |
-          rm -rf api/.cache/*
-          rm -rf ui/.cache/*
+          mkdir -p api/.cache.new
+          mkdir -p ui/.cache.new
 
       - name: Build cache stage
         uses: docker/bake-action@v5
         with:
           targets: cache
+
+      - name: Rolling cache
+        run: |
+          rm -rf api/.cache
+          rm -rf ui/.cache
+          mv api/.cache.new api/.cache
+          mv ui/.cache.new ui/.cache
 
   build:
     needs: builder
