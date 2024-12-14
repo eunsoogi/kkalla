@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 
 import { I18nService } from 'nestjs-i18n';
 
@@ -7,6 +7,7 @@ import { Trade } from '../trade/entities/trade.entity';
 import { TradeService } from '../trade/trade.service';
 import { User } from '../user/entities/user.entity';
 import { Schedule } from './entities/schedule.entity';
+import { ScheduleExpression } from './schedule.enum';
 import { ScheduleData } from './schedule.interface';
 
 @Injectable()
@@ -18,7 +19,7 @@ export class ScheduleService {
     private readonly i18n: I18nService,
   ) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(ScheduleExpression.EVERY_HOUR_AT_20_MINUTE)
   public async adjustPortfoliosSchedule(): Promise<Trade[]> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
