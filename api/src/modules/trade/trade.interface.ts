@@ -14,6 +14,10 @@ export interface TradeData {
   ticker: string;
   type: OrderTypes;
   amount: number;
-  balances: Balances;
+  profit: number;
   inference: Inference;
+}
+
+export interface ProfitData {
+  profit: number;
 }

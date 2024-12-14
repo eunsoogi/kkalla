@@ -98,25 +98,57 @@ export class UpbitService {
     return diff;
   }
 
-  public calculatePrice(balances: Balances, ticker: string): number {
-    const {
-      balance = 0,
-      locked = 0,
-      avg_buy_price = 0,
-    } = balances.info.find((item) => ticker === `${item.currency}/${item.unit_currency}`) || {};
+  public getBalance(balances: Balances, ticker: string): any {
+    return balances.info.find((item) => ticker === `${item.currency}/${item.unit_currency}`) || {};
+  }
 
+  public calculatePrice(balances: Balances, ticker: string): number {
+    const { balance = 0, locked = 0, avg_buy_price = 0 } = this.getBalance(balances, ticker);
     const totalBalance = parseFloat(balance) + parseFloat(locked);
-    const averageBuyPrice = parseFloat(avg_buy_price) || 1;
-    return totalBalance * averageBuyPrice;
+    const avgBuyPrice = parseFloat(avg_buy_price) || 1;
+    return totalBalance * avgBuyPrice;
   }
 
   public calculateTotalPrice(balances: Balances): number {
     return balances.info.reduce((total, item) => {
       const { balance = 0, locked = 0, avg_buy_price = 0 } = item;
       const totalBalance = parseFloat(balance) + parseFloat(locked);
-      const averageBuyPrice = parseFloat(avg_buy_price) || 1;
-      return total + totalBalance * averageBuyPrice;
+      const avgBuyPrice = parseFloat(avg_buy_price) || 1;
+      return total + totalBalance * avgBuyPrice;
     }, 0);
+  }
+
+  public getOrderType(order: Order): OrderTypes {
+    return order.side as OrderTypes;
+  }
+
+  public calculateAmount(order: Order): number {
+    const type = this.getOrderType(order);
+    const fee = order.fee.cost;
+    let amount = order.filled * order.average;
+
+    switch (type) {
+      case OrderTypes.BUY:
+        amount += fee;
+        break;
+
+      case OrderTypes.SELL:
+        amount -= fee;
+        break;
+    }
+
+    return amount;
+  }
+
+  public calculateProfit(balances: Balances, order: Order, amount: number): number {
+    const ticker = order.symbol;
+    const orderAvgPrice = order.average;
+    const { avg_buy_price = 0 } = this.getBalance(balances, ticker);
+    const avgBuyPrice = parseFloat(avg_buy_price) || 1;
+    const rate = orderAvgPrice / avgBuyPrice;
+    const profit = amount - amount / rate;
+
+    return profit;
   }
 
   public getVolume(balances: Balances, symbol: string): number {

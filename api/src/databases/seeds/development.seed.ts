@@ -73,6 +73,7 @@ export class TradeSeeder implements Seeder {
         type: OrderTypes.BUY,
         ticker: 'BTC/KRW',
         amount: 1000000,
+        profit: 100000,
         inference: inferences[0],
       },
       {
@@ -80,7 +81,8 @@ export class TradeSeeder implements Seeder {
         user: users[0],
         type: OrderTypes.SELL,
         ticker: 'BTC/KRW',
-        amount: 0.01,
+        amount: 1000000,
+        profit: -50000,
         inference: inferences[1],
       },
     ]);

@@ -6,6 +6,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { User } from '../user/entities/user.entity';
 import { GetTradeDto } from './dto/get-trade.dto';
+import { ProfitDto } from './dto/profit.dto';
 import { Trade } from './entities/trade.entity';
 import { TradeService } from './trade.service';
 
@@ -23,5 +24,11 @@ export class TradeController {
   @UseGuards(GoogleTokenAuthGuard)
   public async requestTrade(@CurrentUser() user: User): Promise<Trade[]> {
     return await this.tradeService.adjustPortfolios([user]);
+  }
+
+  @Get('profit')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async getProfit(@CurrentUser() user: User): Promise<ProfitDto> {
+    return this.tradeService.getProfit(user);
   }
 }

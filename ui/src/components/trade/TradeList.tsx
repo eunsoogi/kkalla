@@ -10,7 +10,7 @@ import SimpleBar from 'simplebar-react';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { Trade, initialState } from '@/interfaces/trade.interface';
 
-import { TradeItem, TradeSkeleton } from './TradeItem';
+import { TradeListItem, TradeListItemSkeleton } from './TradeListItem';
 import { getTradeAction } from './action';
 
 const TradeContent = () => {
@@ -23,7 +23,7 @@ const TradeContent = () => {
 
   return (
     <Table.Body className='divide-y divide-border dark:divide-gray-800'>
-      {data.items?.map((item: Trade) => <TradeItem key={item.id} {...item} />)}
+      {data.items?.map((item: Trade) => <TradeListItem key={item.id} {...item} />)}
     </Table.Body>
   );
 };
@@ -44,9 +44,10 @@ export const TradeList = () => {
                 <Table.HeadCell className='whitespace-nowrap'>{t('trade.type')}</Table.HeadCell>
                 <Table.HeadCell className='whitespace-nowrap'>{t('trade.date')}</Table.HeadCell>
                 <Table.HeadCell className='whitespace-nowrap'>{t('trade.ticker')}</Table.HeadCell>
-                <Table.HeadCell className='whitespace-nowrap'>{t('trade.cost')}</Table.HeadCell>
+                <Table.HeadCell className='whitespace-nowrap'>{t('trade.amount')}</Table.HeadCell>
+                <Table.HeadCell className='whitespace-nowrap'>{t('trade.profit')}</Table.HeadCell>
               </Table.Head>
-              <Suspense fallback={<TradeSkeleton />}>
+              <Suspense fallback={<TradeListItemSkeleton />}>
                 <TradeContent />
               </Suspense>
             </Table>
