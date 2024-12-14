@@ -141,6 +141,10 @@ export class UpbitService {
   }
 
   public calculateProfit(balances: Balances, order: Order, amount: number): number {
+    const type = this.getOrderType(order);
+
+    if (type === OrderTypes.BUY) return 0;
+
     const ticker = order.symbol;
     const orderAvgPrice = order.average;
     const { avg_buy_price = 0 } = this.getBalance(balances, ticker);
