@@ -52,11 +52,11 @@
   }
 
   .form-control input {
-    @apply border border-border bg-transparent w-full text-sm;
+    @apply border border-border dark:border-gray-600 bg-transparent w-full text-sm;
   }
 
   .form-control-rounded input {
-    @apply rounded-full border border-border bg-transparent w-full text-sm;
+    @apply rounded-full border border-border dark:border-gray-600 bg-transparent w-full text-sm;
   }
 
   .form-control-rounded input:focus {

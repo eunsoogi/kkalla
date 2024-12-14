@@ -2,9 +2,8 @@
 
 import React, { Suspense, useTransition } from 'react';
 
-import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { ToggleSwitch, Tooltip } from 'flowbite-react';
+import { ToggleSwitch } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { Schedule, initialState } from '@/interfaces/schedule.interface';
@@ -46,10 +45,10 @@ const ScheduleForm: React.FC = () => {
   return (
     <>
       <div className='flex flex-column items-center gap-2'>
-        <h5 className='card-title text-dark dark:text-white'>{t('schedule.title')}</h5>
-        <Tooltip content={t('schedule.tooltip')}>
-          <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
-        </Tooltip>
+        <h5 className='card-title text-dark dark:text-white'>{t('service.title')}</h5>
+      </div>
+      <div className='border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 mt-6 p-4'>
+        <p className='text-gray-500 dark:text-gray-400'>{t('service.termsofuse')}</p>
       </div>
       <div className='mt-6'>
         <Suspense fallback={<ScheduleToggleSwitchSkeleton />}>

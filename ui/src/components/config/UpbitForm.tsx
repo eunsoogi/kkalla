@@ -1,53 +1,19 @@
 'use client';
 
-import Link from 'next/link';
 import React, { Suspense, useActionState } from 'react';
 
-import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
+import { Alert, Badge, Button, Label, TextInput } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 
 import { ApikeyStatus } from '@/enums/apikey.enum';
 import { initialState } from '@/interfaces/state.interface';
 
-import { getIpAction, getUpbitStatusAction, postUpbitConfigAction } from './action';
+import { getUpbitStatusAction, postUpbitConfigAction } from './action';
 import { STATUS_STYLES } from './style';
 
 const badgeQueryKey = ['upbit', 'status'];
-const ipQueryKey = ['upbit', 'ip'];
-
-const UpbitDescription: React.FC = () => {
-  const t = useTranslations();
-
-  const { data } = useSuspenseQuery<string | null>({
-    queryKey: ipQueryKey,
-    queryFn: getIpAction,
-    initialData: t('status.unknown'),
-    staleTime: 0,
-  });
-
-  return (
-    <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
-      {t('upbit.api.description', {
-        ip: data,
-      })}
-    </div>
-  );
-};
-
-const UpbitDescriptionSkeleton: React.FC = () => {
-  const t = useTranslations();
-
-  return (
-    <div className='border-l-4 border-gray-300 dark:border-gray-500 mt-6 pl-6'>
-      {t('upbit.api.description', {
-        ip: t('status.unknown'),
-      })}
-    </div>
-  );
-};
 
 const UpbitStatusBadge: React.FC = () => {
   const t = useTranslations();
@@ -90,19 +56,11 @@ const UpbitForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title text-dark dark:text-white'>{t('upbit.title')}</h5>
-          <Tooltip content={t('upbit.tooltip')}>
-            <Link href='https://upbit.com/service_center/open_api_guide' target='_blank'>
-              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
-            </Link>
-          </Tooltip>
+          <h5 className='card-title text-dark dark:text-white'>{t('upbit.register')}</h5>
           <Suspense fallback={<UpbitStatusBadgeSkeleton />}>
             <UpbitStatusBadge />
           </Suspense>
         </div>
-        <Suspense fallback={<UpbitDescriptionSkeleton />}>
-          <UpbitDescription />
-        </Suspense>
         <div className='mt-6'>
           <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
             <div className='lg:col-span-6 col-span-12'>

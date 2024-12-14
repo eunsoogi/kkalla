@@ -1,11 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import React, { Suspense, memo, useActionState } from 'react';
 
-import { Icon } from '@iconify/react';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Alert, Badge, Button, Label, TextInput, Tooltip } from 'flowbite-react';
+import { Alert, Badge, Button, Label, TextInput } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 
@@ -116,12 +114,7 @@ const SlackForm: React.FC = () => {
       )}
       <form action={handleSubmit}>
         <div className='flex flex-column items-center gap-2'>
-          <h5 className='card-title text-dark dark:text-white'>{t('slack.title')}</h5>
-          <Tooltip content={t('slack.tooltip')}>
-            <Link href='https://api.slack.com/apps' target='_blank'>
-              <Icon icon='solar:info-circle-outline' height='1.125rem' className='text-dark dark:text-white' />
-            </Link>
-          </Tooltip>
+          <h5 className='card-title text-dark dark:text-white'>{t('slack.register')}</h5>
           <Suspense fallback={<SlackStatusBadgeSkeleton />}>
             <SlackStatusBadge />
           </Suspense>
