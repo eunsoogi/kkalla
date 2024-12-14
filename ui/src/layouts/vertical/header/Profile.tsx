@@ -36,11 +36,19 @@ const Profile = () => {
       >
         <Dropdown.Item
           as={Link}
-          href='/config'
+          href='/register'
           className='flex w-full items-center gap-3 bg-hover px-3 py-3 text-dark group/link'
         >
-          <Icon icon='solar:settings-outline' height={20} />
-          {t('config')}
+          <Icon icon='solar:chat-round-money-bold' height={20} />
+          {t('service.title')}
+        </Dropdown.Item>
+        <Dropdown.Item
+          as={Link}
+          href='/notify'
+          className='flex w-full items-center gap-3 bg-hover px-3 py-3 text-dark group/link'
+        >
+          <Icon icon='solar:bell-bold' height={20} />
+          {t('notify.title')}
         </Dropdown.Item>
         <div className='flex flex-col p-3'>
           <Button
