@@ -6,17 +6,10 @@ import { Badge, Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { Trade } from '@/interfaces/trade.interface';
+import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 
 import { TRADE_STYLES } from './style';
-
-const getProfitColor = (profit: number) => {
-  return profit > 0 ? 'text-green-500' : profit < 0 ? 'text-red-500' : 'text-gray-500';
-};
-
-const getProfitPrefix = (profit: number) => {
-  return profit > 0 ? '+' : '';
-};
 
 export const TradeListItem: React.FC<Trade> = (item) => {
   return (
@@ -27,8 +20,8 @@ export const TradeListItem: React.FC<Trade> = (item) => {
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.ticker}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
-      <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getProfitColor(item.profit)}`}>
-        {getProfitPrefix(item.profit)}
+      <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(item.profit)}`}>
+        {getDiffPrefix(item.profit)}
         {item.profit.toLocaleString()}
       </Table.Cell>
     </Table.Row>
