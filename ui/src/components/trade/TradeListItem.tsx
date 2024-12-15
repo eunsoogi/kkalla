@@ -19,10 +19,12 @@ export const TradeListItem: React.FC<Trade> = (item) => {
       </Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.ticker}</Table.Cell>
-      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.amount.toLocaleString()}</Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>
+        {item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </Table.Cell>
       <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(item.profit)}`}>
         {getDiffPrefix(item.profit)}
-        {item.profit.toLocaleString()}
+        {item.profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </Table.Cell>
     </Table.Row>
   );
