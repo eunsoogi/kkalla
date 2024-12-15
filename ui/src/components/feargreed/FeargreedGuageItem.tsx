@@ -5,22 +5,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Feargreed } from '@/interfaces/feargreed.interface';
-
-const getColor = (score: number) => {
-  if (score <= 20) return 'var(--color-feargreed-extreme-fear)';
-  if (score <= 40) return 'var(--color-feargreed-fear)';
-  if (score <= 60) return 'var(--color-feargreed-neutral)';
-  if (score <= 80) return 'var(--color-feargreed-greed)';
-  return 'var(--color-feargreed-extreme-greed)';
-};
-
-const getDiffColor = (diff: number) => {
-  return diff > 0 ? 'text-red-500' : diff < 0 ? 'text-blue-500' : 'text-gray-500';
-};
-
-const getDiffPrefix = (diff: number) => {
-  return diff > 0 ? '+' : '';
-};
+import { getDiffColor, getDiffPrefix, getScoreColor } from '@/utils/color';
 
 export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
   const score = item?.today.score ?? 0;
@@ -57,7 +42,7 @@ export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
             cy={50}
             r={45}
             strokeWidth={10}
-            stroke={getColor(score)}
+            stroke={getScoreColor(score)}
             fill='none'
             strokeDasharray={`${(score * 180) / 100} 360`}
             transform='rotate(155 50 50)'

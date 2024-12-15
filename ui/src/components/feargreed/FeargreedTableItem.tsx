@@ -6,14 +6,7 @@ import { Table } from 'flowbite-react';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import { Feargreed } from '@/interfaces/feargreed.interface';
-
-const getDiffColor = (diff: number) => {
-  return diff > 0 ? 'text-red-500' : diff < 0 ? 'text-blue-500' : 'text-gray-500';
-};
-
-const getDiffPrefix = (diff: number) => {
-  return diff > 0 ? '+' : '';
-};
+import { getDiffColor, getDiffPrefix } from '@/utils/color';
 
 export const FeargreedTableItem: React.FC<Feargreed | null> = (item) => {
   const intervals = item?.intv ?? [];
