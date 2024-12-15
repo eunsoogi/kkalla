@@ -5,15 +5,9 @@ import React, { Suspense } from 'react';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
+import { getDiffColor, getDiffPrefix } from '@/utils/color';
+
 import { getProfitAction } from './action';
-
-const getProfitColor = (profit: number) => {
-  return profit > 0 ? 'text-green-500' : profit < 0 ? 'text-red-500' : 'text-gray-500';
-};
-
-const getProfitPrefix = (profit: number) => {
-  return profit > 0 ? '+' : '';
-};
 
 export const TradeProfitSkeleton = () => {
   const t = useTranslations();
@@ -39,8 +33,8 @@ export const TradeProfitContent = () => {
 
   return (
     <div className='flex flex-col items-center p-6'>
-      <span className={`text-3xl font-bold ${getProfitColor(profit)}`}>
-        {getProfitPrefix(profit)}
+      <span className={`text-3xl font-bold ${getDiffColor(profit)}`}>
+        {getDiffPrefix(profit)}
         {profit.toLocaleString()}
       </span>
     </div>
