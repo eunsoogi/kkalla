@@ -280,8 +280,8 @@ export class TradeService {
         args: {
           ...trade,
           type: this.i18n.t(`label.order.type.${trade.type}`),
-          amount: trade.amount.toLocaleString(),
-          profit: trade.profit.toLocaleString(),
+          amount: trade.amount.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+          profit: trade.profit.toLocaleString(undefined, { maximumFractionDigits: 0 }),
         },
       }),
     );

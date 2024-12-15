@@ -35,7 +35,7 @@ export const TradeProfitContent = () => {
     <div className='flex flex-col items-center p-6'>
       <span className={`text-3xl font-bold ${getDiffColor(profit)}`}>
         {getDiffPrefix(profit)}
-        {profit.toLocaleString()}
+        {profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </span>
     </div>
   );
