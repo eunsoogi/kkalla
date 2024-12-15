@@ -35,6 +35,7 @@ export class TradeService {
     order: 'strength',
     sortDirection: SortDirection.DESC,
     strengthLower: 0.8,
+    strengthUpper: 1.2,
     priceRateUpper: 0.02,
   };
   private readonly MINIMUM_TRADE_RATE = 0.65;
