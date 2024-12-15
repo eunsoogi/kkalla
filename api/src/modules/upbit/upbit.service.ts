@@ -140,14 +140,20 @@ export class UpbitService {
 
     if (type === OrderTypes.BUY) return 0;
 
-    const client = await this.getServerClient();
-    const ticker = await client.fetchTicker(order.symbol);
+    const currPrice = await this.getPrice(order.symbol);
     const { avg_buy_price = 0 } = this.getBalance(balances, order.symbol);
     const avgBuyPrice = parseFloat(avg_buy_price) || 1;
-    const rate = ticker.last / avgBuyPrice;
+    const rate = currPrice / avgBuyPrice;
     const profit = amount - amount / rate;
 
     return profit;
+  }
+
+  public async getPrice(ticker: string): Promise<number> {
+    const client = await this.getServerClient();
+    const info = await client.fetchTicker(ticker);
+
+    return info.last;
   }
 
   public getVolume(balances: Balances, symbol: string): number {
@@ -184,6 +190,7 @@ export class UpbitService {
     try {
       const { ticker, diff, balances } = request;
       const [symbol] = ticker.split('/');
+      const currPrice = await this.getPrice(ticker);
       const tickerPrice = this.calculatePrice(balances, ticker);
       const tickerVolume = this.getVolume(balances, symbol);
       const marketPrice = this.calculateTotalPrice(balances);
@@ -199,7 +206,7 @@ export class UpbitService {
         });
       }
       // 매도해야 할 경우
-      else if (diff < 0 && tradeVolume > 0) {
+      else if (diff < 0 && tradeVolume * currPrice > this.MINIMUM_TRADE_PRICE) {
         return await this.order(user, {
           ticker,
           type: OrderTypes.SELL,
