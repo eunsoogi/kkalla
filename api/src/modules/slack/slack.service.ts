@@ -9,6 +9,9 @@ import { SlackConfigData, SlackMessage } from './slack.interface';
 
 @Injectable()
 export class SlackService {
+  private client: WebClient[] = [];
+  private config: SlackConfig[] = [];
+
   public async readConfig(user: User): Promise<SlackConfig> {
     return SlackConfig.findByUser(user);
   }
@@ -23,6 +26,8 @@ export class SlackService {
     config.user = user;
     Object.assign(config, data);
 
+    this.clearClient(user);
+
     return config.save();
   }
 
@@ -32,10 +37,21 @@ export class SlackService {
   }
 
   public async getClient(user: User): Promise<{ client: WebClient; config: SlackConfig }> {
-    const config = await this.readConfig(user);
-    const client = new WebClient(config?.token);
+    if (!this.client[user.id]) {
+      this.config[user.id] = await this.readConfig(user);
+      this.client[user.id] = new WebClient(this.config[user.id]?.token);
+    }
+    return { client: this.client[user.id], config: this.config[user.id] };
+  }
 
-    return { client, config };
+  public clearClients(): void {
+    this.client = [];
+    this.config = [];
+  }
+
+  public clearClient(user: User): void {
+    delete this.client[user.id];
+    delete this.config[user.id];
   }
 
   public async send(user: User, data: SlackMessage): Promise<ChatPostMessageResponse> {
