@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Balances } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
-import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
 import { AccumulationService } from '../accumulation/accumulation.service';
 import { GetAccumulationDto } from '../accumulation/dto/get-accumulation.dto';
@@ -20,7 +20,7 @@ import { User } from '../user/entities/user.entity';
 import { PostTradeDto } from './dto/post-trade.dto';
 import { TradeHistory } from './entities/trade-history.entity';
 import { Trade } from './entities/trade.entity';
-import { ProfitData, TradeData, TradeRequest } from './trade.interface';
+import { ProfitData, TradeData, TradeFilter, TradeRequest } from './trade.interface';
 
 @Injectable()
 export class TradeService {
@@ -327,6 +327,10 @@ export class TradeService {
 
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
     return Trade.paginate(user, request);
+  }
+
+  public async cursor(user: User, request: CursorRequest<string> & TradeFilter): Promise<CursorItem<Trade, string>> {
+    return Trade.cursor(user, request);
   }
 
   public async getProfit(user: User): Promise<ProfitData> {

@@ -11,6 +11,7 @@
     "dashboard": "대시보드",
     "newsList": "뉴스 목록",
     "inferenceList": "추론 목록",
+    "tradeList": "거래 목록",
     "userManagement": "사용자 관리",
     "roleManagement": "권한 관리",
     "admin": "관리"
@@ -67,7 +68,11 @@
     "date": "날짜",
     "ticker": "종목",
     "amount": "거래금",
-    "profit": "수익금"
+    "profit": "수익금",
+    "types": {
+      "buy": "매수",
+      "sell": "매도"
+    }
   },
   "upbit": {
     "title": "업비트",

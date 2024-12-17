@@ -6,6 +6,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { formatNumber } from '@/utils/number';
 
 import { getProfitAction } from './action';
 
@@ -35,21 +36,16 @@ export const TradeProfitContent = () => {
     <div className='flex flex-col items-center p-6'>
       <span className={`text-3xl font-bold ${getDiffColor(profit)}`}>
         {getDiffPrefix(profit)}
-        {profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        {formatNumber(profit)}
       </span>
     </div>
   );
 };
 
 export function TradeProfit() {
-  const t = useTranslations();
-
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words'>
-      <h5 className='card-title text-dark dark:text-white'>{t('trade.profit')}</h5>
-      <Suspense fallback={<TradeProfitSkeleton />}>
-        <TradeProfitContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<TradeProfitSkeleton />}>
+      <TradeProfitContent />
+    </Suspense>
   );
 }
