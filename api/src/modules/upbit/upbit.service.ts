@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Balances, Order, upbit } from 'ccxt';
+import { Balances, Order, Ticker, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
@@ -157,10 +157,22 @@ export class UpbitService {
     return profit;
   }
 
-  public async getPrice(ticker: string): Promise<number> {
+  public async getTicker(ticker: string): Promise<Ticker> {
     const client = await this.getServerClient();
-    const info = await client.fetchTicker(ticker);
+    return client.fetchTicker(ticker);
+  }
 
+  public async isTickerExist(ticker: string): Promise<boolean> {
+    try {
+      await this.getTicker(ticker);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async getPrice(ticker: string): Promise<number> {
+    const info = await this.getTicker(ticker);
     return info.last;
   }
 
@@ -195,9 +207,14 @@ export class UpbitService {
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<Order | null> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
+    const { ticker, diff, balances } = request;
+    const [symbol] = ticker.split('/');
+
+    if (!this.isTickerExist(ticker)) {
+      return null;
+    }
+
     try {
-      const { ticker, diff, balances } = request;
-      const [symbol] = ticker.split('/');
       const currPrice = await this.getPrice(ticker);
       const tickerPrice = this.calculatePrice(balances, ticker);
       const tickerVolume = this.getVolume(balances, symbol);
