@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Balances, Order, Ticker, upbit } from 'ccxt';
+import { Balances, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
@@ -157,22 +157,15 @@ export class UpbitService {
     return profit;
   }
 
-  public async getTicker(ticker: string): Promise<Ticker> {
-    const client = await this.getServerClient();
-    return client.fetchTicker(ticker);
-  }
-
   public async isTickerExist(ticker: string): Promise<boolean> {
-    try {
-      await this.getTicker(ticker);
-      return true;
-    } catch {
-      return false;
-    }
+    const client = await this.getServerClient();
+    const markets = await client.loadMarkets();
+    return ticker in markets;
   }
 
   public async getPrice(ticker: string): Promise<number> {
-    const info = await this.getTicker(ticker);
+    const client = await this.getServerClient();
+    const info = await client.fetchTicker(ticker);
     return info.last;
   }
 
@@ -209,8 +202,9 @@ export class UpbitService {
 
     const { ticker, diff, balances } = request;
     const [symbol] = ticker.split('/');
+    const tickerExist = await this.isTickerExist(ticker);
 
-    if (!this.isTickerExist(ticker)) {
+    if (!tickerExist) {
       return null;
     }
 
