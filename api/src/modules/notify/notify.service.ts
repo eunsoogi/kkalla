@@ -35,6 +35,10 @@ export class NotifyService {
     return notify.save();
   }
 
+  public clearClients(): void {
+    this.slackService.clearClients();
+  }
+
   public async paginate(user: User, request: ItemRequest): Promise<PaginatedItem<Notify>> {
     return Notify.paginate(user, request);
   }

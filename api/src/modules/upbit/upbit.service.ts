@@ -53,12 +53,20 @@ export class UpbitService {
     return this.serverClient;
   }
 
+  public clearServerClient(): void {
+    delete this.serverClient;
+  }
+
   public async getClient(user: User): Promise<upbit> {
     if (!this.client[user.id]) {
       const { accessKey, secretKey } = await this.readConfig(user);
       this.client[user.id] = this.createClient(accessKey, secretKey);
     }
     return this.client[user.id];
+  }
+
+  public clearClients(): void {
+    this.client = [];
   }
 
   public async getCandles(request: CandleRequest): Promise<CompactCandle> {

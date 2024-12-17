@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { Balances } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
@@ -24,8 +24,6 @@ import { ProfitData, TradeData, TradeRequest } from './trade.interface';
 
 @Injectable()
 export class TradeService {
-  private readonly logger = new Logger(TradeService.name);
-
   private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
   private readonly COIN_MINOR_REQUEST: GetAccumulationDto = {
     market: 'KRW',
@@ -183,7 +181,13 @@ export class TradeService {
     const trades = await Promise.all(users.map((user) => this.adjustPortfolio(user, inferences)));
     const includedInferences = this.getIncludedInferences(inferences);
 
+    // 현재 포트폴리오 저장
     await this.createTradeHistory(includedInferences);
+
+    // 클라이언트 초기화
+    this.upbitService.clearServerClient();
+    this.upbitService.clearClients();
+    this.notifyService.clearClients();
 
     return trades.flat();
   }
