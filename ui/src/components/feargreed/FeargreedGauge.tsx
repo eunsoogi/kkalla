@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
 
 import { Feargreed } from '@/interfaces/feargreed.interface';
 
@@ -26,16 +25,9 @@ const FeargreedGaugeContent: React.FC = () => {
 };
 
 export const FeargreedGauge = () => {
-  const t = useTranslations();
-
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
-      <h5 className='card-title text-dark dark:text-white mb-6'>{t('feargreed.title')}</h5>
-      <div className='flex flex-col mt-2'>
-        <Suspense fallback={<FeargreedGuageSkeleton />}>
-          <FeargreedGaugeContent />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense fallback={<FeargreedGuageSkeleton />}>
+      <FeargreedGaugeContent />
+    </Suspense>
   );
 };

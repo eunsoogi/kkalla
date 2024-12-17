@@ -7,8 +7,10 @@ import { ToBoolean } from '@/transforms/boolean.transform';
 import { SortDirection } from '../item.enum';
 
 export class GetCursorDto<C> {
-  @ApiProperty()
-  cursor: C;
+  @ApiProperty({
+    required: false,
+  })
+  cursor?: C;
 
   @Type(() => Number)
   @ApiProperty({

@@ -52,6 +52,12 @@ export const SidebarContent = (): MenuItem[] => {
           id: uniqueId(),
           url: '/inferences',
         },
+        {
+          name: t('tradeList'),
+          icon: 'uil:exchange',
+          id: uniqueId(),
+          url: '/trades',
+        },
       ],
     },
   ];

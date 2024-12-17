@@ -1,6 +1,6 @@
 import { TradeTypes } from '../enums/trade.enum';
 import { Inference } from './inference.interface';
-import { PaginatedItem } from './item.interface';
+import { CursorItem, PaginatedItem } from './item.interface';
 import { State } from './state.interface';
 
 export interface Trade {
@@ -27,4 +27,13 @@ export const initialState: PaginatedItem<Trade> = {
   total: 0,
   page: 1,
   totalPages: 1,
+};
+
+export const initialCursorState: CursorItem<Trade> = {
+  success: true,
+  message: null,
+  items: [],
+  nextCursor: null,
+  hasNextPage: false,
+  total: 0,
 };

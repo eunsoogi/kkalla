@@ -31,25 +31,20 @@ export const FeargreedTable = () => {
   const t = useTranslations();
 
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-full break-words'>
-      <div className='px-6'>
-        <h5 className='card-title text-dark dark:text-white mb-6'>{t('feargreed.history')}</h5>
+    <SimpleBar>
+      <div className='overflow-x-auto'>
+        <Table hoverable>
+          <Table.Head className='dark:border-gray-800'>
+            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.date')}</Table.HeadCell>
+            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.score')}</Table.HeadCell>
+            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.change')}</Table.HeadCell>
+            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.stage')}</Table.HeadCell>
+          </Table.Head>
+          <Suspense fallback={<FeargreedTableSkeleton />}>
+            <FeargreedTableContent />
+          </Suspense>
+        </Table>
       </div>
-      <SimpleBar>
-        <div className='overflow-x-auto'>
-          <Table hoverable>
-            <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.date')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.score')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.change')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.stage')}</Table.HeadCell>
-            </Table.Head>
-            <Suspense fallback={<FeargreedTableSkeleton />}>
-              <FeargreedTableContent />
-            </Suspense>
-          </Table>
-        </div>
-      </SimpleBar>
-    </div>
+    </SimpleBar>
   );
 };
