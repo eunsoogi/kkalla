@@ -14,10 +14,6 @@ variable "ENV" {
     default = ""
 }
 
-group "builder" {
-  targets = ["builder-api", "builder-ui"]
-}
-
 group "default" {
   targets = ["api", "ui"]
 }
