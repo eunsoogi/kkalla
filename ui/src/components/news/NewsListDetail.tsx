@@ -6,7 +6,6 @@ import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
-import { TbPoint } from 'react-icons/tb';
 
 import { CursorItem } from '@/interfaces/item.interface';
 import { News } from '@/interfaces/news.interface';
@@ -69,7 +68,7 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
         <div className='flex items-start gap-2 mb-2'>
           <span className={NEWS_STYLES[item.importance].textStyle}>{item.source}</span>
           <div className='flex items-center ms-auto gap-1'>
-            <TbPoint size={15} className={NEWS_STYLES[item.importance].textStyle} />
+            <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />
             <span className={`${NEWS_STYLES[item.importance].textStyle} text-sm`}>
               {formatDate(new Date(item.publishedAt))}
             </span>
@@ -101,7 +100,7 @@ const NewsSkeleton: React.FC = () => {
         <h2>{t('nothing')}</h2>
         <div className='flex'>
           <div className='flex gap-1 items-center ms-auto'>
-            <TbPoint size={15} className='text-dark' />
+            <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />
             <span className='text-sm text-darklink'>{formatDate(new Date())}</span>
           </div>
         </div>

@@ -25,17 +25,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.11.0
-          cache: npm
-          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+          cache: pnpm
+          cache-dependency-path: ${{ matrix.project }}/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: ${{ matrix.project }}
-        run: npm i --no-save --prefer-offline
+        run: pnpm i --frozen
 
       - name: Run lint
         working-directory: ${{ matrix.project }}
-        run: npm run lint
+        run: pnpm lint
