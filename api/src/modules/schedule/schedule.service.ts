@@ -19,7 +19,7 @@ export class ScheduleService {
     private readonly i18n: I18nService,
   ) {}
 
-  @Cron(ScheduleExpression.EVERY_HOUR_AT_20_MINUTE)
+  @Cron(ScheduleExpression.EVERY_HOUR_AT_20_50_MINUTE)
   public async adjustPortfoliosSchedule(): Promise<Trade[]> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
