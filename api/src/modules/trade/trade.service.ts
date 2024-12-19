@@ -30,7 +30,7 @@ export class TradeService {
     open: true,
     distinct: true,
     display: 10,
-    order: 'strength',
+    order: 'updated_at',
     sortDirection: SortDirection.DESC,
     strengthLower: 0.8,
     strengthUpper: 1.2,
