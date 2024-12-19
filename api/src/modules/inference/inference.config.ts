@@ -13,7 +13,7 @@ export const INFERENCE_CONFIG = {
       '4h': 6 * 60, // 60 days
       '1d': 90, // 90 days
     },
-    newsLimit: 150,
+    newsLimit: 100,
   },
 };
 
