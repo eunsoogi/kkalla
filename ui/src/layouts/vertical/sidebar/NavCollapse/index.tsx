@@ -3,7 +3,6 @@ import React from 'react';
 
 import { Icon } from '@iconify/react';
 import { Sidebar } from 'flowbite-react';
-import { HiOutlineChevronDown } from 'react-icons/hi';
 import { twMerge } from 'tailwind-merge';
 
 import NavItems from '../NavItems';
@@ -24,12 +23,14 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
         open={activeDD ? true : false}
         icon={() => <Icon icon={item.icon} height={18} />}
         className={`${activeDD ? '!text-primary bg-lightprimary ' : ''} collapse-menu`}
-        renderChevronIcon={(theme, open) => {
-          const IconComponent = open ? HiOutlineChevronDown : HiOutlineChevronDown;
-          return (
-            <IconComponent aria-hidden className={`${twMerge(theme.label.icon.open[open ? 'on' : 'off'])} drop-icon`} />
-          );
-        }}
+        renderChevronIcon={(theme, open) => (
+          <Icon
+            icon='material-symbols:menu'
+            className={`${twMerge(theme.label.icon.open[open ? 'on' : 'off'])} drop-icon`}
+            width={20}
+            height={20}
+          />
+        )}
       >
         {/* Render child items */}
         {item.children && (

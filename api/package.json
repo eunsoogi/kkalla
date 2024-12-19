@@ -1,7 +1,7 @@
 {
   "name": "kkalla-api",
-  "version": "1.13.1",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -17,10 +17,10 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
-    "migration:create": "npm run typeorm migration:create ./src/databases/migrations/migration",
-    "migration:generate": "npm run typeorm -- migration:generate ./src/databases/migrations/migration -d ./src/databases/datasource.ts",
-    "migration:run": "npm run typeorm -- migration:run -d ./src/databases/datasource.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d ./src/databases/datasource.ts"
+    "migration:create": "pnpm typeorm migration:create ./src/databases/migrations/migration",
+    "migration:generate": "pnpm typeorm -- migration:generate ./src/databases/migrations/migration -d ./src/databases/datasource.ts",
+    "migration:run": "pnpm typeorm -- migration:run -d ./src/databases/datasource.ts",
+    "migration:revert": "pnpm typeorm -- migration:revert -d ./src/databases/datasource.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.1.2",
