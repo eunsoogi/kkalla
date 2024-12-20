@@ -234,6 +234,18 @@ export class TradeService {
       includedTradeRequests.map((request) => this.trade(user, request)),
     );
 
+    // 수익금 알림
+    const profitData = await this.getProfit(user);
+
+    this.notifyService.notify(
+      user,
+      this.i18n.t('notify.profit.result', {
+        args: {
+          profit: profitData.profit.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+        },
+      }),
+    );
+
     return [...nonInferenceTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
   }
 

@@ -3,10 +3,13 @@
     "fail": "계좌 조회에 실패했습니다."
   },
   "inference": {
-    "result": "추론 결과: {ticker} ({rate}%)\n> {reason}"
+    "result": "{ticker} ({rate}%)\n> {reason}"
   },
   "order": {
-    "result": "주문 결과: {ticker} {type}, 거래금: {amount}, 이익: {profit}",
+    "result": "{ticker} {type}, 거래금: {amount}, 수익금: {profit}",
     "fail": "{ticker} 주문에 실패했습니다."
+  },
+  "profit": {
+    "result": "수익금: {profit}"
   }
 }
