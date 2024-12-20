@@ -138,9 +138,8 @@ export class TradeService {
     return filteredInferences;
   }
 
-  private getIncludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+  private getIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
     const filteredInferences = this.getIncludedInferences(inferences);
-    const count = filteredInferences.length;
 
     const tradeRequests: TradeRequest[] = filteredInferences
       .map((inference) => ({
@@ -196,6 +195,9 @@ export class TradeService {
     // 권한이 있는 추론만 필터링
     const authorizedInferences = this.getAuthorizedInferences(user, inferences);
 
+    // 포트폴리오 개수 계산
+    const count = Math.min(this.TOP_INFERENCE_COUNT, authorizedInferences.length);
+
     authorizedInferences.map((inference) => {
       this.notifyService.notify(
         user,
@@ -216,7 +218,7 @@ export class TradeService {
     // 편입/편출 결정 분리
     const nonInferenceTradeRequests: TradeRequest[] = this.getNonInferenceTradeRequests(balances, authorizedInferences);
     const excludedTradeRequests: TradeRequest[] = this.getExcludedTradeRequests(balances, authorizedInferences);
-    const includedTradeRequests: TradeRequest[] = this.getIncludedTradeRequests(balances, authorizedInferences);
+    const includedTradeRequests: TradeRequest[] = this.getIncludedTradeRequests(balances, authorizedInferences, count);
 
     // 편출 처리
     const nonInferenceTrades: Trade[] = await Promise.all(
