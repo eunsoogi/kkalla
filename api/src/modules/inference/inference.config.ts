@@ -8,10 +8,11 @@ export const INFERENCE_CONFIG = {
   frequencyPenalty: 0,
   message: {
     candles: {
-      '15m': 96 * 7, // 7 days
+      '1d': 60, // 60 days
+      '4h': 6 * 30, // 30 days
       '1h': 24 * 14, // 14 days
-      '4h': 6 * 60, // 60 days
-      '1d': 90, // 90 days
+      '15m': 96 * 7, // 7 days
+      '5m': 12 * 6, // 6 hours
     },
     newsLimit: 100,
   },
