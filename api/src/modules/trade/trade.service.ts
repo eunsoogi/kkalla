@@ -336,8 +336,12 @@ export class TradeService {
   }
 
   public async getProfit(user: User): Promise<ProfitData> {
-    const trades = await Trade.findAllByUser(user);
-    const profit = trades.reduce((acc, trade) => acc + trade.profit, 0);
+    const result = await Trade.createQueryBuilder()
+      .select('SUM(profit)', 'sum')
+      .where('user_id = :userId', { userId: user.id })
+      .getRawOne();
+
+    const profit = result?.sum || 0;
 
     return {
       profit,

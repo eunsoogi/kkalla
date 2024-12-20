@@ -77,19 +77,6 @@ export class Trade extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async findAllByUser(user: User): Promise<Trade[]> {
-    return this.find({
-      relations: {
-        user: true,
-      },
-      where: {
-        user: {
-          id: user.id,
-        },
-      },
-    });
-  }
-
   public static async paginate(user: User, request: ItemRequest & TradeFilter): Promise<PaginatedItem<Trade>> {
     const where: any = {
       user: {
