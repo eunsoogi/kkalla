@@ -48,36 +48,45 @@ export class InferenceService {
     const news = await this.fetchNewsData(request);
     this.addMessagePair(messages, 'prompt.input.news', news);
 
-    // Add fear & greed data
-    const feargreed = await this.fetchFearGreedData(symbol);
-    this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
-
     // Add candle data
     const candles = await this.fetchCandleData(request);
     this.addMessagePair(messages, 'prompt.input.candle', candles);
+
+    // Add fear & greed data
+    const feargreed = await this.fetchFearGreedData(symbol);
+    this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
 
     return messages;
   }
 
   private async fetchNewsData(request: InferenceMessageRequest): Promise<CompactNews[]> {
     this.logger.log(this.i18n.t('logging.news.loading', { args: request }));
+
     const news = await this.newsService.getCompactNews({
       type: this.newsService.getNewsType(request.category),
       limit: request.newsLimit,
       skip: true,
     });
-    return news;
+
+    // timestamp 오름차순으로 정렬
+    const sortedNews = news.sort((a, b) => a.timestamp - b.timestamp);
+
+    return sortedNews;
   }
 
   private async fetchFearGreedData(symbol: string): Promise<CompactFeargreed> {
     this.logger.log(this.i18n.t('logging.feargreed.loading', { args: { symbol } }));
+
     const feargreed = await this.feargreedService.getCompactFeargreed(symbol);
+
     return feargreed;
   }
 
   private async fetchCandleData(request: InferenceMessageRequest): Promise<CompactCandle> {
     this.logger.log(this.i18n.t('logging.upbit.candle.loading', { args: request }));
+
     const candles = await this.upbitService.getCandles(request);
+
     return candles;
   }
 
@@ -116,6 +125,9 @@ export class InferenceService {
       () => this.createChatCompletion(client, messages, responseFormat),
       retryOptions,
     );
+
+    this.logger.debug(response);
+
     const inferenceData = JSON.parse(response.choices[0].message?.content || '{}');
 
     return inferenceData;
