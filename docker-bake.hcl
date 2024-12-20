@@ -26,7 +26,7 @@ target "api" {
     "type=gha,scope=api",
     "type=registry,ref=${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-api:${IMAGE_TAG}"
   ]
-  cache-to = ["type=gha,scope=api"]
+  cache-to = ["type=gha,scope=api,mode=max"]
 }
 
 target "ui" {
@@ -37,5 +37,5 @@ target "ui" {
     "type=gha,scope=ui",
     "type=registry,ref=${IMAGE_REGISTRY}/${IMAGE_NAME_PREFIX}-ui:${IMAGE_TAG}"
   ]
-  cache-to = ["type=gha,scope=ui"]
+  cache-to = ["type=gha,scope=ui,mode=max"]
 }
