@@ -28,7 +28,3 @@ export interface TradeData {
   profit: number;
   inference: Inference;
 }
-
-export interface ProfitData {
-  profit: number;
-}

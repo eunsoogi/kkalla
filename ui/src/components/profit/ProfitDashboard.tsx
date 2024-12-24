@@ -8,9 +8,9 @@ import { useTranslations } from 'next-intl';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatNumber } from '@/utils/number';
 
-import { getProfitAction } from './action';
+import { getMyProfitAction } from './action';
 
-export const TradeProfitSkeleton = () => {
+export const ProfitDashboardSkeleton = () => {
   const t = useTranslations();
 
   return (
@@ -22,10 +22,10 @@ export const TradeProfitSkeleton = () => {
   );
 };
 
-export const TradeProfitContent = () => {
+export const ProfitDashboardContent = () => {
   const { data } = useSuspenseQuery({
     queryKey: ['profit'],
-    queryFn: getProfitAction,
+    queryFn: getMyProfitAction,
     initialData: null,
     staleTime: 0,
   });
@@ -42,10 +42,10 @@ export const TradeProfitContent = () => {
   );
 };
 
-export function TradeProfit() {
+export function ProfitDashboard() {
   return (
-    <Suspense fallback={<TradeProfitSkeleton />}>
-      <TradeProfitContent />
+    <Suspense fallback={<ProfitDashboardSkeleton />}>
+      <ProfitDashboardContent />
     </Suspense>
   );
 }

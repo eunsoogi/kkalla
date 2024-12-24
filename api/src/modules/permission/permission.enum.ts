@@ -3,6 +3,7 @@ export enum Permission {
   MANAGE_USERS = 'manage:users',
   VIEW_ROLES = 'view:roles',
   MANAGE_ROLES = 'manage:roles',
+  VIEW_PROFIT = 'view:profit',
   VIEW_INFERENCE_NASDAQ = 'view:inference:nasdaq',
   VIEW_INFERENCE_COIN_MAJOR = 'view:inference:coin:major',
   VIEW_INFERENCE_COIN_MINOR = 'view:inference:coin:minor',
