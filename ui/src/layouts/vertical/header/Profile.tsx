@@ -1,8 +1,6 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import React from 'react';
 
-import { Icon } from '@iconify/react';
 import { Button, Dropdown } from 'flowbite-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
@@ -34,22 +32,14 @@ const Profile = () => {
           </span>
         )}
       >
-        <Dropdown.Item
+        {/* <Dropdown.Item
           as={Link}
           href='/register'
           className='flex w-full items-center gap-3 bg-hover px-3 py-3 text-dark group/link'
         >
           <Icon icon='solar:chat-round-money-bold' height={20} />
           {t('service.title')}
-        </Dropdown.Item>
-        <Dropdown.Item
-          as={Link}
-          href='/notify'
-          className='flex w-full items-center gap-3 bg-hover px-3 py-3 text-dark group/link'
-        >
-          <Icon icon='solar:bell-bold' height={20} />
-          {t('notify.title')}
-        </Dropdown.Item>
+        </Dropdown.Item> */}
         <div className='flex flex-col p-3'>
           <Button
             onClick={() => signOut()}

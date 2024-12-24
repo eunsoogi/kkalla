@@ -1,6 +1,8 @@
 import { uniqueId } from 'lodash';
 import { useTranslations } from 'next-intl';
 
+import { usePermissions } from '@/hooks/usePermissions';
+
 export interface ChildItem {
   id?: number | string;
   name?: string;
@@ -24,8 +26,9 @@ export interface MenuItem {
 
 export const SidebarContent = (): MenuItem[] => {
   const t = useTranslations('menu');
+  const { hasPermission } = usePermissions();
 
-  return [
+  const menuItems = [
     {
       heading: t('home'),
       children: [
@@ -60,5 +63,44 @@ export const SidebarContent = (): MenuItem[] => {
         },
       ],
     },
+    {
+      heading: t('config'),
+      children: [
+        {
+          name: t('register'),
+          icon: 'solar:chat-round-money-bold',
+          id: uniqueId(),
+          url: '/register',
+        },
+        {
+          name: t('notify'),
+          icon: 'solar:bell-bold',
+          id: uniqueId(),
+          url: '/notify',
+        },
+      ],
+    },
   ];
+
+  if (hasPermission(['manage:users'])) {
+    menuItems.push({
+      heading: t('admin'),
+      children: [
+        {
+          name: t('userManagement'),
+          icon: 'solar:users-group-rounded-line-duotone',
+          id: uniqueId(),
+          url: '/users',
+        },
+        {
+          name: t('roleManagement'),
+          icon: 'solar:shield-user-line-duotone',
+          id: uniqueId(),
+          url: '/roles',
+        },
+      ],
+    });
+  }
+
+  return menuItems;
 };
