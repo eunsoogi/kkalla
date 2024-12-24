@@ -60,21 +60,3 @@ export const getTradeCursorAction = async (params: TradeCursorParams): Promise<C
     };
   }
 };
-
-export const getProfitAction = async (): Promise<ProfitResponse> => {
-  const client = await getClient();
-  const t = await getTranslations();
-
-  try {
-    const { data } = await client.get('/api/v1/trades/profit');
-    return {
-      success: true,
-      data,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
-    };
-  }
-};

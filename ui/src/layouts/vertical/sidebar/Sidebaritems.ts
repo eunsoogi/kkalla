@@ -2,6 +2,7 @@ import { uniqueId } from 'lodash';
 import { useTranslations } from 'next-intl';
 
 import { usePermissions } from '@/hooks/usePermissions';
+import { Permission } from '@/interfaces/permission.interface';
 
 export interface ChildItem {
   id?: number | string;
@@ -82,23 +83,38 @@ export const SidebarContent = (): MenuItem[] => {
     },
   ];
 
+  const adminChildren = [];
+
   if (hasPermission(['manage:users'])) {
+    adminChildren.push(
+      {
+        name: t('userManagement'),
+        icon: 'solar:users-group-rounded-line-duotone',
+        id: uniqueId(),
+        url: '/users',
+      },
+      {
+        name: t('roleManagement'),
+        icon: 'solar:shield-user-line-duotone',
+        id: uniqueId(),
+        url: '/roles',
+      },
+    );
+  }
+
+  if (hasPermission([Permission.VIEW_PROFIT])) {
+    adminChildren.push({
+      name: t('profitManagement'),
+      icon: 'solar:money-bag-line-duotone',
+      id: uniqueId(),
+      url: '/profits',
+    });
+  }
+
+  if (adminChildren.length > 0) {
     menuItems.push({
       heading: t('admin'),
-      children: [
-        {
-          name: t('userManagement'),
-          icon: 'solar:users-group-rounded-line-duotone',
-          id: uniqueId(),
-          url: '/users',
-        },
-        {
-          name: t('roleManagement'),
-          icon: 'solar:shield-user-line-duotone',
-          id: uniqueId(),
-          url: '/roles',
-        },
-      ],
+      children: adminChildren,
     });
   }
 

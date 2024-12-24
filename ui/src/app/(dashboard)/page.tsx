@@ -9,8 +9,8 @@ import { useTranslations } from 'next-intl';
 
 import { FeargreedGauge } from '@/components/feargreed/FeargreedGauge';
 import { FeargreedTable } from '@/components/feargreed/FeargreedTable';
+import { ProfitDashboard } from '@/components/profit/ProfitDashboard';
 import { TradeList } from '@/components/trade/TradeList';
-import { TradeProfit } from '@/components/trade/TradeProfit';
 
 const Page: React.FC = () => {
   const t = useTranslations();
@@ -22,7 +22,7 @@ const Page: React.FC = () => {
         <div className='lg:col-span-4 col-span-12'>
           <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words'>
             <h5 className='card-title text-dark dark:text-white'>{t('trade.profit')}</h5>
-            <TradeProfit />
+            <ProfitDashboard />
           </div>
         </div>
         <div className='lg:col-span-8 col-span-12'>

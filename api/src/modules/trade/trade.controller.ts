@@ -8,7 +8,6 @@ import { User } from '../user/entities/user.entity';
 import { GetTradeCursorDto } from './dto/get-trade-cursor.dto';
 import { GetTradeDto } from './dto/get-trade.dto';
 import { PostTradeDto } from './dto/post-trade.dto';
-import { ProfitDto } from './dto/profit.dto';
 import { Trade } from './entities/trade.entity';
 import { TradeService } from './trade.service';
 
@@ -62,11 +61,5 @@ export class TradeController {
   @UseGuards(GoogleTokenAuthGuard)
   public async requestTrade(@CurrentUser() user: User): Promise<void> {
     await this.tradeService.adjustPortfolios([user]);
-  }
-
-  @Get('profit')
-  @UseGuards(GoogleTokenAuthGuard)
-  public async getProfit(@CurrentUser() user: User): Promise<ProfitDto> {
-    return this.tradeService.getProfit(user);
   }
 }

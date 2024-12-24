@@ -12,6 +12,7 @@ import { NewsModule } from './modules/news/news.module';
 import { NotifyModule } from './modules/notify/notify.module';
 import { OpenaiModule } from './modules/openai/openai.module';
 import { PermissionModule } from './modules/permission/permission.module';
+import { ProfitModule } from './modules/profit/profit.module';
 import { RedlockModule } from './modules/redlock/redlock.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
@@ -51,6 +52,7 @@ import { UserModule } from './modules/user/user.module';
     TradeModule,
     SlackModule,
     NotifyModule,
+    ProfitModule,
   ],
 })
 export class AppModule {}

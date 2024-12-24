@@ -27,7 +27,7 @@ import { User } from '../user/entities/user.entity';
 import { PostTradeDto } from './dto/post-trade.dto';
 import { TradeHistory } from './entities/trade-history.entity';
 import { Trade } from './entities/trade.entity';
-import { ProfitData, TradeData, TradeFilter, TradeRequest } from './trade.interface';
+import { TradeData, TradeFilter, TradeRequest } from './trade.interface';
 
 @Injectable()
 export class TradeService implements OnModuleInit {
@@ -350,18 +350,6 @@ export class TradeService implements OnModuleInit {
       includedTradeRequests.map((request) => this.trade(user, request)),
     );
 
-    // 수익금 알림
-    const profitData = await this.getProfit(user);
-
-    this.notifyService.notify(
-      user,
-      this.i18n.t('notify.profit.result', {
-        args: {
-          profit: profitData.profit.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-        },
-      }),
-    );
-
     // 클라이언트 초기화
     this.clearClient();
 
@@ -470,18 +458,5 @@ export class TradeService implements OnModuleInit {
 
   public async cursor(user: User, request: CursorRequest<string> & TradeFilter): Promise<CursorItem<Trade, string>> {
     return Trade.cursor(user, request);
-  }
-
-  public async getProfit(user: User): Promise<ProfitData> {
-    const result = await Trade.createQueryBuilder()
-      .select('SUM(profit)', 'sum')
-      .where('user_id = :userId', { userId: user.id })
-      .getRawOne();
-
-    const profit = result?.sum || 0;
-
-    return {
-      profit,
-    };
   }
 }

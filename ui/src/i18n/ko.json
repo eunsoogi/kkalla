@@ -17,7 +17,8 @@
     "notify": "알림 설정",
     "admin": "관리",
     "userManagement": "사용자 관리",
-    "roleManagement": "권한 관리"
+    "roleManagement": "권한 관리",
+    "profitManagement": "수익 관리"
   },
   "title": {
     "coin": "코인"
