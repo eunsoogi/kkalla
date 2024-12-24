@@ -90,8 +90,6 @@ const ProfitTableBase = ({
 };
 
 const ProfitTableSkeleton = () => {
-  const t = useTranslations();
-
   return (
     <>
       <div className='animate-pulse'>

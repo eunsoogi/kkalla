@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { CursorItem, PaginatedItem } from '@/interfaces/item.interface';
 import { getClient } from '@/utils/api';
 
-import { ProfitResponse, Trade, initialCursorState, initialState } from '../../interfaces/trade.interface';
+import { Trade, initialCursorState, initialState } from '../../interfaces/trade.interface';
 
 export const getTradeAction = async (): Promise<PaginatedItem<Trade>> => {
   const client = await getClient();
