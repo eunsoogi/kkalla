@@ -60,8 +60,8 @@ export class TradeController {
 
   @Post('request')
   @UseGuards(GoogleTokenAuthGuard)
-  public async requestTrade(@CurrentUser() user: User): Promise<Trade[]> {
-    return await this.tradeService.adjustPortfolios([user]);
+  public async requestTrade(@CurrentUser() user: User): Promise<void> {
+    await this.tradeService.adjustPortfolios([user]);
   }
 
   @Get('profit')

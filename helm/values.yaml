@@ -19,7 +19,24 @@ api:
     port: 3306
     database: kkalla
     username: kkalla
+  redis:
+    host: "{{ .Release.Name }}-redis-master.{{ .Release.Namespace }}.svc.cluster.local"
+    port: 6379
 
 ui:
   api:
     url: "http://{{ .Release.Name }}-api.{{ .Release.Namespace }}.svc.cluster.local:3000/"
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+  master:
+    service:
+      type: ClusterIP
+      ports:
+        redis: 6379
+    extraEnvVars:
+      - name: TZ
+        value: Asia/Seoul

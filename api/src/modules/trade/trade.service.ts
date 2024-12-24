@@ -1,5 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
+import {
+  DeleteMessageCommand,
+  Message,
+  ReceiveMessageCommand,
+  SQSClient,
+  SendMessageCommand,
+} from '@aws-sdk/client-sqs';
 import { Balances } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
@@ -23,7 +30,7 @@ import { Trade } from './entities/trade.entity';
 import { ProfitData, TradeData, TradeFilter, TradeRequest } from './trade.interface';
 
 @Injectable()
-export class TradeService {
+export class TradeService implements OnModuleInit {
   private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
   private readonly COIN_MINOR_REQUEST: GetAccumulationDto = {
     market: 'KRW',
@@ -38,6 +45,19 @@ export class TradeService {
   private readonly MINIMUM_TRADE_RATE = 0.65;
   private readonly TOP_INFERENCE_COUNT = 5;
 
+  private readonly logger = new Logger(TradeService.name);
+
+  // Amazon SQS
+  private readonly sqs = new SQSClient({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
+
+  private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL;
+
   constructor(
     private readonly i18n: I18nService,
     private readonly sequenceService: SequenceService,
@@ -46,6 +66,108 @@ export class TradeService {
     private readonly upbitService: UpbitService,
     private readonly notifyService: NotifyService,
   ) {}
+
+  async onModuleInit() {
+    this.startConsumer();
+  }
+
+  private async startConsumer(): Promise<void> {
+    this.logger.log(this.i18n.t('logging.sqs.consumer.start'));
+
+    try {
+      await this.consumer();
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.sqs.consumer.error', { args: { error } }));
+      this.logger.log(this.i18n.t('logging.sqs.consumer.restart'));
+
+      setTimeout(() => this.startConsumer(), 5000);
+    }
+  }
+
+  private async consumer(): Promise<void> {
+    this.logger.log(this.i18n.t('logging.sqs.consumer.start'));
+
+    while (true) {
+      try {
+        const result = await this.sqs.send(
+          new ReceiveMessageCommand({
+            QueueUrl: this.queueUrl,
+            MaxNumberOfMessages: 10,
+            WaitTimeSeconds: 20,
+          }),
+        );
+
+        if (!result.Messages?.length) continue;
+
+        this.logger.log(
+          this.i18n.t('logging.sqs.consumer.processing', {
+            args: { count: result.Messages.length },
+          }),
+        );
+
+        await Promise.all(result.Messages.map((message) => this.consume(message)));
+      } catch (error) {
+        this.logger.error(this.i18n.t('logging.sqs.consumer.error', { args: { error } }));
+      }
+    }
+  }
+
+  private async consume(message: Message): Promise<void> {
+    const messageId = message.MessageId;
+    this.logger.log(this.i18n.t('logging.sqs.message.start', { args: { id: messageId } }));
+
+    try {
+      const { user, inferences } = JSON.parse(message.Body);
+
+      // 포트폴리오 조정 실행
+      const trades = await this.adjustPortfolio(user, inferences);
+      this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
+      this.logger.debug(trades);
+
+      // 메시지 삭제
+      await this.sqs.send(
+        new DeleteMessageCommand({
+          QueueUrl: this.queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+        }),
+      );
+
+      this.logger.log(this.i18n.t('logging.sqs.message.delete', { args: { id: messageId } }));
+    } catch (error) {
+      this.logger.error(
+        this.i18n.t('logging.sqs.message.error', {
+          args: { id: messageId, error },
+        }),
+      );
+      throw error;
+    }
+  }
+
+  public async publish(users: User[], inferences: Inference[]): Promise<void> {
+    this.logger.log(
+      this.i18n.t('logging.sqs.publish.start', {
+        args: { count: users.length },
+      }),
+    );
+
+    try {
+      const messages = users.map(
+        (user) =>
+          new SendMessageCommand({
+            QueueUrl: this.queueUrl,
+            MessageBody: JSON.stringify({ user, inferences }),
+          }),
+      );
+
+      const results = await Promise.all(messages.map((message) => this.sqs.send(message)));
+
+      this.logger.log(this.i18n.t('logging.sqs.publish.complete'));
+      this.logger.debug(results);
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.sqs.publish.error', { args: { error } }));
+      throw error;
+    }
+  }
 
   public async getInferenceItems(): Promise<InferenceItem[]> {
     const items = [
@@ -92,7 +214,7 @@ export class TradeService {
     return [];
   }
 
-  private async performInferences(): Promise<Inference[]> {
+  public async performInferences(): Promise<Inference[]> {
     const items = await this.getInferenceItems();
     const inferences = await Promise.all(items.map((item) => this.inferenceService.getInference(item)));
 
@@ -128,7 +250,7 @@ export class TradeService {
     return tradeRequests;
   }
 
-  private getIncludedInferences(inferences: Inference[]): Inference[] {
+  public getIncludedInferences(inferences: Inference[]): Inference[] {
     const filteredInferences = inferences
       .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매매 비율 제한
       .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
@@ -137,7 +259,7 @@ export class TradeService {
     return filteredInferences;
   }
 
-  private getIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
+  public getIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
     const filteredInferences = this.getIncludedInferences(inferences);
 
     const tradeRequests: TradeRequest[] = filteredInferences
@@ -152,7 +274,7 @@ export class TradeService {
     return tradeRequests;
   }
 
-  private getExcludedInferences(inferences: Inference[]): Inference[] {
+  public getExcludedInferences(inferences: Inference[]): Inference[] {
     const filteredInferences = inferences
       .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
       .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT) // 매매 비율 또는 포트폴리오 개수 제한
@@ -161,7 +283,7 @@ export class TradeService {
     return filteredInferences;
   }
 
-  private getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+  public getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
     const filteredInferences = this.getExcludedInferences(inferences);
 
     const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
@@ -174,20 +296,15 @@ export class TradeService {
     return tradeRequests;
   }
 
-  public async adjustPortfolios(users: User[]): Promise<Trade[]> {
+  public async adjustPortfolios(users: User[]): Promise<void> {
     const inferences = await this.performInferences();
-    const trades = await Promise.all(users.map((user) => this.adjustPortfolio(user, inferences)));
-    const includedInferences = this.getIncludedInferences(inferences);
+
+    // 큐에 메시지 전송
+    await this.publish(users, inferences);
 
     // 현재 포트폴리오 저장
+    const includedInferences = this.getIncludedInferences(inferences);
     await this.createTradeHistory(includedInferences);
-
-    // 클라이언트 초기화
-    this.upbitService.clearServerClient();
-    this.upbitService.clearClients();
-    this.notifyService.clearClients();
-
-    return trades.flat();
   }
 
   public async adjustPortfolio(user: User, inferences: Inference[]): Promise<Trade[]> {
@@ -245,6 +362,9 @@ export class TradeService {
       }),
     );
 
+    // 클라이언트 초기화
+    this.clearClient();
+
     return [...nonInferenceTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
   }
 
@@ -272,6 +392,12 @@ export class TradeService {
           }),
         );
     }
+  }
+
+  public clearClient(): void {
+    this.upbitService.clearServerClient();
+    this.upbitService.clearClients();
+    this.notifyService.clearClients();
   }
 
   public async trade(user: User, request: TradeRequest): Promise<Trade> {
