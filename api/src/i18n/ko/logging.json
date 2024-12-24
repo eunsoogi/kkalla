@@ -70,5 +70,13 @@
       "complete": "메시지 발행 완료",
       "error": "메시지 발행 실패: {error}"
     }
+  },
+  "redlock": {
+    "lock": {
+      "not_acquired": "{resourceName}에 대한 락 획득 실패",
+      "acquired": "{resourceName}에 대한 락 획득 성공",
+      "released": "{resourceName}에 대한 락 해제 완료",
+      "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
+    }
   }
 }

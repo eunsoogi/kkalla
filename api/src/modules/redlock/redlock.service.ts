@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 
 import Redis from 'ioredis';
+import { I18nService } from 'nestjs-i18n';
 import Redlock, { Lock } from 'redlock';
 
 import { REDLOCK_OPTIONS } from './redlock.constants';
@@ -15,6 +16,7 @@ export class RedlockService implements OnModuleDestroy {
   constructor(
     @Inject(REDLOCK_OPTIONS)
     private readonly options: RedlockModuleOptions,
+    private readonly i18n: I18nService,
   ) {
     this.redisClient = new Redis({
       host: options.redis.host,
@@ -47,20 +49,39 @@ export class RedlockService implements OnModuleDestroy {
 
       // Lock 획득 실패 시 함수 실행 건너뜀
       if (!lock) {
-        this.logger.debug(`Lock not acquired for ${resourceName}`);
+        this.logger.debug(
+          await this.i18n.translate('redlock.lock.not_acquired', {
+            args: { resourceName },
+          }),
+        );
         return undefined;
       }
 
       // Lock을 얻으면 함수 실행
-      this.logger.debug(`Lock acquired for ${resourceName}`);
+      this.logger.debug(
+        await this.i18n.translate('redlock.lock.acquired', {
+          args: { resourceName },
+        }),
+      );
+
       return await callback();
     } finally {
       if (lock) {
         try {
           await lock.release();
-          this.logger.debug(`Lock released for ${resourceName}`);
+
+          this.logger.debug(
+            await this.i18n.translate('redlock.lock.released', {
+              args: { resourceName },
+            }),
+          );
         } catch (error) {
-          this.logger.error(`Error releasing lock for ${resourceName}`, error);
+          this.logger.error(
+            await this.i18n.translate('redlock.lock.release_error', {
+              args: { resourceName },
+            }),
+            error,
+          );
         }
       }
     }
