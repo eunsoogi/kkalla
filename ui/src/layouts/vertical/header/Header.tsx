@@ -1,14 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 import { Icon } from '@iconify/react';
 import { Navbar } from 'flowbite-react';
 import { Drawer } from 'flowbite-react';
-import { useTranslations } from 'next-intl';
-
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
 
 import MobileSidebar from '../sidebar/MobileSidebar';
 import Notification from './Notification';
@@ -16,7 +12,6 @@ import Profile from './Profile';
 
 const Header = () => {
   const [isSticky, setIsSticky] = useState(false);
-  const t = useTranslations();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,15 +43,6 @@ const Header = () => {
               >
                 <Icon icon='solar:hamburger-menu-line-duotone' height={21} />
               </span>
-              <PermissionGuard permissions={['manage:users']}>
-                <Link
-                  href='/admin'
-                  className='h-10 w-10 flex text-black dark:text-white text-opacity-65 hover:text-primary hover:bg-lightprimary rounded-full justify-center items-center cursor-pointer'
-                  title={t('menu.admin')}
-                >
-                  <Icon icon='solar:settings-line-duotone' height={21} />
-                </Link>
-              </PermissionGuard>
               <Notification />
             </div>
 

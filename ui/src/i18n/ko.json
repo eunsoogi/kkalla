@@ -10,11 +10,14 @@
     "service": "서비스",
     "dashboard": "대시보드",
     "newsList": "뉴스 목록",
-    "inferenceList": "추론 목록",
+    "inferenceList": "AI 리포트",
     "tradeList": "거래 목록",
+    "config": "설정",
+    "register": "서비스 등록",
+    "notify": "알림 설정",
+    "admin": "관리",
     "userManagement": "사용자 관리",
-    "roleManagement": "권한 관리",
-    "admin": "관리"
+    "roleManagement": "권한 관리"
   },
   "title": {
     "coin": "코인"
