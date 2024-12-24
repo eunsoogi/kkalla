@@ -17,7 +17,8 @@ api:
     - name: src
       mountPath: /app/src
   autoscaling:
-    enabled: false
+    enabled: true
+    minReplicas: 2
   service:
     type: LoadBalancer
     port: 3001
@@ -25,6 +26,10 @@ api:
     requests:
       cpu: 1000m
       memory: 1Gi
+  aws:
+    region: ap-northeast-2
+    sqs:
+      queueUrl: https://sqs.ap-northeast-2.amazonaws.com/889753608001/kkalla-dev-sqs
 
 ui:
   image:

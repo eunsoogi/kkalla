@@ -12,6 +12,7 @@ import { NewsModule } from './modules/news/news.module';
 import { NotifyModule } from './modules/notify/notify.module';
 import { OpenaiModule } from './modules/openai/openai.module';
 import { PermissionModule } from './modules/permission/permission.module';
+import { RedlockModule } from './modules/redlock/redlock.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { SequenceModule } from './modules/sequence/sequence.module';
@@ -23,6 +24,14 @@ import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
+    RedlockModule.forRoot({
+      redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+      },
+    }),
+    ScheduleModule,
     ErrorModule,
     HealthModule,
     TranslateModule,
@@ -40,7 +49,6 @@ import { UserModule } from './modules/user/user.module';
     AccumulationModule,
     InferenceModule,
     TradeModule,
-    ScheduleModule,
     SlackModule,
     NotifyModule,
   ],

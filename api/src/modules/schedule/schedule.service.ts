@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 
 import { I18nService } from 'nestjs-i18n';
 
-import { Trade } from '../trade/entities/trade.entity';
+import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { TradeService } from '../trade/trade.service';
 import { User } from '../user/entities/user.entity';
 import { Schedule } from './entities/schedule.entity';
@@ -20,20 +20,19 @@ export class ScheduleService {
   ) {}
 
   @Cron(ScheduleExpression.EVERY_HOUR_AT_20_50_MINUTE)
-  public async adjustPortfoliosSchedule(): Promise<Trade[]> {
+  @WithRedlock({ duration: 5 * 60 * 1000 })
+  public async portfolioSchedule(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
-      return [];
+      return;
     }
 
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
-    const schedules = await Schedule.findByEnabled();
-    const trades = await this.tradeService.adjustPortfolios(schedules.map((schedule) => schedule.user));
+    const users = await this.getUsers();
+    await this.tradeService.adjustPortfolios(users);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
-
-    return trades;
   }
 
   public async create(user: User, data: ScheduleData): Promise<Schedule> {
@@ -51,5 +50,12 @@ export class ScheduleService {
 
   public async read(user: User): Promise<Schedule> {
     return Schedule.findByUser(user);
+  }
+
+  public async getUsers(): Promise<User[]> {
+    const schedules = await Schedule.findByEnabled();
+    const users = schedules.map((schedule) => schedule.user);
+
+    return users;
   }
 }

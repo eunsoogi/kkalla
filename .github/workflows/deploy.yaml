@@ -97,16 +97,26 @@ jobs:
             db: &db
               password: ${{ secrets.DB_PASSWORD }}
               rootPassword: ${{ secrets.DB_ROOT_PASSWORD }}
+            redis: &redis
+              password: ${{ secrets.REDIS_PASSWORD }}
             google: &google
               id: ${{ secrets.GOOGLE_CLIENT_ID }}
               secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
           mariadb:
             auth: *db
+
+          redis:
+            auth: *redis
+
           api:
             db: *db
+            redis: *redis
             auth:
               google: *google
+            aws:
+              accessKey: ${{ secrets.AWS_ACCESS_KEY_ID }}
+              secretKey: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             openai:
               secretKey: ${{ secrets.OPENAI_SECRET_KEY }}
             upbit:
@@ -116,6 +126,7 @@ jobs:
               secretKey: ${{ secrets.ACCUMULATION_SECRET_KEY }}
             admin:
               email: ${{ secrets.ADMIN_EMAIL }}
+
           ui:
             publicUrl: ${{ vars.PUBLIC_URL }}
             auth:

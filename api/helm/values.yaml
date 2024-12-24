@@ -136,6 +136,18 @@ db:
   password: ""
   secret: ""
 
+redis:
+  host: ""
+  port: 6379
+  password: ""
+
+aws:
+  region: ""
+  accessKey: ""
+  secretKey: ""
+  sqs:
+    queueUrl: ""
+
 openai:
   secretKey: ""
 
