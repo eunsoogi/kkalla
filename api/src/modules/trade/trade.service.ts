@@ -37,8 +37,8 @@ export class TradeService implements OnModuleInit {
     open: true,
     distinct: true,
     display: 10,
-    order: 'strength',
-    sortDirection: SortDirection.DESC,
+    order: 'price_rate',
+    sortDirection: SortDirection.ASC,
     strengthLower: 0.8,
     priceRateUpper: 0.02,
   };
