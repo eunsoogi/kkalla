@@ -25,7 +25,7 @@ const MobileSidebar = () => {
         </div>
 
         <SimpleBar className='h-[calc(100vh_-_100px)]'>
-          <Sidebar.Items className='px-4'>
+          <Sidebar.Items className='px-4 mb-12'>
             <Sidebar.ItemGroup className='sidebar-nav'>
               {sidebarContent.map((item, index) => (
                 <React.Fragment key={index}>

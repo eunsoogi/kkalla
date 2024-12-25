@@ -26,7 +26,7 @@ const SidebarLayout = () => {
           </div>
 
           <SimpleBar className='h-[calc(100vh_-_120px)]'>
-            <Sidebar.Items className='px-6'>
+            <Sidebar.Items className='px-6 mb-12'>
               <Sidebar.ItemGroup className='sidebar-nav'>
                 {sidebarContent.map((item, index) => (
                   <React.Fragment key={index}>
