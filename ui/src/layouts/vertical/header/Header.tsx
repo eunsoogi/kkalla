@@ -6,6 +6,8 @@ import { Icon } from '@iconify/react';
 import { Navbar } from 'flowbite-react';
 import { Drawer } from 'flowbite-react';
 
+import CopyTokenButton from '@/components/common/CopyTokenButton';
+
 import MobileSidebar from '../sidebar/MobileSidebar';
 import Notification from './Notification';
 import Profile from './Profile';
@@ -44,6 +46,7 @@ const Header = () => {
                 <Icon icon='solar:hamburger-menu-line-duotone' height={21} />
               </span>
               <Notification />
+              {process.env.NODE_ENV === 'development' && <CopyTokenButton />}
             </div>
 
             <div className='flex gap-4 items-center'>
