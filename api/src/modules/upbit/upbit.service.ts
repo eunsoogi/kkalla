@@ -111,16 +111,16 @@ export class UpbitService {
   }
 
   public calculatePrice(balances: Balances, ticker: string): number {
-    const { balance = 0, locked = 0, avg_buy_price = 0 } = this.getBalance(balances, ticker);
-    const totalBalance = parseFloat(balance) + parseFloat(locked);
+    const { balance = 0, avg_buy_price = 0 } = this.getBalance(balances, ticker);
+    const totalBalance = parseFloat(balance);
     const avgBuyPrice = parseFloat(avg_buy_price) || 1;
     return totalBalance * avgBuyPrice;
   }
 
   public calculateTotalPrice(balances: Balances): number {
     return balances.info.reduce((total, item) => {
-      const { balance = 0, locked = 0, avg_buy_price = 0 } = item;
-      const totalBalance = parseFloat(balance) + parseFloat(locked);
+      const { balance = 0, avg_buy_price = 0 } = item;
+      const totalBalance = parseFloat(balance);
       const avgBuyPrice = parseFloat(avg_buy_price) || 1;
       return total + totalBalance * avgBuyPrice;
     }, 0);
