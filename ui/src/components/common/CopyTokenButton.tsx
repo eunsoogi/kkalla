@@ -3,7 +3,7 @@
 import React from 'react';
 
 import { Icon } from '@iconify/react';
-import { Button, Tooltip } from 'flowbite-react';
+import { Button } from 'flowbite-react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
@@ -31,12 +31,10 @@ const CopyTokenButton: React.FC<CopyTokenButtonProps> = ({ className }) => {
   };
 
   return (
-    <Tooltip content={t('copy.token')} className='whitespace-nowrap'>
-      <Button onClick={handleCopyToken} className={`flex items-center gap-2 ${className}`} color='gray' size='sm'>
-        <Icon icon='material-symbols:content-copy-outline' className='w-3.5 h-3.5' />
-        <span>{t('copyToken.button')}</span>
-      </Button>
-    </Tooltip>
+    <Button onClick={handleCopyToken} className={`flex items-center gap-2 ${className}`} color='gray' size='sm'>
+      <Icon icon='material-symbols:content-copy-outline' className='w-3.5 h-3.5' />
+      <span>{t('copy.token')}</span>
+    </Button>
   );
 };
 
