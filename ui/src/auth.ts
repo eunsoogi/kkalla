@@ -80,8 +80,6 @@ export const authOptions: NextAuthOptions = {
       session.roles = roles;
       session.permissions = [...new Set(roles?.flatMap((role) => role?.permissions))];
 
-      console.debug(session);
-
       return session;
     },
   },
