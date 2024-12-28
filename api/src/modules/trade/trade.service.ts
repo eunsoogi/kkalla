@@ -158,9 +158,9 @@ export class TradeService implements OnModuleInit {
     }
   }
 
-  public async publish(users: User[], inferences: Inference[]): Promise<void> {
+  public async produce(users: User[], inferences: Inference[]): Promise<void> {
     this.logger.log(
-      this.i18n.t('logging.sqs.publish.start', {
+      this.i18n.t('logging.sqs.producer.start', {
         args: { count: users.length },
       }),
     );
@@ -176,9 +176,9 @@ export class TradeService implements OnModuleInit {
 
       const results = await Promise.all(messages.map((message) => this.sqs.send(message)));
       this.logger.debug(results);
-      this.logger.log(this.i18n.t('logging.sqs.publish.complete'));
+      this.logger.log(this.i18n.t('logging.sqs.producer.complete'));
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.sqs.publish.error', { args: { error } }));
+      this.logger.error(this.i18n.t('logging.sqs.producer.error', { args: { error } }));
       throw error;
     }
   }
@@ -314,7 +314,7 @@ export class TradeService implements OnModuleInit {
     const inferences = await this.performInferences();
 
     // 큐에 메시지 전송
-    await this.publish(users, inferences);
+    await this.produce(users, inferences);
 
     // 현재 포트폴리오 저장
     const includedInferences = this.getIncludedInferences(inferences);
