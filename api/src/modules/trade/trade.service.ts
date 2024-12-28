@@ -11,6 +11,7 @@ import { Balances } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { formatNumber } from '@/utils/number';
 
 import { AccumulationService } from '../accumulation/accumulation.service';
 import { GetAccumulationDto } from '../accumulation/dto/get-accumulation.dto';
@@ -21,6 +22,7 @@ import { InferenceService } from '../inference/inference.service';
 import { SortDirection } from '../item/item.enum';
 import { NotifyService } from '../notify/notify.service';
 import { Permission } from '../permission/permission.enum';
+import { ProfitService } from '../profit/profit.service';
 import { SequenceService } from '../sequence/sequence.service';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
@@ -64,6 +66,7 @@ export class TradeService implements OnModuleInit {
     private readonly inferenceService: InferenceService,
     private readonly accumulationService: AccumulationService,
     private readonly upbitService: UpbitService,
+    private readonly profitService: ProfitService,
     private readonly notifyService: NotifyService,
   ) {}
 
@@ -121,8 +124,20 @@ export class TradeService implements OnModuleInit {
 
       // 포트폴리오 조정 실행
       const trades = await this.adjustPortfolio(user, inferences);
-      this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
       this.logger.debug(trades);
+
+      // 수익금 알림
+      const profitData = await this.profitService.getProfit(user);
+      this.notifyService.notify(
+        user,
+        this.i18n.t('notify.profit.result', {
+          args: {
+            profit: formatNumber(profitData.profit),
+          },
+        }),
+      );
+
+      this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
 
       // 메시지 삭제
       await this.sqs.send(
@@ -160,9 +175,8 @@ export class TradeService implements OnModuleInit {
       );
 
       const results = await Promise.all(messages.map((message) => this.sqs.send(message)));
-
-      this.logger.log(this.i18n.t('logging.sqs.publish.complete'));
       this.logger.debug(results);
+      this.logger.log(this.i18n.t('logging.sqs.publish.complete'));
     } catch (error) {
       this.logger.error(this.i18n.t('logging.sqs.publish.error', { args: { error } }));
       throw error;
@@ -411,8 +425,8 @@ export class TradeService implements OnModuleInit {
         args: {
           ...trade,
           type: this.i18n.t(`label.order.type.${trade.type}`),
-          amount: trade.amount.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-          profit: trade.profit.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+          amount: formatNumber(trade.amount),
+          profit: formatNumber(trade.profit),
         },
       }),
     );
