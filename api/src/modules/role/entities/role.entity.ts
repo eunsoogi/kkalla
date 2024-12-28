@@ -54,7 +54,7 @@ export class Role extends BaseEntity {
     const findOptions = {
       where,
       order: {
-        name: sortDirection,
+        updatedAt: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,

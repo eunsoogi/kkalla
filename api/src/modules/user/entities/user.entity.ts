@@ -57,7 +57,7 @@ export class User extends BaseEntity {
       relations: ['roles'],
       where,
       order: {
-        email: sortDirection,
+        updatedAt: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,
