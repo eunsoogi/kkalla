@@ -46,7 +46,7 @@ const UserTableBase = ({ items }: UserTableProps) => {
             <Table.Head className='dark:border-gray-800'>
               <Table.HeadCell className='whitespace-nowrap'>{t('user.email')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('user.role')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('createdAt')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
             </Table.Head>
             <Table.Body className='divide-y divide-border dark:divide-gray-800'>
@@ -57,12 +57,17 @@ const UserTableBase = ({ items }: UserTableProps) => {
                   onClick={() => router.push(`./users/${user.id}`)}
                 >
                   <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap flex flex-col gap-1'>
-                    {user.roles.map((role) => (
-                      <ColoredBadge key={role.name} text={role.name} />
-                    ))}
+                  <Table.Cell className='whitespace-nowrap'>
+                    <div className='flex flex-row flex-wrap gap-1 max-h-[48px] overflow-hidden relative'>
+                      {user.roles.map((role) => (
+                        <ColoredBadge key={role.name} text={role.name} />
+                      ))}
+                      <div className='absolute bottom-0 right-0 left-0 h-6 bg-gradient-to-t from-white dark:from-gray-900'></div>
+                    </div>
                   </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.createdAt))}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
+                    {formatYearDate(new Date(user.createdAt))}
+                  </Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.updatedAt))}</Table.Cell>
                 </Table.Row>
               ))}

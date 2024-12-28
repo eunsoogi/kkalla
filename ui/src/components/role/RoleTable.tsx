@@ -46,9 +46,11 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
           <Table hoverable>
             <Table.Head className='dark:border-gray-800'>
               <Table.HeadCell className='whitespace-nowrap'>{t('role.name')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('role.description')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>
+                {t('role.description')}
+              </Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('role.permissions')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('createdAt')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
             </Table.Head>
             <Table.Body className='divide-y divide-border dark:divide-gray-800'>
@@ -59,11 +61,16 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
                   onClick={() => router.push(`./roles/${role.id}`)}
                 >
                   <Table.Cell className='whitespace-nowrap'>{role.name}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{role.description}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap flex flex-col gap-1'>
-                    {role.permissions?.map((permission) => <ColoredBadge key={permission} text={permission} />)}
+                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>{role.description}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>
+                    <div className='flex flex-row flex-wrap gap-1 max-h-[48px] overflow-hidden relative'>
+                      {role.permissions?.map((permission) => <ColoredBadge key={permission} text={permission} />)}
+                      <div className='absolute bottom-0 right-0 left-0 h-6 bg-gradient-to-t from-white dark:from-gray-900'></div>
+                    </div>
                   </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(role.createdAt))}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
+                    {formatYearDate(new Date(role.createdAt))}
+                  </Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(role.updatedAt))}</Table.Cell>
                 </Table.Row>
               ))}
