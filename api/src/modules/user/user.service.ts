@@ -70,7 +70,10 @@ export class UserService {
 
   public async update(id: string, data: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
+
     Object.assign(user, data);
+    user.updatedAt = new Date();
+
     return user.save();
   }
 
