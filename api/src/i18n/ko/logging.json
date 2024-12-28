@@ -53,6 +53,11 @@
     }
   },
   "sqs": {
+    "producer": {
+      "start": "{count}명의 사용자에 대한 메시지 발행 중...",
+      "complete": "메시지 발행 완료",
+      "error": "메시지 발행 실패: {error}"
+    },
     "consumer": {
       "start": "SQS 컨슈머 시작...",
       "error": "SQS 컨슈머 오류: {error}",
@@ -64,11 +69,6 @@
       "complete": "메시지 처리 완료: {id}",
       "error": "메시지 처리 실패: {id}, 오류: {error}",
       "delete": "메시지 삭제 완료: {id}"
-    },
-    "publish": {
-      "start": "{count}명의 사용자에 대한 메시지 발행 중...",
-      "complete": "메시지 발행 완료",
-      "error": "메시지 발행 실패: {error}"
     }
   },
   "redlock": {
