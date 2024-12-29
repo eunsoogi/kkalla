@@ -44,13 +44,13 @@ export class InferenceService {
     // Add system prompt
     this.addMessage(messages, 'system', INFERENCE_PROMPT);
 
-    // Add news data
-    const news = await this.fetchNewsData(request);
-    this.addMessagePair(messages, 'prompt.input.news', news);
-
     // Add candle data
     const candles = await this.fetchCandleData(request);
     this.addMessagePair(messages, 'prompt.input.candle', candles);
+
+    // Add news data
+    const news = await this.fetchNewsData(request);
+    this.addMessagePair(messages, 'prompt.input.news', news);
 
     // Add fear & greed data
     const feargreed = await this.fetchFearGreedData(symbol);
