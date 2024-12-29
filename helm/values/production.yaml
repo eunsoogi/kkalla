@@ -4,9 +4,7 @@ mariadb:
 
 api:
   autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 2
+    enabled: false
   aws:
     region: ap-northeast-2
     sqs:
@@ -14,9 +12,7 @@ api:
 
 ui:
   autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 2
+    enabled: false
   publicUrl: http://localhost/
   ingress:
     enabled: true
