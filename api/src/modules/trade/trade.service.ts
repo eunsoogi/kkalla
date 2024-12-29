@@ -400,7 +400,6 @@ export class TradeService implements OnModuleInit {
   }
 
   public clearClient(): void {
-    this.upbitService.clearServerClient();
     this.upbitService.clearClients();
     this.notifyService.clearClients();
   }
