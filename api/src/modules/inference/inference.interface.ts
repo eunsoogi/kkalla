@@ -15,10 +15,12 @@ export interface InferenceMessageRequest {
   ticker: string;
   category: InferenceCategory;
   candles: {
-    '15m': number;
-    '1h': number;
-    '4h': number;
     '1d': number;
+    '4h': number;
+    '1h': number;
+    '15m': number;
+    '5m': number;
+    '1m': number;
   };
   newsLimit: number;
 }

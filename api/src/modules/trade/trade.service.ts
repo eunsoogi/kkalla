@@ -319,6 +319,9 @@ export class TradeService implements OnModuleInit {
     // 현재 포트폴리오 저장
     const includedInferences = this.getIncludedInferences(inferences);
     await this.createTradeHistory(includedInferences);
+
+    // 클라이언트 초기화
+    this.clearClient();
   }
 
   public async adjustPortfolio(user: User, inferences: Inference[]): Promise<Trade[]> {

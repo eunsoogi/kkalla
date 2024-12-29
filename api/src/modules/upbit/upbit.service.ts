@@ -71,7 +71,7 @@ export class UpbitService {
 
   public async getCandles(request: CandleRequest): Promise<CompactCandle> {
     const client = await this.getServerClient();
-    const candleIntervals = ['1d', '4h', '1h', '15m', '5m'];
+    const candleIntervals = ['1d', '4h', '1h', '15m', '5m', '1m'];
 
     const candles: CompactCandle = {
       ticker: request.ticker,
@@ -159,7 +159,10 @@ export class UpbitService {
 
   public async isTickerExist(ticker: string): Promise<boolean> {
     const client = await this.getServerClient();
-    const markets = await client.loadMarkets();
+    let markets = client.markets;
+    if (!markets) {
+      markets = await client.loadMarkets();
+    }
     return ticker in markets;
   }
 
