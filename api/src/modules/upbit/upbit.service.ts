@@ -38,7 +38,7 @@ export class UpbitService {
     return apikey?.secretKey ? ApikeyStatus.REGISTERED : ApikeyStatus.UNKNOWN;
   }
 
-  private async createClient(apiKey: string, secretKey: string): Promise<upbit> {
+  private createClient(apiKey: string, secretKey: string): upbit {
     return new upbit({
       apiKey,
       secret: secretKey,
@@ -46,15 +46,11 @@ export class UpbitService {
     });
   }
 
-  public async getServerClient(): Promise<upbit> {
+  public getServerClient(): upbit {
     if (!this.serverClient) {
-      this.serverClient = await this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
+      this.serverClient = this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
     }
     return this.serverClient;
-  }
-
-  public clearServerClient(): void {
-    delete this.serverClient;
   }
 
   public async getClient(user: User): Promise<upbit> {
@@ -70,7 +66,7 @@ export class UpbitService {
   }
 
   public async getCandles(request: CandleRequest): Promise<CompactCandle> {
-    const client = await this.getServerClient();
+    const client = this.getServerClient();
     const candleIntervals = ['1d', '4h', '1h', '15m', '5m', '1m'];
 
     const candles: CompactCandle = {
