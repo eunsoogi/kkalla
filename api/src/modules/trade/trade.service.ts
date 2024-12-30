@@ -230,6 +230,16 @@ export class TradeService implements OnModuleInit {
 
   public async performInferences(): Promise<Inference[]> {
     const items = await this.getInferenceItems();
+
+    // 중복 제거
+    const uniqueItems = items.filter(
+      (item, index, self) => index === self.findIndex((t) => t.category === item.category),
+    );
+
+    // 중복되지 않는 아이템에 대해 cacheInferenceItem 호출
+    await Promise.all(uniqueItems.map((item) => this.inferenceService.cacheInference(item)));
+
+    // 모든 아이템에 대해 getInference 호출
     const inferences = await Promise.all(items.map((item) => this.inferenceService.getInference(item)));
 
     return inferences.filter((item) => item !== null);
