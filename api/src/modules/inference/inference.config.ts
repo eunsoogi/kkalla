@@ -8,8 +8,8 @@ export const INFERENCE_CONFIG = {
   frequencyPenalty: 0,
   message: {
     candles: {
-      '1d': 30, // 30 days
-      '4h': 6 * 14, // 14 days
+      '1d': 90, // 90 days
+      '4h': 6 * 30, // 30 days
       '1h': 24 * 7, // 7 days
       '15m': 96, // 1 day
       '5m': 12 * 6, // 6 hours
@@ -247,6 +247,7 @@ export const INFERENCE_RULES = {
         '신호가 강할수록 더 높은 비율 적용',
         '리스크가 클수록 더 낮은 비율 적용',
         '거래량과 변동성을 고려하여 조절',
+        '거래량이 갑작스럽게 증가하는 시점에 반드시 매도',
       ],
     },
     riskManagement: {
