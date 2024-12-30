@@ -19,7 +19,7 @@ export class ScheduleService {
     private readonly i18n: I18nService,
   ) {}
 
-  @Cron(ScheduleExpression.EVERY_HOUR_AT_20_50_MINUTE)
+  @Cron(ScheduleExpression.EVERY_20_MINUTES)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async portfolioSchedule(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
