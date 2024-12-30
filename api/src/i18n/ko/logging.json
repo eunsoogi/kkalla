@@ -11,6 +11,7 @@
     "loading": "{symbol} 공포 탐욕 지수 불러오는 중..."
   },
   "inference": {
+    "caching": "{category} 메시지 캐싱 중...",
     "loading": "{ticker} 추론 중...",
     "start": "{ticker} 추론 시작...",
     "fail": "{ticker} 추론 실패.",

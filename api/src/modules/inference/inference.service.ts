@@ -1,8 +1,7 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
-import OpenAI from 'openai';
-import { ChatCompletion, ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
+import { ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
@@ -21,7 +20,13 @@ import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
 import { InferenceCategory } from './inference.enum';
-import { InferenceData, InferenceFilter, InferenceItem, InferenceMessageRequest } from './inference.interface';
+import {
+  CachedInferenceMessageRequest,
+  InferenceData,
+  InferenceFilter,
+  InferenceItem,
+  InferenceMessageRequest,
+} from './inference.interface';
 
 @Injectable()
 export class InferenceService {
@@ -37,20 +42,26 @@ export class InferenceService {
     private readonly feargreedService: FeargreedService,
   ) {}
 
-  private async buildMessages(request: InferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
+  private async buildCachedMessages(request: CachedInferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
     const messages: ChatCompletionMessageParam[] = [];
-    const [symbol] = request.ticker.split('/');
 
     // Add system prompt
     this.addMessage(messages, 'system', INFERENCE_PROMPT);
 
-    // Add candle data
-    const candles = await this.fetchCandleData(request);
-    this.addMessagePair(messages, 'prompt.input.candle', candles);
-
     // Add news data
     const news = await this.fetchNewsData(request);
     this.addMessagePair(messages, 'prompt.input.news', news);
+
+    return messages;
+  }
+
+  private async buildMessages(request: InferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
+    const messages = await this.buildCachedMessages(request);
+    const [symbol] = request.ticker.split('/');
+
+    // Add candle data
+    const candles = await this.fetchCandleData(request);
+    this.addMessagePair(messages, 'prompt.input.candle', candles);
 
     // Add fear & greed data
     const feargreed = await this.fetchFearGreedData(symbol);
@@ -59,7 +70,7 @@ export class InferenceService {
     return messages;
   }
 
-  private async fetchNewsData(request: InferenceMessageRequest): Promise<CompactNews[]> {
+  private async fetchNewsData(request: CachedInferenceMessageRequest): Promise<CompactNews[]> {
     this.logger.log(this.i18n.t('logging.news.loading', { args: request }));
 
     const news = await this.newsService.getCompactNews({
@@ -114,6 +125,35 @@ export class InferenceService {
     };
   }
 
+  public async requestCacheInference(
+    request: CachedInferenceMessageRequest,
+    retryOptions?: RetryOptions,
+  ): Promise<void> {
+    const messages = await this.buildCachedMessages(request);
+    const client = await this.openaiService.getServerClient();
+
+    this.logger.log(this.i18n.t('logging.inference.caching', { args: request }));
+
+    const response = await this.errorService.retry(
+      async () =>
+        client.chat.completions.create({
+          model: INFERENCE_MODEL,
+          max_completion_tokens: 1,
+          temperature: INFERENCE_CONFIG.temperature,
+          top_p: INFERENCE_CONFIG.topP,
+          presence_penalty: INFERENCE_CONFIG.presencePenalty,
+          frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
+          messages,
+          stream: false,
+        }),
+      retryOptions,
+    );
+
+    this.logger.debug(response);
+
+    return Promise.resolve();
+  }
+
   public async requestInference(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
     const messages = await this.buildMessages(request);
     const responseFormat = this.getResponseFormat();
@@ -122,7 +162,18 @@ export class InferenceService {
     this.logger.log(this.i18n.t('logging.inference.loading', { args: request }));
 
     const response = await this.errorService.retry(
-      () => this.createChatCompletion(client, messages, responseFormat),
+      async () =>
+        client.chat.completions.create({
+          model: INFERENCE_MODEL,
+          max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
+          temperature: INFERENCE_CONFIG.temperature,
+          top_p: INFERENCE_CONFIG.topP,
+          presence_penalty: INFERENCE_CONFIG.presencePenalty,
+          frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
+          response_format: responseFormat,
+          messages,
+          stream: false,
+        }),
       retryOptions,
     );
 
@@ -133,21 +184,10 @@ export class InferenceService {
     return inferenceData;
   }
 
-  private async createChatCompletion(
-    client: OpenAI,
-    messages: ChatCompletionMessageParam[],
-    responseFormat: ResponseFormatJSONSchema,
-  ): Promise<ChatCompletion> {
-    return client.chat.completions.create({
-      model: INFERENCE_MODEL,
-      max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
-      temperature: INFERENCE_CONFIG.temperature,
-      top_p: INFERENCE_CONFIG.topP,
-      presence_penalty: INFERENCE_CONFIG.presencePenalty,
-      frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
-      response_format: responseFormat,
-      messages,
-      stream: false,
+  public async cacheInference(item: InferenceItem): Promise<void> {
+    await this.requestCacheInference({
+      newsLimit: INFERENCE_CONFIG.message.newsLimit,
+      category: item.category,
     });
   }
 
