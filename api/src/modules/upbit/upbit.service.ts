@@ -69,6 +69,8 @@ export class UpbitService {
     const client = this.getServerClient();
     const candleIntervals = ['1d', '4h', '1h', '15m', '5m', '1m'];
 
+    this.logger.debug(request);
+
     const candles: CompactCandle = {
       ticker: request.ticker,
       series: await Promise.all(
@@ -78,6 +80,15 @@ export class UpbitService {
         })),
       ),
     };
+
+    this.logger.debug({
+      ticker: candles.ticker,
+      series: candles.series.map((s) => ({
+        interval: s.interval,
+        length: s.data.length,
+        last3: s.data.slice(-3),
+      })),
+    });
 
     return candles;
   }

@@ -9,11 +9,11 @@ export const INFERENCE_CONFIG = {
   message: {
     candles: {
       '1d': 90, // 90 days
-      '4h': 6 * 30, // 30 days
-      '1h': 24 * 7, // 7 days
-      '15m': 96, // 1 day
-      '5m': 12 * 6, // 6 hours
-      '1m': 60, // 1 hour
+      '4h': 6 * 14, // 14 days
+      '1h': 24 * 3, // 3 days
+      '15m': 4 * 12, // 12 hours
+      '5m': 12 * 3, // 3 hours
+      '1m': 30, // 30 minutes
     },
     newsLimit: 100,
   },
