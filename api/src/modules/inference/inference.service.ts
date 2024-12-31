@@ -79,10 +79,7 @@ export class InferenceService {
       skip: true,
     });
 
-    // timestamp 오름차순으로 정렬
-    const sortedNews = news.sort((a, b) => a.timestamp - b.timestamp);
-
-    return sortedNews;
+    return news;
   }
 
   private async fetchFearGreedData(symbol: string): Promise<CompactFeargreed> {
