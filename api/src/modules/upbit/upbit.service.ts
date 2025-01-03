@@ -67,7 +67,7 @@ export class UpbitService {
 
   public async getCandles(request: CandleRequest): Promise<CompactCandle> {
     const client = this.getServerClient();
-    const candleIntervals = ['1d', '4h', '1h', '15m', '5m', '1m'];
+    const candleIntervals = ['1d', '4h', '1h', '15m', '5m'];
 
     this.logger.debug(request);
 

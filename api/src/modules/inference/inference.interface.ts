@@ -25,7 +25,6 @@ export interface InferenceMessageRequest {
     '1h': number;
     '15m': number;
     '5m': number;
-    '1m': number;
   };
   newsLimit: number;
 }
