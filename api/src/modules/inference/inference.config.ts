@@ -11,9 +11,8 @@ export const INFERENCE_CONFIG = {
       '1d': 90, // 90 days
       '4h': 6 * 14, // 14 days
       '1h': 24 * 3, // 3 days
-      '15m': 4 * 12, // 12 hours
-      '5m': 12 * 3, // 3 hours
-      '1m': 30, // 30 minutes
+      '15m': 4 * 24, // 1 day
+      '5m': 12 * 6, // 6 hours
     },
     newsLimit: 100,
   },
