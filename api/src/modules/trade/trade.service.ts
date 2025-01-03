@@ -42,6 +42,7 @@ export class TradeService implements OnModuleInit {
     order: 'price_rate',
     sortDirection: SortDirection.ASC,
     strengthLower: 0.8,
+    priceRateLower: -0.04,
     priceRateUpper: 0.02,
   };
   private readonly MINIMUM_TRADE_RATE = 0.6;
