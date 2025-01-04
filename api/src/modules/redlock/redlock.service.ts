@@ -50,7 +50,7 @@ export class RedlockService implements OnModuleDestroy {
       // Lock 획득 실패 시 함수 실행 건너뜀
       if (!lock) {
         this.logger.debug(
-          await this.i18n.translate('redlock.lock.not_acquired', {
+          await this.i18n.translate('logging.redlock.lock.not_acquired', {
             args: { resourceName },
           }),
         );
@@ -59,7 +59,7 @@ export class RedlockService implements OnModuleDestroy {
 
       // Lock을 얻으면 함수 실행
       this.logger.debug(
-        await this.i18n.translate('redlock.lock.acquired', {
+        await this.i18n.translate('logging.redlock.lock.acquired', {
           args: { resourceName },
         }),
       );
@@ -71,13 +71,13 @@ export class RedlockService implements OnModuleDestroy {
           await lock.release();
 
           this.logger.debug(
-            await this.i18n.translate('redlock.lock.released', {
+            await this.i18n.translate('logging.redlock.lock.released', {
               args: { resourceName },
             }),
           );
         } catch (error) {
           this.logger.error(
-            await this.i18n.translate('redlock.lock.release_error', {
+            await this.i18n.translate('logging.redlock.lock.release_error', {
               args: { resourceName },
             }),
             error,

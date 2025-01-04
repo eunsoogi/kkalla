@@ -201,6 +201,7 @@ export class InferenceService {
       return this.create({
         ...data,
         category: item.category,
+        hasStock: item.hasStock,
       });
     } catch (error) {
       this.logger.error(this.i18n.t('logging.inference.fail', { args: item }), error);

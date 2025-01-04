@@ -205,6 +205,7 @@ export class TradeService implements OnModuleInit {
     return items.map((item) => ({
       ticker: item.ticker,
       category: item.category,
+      hasStock: true,
     }));
   }
 
@@ -212,6 +213,7 @@ export class TradeService implements OnModuleInit {
     return this.COIN_MAJOR.map((ticker) => ({
       ticker,
       category: InferenceCategory.COIN_MAJOR,
+      hasStock: false,
     }));
   }
 
@@ -221,6 +223,7 @@ export class TradeService implements OnModuleInit {
     return items.map((item) => ({
       ticker: `${item.symbol}/${item.market}`,
       category: InferenceCategory.COIN_MINOR,
+      hasStock: false,
     }));
   }
 
@@ -250,14 +253,37 @@ export class TradeService implements OnModuleInit {
     return inferences.filter((inference) => this.validateCategoryPermission(user, inference.category));
   }
 
-  public calculateDiff(balances: Balances, ticker: string, rate: number, category: InferenceCategory): number {
-    switch (category) {
-      case InferenceCategory.COIN_MAJOR:
-      case InferenceCategory.COIN_MINOR:
-        return this.upbitService.calculateDiff(balances, ticker, rate);
-    }
+  public getIncludedInferences(inferences: Inference[]): Inference[] {
+    const filteredInferences = inferences
+      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매매 비율 제한
+      .sort((a, b) => {
+        if (a.hasStock === b.hasStock) {
+          return b.rate - a.rate; // hasStock이 같은 경우 rate로 내림차순 정렬
+        }
+        return a.hasStock ? -1 : 1; // hasStock이 true인 경우 앞으로 정렬
+      })
+      .slice(0, this.TOP_INFERENCE_COUNT); // 포트폴리오 개수 제한
 
-    return 0;
+    this.logger.debug('Included inferences:');
+    this.logger.debug(filteredInferences);
+
+    return filteredInferences;
+  }
+
+  public getExcludedInferences(inferences: Inference[]): Inference[] {
+    const filteredInferences = inferences
+      .sort((a, b) => {
+        if (a.hasStock === b.hasStock) {
+          return b.rate - a.rate; // hasStock이 같은 경우 rate로 내림차순 정렬
+        }
+        return a.hasStock ? -1 : 1; // hasStock이 true인 경우 앞으로 정렬
+      })
+      .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT); // 매매 비율 또는 포트폴리오 개수 제한
+
+    this.logger.debug('Excluded inferences:');
+    this.logger.debug(filteredInferences);
+
+    return filteredInferences;
   }
 
   public getNonInferenceTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
@@ -275,15 +301,6 @@ export class TradeService implements OnModuleInit {
     return tradeRequests;
   }
 
-  public getIncludedInferences(inferences: Inference[]): Inference[] {
-    const filteredInferences = inferences
-      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE) // 매매 비율 제한
-      .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
-      .slice(0, this.TOP_INFERENCE_COUNT); // 포트폴리오 개수 제한
-
-    return filteredInferences;
-  }
-
   public getIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
     const filteredInferences = this.getIncludedInferences(inferences);
 
@@ -299,15 +316,6 @@ export class TradeService implements OnModuleInit {
     return tradeRequests;
   }
 
-  public getExcludedInferences(inferences: Inference[]): Inference[] {
-    const filteredInferences = inferences
-      .sort((a, b) => b.rate - a.rate) // 내림차순으로 정렬
-      .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT) // 매매 비율 또는 포트폴리오 개수 제한
-      .sort((a, b) => a.rate - b.rate); // 오름차순으로 정렬
-
-    return filteredInferences;
-  }
-
   public getExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
     const filteredInferences = this.getExcludedInferences(inferences);
 
@@ -319,6 +327,16 @@ export class TradeService implements OnModuleInit {
     }));
 
     return tradeRequests;
+  }
+
+  public calculateDiff(balances: Balances, ticker: string, rate: number, category: InferenceCategory): number {
+    switch (category) {
+      case InferenceCategory.COIN_MAJOR:
+      case InferenceCategory.COIN_MINOR:
+        return this.upbitService.calculateDiff(balances, ticker, rate);
+    }
+
+    return 0;
   }
 
   public async adjustPortfolios(users: User[]): Promise<void> {
