@@ -44,14 +44,14 @@ export class InferenceSeeder implements Seeder {
         {
           seq: (await new Sequence().save()).value,
           category: InferenceCategory.COIN_MINOR,
-          rate: 0,
+          rate: -0.5,
           reason: `${i + 1}) 마이너 코인 추론 내용입니다.`,
           ticker: 'XRP/KRW',
         },
         {
           seq: (await new Sequence().save()).value,
           category: InferenceCategory.NASDAQ,
-          rate: 0.6,
+          rate: 0,
           reason: `${i + 1}) 나스닥 종목 추론 내용입니다.`,
           ticker: 'AAPL',
         },

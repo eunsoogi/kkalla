@@ -9,9 +9,9 @@ export const INFERENCE_CONFIG = {
   message: {
     candles: {
       '1d': 90, // 90 days
-      '4h': 6 * 14, // 14 days
+      '4h': 6 * 21, // 21 days
       '1h': 24 * 3, // 3 days
-      '15m': 4 * 24, // 1 day
+      '15m': 4 * 12, // 12 hours
       '5m': 12 * 6, // 6 hours
     },
     newsLimit: 100,
@@ -37,9 +37,9 @@ export const INFERENCE_RESPONSE_SCHEMA = {
 
 export const INFERENCE_VALIDATION = {
   rate: {
-    min: 0,
+    min: -1,
     max: 1,
-    description: '종목의 매력도를 계산해야 함.',
+    description: '종목의 매매 비율을 계산해야 함',
   },
   analysis: {
     required: {
@@ -90,7 +90,7 @@ export const INFERENCE_VALIDATION = {
     ],
   },
   responseExample: {
-    rate: 0.8,
+    rate: 0.5,
     reason: [
       '{코인명}은 현재 {현재가}원에 거래되고 있으며, 전일 대비 {변동률}% 변동했습니다.',
       '일봉 차트에서 {저항선}원대와 {지지선}원대가 중요한 가격대로 형성되어 있어 이 구간에서의 움직임을 주시해야 합니다. 특히 {이평선} 이동평균선 {이평가격}원을 기준으로 {추세방향} 추세가 형성되고 있어, 이 레벨이 단기 지지/저항선 역할을 할 것으로 예상됩니다.',
@@ -241,8 +241,8 @@ export const INFERENCE_RULES = {
   strategy: {
     rate: {
       conditions: [
-        '0.5 이상은 매수를 의미함',
-        '0.5 미만은 매도를 의미함',
+        '0 이상은 매수를 의미함',
+        '0 미만은 매도를 의미함',
         '신호가 강할수록 더 높은 비율 적용',
         '리스크가 클수록 더 낮은 비율 적용',
         '거래량과 변동성을 고려하여 조절',
