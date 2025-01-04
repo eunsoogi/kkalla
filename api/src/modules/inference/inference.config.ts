@@ -21,17 +21,17 @@ export const INFERENCE_CONFIG = {
 export const INFERENCE_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
-    rate: {
-      type: 'number',
+    ticker: {
+      type: 'string',
     },
     reason: {
       type: 'string',
     },
-    ticker: {
-      type: 'string',
+    rate: {
+      type: 'number',
     },
   },
-  required: ['rate', 'reason', 'ticker'],
+  required: ['ticker', 'reason', 'rate'],
   additionalProperties: false,
 };
 
@@ -39,7 +39,7 @@ export const INFERENCE_VALIDATION = {
   rate: {
     min: -1,
     max: 1,
-    description: '종목의 매매 비율을 계산해야 함',
+    description: '매매 강도 지수를 계산해야 함',
   },
   analysis: {
     required: {
@@ -90,7 +90,7 @@ export const INFERENCE_VALIDATION = {
     ],
   },
   responseExample: {
-    rate: 0.5,
+    ticker: 'BTC/KRW',
     reason: [
       '{코인명}은 현재 {현재가}원에 거래되고 있으며, 전일 대비 {변동률}% 변동했습니다.',
       '일봉 차트에서 {저항선}원대와 {지지선}원대가 중요한 가격대로 형성되어 있어 이 구간에서의 움직임을 주시해야 합니다. 특히 {이평선} 이동평균선 {이평가격}원을 기준으로 {추세방향} 추세가 형성되고 있어, 이 레벨이 단기 지지/저항선 역할을 할 것으로 예상됩니다.',
@@ -103,7 +103,7 @@ export const INFERENCE_VALIDATION = {
       'ATR이 {ATR}을 기록하고 있어, 현재 변동성을 고려할 때 손절매 라인을 {손절가격}원으로 설정하는 것이 적절해 보입니다. 이는 현재가 대비 {손절폭}% 수준으로, {리스크설명}입니다.',
       '이상의 분석을 종합해볼 때, {기술적결론}, {펀더멘털결론}, 그리고 {심리적결론}이 관찰됩니다. 따라서 현 시점에서는 {최종판단}이 적절할 것으로 판단됩니다. {추가제언}',
     ].join(' '),
-    ticker: 'BTC/KRW',
+    rate: 0.5,
   },
 };
 
@@ -241,8 +241,8 @@ export const INFERENCE_RULES = {
   strategy: {
     rate: {
       conditions: [
-        '0 이상은 매수를 의미함',
-        '0 미만은 매도를 의미함',
+        '매수 시 반드시 0 이상이어야 함',
+        '매도 시 반드시 0 미만이어야 함',
         '신호가 강할수록 더 높은 비율 적용',
         '리스크가 클수록 더 낮은 비율 적용',
         '거래량과 변동성을 고려하여 조절',
