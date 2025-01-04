@@ -28,6 +28,9 @@ export class Inference extends BaseEntity {
   })
   seq: number;
 
+  @Column()
+  ticker: string;
+
   @Column({
     type: 'enum',
     enum: InferenceCategory,
@@ -35,18 +38,17 @@ export class Inference extends BaseEntity {
   category: InferenceCategory;
 
   @Column({
+    type: 'text',
+  })
+  reason: string;
+
+  @Column({
     type: 'double',
     default: 0,
   })
   rate: number;
 
-  @Column({
-    type: 'text',
-  })
-  reason: string;
-
-  @Column()
-  ticker: string;
+  hasStock: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

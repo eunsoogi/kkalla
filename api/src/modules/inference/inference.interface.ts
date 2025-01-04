@@ -32,9 +32,11 @@ export interface InferenceMessageRequest {
 export interface InferenceItem {
   ticker: string;
   category: InferenceCategory;
+  hasStock: boolean;
 }
 
 export interface InferenceData extends InferenceItem {
-  rate: number;
   reason: string;
+  rate: number;
+  hasStock: boolean;
 }
