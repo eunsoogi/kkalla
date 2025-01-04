@@ -45,7 +45,7 @@ export class TradeService implements OnModuleInit {
     priceRateLower: -0.04,
     priceRateUpper: 0.02,
   };
-  private readonly MINIMUM_TRADE_RATE = 0.6;
+  private readonly MINIMUM_TRADE_RATE = 0;
   private readonly TOP_INFERENCE_COUNT = 5;
 
   private readonly logger = new Logger(TradeService.name);
