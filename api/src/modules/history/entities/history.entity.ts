@@ -3,7 +3,7 @@ import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, U
 import { InferenceCategory } from '@/modules/inference/inference.enum';
 
 @Entity()
-export class TradeHistory extends BaseEntity {
+export class History extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 

@@ -70,7 +70,7 @@ export const TradeList = () => {
           <Table.Head className='dark:border-gray-800'>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.type')}</Table.HeadCell>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.date')}</Table.HeadCell>
-            <Table.HeadCell className='whitespace-nowrap'>{t('trade.ticker')}</Table.HeadCell>
+            <Table.HeadCell className='whitespace-nowrap'>{t('ticker')}</Table.HeadCell>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.amount')}</Table.HeadCell>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.profit')}</Table.HeadCell>
           </Table.Head>

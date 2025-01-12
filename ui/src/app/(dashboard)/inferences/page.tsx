@@ -24,21 +24,21 @@ const Page: React.FC = () => {
     <>
       <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-6 mb-4'>
         <div className='col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='ticker' value={t('inference.ticker')} />
+          <Label htmlFor='ticker' value={t('ticker')} />
           <TextInput id='ticker' value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder='BTC/KRW' />
         </div>
 
         <div className='col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='category' value={t('inference.category.label')} />
+          <Label htmlFor='category' value={t('category.label')} />
           <Select id='category' value={category} onChange={(e) => setCategory(e.target.value as InferenceCategory)}>
             <PermissionGuard permissions={[Permission.VIEW_INFERENCE_COIN_MAJOR]}>
-              <option value={InferenceCategory.COIN_MAJOR}>{t('inference.category.coin.major')}</option>
+              <option value={InferenceCategory.COIN_MAJOR}>{t('category.coin.major')}</option>
             </PermissionGuard>
             <PermissionGuard permissions={[Permission.VIEW_INFERENCE_COIN_MINOR]}>
-              <option value={InferenceCategory.COIN_MINOR}>{t('inference.category.coin.minor')}</option>
+              <option value={InferenceCategory.COIN_MINOR}>{t('category.coin.minor')}</option>
             </PermissionGuard>
             <PermissionGuard permissions={[Permission.VIEW_INFERENCE_NASDAQ]}>
-              <option value={InferenceCategory.NASDAQ}>{t('inference.category.nasdaq')}</option>
+              <option value={InferenceCategory.NASDAQ}>{t('category.nasdaq')}</option>
             </PermissionGuard>
           </Select>
         </div>
