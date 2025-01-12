@@ -3,9 +3,11 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from './databases/typeorm.module';
 import { AccumulationModule } from './modules/accumulation/accumulation.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BlacklistModule } from './modules/blacklist/blacklist.module';
 import { ErrorModule } from './modules/error/error.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { HealthModule } from './modules/health/health.module';
+import { HistoryModule } from './modules/history/history.module';
 import { InferenceModule } from './modules/inference/inference.module';
 import { IpModule } from './modules/ip/ip.module';
 import { NewsModule } from './modules/news/news.module';
@@ -50,6 +52,8 @@ import { UserModule } from './modules/user/user.module';
     AccumulationModule,
     InferenceModule,
     TradeModule,
+    HistoryModule,
+    BlacklistModule,
     SlackModule,
     NotifyModule,
     ProfitModule,

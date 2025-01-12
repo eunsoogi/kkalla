@@ -111,6 +111,15 @@ export const SidebarContent = (): MenuItem[] => {
     });
   }
 
+  if (hasPermission([Permission.VIEW_BLACKLISTS])) {
+    adminChildren.push({
+      name: t('blacklistManagement'),
+      icon: 'solar:forbidden-circle-line-duotone',
+      id: uniqueId(),
+      url: '/blacklists',
+    });
+  }
+
   if (adminChildren.length > 0) {
     menuItems.push({
       heading: t('admin'),

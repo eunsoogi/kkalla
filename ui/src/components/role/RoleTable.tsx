@@ -1,19 +1,18 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Button, Table } from 'flowbite-react';
+import { Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
-import { ColoredBadge } from '@/components/common/ColoredBadge';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { Role, initialPaginatedState } from '@/interfaces/role.interface';
 import { formatYearDate } from '@/utils/date';
 
+import { ColoredBadge } from '../common/ColoredBadge';
 import { getRolesAction } from './action';
 
 const rolesQueryKey = ['roles'];
@@ -79,7 +78,7 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
         </div>
       </SimpleBar>
 
-      <div className='mt-4 flex items-center justify-between px-6 pb-6'>
+      <div className='flex items-center justify-between mt-4 px-6 pb-6'>
         <div className='text-sm text-gray-700 dark:text-gray-300'>
           {t('pagination', {
             start: (items.page - 1) * (items.perPage ?? 1) + 1,
@@ -94,20 +93,14 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
               className={`px-3 py-1 text-sm rounded ${
                 items.page === i + 1
                   ? 'bg-blue-600 text-white dark:bg-blue-500'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:bg-dark dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
-              disabled={items.page === i + 1}
               onClick={() => handlePageChange(i + 1)}
             >
               {i + 1}
             </button>
           ))}
         </div>
-      </div>
-      <div className='px-6 pb-6 flex justify-end'>
-        <Link href='./roles/create'>
-          <Button color='primary'>{t('role.create')}</Button>
-        </Link>
       </div>
     </div>
   );

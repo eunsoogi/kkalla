@@ -30,7 +30,7 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     const users = await this.getUsers();
-    await this.tradeService.adjustPortfolios(users);
+    await this.tradeService.processPortfolioAdjustments(users);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }

@@ -18,10 +18,21 @@
     "admin": "관리",
     "userManagement": "사용자 관리",
     "roleManagement": "권한 관리",
-    "profitManagement": "수익 관리"
+    "profitManagement": "수익 관리",
+    "blacklistManagement": "블랙리스트 관리"
   },
   "title": {
     "coin": "코인"
+  },
+  "ticker": "종목",
+  "category": {
+    "label": "카테고리",
+    "select": "카테고리 선택",
+    "coin": {
+      "major": "메이저 코인",
+      "minor": "마이너 코인"
+    },
+    "nasdaq": "나스닥"
   },
   "user": {
     "email": "이메일",
@@ -40,7 +51,7 @@
     "name": "권한 이름",
     "description": "설명",
     "permissions": "권한 목록",
-    "create": "새 권한 생성",
+    "create": "권한 추가",
     "update": "권한 수정",
     "delete_confirm": "정말로 이 권한을 삭제하시겠습니까?"
   },
@@ -55,28 +66,23 @@
   "inference": {
     "list": "추론 목록",
     "mine": "내 추론만 보기",
-    "ticker": "종목",
-    "reason": "추론 내용",
-    "category": {
-      "label": "카테고리",
-      "coin": {
-        "major": "메이저 코인",
-        "minor": "마이너 코인"
-      },
-      "nasdaq": "나스닥"
-    }
+    "reason": "추론 내용"
   },
   "trade": {
     "list": "거래 목록",
     "type": "거래",
     "date": "날짜",
-    "ticker": "종목",
     "amount": "거래금",
     "profit": "수익금",
     "types": {
       "buy": "매수",
       "sell": "매도"
     }
+  },
+  "blacklist": {
+    "create": "블랙리스트 추가",
+    "update": "블랙리스트 수정",
+    "delete_confirm": "정말로 이 블랙리스트를 삭제하시겠습니까?"
   },
   "upbit": {
     "title": "업비트",
@@ -141,7 +147,7 @@
   "deleted": "성공적으로 삭제되었습니다.",
   "createdAt": "생성일",
   "updatedAt": "수정일",
-  "pagination": "{start}부터 {end}까지 {total}개의 결과 표시",
+  "pagination": "{total}개 중 {start}부터 {end}까지 결과 표시",
   "all": "전체",
   "save": "저장",
   "delete": "삭제",

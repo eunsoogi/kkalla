@@ -22,7 +22,7 @@ const Page: React.FC = () => {
     <>
       <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-6 mb-4'>
         <div className='col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='ticker' value={t('trade.ticker')} />
+          <Label htmlFor='ticker' value={t('ticker')} />
           <TextInput id='ticker' value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder='BTC/KRW' />
         </div>
 

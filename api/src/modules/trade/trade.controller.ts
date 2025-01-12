@@ -17,13 +17,13 @@ export class TradeController {
 
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public async get(@CurrentUser() user: User, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
-    return this.tradeService.paginate(user, request);
+  public async getTrades(@CurrentUser() user: User, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
+    return this.tradeService.paginateTrades(user, request);
   }
 
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  public async cursor(
+  public async getCursorTrades(
     @CurrentUser() user: User,
     @Query() params: GetTradeCursorDto,
   ): Promise<CursorItem<Trade, string>> {
@@ -48,18 +48,18 @@ export class TradeController {
       }
     }
 
-    return this.tradeService.cursor(user, filters);
+    return this.tradeService.cursorTrades(user, filters);
   }
 
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
-  public async postTrade(@CurrentUser() user: User, @Body() body: PostTradeDto): Promise<Trade> {
-    return this.tradeService.postTrade(user, body);
+  async createTrade(@CurrentUser() user: User, @Body() body: PostTradeDto): Promise<Trade> {
+    return this.tradeService.createTradeFromUserRequest(user, body);
   }
 
   @Post('request')
   @UseGuards(GoogleTokenAuthGuard)
-  public async requestTrade(@CurrentUser() user: User): Promise<void> {
-    await this.tradeService.adjustPortfolios([user]);
+  public async processPortfolio(@CurrentUser() user: User): Promise<void> {
+    await this.tradeService.processPortfolioAdjustments([user]);
   }
 }
