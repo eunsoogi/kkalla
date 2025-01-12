@@ -226,36 +226,27 @@ export class TradeService implements OnModuleInit {
   }
 
   public async executeInferences(): Promise<Inference[]> {
-    const items = await this.getAllInferenceItems();
+    let items = await this.getAllInferenceItems();
+    const blacklist = await this.blacklistService.findAll();
 
-    // 중복 제거
-    const uniqueItems = items.filter(
-      (item, index, self) => index === self.findIndex((t) => t.category === item.category),
+    // 중복 및 블랙리스트 제거
+    items = items.filter(
+      (item, index, self) =>
+        index === self.findIndex((t) => t.category === item.category) &&
+        !blacklist.some((t) => t.ticker === item.ticker && t.category === item.category),
     );
 
-    // 중복되지 않는 아이템에 대해 cacheInferenceItem 호출
-    await Promise.all(uniqueItems.map((item) => this.inferenceService.cacheInference(item)));
+    // 추론 사전 캐싱
+    await Promise.all(items.map((item) => this.inferenceService.cacheInference(item)));
 
-    // 모든 아이템에 대해 getInference 호출
+    // 추론 수행
     const inferences = await Promise.all(items.map((item) => this.inferenceService.getInference(item)));
 
     return inferences.filter((item) => item !== null);
   }
 
   public async filterAuthorizedInferences(user: User, inferences: Inference[]): Promise<Inference[]> {
-    const blacklist = await this.blacklistService.findAll();
-
-    return inferences.filter((inference) => {
-      // 권한 확인
-      const hasPermission = this.checkCategoryPermission(user, inference.category);
-
-      // 블랙리스트 확인
-      const isBlacklisted = blacklist.some(
-        (item) => item.ticker === inference.ticker && item.category === inference.category,
-      );
-
-      return hasPermission && !isBlacklisted;
-    });
+    return inferences.filter((item) => this.checkCategoryPermission(user, item.category));
   }
 
   public filterIncludedInferences(inferences: Inference[]): Inference[] {
