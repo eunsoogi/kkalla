@@ -232,7 +232,7 @@ export class TradeService implements OnModuleInit {
     // 중복 및 블랙리스트 제거
     items = items.filter(
       (item, index, self) =>
-        index === self.findIndex((t) => t.category === item.category) &&
+        index === self.findIndex((t) => t.ticker === item.ticker) &&
         !blacklist.some((t) => t.ticker === item.ticker && t.category === item.category),
     );
 
