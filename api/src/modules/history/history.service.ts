@@ -2,11 +2,16 @@ import { Injectable } from '@nestjs/common';
 
 import { InferenceItem } from '../inference/inference.interface';
 import { History } from './entities/history.entity';
+import { HistoryItem } from './history.interface';
 
 @Injectable()
 export class HistoryService {
   public async fetchHistoryInferences(): Promise<InferenceItem[]> {
-    const items = await History.find();
+    const items = await History.find({
+      order: {
+        index: 'ASC',
+      },
+    });
 
     return items.map((item) => ({
       ticker: item.ticker,
@@ -15,7 +20,7 @@ export class HistoryService {
     }));
   }
 
-  public async saveHistory(items: InferenceItem[]): Promise<History[]> {
+  public async saveHistory(items: HistoryItem[]): Promise<History[]> {
     await History.delete({});
 
     return History.save(
@@ -23,6 +28,7 @@ export class HistoryService {
         History.create({
           ticker: item.ticker,
           category: item.category,
+          index: item.index,
         }),
       ),
     );

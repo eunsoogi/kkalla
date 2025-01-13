@@ -4,7 +4,7 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { PaginatedItem } from '../item/item.interface';
 import { Permission } from '../permission/permission.enum';
 import { BlacklistService } from './blacklist.service';
-import { BlacklistResponseDto } from './dto/blacklist-response.dto';
+import { BlacklistDto } from './dto/blacklist.dto';
 import { CreateBlacklistDto } from './dto/create-blacklist.dto';
 import { GetBlacklistsDto } from './dto/get-blacklists.dto';
 import { UpdateBlacklistDto } from './dto/update-blacklist.dto';
@@ -16,7 +16,7 @@ export class BlacklistController {
 
   @Get()
   @RequirePermissions(Permission.VIEW_BLACKLISTS)
-  async findAll(@Query() params: GetBlacklistsDto): Promise<PaginatedItem<BlacklistResponseDto>> {
+  async findAll(@Query() params: GetBlacklistsDto): Promise<PaginatedItem<BlacklistDto>> {
     const result = await this.blacklistService.paginate(params);
     return {
       ...result,
@@ -26,21 +26,21 @@ export class BlacklistController {
 
   @Get(':id')
   @RequirePermissions(Permission.MANAGE_BLACKLISTS)
-  async findOne(@Param('id') id: string): Promise<BlacklistResponseDto> {
+  async findOne(@Param('id') id: string): Promise<BlacklistDto> {
     const blacklist = await this.blacklistService.findOne(id);
     return this.toResponseDto(blacklist);
   }
 
   @Post()
   @RequirePermissions(Permission.MANAGE_BLACKLISTS)
-  async save(@Body() createBlacklistDto: CreateBlacklistDto): Promise<BlacklistResponseDto> {
+  async save(@Body() createBlacklistDto: CreateBlacklistDto): Promise<BlacklistDto> {
     const blacklist = await this.blacklistService.save(createBlacklistDto);
     return this.toResponseDto(blacklist);
   }
 
   @Patch(':id')
   @RequirePermissions(Permission.MANAGE_BLACKLISTS)
-  async update(@Param('id') id: string, @Body() updateBlacklistDto: UpdateBlacklistDto): Promise<BlacklistResponseDto> {
+  async update(@Param('id') id: string, @Body() updateBlacklistDto: UpdateBlacklistDto): Promise<BlacklistDto> {
     const blacklist = await this.blacklistService.update(id, updateBlacklistDto);
     return this.toResponseDto(blacklist);
   }
@@ -51,8 +51,8 @@ export class BlacklistController {
     await this.blacklistService.remove(id);
   }
 
-  private toResponseDto(blacklist: Blacklist): BlacklistResponseDto {
-    const response = new BlacklistResponseDto();
+  private toResponseDto(blacklist: Blacklist): BlacklistDto {
+    const response = new BlacklistDto();
     response.id = blacklist.id;
     response.ticker = blacklist.ticker;
     response.category = blacklist.category;

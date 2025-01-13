@@ -9,7 +9,7 @@ import { Alert, Button, Label, Select, TextInput } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
 
-import { InferenceCategory } from '@/enums/inference.enum';
+import { Category } from '@/enums/category.enum';
 import { Blacklist } from '@/interfaces/blacklist.interface';
 
 import { createBlacklistAction, deleteBlacklistAction, getBlacklistAction, updateBlacklistAction } from './action';
@@ -125,9 +125,9 @@ const BlacklistFormContent: React.FC<BlacklistFormProps> = ({ id }) => {
             </Label>
             <Select id='category' name='category' required className='mt-2' defaultValue={blacklist?.category || ''}>
               <option value=''>{t('category.select')}</option>
-              <option value={InferenceCategory.COIN_MAJOR}>{t('category.coin.major')}</option>
-              <option value={InferenceCategory.COIN_MINOR}>{t('category.coin.minor')}</option>
-              <option value={InferenceCategory.NASDAQ}>{t('category.nasdaq')}</option>
+              <option value={Category.COIN_MAJOR}>{t('category.coin.major')}</option>
+              <option value={Category.COIN_MINOR}>{t('category.coin.minor')}</option>
+              <option value={Category.NASDAQ}>{t('category.nasdaq')}</option>
             </Select>
           </div>
           <div className='flex justify-end'>

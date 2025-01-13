@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { InferenceCategory } from '@/modules/inference/inference.enum';
+import { Category } from '@/modules/category/category.enum';
 
-export class BlacklistResponseDto {
+export class BlacklistDto {
   @ApiProperty({
     example: '1234-5678-90ab-cdef',
   })
@@ -14,9 +14,9 @@ export class BlacklistResponseDto {
   ticker!: string;
 
   @ApiProperty({
-    enum: InferenceCategory,
+    enum: Category,
   })
-  category!: InferenceCategory;
+  category!: Category;
 
   @ApiProperty()
   createdAt!: Date;

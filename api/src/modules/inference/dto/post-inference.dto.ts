@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { InferenceCategory } from '../inference.enum';
+import { Category } from '@/modules/category/category.enum';
 
 export class PostInferenceDto {
   @ApiProperty({
@@ -11,8 +11,8 @@ export class PostInferenceDto {
 
   @ApiProperty({
     required: true,
-    example: InferenceCategory.COIN_MAJOR,
-    enum: InferenceCategory,
+    example: Category.COIN_MAJOR,
+    enum: Category,
   })
-  category: InferenceCategory;
+  category: Category;
 }

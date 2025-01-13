@@ -1,6 +1,6 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { InferenceCategory } from '@/modules/inference/inference.enum';
+import { Category } from '@/modules/category/category.enum';
 
 @Entity()
 export class History extends BaseEntity {
@@ -12,10 +12,13 @@ export class History extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: InferenceCategory,
+    enum: Category,
     nullable: false,
   })
-  category!: InferenceCategory;
+  category!: Category;
+
+  @Column({ nullable: false })
+  index!: number;
 
   @CreateDateColumn()
   createdAt: Date;

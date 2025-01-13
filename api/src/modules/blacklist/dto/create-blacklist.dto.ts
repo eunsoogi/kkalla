@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
-import { InferenceCategory } from '@/modules/inference/inference.enum';
+import { Category } from '@/modules/category/category.enum';
 
 export class CreateBlacklistDto {
   @ApiProperty({
@@ -15,9 +15,9 @@ export class CreateBlacklistDto {
 
   @ApiProperty({
     required: true,
-    enum: InferenceCategory,
+    enum: Category,
   })
-  @IsEnum(InferenceCategory)
+  @IsEnum(Category)
   @IsNotEmpty()
-  category!: InferenceCategory;
+  category!: Category;
 }

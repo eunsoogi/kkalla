@@ -3,6 +3,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { I18nService } from 'nestjs-i18n';
 import { ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
 
+import { Category } from '@/modules/category/category.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
 import { RetryOptions } from '../error/error.interface';
@@ -19,7 +20,6 @@ import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
-import { InferenceCategory } from './inference.enum';
 import {
   CachedInferenceMessageRequest,
   InferenceData,
@@ -209,11 +209,11 @@ export class InferenceService {
     }
   }
 
-  private getCategoryPermission(category: InferenceCategory): Permission {
-    const permissionMap: Record<InferenceCategory, Permission> = {
-      [InferenceCategory.NASDAQ]: Permission.VIEW_INFERENCE_NASDAQ,
-      [InferenceCategory.COIN_MAJOR]: Permission.VIEW_INFERENCE_COIN_MAJOR,
-      [InferenceCategory.COIN_MINOR]: Permission.VIEW_INFERENCE_COIN_MINOR,
+  private getCategoryPermission(category: Category): Permission {
+    const permissionMap: Record<Category, Permission> = {
+      [Category.NASDAQ]: Permission.VIEW_INFERENCE_NASDAQ,
+      [Category.COIN_MAJOR]: Permission.VIEW_INFERENCE_COIN_MAJOR,
+      [Category.COIN_MINOR]: Permission.VIEW_INFERENCE_COIN_MINOR,
     };
 
     const permission = permissionMap[category];
@@ -228,7 +228,7 @@ export class InferenceService {
     return permission;
   }
 
-  public validateCategoryPermission(user: User, category: InferenceCategory): boolean {
+  public validateCategoryPermission(user: User, category: Category): boolean {
     const userPermissions = user.roles.flatMap((role) => role.permissions || []);
     const requiredPermission = this.getCategoryPermission(category);
     return userPermissions.includes(requiredPermission);

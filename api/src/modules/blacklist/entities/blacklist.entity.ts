@@ -1,6 +1,6 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, Like, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { InferenceCategory } from '@/modules/inference/inference.enum';
+import { Category } from '@/modules/category/category.enum';
 import { PaginatedItem } from '@/modules/item/item.interface';
 
 import { GetBlacklistsDto } from '../dto/get-blacklists.dto';
@@ -15,10 +15,10 @@ export class Blacklist extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: InferenceCategory,
+    enum: Category,
     nullable: false,
   })
-  category!: InferenceCategory;
+  category!: Category;
 
   @CreateDateColumn()
   createdAt: Date;

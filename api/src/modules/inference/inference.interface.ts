@@ -1,9 +1,9 @@
+import { Category } from '../category/category.enum';
 import { SortDirection } from '../item/item.enum';
-import { InferenceCategory } from './inference.enum';
 
 export interface InferenceFilter {
   ticker?: string;
-  category?: InferenceCategory;
+  category?: Category;
   createdAt?: {
     gte?: Date;
     lte?: Date;
@@ -12,13 +12,13 @@ export interface InferenceFilter {
 }
 
 export interface CachedInferenceMessageRequest {
-  category: InferenceCategory;
+  category: Category;
   newsLimit: number;
 }
 
 export interface InferenceMessageRequest {
   ticker: string;
-  category: InferenceCategory;
+  category: Category;
   candles: {
     '1d': number;
     '4h': number;
@@ -31,12 +31,11 @@ export interface InferenceMessageRequest {
 
 export interface InferenceItem {
   ticker: string;
-  category: InferenceCategory;
+  category: Category;
   hasStock: boolean;
 }
 
 export interface InferenceData extends InferenceItem {
   reason: string;
   rate: number;
-  hasStock: boolean;
 }

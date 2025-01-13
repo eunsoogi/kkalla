@@ -1,9 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { Category } from '@/modules/category/category.enum';
 import { GetCursorDto } from '@/modules/item/dto/get-cursor.dto';
 import { ToDate } from '@/transforms/date.transform';
-
-import { InferenceCategory } from '../inference.enum';
 
 export class GetInferenceCursorDto extends GetCursorDto<string> {
   @ApiProperty({
@@ -14,9 +13,9 @@ export class GetInferenceCursorDto extends GetCursorDto<string> {
 
   @ApiProperty({
     required: true,
-    enum: InferenceCategory,
+    enum: Category,
   })
-  category: InferenceCategory;
+  category: Category;
 
   @ApiProperty({
     required: false,
