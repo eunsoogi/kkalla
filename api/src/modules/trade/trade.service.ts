@@ -345,7 +345,7 @@ export class TradeService implements OnModuleInit {
   }
 
   public generateIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
-    const filteredInferences = this.filterIncludedInferences(inferences);
+    const filteredInferences = this.filterIncludedInferences(inferences).slice(0, this.TOP_INFERENCE_COUNT);
 
     const tradeRequests: TradeRequest[] = filteredInferences
       .map((inference) => ({
@@ -360,7 +360,9 @@ export class TradeService implements OnModuleInit {
   }
 
   public generateExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
-    const filteredInferences = this.filterExcludedInferences(inferences);
+    const filteredInferences = this.filterExcludedInferences(inferences).filter(
+      (item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT,
+    );
 
     const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
       ticker: inference.ticker,
