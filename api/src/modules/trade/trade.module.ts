@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { AccumulationModule } from '../accumulation/accumulation.module';
 import { BlacklistModule } from '../blacklist/blacklist.module';
+import { CategoryModule } from '../category/category.module';
 import { HistoryModule } from '../history/history.module';
 import { InferenceModule } from '../inference/inference.module';
 import { NotifyModule } from '../notify/notify.module';
@@ -21,6 +22,7 @@ import { TradeService } from './trade.service';
     NotifyModule,
     HistoryModule,
     BlacklistModule,
+    CategoryModule,
   ],
   controllers: [TradeController],
   providers: [TradeService],

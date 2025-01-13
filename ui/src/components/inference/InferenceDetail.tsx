@@ -8,7 +8,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
-import { InferenceCategory } from '@/enums/inference.enum';
+import { Category } from '@/enums/category.enum';
 import { SortDirection } from '@/enums/sort.enum';
 import { Inference } from '@/interfaces/inference.interface';
 import { CursorItem } from '@/interfaces/item.interface';
@@ -22,7 +22,7 @@ import UserImg from '/public/images/profile/user-ai.png';
 
 interface InferenceDetailListContentProps {
   ticker?: string;
-  category?: InferenceCategory;
+  category?: Category;
   sortDirection: SortDirection;
   startDate?: Date;
   endDate?: Date;
@@ -115,7 +115,7 @@ export const InferenceDetailSkeleton: React.FC = () => {
 
 interface InferenceDetailProps {
   ticker?: string;
-  category?: InferenceCategory;
+  category?: Category;
   decision?: string;
   sortDirection: SortDirection;
   startDate?: Date;

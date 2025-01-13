@@ -11,10 +11,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { Category } from '@/modules/category/category.enum';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
-import { InferenceCategory } from '../inference.enum';
 import { InferenceFilter } from '../inference.interface';
 
 @Entity()
@@ -33,9 +33,9 @@ export class Inference extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: InferenceCategory,
+    enum: Category,
   })
-  category: InferenceCategory;
+  category: Category;
 
   @Column({
     type: 'text',

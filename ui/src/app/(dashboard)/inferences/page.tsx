@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { InferenceDetail } from '@/components/inference/InferenceDetail';
-import { InferenceCategory } from '@/enums/inference.enum';
+import { Category } from '@/enums/category.enum';
 import { SortDirection } from '@/enums/sort.enum';
 import { Permission } from '@/interfaces/permission.interface';
 
@@ -16,7 +16,7 @@ const Page: React.FC = () => {
   const locale = useLocale();
   const [ticker, setTicker] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<SortDirection>(SortDirection.DESC);
-  const [category, setCategory] = useState<InferenceCategory>(InferenceCategory.COIN_MAJOR);
+  const [category, setCategory] = useState<Category>(Category.COIN_MAJOR);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
@@ -30,15 +30,15 @@ const Page: React.FC = () => {
 
         <div className='col-span-2 flex flex-col gap-2'>
           <Label htmlFor='category' value={t('category.label')} />
-          <Select id='category' value={category} onChange={(e) => setCategory(e.target.value as InferenceCategory)}>
+          <Select id='category' value={category} onChange={(e) => setCategory(e.target.value as Category)}>
             <PermissionGuard permissions={[Permission.VIEW_INFERENCE_COIN_MAJOR]}>
-              <option value={InferenceCategory.COIN_MAJOR}>{t('category.coin.major')}</option>
+              <option value={Category.COIN_MAJOR}>{t('category.coin.major')}</option>
             </PermissionGuard>
             <PermissionGuard permissions={[Permission.VIEW_INFERENCE_COIN_MINOR]}>
-              <option value={InferenceCategory.COIN_MINOR}>{t('category.coin.minor')}</option>
+              <option value={Category.COIN_MINOR}>{t('category.coin.minor')}</option>
             </PermissionGuard>
             <PermissionGuard permissions={[Permission.VIEW_INFERENCE_NASDAQ]}>
-              <option value={InferenceCategory.NASDAQ}>{t('category.nasdaq')}</option>
+              <option value={Category.NASDAQ}>{t('category.nasdaq')}</option>
             </PermissionGuard>
           </Select>
         </div>

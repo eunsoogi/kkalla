@@ -9,9 +9,9 @@ import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { ColoredBadge } from '@/components/common/ColoredBadge';
-import { InferenceCategory } from '@/enums/inference.enum';
 import { Blacklist, initialPaginatedState } from '@/interfaces/blacklist.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
+import { getCategoryText } from '@/utils/category';
 import { formatYearDate } from '@/utils/date';
 
 import { getBlacklistsAction } from './action';
@@ -86,19 +86,6 @@ const BlacklistTableContent = () => {
     [router, searchParams],
   );
 
-  const getCategoryText = (category: string) => {
-    switch (category) {
-      case InferenceCategory.COIN_MAJOR:
-        return t('category.coin.major');
-      case InferenceCategory.COIN_MINOR:
-        return t('category.coin.minor');
-      case InferenceCategory.NASDAQ:
-        return t('category.nasdaq');
-      default:
-        return category;
-    }
-  };
-
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-full break-words'>
       <div className='px-6'>
@@ -122,7 +109,7 @@ const BlacklistTableContent = () => {
                 >
                   <Table.Cell className='whitespace-nowrap'>{blacklist.ticker}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>
-                    <ColoredBadge text={getCategoryText(blacklist.category)} />
+                    <ColoredBadge text={getCategoryText(blacklist.category, t)} />
                   </Table.Cell>
                   <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
                     {formatYearDate(new Date(blacklist.createdAt))}

@@ -1,9 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { Category } from '@/modules/category/category.enum';
 import { GetPaginationDto } from '@/modules/item/dto/get-pagination.dto';
 import { ToDate } from '@/transforms/date.transform';
-
-import { InferenceCategory } from '../inference.enum';
 
 export class GetInferenceDto extends GetPaginationDto {
   @ApiProperty({
@@ -14,9 +13,9 @@ export class GetInferenceDto extends GetPaginationDto {
 
   @ApiProperty({
     required: true,
-    enum: InferenceCategory,
+    enum: Category,
   })
-  category: InferenceCategory;
+  category: Category;
 
   @ApiProperty({
     required: false,

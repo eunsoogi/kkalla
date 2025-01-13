@@ -6,9 +6,9 @@ import { firstValueFrom } from 'rxjs';
 
 import { CursorItem } from '@/modules/item/item.interface';
 
+import { Category } from '../category/category.enum';
 import { RetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
-import { InferenceCategory } from '../inference/inference.enum';
 import { API_URL } from './news.config';
 import { NewsTypes } from './news.enum';
 import { CompactNews, News, NewsApiResponse, NewsRequest } from './news.interface';
@@ -74,13 +74,13 @@ export class NewsService {
     }));
   }
 
-  public getNewsType(category: InferenceCategory): NewsTypes {
+  public getNewsType(category: Category): NewsTypes {
     switch (category) {
-      case InferenceCategory.COIN_MAJOR:
-      case InferenceCategory.COIN_MINOR:
+      case Category.COIN_MAJOR:
+      case Category.COIN_MINOR:
         return NewsTypes.COIN;
 
-      case InferenceCategory.NASDAQ:
+      case Category.NASDAQ:
         return NewsTypes.OVERSEAS_STOCK;
 
       default:

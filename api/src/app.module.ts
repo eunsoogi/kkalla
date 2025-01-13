@@ -4,6 +4,7 @@ import { TypeOrmModule } from './databases/typeorm.module';
 import { AccumulationModule } from './modules/accumulation/accumulation.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlacklistModule } from './modules/blacklist/blacklist.module';
+import { CategoryModule } from './modules/category/category.module';
 import { ErrorModule } from './modules/error/error.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { HealthModule } from './modules/health/health.module';
@@ -57,6 +58,7 @@ import { UserModule } from './modules/user/user.module';
     SlackModule,
     NotifyModule,
     ProfitModule,
+    CategoryModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { InferenceCategory } from '@/enums/inference.enum';
+import { Category } from '@/enums/category.enum';
 
 import { CursorItem, PaginatedItem } from './item.interface';
 
@@ -7,7 +7,7 @@ export interface Inference {
   seq: number;
   ticker: string;
   rate: number;
-  category: InferenceCategory;
+  category: Category;
   reason: string;
   createdAt?: string;
   updatedAt?: string;

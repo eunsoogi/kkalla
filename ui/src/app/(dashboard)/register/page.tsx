@@ -1,5 +1,6 @@
 import React from 'react';
 
+import CategoryForm from '@/components/category/CategoryForm';
 import ScheduleForm from '@/components/config/ScheduleForm';
 import UpbitForm from '@/components/config/UpbitForm';
 import UpbitGuide from '@/components/config/UpbitGuide';
@@ -16,6 +17,9 @@ const Page: React.FC = () => {
         </div>
         <div className='py-6'>
           <ScheduleForm />
+        </div>
+        <div className='py-6'>
+          <CategoryForm />
         </div>
       </div>
     </>

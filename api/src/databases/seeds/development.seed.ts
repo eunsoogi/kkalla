@@ -1,7 +1,7 @@
 import { Seeder } from 'typeorm-extension';
 
+import { Category } from '@/modules/category/category.enum';
 import { Inference } from '@/modules/inference/entities/inference.entity';
-import { InferenceCategory } from '@/modules/inference/inference.enum';
 import { Notify } from '@/modules/notify/entities/notify.entity';
 import { Role } from '@/modules/role/entities/role.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
@@ -36,21 +36,21 @@ export class InferenceSeeder implements Seeder {
       await Inference.save([
         {
           seq: (await new Sequence().save()).value,
-          category: InferenceCategory.COIN_MAJOR,
+          category: Category.COIN_MAJOR,
           rate: 0.8,
           reason: `${i + 1}) 메이저 코인 추론 내용입니다.`,
           ticker: 'BTC/KRW',
         },
         {
           seq: (await new Sequence().save()).value,
-          category: InferenceCategory.COIN_MINOR,
+          category: Category.COIN_MINOR,
           rate: -0.5,
           reason: `${i + 1}) 마이너 코인 추론 내용입니다.`,
           ticker: 'XRP/KRW',
         },
         {
           seq: (await new Sequence().save()).value,
-          category: InferenceCategory.NASDAQ,
+          category: Category.NASDAQ,
           rate: 0,
           reason: `${i + 1}) 나스닥 종목 추론 내용입니다.`,
           ticker: 'AAPL',
