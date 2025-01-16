@@ -219,7 +219,7 @@ export class InferenceService {
     const permission = permissionMap[category];
     if (!permission) {
       throw new Error(
-        this.i18n.t('logging.inference.unknown_category', {
+        this.i18n.t('logging.category.unknown', {
           args: { category },
         }),
       );
@@ -245,7 +245,7 @@ export class InferenceService {
 
   public async paginate(user: User, request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
     if (!this.validateCategoryPermission(user, request.category)) {
-      throw new ForbiddenException(this.i18n.t('logging.inference.category_access_denied'));
+      throw new ForbiddenException(this.i18n.t('logging.category.access_denied'));
     }
 
     return Inference.paginate(request);
@@ -256,7 +256,7 @@ export class InferenceService {
     request: CursorRequest<string> & InferenceFilter,
   ): Promise<CursorItem<Inference, string>> {
     if (!this.validateCategoryPermission(user, request.category)) {
-      throw new ForbiddenException(this.i18n.t('logging.inference.category_access_denied'));
+      throw new ForbiddenException(this.i18n.t('logging.category.access_denied'));
     }
 
     return Inference.cursor(request);
