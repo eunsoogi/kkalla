@@ -349,7 +349,7 @@ export class TradeService implements OnModuleInit {
     const authorizedInferences = await this.filterUserAuthorizedInferences(user, inferences);
 
     // 종목 개수 계산
-    const count = this.getItemCount(user);
+    const count = await this.getItemCount(user);
 
     authorizedInferences.map((inference) => {
       this.notifyService.notify(
@@ -410,6 +410,21 @@ export class TradeService implements OnModuleInit {
     return [...nonInferenceTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
   }
 
+  private async getItemCount(user: User): Promise<number> {
+    const userCategories = await this.categoryService.findEnabledByUser(user);
+    const categories = userCategories.map((uc) => uc.category);
+
+    const authorizedCategories = categories.filter((category) =>
+      this.categoryService.checkCategoryPermission(user, category),
+    );
+
+    if (authorizedCategories.length < 1) {
+      return 0;
+    }
+
+    return Math.max(...authorizedCategories.map((category) => this.getItemCountByCategory(category)));
+  }
+
   private getItemCountByCategory(category: Category): number {
     switch (category) {
       case Category.COIN_MAJOR:
@@ -423,20 +438,6 @@ export class TradeService implements OnModuleInit {
     }
 
     return 0;
-  }
-
-  private getItemCount(user: User): number {
-    const categories = [Category.COIN_MAJOR, Category.COIN_MINOR, Category.NASDAQ];
-
-    const authorizedCategories = categories.filter((category) =>
-      this.categoryService.checkCategoryPermission(user, category),
-    );
-
-    if (authorizedCategories.length < 1) {
-      return 0;
-    }
-
-    return Math.max(...authorizedCategories.map((category) => this.getItemCountByCategory(category)));
   }
 
   public clearClients(): void {
