@@ -34,6 +34,7 @@
       "minor": "마이너 코인"
     },
     "nasdaq": "나스닥",
+    "select": "카테고리 선택",
     "update_success": "카테고리가 업데이트되었습니다.",
     "update_error": "카테고리 업데이트에 실패했습니다."
   },
