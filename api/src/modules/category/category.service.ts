@@ -1,11 +1,16 @@
 import { Injectable } from '@nestjs/common';
 
+import { I18nService } from 'nestjs-i18n';
+
+import { Permission } from '../permission/permission.enum';
 import { User } from '../user/entities/user.entity';
 import { Category } from './category.enum';
 import { UserCategory } from './entities/user-category.entity';
 
 @Injectable()
 export class CategoryService {
+  constructor(private readonly i18n: I18nService) {}
+
   public async findAllByUser(user: User): Promise<UserCategory[]> {
     return UserCategory.find({
       where: { user: { id: user.id } },
@@ -46,5 +51,31 @@ export class CategoryService {
       user: { id: user.id },
       category,
     });
+  }
+
+  public checkCategoryPermission(user: User, category: Category): boolean {
+    const userPermissions = user.roles.flatMap((role) => role.permissions || []);
+    const requiredPermission = this.getRequiredCategoryPermission(category);
+    return userPermissions.includes(requiredPermission);
+  }
+
+  public getRequiredCategoryPermission(category: Category): Permission {
+    switch (category) {
+      case Category.NASDAQ:
+        return Permission.TRADE_NASDAQ;
+
+      case Category.COIN_MAJOR:
+        return Permission.TRADE_COIN_MAJOR;
+
+      case Category.COIN_MINOR:
+        return Permission.TRADE_COIN_MINOR;
+
+      default:
+        throw new Error(
+          this.i18n.t('logging.category.unknown', {
+            args: { category },
+          }),
+        );
+    }
   }
 }

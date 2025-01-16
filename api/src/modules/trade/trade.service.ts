@@ -13,18 +13,13 @@ import { I18nService } from 'nestjs-i18n';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { formatNumber } from '@/utils/number';
 
-import { AccumulationService } from '../accumulation/accumulation.service';
-import { GetAccumulationDto } from '../accumulation/dto/get-accumulation.dto';
-import { BlacklistService } from '../blacklist/blacklist.service';
 import { Category } from '../category/category.enum';
 import { CategoryService } from '../category/category.service';
 import { HistoryService } from '../history/history.service';
 import { Inference } from '../inference/entities/inference.entity';
 import { InferenceItem } from '../inference/inference.interface';
 import { InferenceService } from '../inference/inference.service';
-import { SortDirection } from '../item/item.enum';
 import { NotifyService } from '../notify/notify.service';
-import { Permission } from '../permission/permission.enum';
 import { ProfitService } from '../profit/profit.service';
 import { SequenceService } from '../sequence/sequence.service';
 import { UpbitService } from '../upbit/upbit.service';
@@ -35,20 +30,10 @@ import { TradeData, TradeFilter, TradeRequest } from './trade.interface';
 
 @Injectable()
 export class TradeService implements OnModuleInit {
-  private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
-  private readonly COIN_MINOR_REQUEST: GetAccumulationDto = {
-    market: 'KRW',
-    open: true,
-    distinct: true,
-    display: 10,
-    order: 'price_rate',
-    sortDirection: SortDirection.ASC,
-    strengthLower: 0.8,
-    priceRateLower: -0.04,
-    priceRateUpper: 0.02,
-  };
   private readonly MINIMUM_TRADE_RATE = 0;
-  private readonly TOP_INFERENCE_COUNT = 5;
+  private readonly COIN_MAJOR_ITEM_COUNT = 2;
+  private readonly COIN_MINOR_ITEM_COUNT = 5;
+  private readonly NASDAQ_ITEM_COUNT = 0;
 
   private readonly logger = new Logger(TradeService.name);
 
@@ -67,12 +52,10 @@ export class TradeService implements OnModuleInit {
     private readonly i18n: I18nService,
     private readonly sequenceService: SequenceService,
     private readonly inferenceService: InferenceService,
-    private readonly accumulationService: AccumulationService,
     private readonly upbitService: UpbitService,
     private readonly profitService: ProfitService,
     private readonly notifyService: NotifyService,
     private readonly historyService: HistoryService,
-    private readonly blacklistService: BlacklistService,
     private readonly categoryService: CategoryService,
   ) {}
 
@@ -126,10 +109,10 @@ export class TradeService implements OnModuleInit {
     this.logger.log(this.i18n.t('logging.sqs.message.start', { args: { id: messageId } }));
 
     try {
-      const { user, inferences } = JSON.parse(message.Body);
+      const { user, inferences, buyAvailable } = JSON.parse(message.Body);
 
       // 포트폴리오 조정 실행
-      const trades = await this.processUserPortfolio(user, inferences);
+      const trades = await this.processUserItems(user, inferences, buyAvailable);
       this.logger.debug(trades);
 
       // 수익금 알림
@@ -164,7 +147,7 @@ export class TradeService implements OnModuleInit {
     }
   }
 
-  public async produceMessage(users: User[], inferences: Inference[]): Promise<void> {
+  public async produceMessage(users: User[], inferences: Inference[], buyAvailable: boolean = true): Promise<void> {
     this.logger.log(
       this.i18n.t('logging.sqs.producer.start', {
         args: { count: users.length },
@@ -176,7 +159,7 @@ export class TradeService implements OnModuleInit {
         (user) =>
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
-            MessageBody: JSON.stringify({ user, inferences }),
+            MessageBody: JSON.stringify({ user, inferences, buyAvailable }),
           }),
       );
 
@@ -189,52 +172,7 @@ export class TradeService implements OnModuleInit {
     }
   }
 
-  public async getAllInferenceItems(): Promise<InferenceItem[]> {
-    let items = [
-      ...(await this.historyService.fetchHistoryInferences()),
-      ...(await this.fetchMajorCoinInferences()),
-      ...(await this.fetchMinorCoinInferences()),
-      ...(await this.fetchNasdaqInferences()),
-    ];
-
-    const blacklist = await this.blacklistService.findAll();
-
-    // 중복 및 블랙리스트 제거
-    items = items.filter(
-      (item, index, self) =>
-        index === self.findIndex((t) => t.ticker === item.ticker) &&
-        !blacklist.some((t) => t.ticker === item.ticker && t.category === item.category),
-    );
-
-    return items;
-  }
-
-  private async fetchMajorCoinInferences(): Promise<InferenceItem[]> {
-    return this.COIN_MAJOR.map((ticker) => ({
-      ticker,
-      category: Category.COIN_MAJOR,
-      hasStock: false,
-    }));
-  }
-
-  private async fetchMinorCoinInferences(): Promise<InferenceItem[]> {
-    const items = await this.accumulationService.getAllAccumulations(this.COIN_MINOR_REQUEST);
-
-    return items.map((item) => ({
-      ticker: `${item.symbol}/${item.market}`,
-      category: Category.COIN_MINOR,
-      hasStock: false,
-    }));
-  }
-
-  // TO-DO: NASDAQ 종목 추론
-  private async fetchNasdaqInferences(): Promise<InferenceItem[]> {
-    return [];
-  }
-
-  public async executeInferences(): Promise<Inference[]> {
-    const items = await this.getAllInferenceItems();
-
+  public async executeInferences(items: InferenceItem[]): Promise<Inference[]> {
     // 추론 사전 캐싱
     await Promise.all(items.map((item) => this.inferenceService.cacheInference(item)));
 
@@ -249,7 +187,7 @@ export class TradeService implements OnModuleInit {
 
     return inferences.filter(
       (item) =>
-        this.checkCategoryPermission(user, item.category) &&
+        this.categoryService.checkCategoryPermission(user, item.category) &&
         enabledCategories.some((uc) => uc.category === item.category),
     );
   }
@@ -257,7 +195,7 @@ export class TradeService implements OnModuleInit {
   public filterIncludedInferences(inferences: Inference[]): Inference[] {
     return (
       // 카테고리별 그룹화
-      Object.values(
+      Object.entries(
         inferences.reduce(
           (acc, curr) => {
             if (!acc[curr.category]) {
@@ -270,7 +208,7 @@ export class TradeService implements OnModuleInit {
         ),
       )
         // 카테고리별로 필터링 및 정렬 후 최대 종목 개수만큼 선택
-        .map((categoryInferences) =>
+        .map(([category, categoryInferences]) =>
           categoryInferences
             .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE)
             .sort((a, b) => {
@@ -279,7 +217,7 @@ export class TradeService implements OnModuleInit {
               }
               return a.hasStock ? -1 : 1;
             })
-            .slice(0, this.TOP_INFERENCE_COUNT),
+            .slice(0, this.getItemCountByCategory(category as Category)),
         )
         .flat()
         // 전체 결과를 다시 한번 정렬
@@ -295,7 +233,7 @@ export class TradeService implements OnModuleInit {
   public filterExcludedInferences(inferences: Inference[]): Inference[] {
     return (
       // 카테고리별 그룹화
-      Object.values(
+      Object.entries(
         inferences.reduce(
           (acc, curr) => {
             if (!acc[curr.category]) {
@@ -308,7 +246,7 @@ export class TradeService implements OnModuleInit {
         ),
       )
         // 카테고리별로 필터링 및 정렬 후 제외할 항목 선택
-        .map((categoryInferences) =>
+        .map(([category, categoryInferences]) =>
           categoryInferences
             .sort((a, b) => {
               if (a.hasStock === b.hasStock) {
@@ -316,7 +254,10 @@ export class TradeService implements OnModuleInit {
               }
               return a.hasStock ? -1 : 1;
             })
-            .filter((item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT),
+            .filter(
+              (item, index) =>
+                item.rate < this.MINIMUM_TRADE_RATE || index >= this.getItemCountByCategory(category as Category),
+            ),
         )
         .flat()
         // 전체 결과를 다시 한번 정렬
@@ -345,7 +286,7 @@ export class TradeService implements OnModuleInit {
   }
 
   public generateIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
-    const filteredInferences = this.filterIncludedInferences(inferences).slice(0, this.TOP_INFERENCE_COUNT);
+    const filteredInferences = this.filterIncludedInferences(inferences).slice(0, count);
 
     const tradeRequests: TradeRequest[] = filteredInferences
       .map((inference) => ({
@@ -359,9 +300,9 @@ export class TradeService implements OnModuleInit {
     return tradeRequests;
   }
 
-  public generateExcludedTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+  public generateExcludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
     const filteredInferences = this.filterExcludedInferences(inferences).filter(
-      (item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= this.TOP_INFERENCE_COUNT,
+      (item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= count,
     );
 
     const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
@@ -384,12 +325,12 @@ export class TradeService implements OnModuleInit {
     return 0;
   }
 
-  public async processPortfolioAdjustments(users: User[]): Promise<void> {
+  public async processItems(users: User[], items: InferenceItem[], buyAvailable: boolean = true): Promise<void> {
     // 추론 실행
-    const inferences = await this.executeInferences();
+    const inferences = await this.executeInferences(items);
 
     // 큐에 메시지 전송
-    await this.produceMessage(users, inferences);
+    await this.produceMessage(users, inferences, buyAvailable);
 
     // 현재 포트폴리오 저장
     await this.historyService.saveHistory(
@@ -403,12 +344,12 @@ export class TradeService implements OnModuleInit {
     this.clearClients();
   }
 
-  public async processUserPortfolio(user: User, inferences: Inference[]): Promise<Trade[]> {
+  public async processUserItems(user: User, inferences: Inference[], buyAvailable: boolean = true): Promise<Trade[]> {
     // 권한이 있는 추론만 필터링
     const authorizedInferences = await this.filterUserAuthorizedInferences(user, inferences);
 
-    // 포트폴리오 개수 계산
-    const count = Math.min(this.TOP_INFERENCE_COUNT, authorizedInferences.length);
+    // 종목 개수 계산
+    const count = this.getItemCount(user);
 
     authorizedInferences.map((inference) => {
       this.notifyService.notify(
@@ -432,12 +373,22 @@ export class TradeService implements OnModuleInit {
       balances,
       authorizedInferences,
     );
-    const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(balances, authorizedInferences);
-    const includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
+
+    const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
       authorizedInferences,
       count,
     );
+
+    let includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
+      balances,
+      authorizedInferences,
+      count,
+    );
+
+    if (!buyAvailable) {
+      includedTradeRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    }
 
     // 편출 처리
     const nonInferenceTrades: Trade[] = await Promise.all(
@@ -459,30 +410,33 @@ export class TradeService implements OnModuleInit {
     return [...nonInferenceTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
   }
 
-  private checkCategoryPermission(user: User, category: Category): boolean {
-    const userPermissions = user.roles.flatMap((role) => role.permissions || []);
-    const requiredPermission = this.getRequiredCategoryPermission(category);
-    return userPermissions.includes(requiredPermission);
-  }
-
-  private getRequiredCategoryPermission(category: Category): Permission {
+  private getItemCountByCategory(category: Category): number {
     switch (category) {
-      case Category.NASDAQ:
-        return Permission.TRADE_NASDAQ;
-
       case Category.COIN_MAJOR:
-        return Permission.TRADE_COIN_MAJOR;
+        return this.COIN_MAJOR_ITEM_COUNT;
 
       case Category.COIN_MINOR:
-        return Permission.TRADE_COIN_MINOR;
+        return this.COIN_MINOR_ITEM_COUNT;
 
-      default:
-        throw new Error(
-          this.i18n.t('logging.inference.unknown_category', {
-            args: { category },
-          }),
-        );
+      case Category.NASDAQ:
+        return this.NASDAQ_ITEM_COUNT;
     }
+
+    return 0;
+  }
+
+  private getItemCount(user: User): number {
+    const categories = [Category.COIN_MAJOR, Category.COIN_MINOR, Category.NASDAQ];
+
+    const authorizedCategories = categories.filter((category) =>
+      this.categoryService.checkCategoryPermission(user, category),
+    );
+
+    if (authorizedCategories.length < 1) {
+      return 0;
+    }
+
+    return Math.max(...authorizedCategories.map((category) => this.getItemCountByCategory(category)));
   }
 
   public clearClients(): void {

@@ -85,7 +85,7 @@ export class NewsService {
 
       default:
         throw new Error(
-          this.i18n.t('logging.inference.unknown_category', {
+          this.i18n.t('logging.category.unknown', {
             args: { category },
           }),
         );

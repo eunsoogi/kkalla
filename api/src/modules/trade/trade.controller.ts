@@ -56,10 +56,4 @@ export class TradeController {
   async createTrade(@CurrentUser() user: User, @Body() body: PostTradeDto): Promise<Trade> {
     return this.tradeService.createTradeFromUserRequest(user, body);
   }
-
-  @Post('request')
-  @UseGuards(GoogleTokenAuthGuard)
-  public async processPortfolio(@CurrentUser() user: User): Promise<void> {
-    await this.tradeService.processPortfolioAdjustments([user]);
-  }
 }
