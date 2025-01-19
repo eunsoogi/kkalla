@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   FindManyOptions,
+  Index,
   JoinColumn,
   LessThanOrEqual,
   ManyToOne,
@@ -15,6 +16,7 @@ import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules
 import { User } from '@/modules/user/entities/user.entity';
 
 @Entity()
+@Index('idx_notify_user_seq', ['user', 'seq'])
 export class Notify extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
