@@ -14,17 +14,21 @@ ui:
   autoscaling:
     enabled: false
   publicUrl: https://www.kkalla.com/
+  service:
+    type: LoadBalancer
   ingress:
     enabled: true
     className: alb
     annotations:
       alb.ingress.kubernetes.io/load-balancer-name: kkalla-alb
-      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/target-type: instance
       alb.ingress.kubernetes.io/scheme: internet-facing
       alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:889753608001:certificate/822a4b4c-8d03-4fb5-a19b-ab3599fa8f84
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
-      alb.ingress.kubernetes.io/ssl-redirect: '443'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/healthcheck-matcher: "200-399"
+      alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
     hosts:
       - paths:
           - path: /
-            pathType: ImplementationSpecific
+            pathType: Prefix
