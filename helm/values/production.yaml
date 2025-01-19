@@ -16,6 +16,7 @@ ui:
   publicUrl: https://www.kkalla.com/
   ingress:
     enabled: true
+    className: alb
     annotations:
       alb.ingress.kubernetes.io/load-balancer-name: kkalla-alb
       alb.ingress.kubernetes.io/target-type: instance
