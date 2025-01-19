@@ -128,7 +128,6 @@ jobs:
               email: ${{ secrets.ADMIN_EMAIL }}
 
           ui:
-            publicUrl: ${{ vars.PUBLIC_URL }}
             auth:
               google: *google
           EOL
