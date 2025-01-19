@@ -124,3 +124,15 @@ make install ENV=production
 ```bash
 make uninstall
 ```
+
+AWS에서 ALB를 사용하기 위해 다음 Helm을 배포합니다.
+
+```bash
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=kkalla \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller
+```
