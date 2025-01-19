@@ -13,9 +13,16 @@ api:
 ui:
   autoscaling:
     enabled: false
-  publicUrl: http://localhost/
+  publicUrl: https://www.kkalla.com/
   ingress:
     enabled: true
+    annotations:
+      alb.ingress.kubernetes.io/load-balancer-name: kkalla-alb
+      alb.ingress.kubernetes.io/target-type: instance
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:889753608001:certificate/822a4b4c-8d03-4fb5-a19b-ab3599fa8f84
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: '443'
     hosts:
       - paths:
           - path: /
