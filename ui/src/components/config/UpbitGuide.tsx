@@ -7,12 +7,14 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Button } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
+import { ColoredBadge } from '@/components/common/ColoredBadge';
+
 import { getIpAction } from './action';
 import UpbitGuideImg from '/public/images/register/upbit-guide.png';
 
 const ipQueryKey = ['upbit', 'ip'];
 
-const UpbitDescription: React.FC = () => {
+const UpbitIp: React.FC = () => {
   const t = useTranslations();
 
   const { data } = useSuspenseQuery<string | null>({
@@ -23,22 +25,34 @@ const UpbitDescription: React.FC = () => {
   });
 
   return (
-    <div className='mt-6'>
-      {t('upbit.description', {
-        ip: data,
-      })}
+    <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
+      <span className='font-medium'>IP:</span>
+      <code className='px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded'>{data}</code>
     </div>
   );
 };
 
-const UpbitDescriptionSkeleton: React.FC = () => {
+const UpbitIpSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return (
-    <div className='mt-6'>
-      {t('upbit.description', {
-        ip: t('status.unknown'),
-      })}
+    <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
+      <span className='font-medium'>IP:</span>
+      <code className='px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded'>{t('status.unknown')}</code>
+    </div>
+  );
+};
+
+const UpbitGrants: React.FC = () => {
+  const t = useTranslations();
+
+  return (
+    <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
+      <span className='font-medium'>{t('upbit.grant')}:</span>
+      <div className='flex gap-2'>
+        <ColoredBadge text={t('upbit.grants.view_asset')} />
+        <ColoredBadge text={t('upbit.grants.order')} />
+      </div>
     </div>
   );
 };
@@ -59,16 +73,22 @@ const UpbitGuide: React.FC = () => {
       <div className='flex flex-column items-center gap-2'>
         <h5 className='card-title text-dark dark:text-white'>{t('upbit.guide')}</h5>
       </div>
-      <Suspense fallback={<UpbitDescriptionSkeleton />}>
-        <UpbitDescription />
-      </Suspense>
+      <div className='mt-6 space-y-4'>
+        <div className='text-gray-700 dark:text-gray-300'>{t('upbit.description')}</div>
+        <div className='space-y-2'>
+          <UpbitGrants />
+          <Suspense fallback={<UpbitIpSkeleton />}>
+            <UpbitIp />
+          </Suspense>
+        </div>
+      </div>
       <Image
+        onClick={handleGuideClick}
         src={UpbitGuideImg.src}
         width={UpbitGuideImg.width}
         height={UpbitGuideImg.height}
         alt={t('upbit.guide')}
         className='rounded-xl w-full mt-6 cursor-pointer'
-        onClick={handleGuideClick}
       />
       <div className='flex justify-center mt-4'>
         <Button onClick={handleLinkClick} color={'primary'}>
