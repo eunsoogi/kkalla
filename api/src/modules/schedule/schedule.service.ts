@@ -42,7 +42,7 @@ export class ScheduleService {
     private readonly historyService: HistoryService,
   ) {}
 
-  @Cron(ScheduleExpression.NIGHT_EVERY_20_MINUTES)
+  @Cron(ScheduleExpression.NIGHT_EVERY_HOUR)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithBuyEnabled(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
