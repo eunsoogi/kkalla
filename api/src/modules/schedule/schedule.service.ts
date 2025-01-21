@@ -42,7 +42,7 @@ export class ScheduleService {
     private readonly historyService: HistoryService,
   ) {}
 
-  @Cron(ScheduleExpression.NIGHT_EVERY_HOUR)
+  @Cron(ScheduleExpression.BUY_EVERY_4_HOURS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithBuyEnabled(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
@@ -66,7 +66,7 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
-  @Cron(ScheduleExpression.DAY_EVERY_20_MINUTES)
+  @Cron(ScheduleExpression.SELL_EVERY_20_MINUTES)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithBuyDisabled(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
