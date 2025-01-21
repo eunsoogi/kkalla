@@ -1,4 +1,4 @@
 export enum ScheduleExpression {
-  NIGHT_EVERY_HOUR = '0 0 1-8 * * *',
-  DAY_EVERY_20_MINUTES = '0 */20 9-23,0 * * *',
+  BUY_EVERY_4_HOURS = '0 0 */4 * * *',
+  SELL_EVERY_20_MINUTES = '0 */20 1-3,5-7,9-11,13-15,17-19,21-23 * * *',
 }
