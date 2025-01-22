@@ -212,20 +212,24 @@ export class TradeService implements OnModuleInit {
           categoryInferences
             .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE)
             .sort((a, b) => {
-              if (a.hasStock === b.hasStock) {
-                return b.rate - a.rate;
+              if (a.hasStock) {
+                return -1;
+              } else if (b.hasStock) {
+                return 1;
               }
-              return a.hasStock ? -1 : 1;
+              return b.rate - a.rate;
             })
             .slice(0, this.getItemCountByCategory(category as Category)),
         )
         .flat()
         // 전체 결과를 다시 한번 정렬
         .sort((a, b) => {
-          if (a.hasStock === b.hasStock) {
-            return b.rate - a.rate;
+          if (a.hasStock) {
+            return -1;
+          } else if (b.hasStock) {
+            return 1;
           }
-          return a.hasStock ? -1 : 1;
+          return b.rate - a.rate;
         })
     );
   }
@@ -249,10 +253,12 @@ export class TradeService implements OnModuleInit {
         .map(([category, categoryInferences]) =>
           categoryInferences
             .sort((a, b) => {
-              if (a.hasStock === b.hasStock) {
-                return b.rate - a.rate;
+              if (a.hasStock) {
+                return -1;
+              } else if (b.hasStock) {
+                return 1;
               }
-              return a.hasStock ? -1 : 1;
+              return b.rate - a.rate;
             })
             .filter(
               (item, index) =>
@@ -262,10 +268,12 @@ export class TradeService implements OnModuleInit {
         .flat()
         // 전체 결과를 다시 한번 정렬
         .sort((a, b) => {
-          if (a.hasStock === b.hasStock) {
-            return b.rate - a.rate;
+          if (a.hasStock) {
+            return -1;
+          } else if (b.hasStock) {
+            return 1;
           }
-          return a.hasStock ? -1 : 1;
+          return b.rate - a.rate;
         })
     );
   }
