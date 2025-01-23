@@ -193,89 +193,58 @@ export class TradeService implements OnModuleInit {
   }
 
   public filterIncludedInferences(inferences: Inference[]): Inference[] {
-    return (
-      // 카테고리별 그룹화
-      Object.entries(
-        inferences.reduce(
-          (acc, curr) => {
-            if (!acc[curr.category]) {
-              acc[curr.category] = [];
-            }
-            acc[curr.category].push(curr);
-            return acc;
-          },
-          {} as Record<string, Inference[]>,
-        ),
-      )
-        // 카테고리별로 필터링 및 정렬 후 최대 종목 개수만큼 선택
-        .map(([category, categoryInferences]) =>
-          categoryInferences
-            .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE)
-            .sort((a, b) => {
-              if (a.hasStock) {
-                return -1;
-              } else if (b.hasStock) {
-                return 1;
-              }
-              return b.rate - a.rate;
-            })
-            .slice(0, this.getItemCountByCategory(category as Category)),
-        )
-        .flat()
-        // 전체 결과를 다시 한번 정렬
-        .sort((a, b) => {
-          if (a.hasStock) {
-            return -1;
-          } else if (b.hasStock) {
-            return 1;
-          }
-          return b.rate - a.rate;
-        })
+    const results = this.groupInferencesByCategory(inferences).map(([category, categoryInferences]) =>
+      this.getIncludedInferencesByCategory(categoryInferences, category as Category),
     );
+    return this.mergeSortedInferences(results);
   }
 
   public filterExcludedInferences(inferences: Inference[]): Inference[] {
-    return (
-      // 카테고리별 그룹화
-      Object.entries(
-        inferences.reduce(
-          (acc, curr) => {
-            if (!acc[curr.category]) {
-              acc[curr.category] = [];
-            }
-            acc[curr.category].push(curr);
-            return acc;
-          },
-          {} as Record<string, Inference[]>,
-        ),
-      )
-        // 카테고리별로 필터링 및 정렬 후 제외할 항목 선택
-        .map(([category, categoryInferences]) =>
-          categoryInferences
-            .sort((a, b) => {
-              if (a.hasStock) {
-                return -1;
-              } else if (b.hasStock) {
-                return 1;
-              }
-              return b.rate - a.rate;
-            })
-            .filter(
-              (item, index) =>
-                item.rate < this.MINIMUM_TRADE_RATE || index >= this.getItemCountByCategory(category as Category),
-            ),
-        )
-        .flat()
-        // 전체 결과를 다시 한번 정렬
-        .sort((a, b) => {
-          if (a.hasStock) {
-            return -1;
-          } else if (b.hasStock) {
-            return 1;
-          }
-          return b.rate - a.rate;
-        })
+    const results = this.groupInferencesByCategory(inferences).map(([category, categoryInferences]) =>
+      this.getExcludedInferencesByCategory(categoryInferences, category as Category),
     );
+    return this.mergeSortedInferences(results);
+  }
+
+  private groupInferencesByCategory(inferences: Inference[]): Array<[string, Inference[]]> {
+    return Object.entries(
+      inferences.reduce(
+        (acc, curr) => {
+          if (!acc[curr.category]) {
+            acc[curr.category] = [];
+          }
+          acc[curr.category].push(curr);
+          return acc;
+        },
+        {} as Record<string, Inference[]>,
+      ),
+    );
+  }
+
+  private getIncludedInferencesByCategory(categoryInferences: Inference[], category: Category): Inference[] {
+    return this.sortInferences(categoryInferences)
+      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE)
+      .slice(0, this.getItemCountByCategory(category));
+  }
+
+  private getExcludedInferencesByCategory(categoryInferences: Inference[], category: Category): Inference[] {
+    const includedItems = this.getIncludedInferencesByCategory(categoryInferences, category as Category);
+    return this.sortInferences(categoryInferences).filter((item) => !includedItems.includes(item));
+  }
+
+  private sortInferences(inferences: Inference[]): Inference[] {
+    return inferences.sort((a, b) => {
+      if (a.hasStock) {
+        return -1;
+      } else if (b.hasStock) {
+        return 1;
+      }
+      return b.rate - a.rate;
+    });
+  }
+
+  private mergeSortedInferences(results: Inference[][]): Inference[] {
+    return this.sortInferences(results.flat());
   }
 
   public generateNonInferenceTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
