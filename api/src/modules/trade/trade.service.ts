@@ -228,8 +228,8 @@ export class TradeService implements OnModuleInit {
   }
 
   private getExcludedInferencesByCategory(categoryInferences: Inference[], category: Category): Inference[] {
-    const includedItems = this.getIncludedInferencesByCategory(categoryInferences, category as Category);
-    return this.sortInferences(categoryInferences).filter((item) => !includedItems.includes(item));
+    const includedInferences = this.getIncludedInferencesByCategory(categoryInferences, category as Category);
+    return this.sortInferences(categoryInferences).filter((item) => !includedInferences.includes(item));
   }
 
   private sortInferences(inferences: Inference[]): Inference[] {
@@ -278,9 +278,10 @@ export class TradeService implements OnModuleInit {
   }
 
   public generateExcludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
-    const filteredInferences = this.filterExcludedInferences(inferences).filter(
-      (item, index) => item.rate < this.MINIMUM_TRADE_RATE || index >= count,
-    );
+    const filteredInferences = [
+      ...this.filterIncludedInferences(inferences).slice(count),
+      ...this.filterExcludedInferences(inferences),
+    ];
 
     const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
       ticker: inference.ticker,
