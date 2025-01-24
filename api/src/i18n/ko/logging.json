@@ -1,7 +1,7 @@
 {
   "upbit": {
     "candle": {
-      "loading": "{ticker} 캔들 차트 불러오는 중..."
+      "loading": "{ticker} {timeframe} 캔들 차트 불러오는 중..."
     }
   },
   "news": {

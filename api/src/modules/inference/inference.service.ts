@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 
+import { OHLCV } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 import { ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
 
@@ -15,13 +16,13 @@ import { NewsService } from '../news/news.service';
 import { OpenaiService } from '../openai/openai.service';
 import { Permission } from '../permission/permission.enum';
 import { SequenceService } from '../sequence/sequence.service';
-import { CompactCandle } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
 import {
   CachedInferenceMessageRequest,
+  CandleRequest,
   InferenceData,
   InferenceFilter,
   InferenceItem,
@@ -50,7 +51,11 @@ export class InferenceService {
 
     // Add news data
     const news = await this.fetchNewsData(request);
-    this.addMessagePair(messages, 'prompt.input.news', news);
+    if (news) {
+      this.addMessagePair(messages, 'prompt.input.news', news);
+    }
+
+    this.logger.debug(messages);
 
     return messages;
   }
@@ -59,13 +64,33 @@ export class InferenceService {
     const messages = await this.buildCachedMessages(request);
     const [symbol] = request.ticker.split('/');
 
+    // Add ticker
+    this.addMessagePair(messages, 'prompt.input.ticker', request.ticker);
+
     // Add candle data
-    const candles = await this.fetchCandleData(request);
-    this.addMessagePair(messages, 'prompt.input.candle', candles);
+    const timeframes = ['1d', '4h', '1h', '15m', '5m'];
+
+    for (const timeframe of timeframes) {
+      const candleData = await this.fetchCandleData({
+        ticker: request.ticker,
+        timeframe,
+        limit: request.candles[timeframe],
+      });
+
+      if (candleData.length > 0) {
+        this.addMessagePair(messages, 'prompt.input.candle', candleData, {
+          args: { timeframe: this.i18n.t(`prompt.input.timeframe.${timeframe}`) },
+        });
+      }
+    }
 
     // Add fear & greed data
     const feargreed = await this.fetchFearGreedData(symbol);
-    this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    if (feargreed) {
+      this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    }
+
+    this.logger.debug(messages);
 
     return messages;
   }
@@ -90,8 +115,15 @@ export class InferenceService {
     return feargreed;
   }
 
-  private async fetchCandleData(request: InferenceMessageRequest): Promise<CompactCandle> {
-    this.logger.log(this.i18n.t('logging.upbit.candle.loading', { args: request }));
+  private async fetchCandleData(request: CandleRequest): Promise<OHLCV[]> {
+    this.logger.log(
+      this.i18n.t('logging.upbit.candle.loading', {
+        args: {
+          ticker: request.ticker,
+          timeframe: this.i18n.t(`prompt.input.timeframe.${request.timeframe}`),
+        },
+      }),
+    );
 
     const candles = await this.upbitService.getCandles(request);
 
@@ -106,9 +138,9 @@ export class InferenceService {
     messages.push({ role, content });
   }
 
-  private addMessagePair(messages: ChatCompletionMessageParam[], promptKey: string, data: any): void {
-    this.addMessage(messages, 'assistant', this.i18n.t(promptKey));
-    this.addMessage(messages, 'user', JSON.stringify(data || '{}'));
+  private addMessagePair(messages: ChatCompletionMessageParam[], promptKey: string, data: any, args?: any): void {
+    this.addMessage(messages, 'system', this.i18n.t(promptKey, args));
+    this.addMessage(messages, 'user', JSON.stringify(data));
   }
 
   public getResponseFormat(): ResponseFormatJSONSchema {
