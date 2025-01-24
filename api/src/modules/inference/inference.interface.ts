@@ -29,6 +29,12 @@ export interface InferenceMessageRequest {
   newsLimit: number;
 }
 
+export interface CandleRequest {
+  ticker: string;
+  timeframe: string;
+  limit: number;
+}
+
 export interface InferenceItem {
   ticker: string;
   category: Category;

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Balances, Order, upbit } from 'ccxt';
+import { Balances, OHLCV, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
@@ -8,7 +8,7 @@ import { NotifyService } from '../notify/notify.service';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
-import { AdjustOrderRequest, CandleRequest, CompactCandle, OrderRequest, UpbitConfigData } from './upbit.interface';
+import { AdjustOrderRequest, OrderRequest, UpbitConfigData } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
@@ -65,32 +65,9 @@ export class UpbitService {
     this.client = [];
   }
 
-  public async getCandles(request: CandleRequest): Promise<CompactCandle> {
+  public async getCandles(request: CandleRequest): Promise<OHLCV[]> {
     const client = this.getServerClient();
-    const candleIntervals = ['1d', '4h', '1h', '15m', '5m'];
-
-    this.logger.debug(request);
-
-    const candles: CompactCandle = {
-      ticker: request.ticker,
-      series: await Promise.all(
-        candleIntervals.map(async (interval) => ({
-          interval,
-          data: await client.fetchOHLCV(request.ticker, interval, undefined, request.candles[interval]),
-        })),
-      ),
-    };
-
-    this.logger.debug({
-      ticker: candles.ticker,
-      series: candles.series.map((s) => ({
-        interval: s.interval,
-        length: s.data.length,
-        last3: s.data.slice(-3),
-      })),
-    });
-
-    return candles;
+    return await client.fetchOHLCV(request.ticker, request.timeframe, undefined, request.limit);
   }
 
   public async getBalances(user: User): Promise<Balances> {
@@ -249,4 +226,11 @@ export class UpbitService {
 
     return null;
   }
+}
+
+export interface CandleRequest {
+  ticker: string;
+  since?: number;
+  limit?: number;
+  timeframe: string;
 }
