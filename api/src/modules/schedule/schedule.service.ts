@@ -65,7 +65,7 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
-  @Cron(ScheduleExpression.SELL_EVERY_20_MINUTES)
+  @Cron(ScheduleExpression.SELL_EVERY_15_MINUTES)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithBuyDisabled(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
