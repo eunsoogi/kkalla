@@ -50,20 +50,30 @@ export class GetAccumulationDto {
   @ApiProperty({
     required: false,
   })
-  strengthLower?: number;
-
-  @ApiProperty({
-    required: false,
-  })
-  strengthUpper?: number;
-
-  @ApiProperty({
-    required: false,
-  })
   priceRateLower?: number;
 
   @ApiProperty({
     required: false,
   })
   priceRateUpper?: number;
+
+  @ApiProperty({
+    required: false,
+  })
+  accTradePriceLower?: number;
+
+  @ApiProperty({
+    required: false,
+  })
+  accTradePriceUpper?: number;
+
+  @ApiProperty({
+    required: false,
+  })
+  strengthLower?: number;
+
+  @ApiProperty({
+    required: false,
+  })
+  strengthUpper?: number;
 }

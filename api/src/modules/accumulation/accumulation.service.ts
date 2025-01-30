@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { firstValueFrom } from 'rxjs';
 
@@ -12,6 +12,8 @@ import { GetAccumulationDto } from './dto/get-accumulation.dto';
 
 @Injectable()
 export class AccumulationService {
+  private readonly logger = new Logger(AccumulationService.name);
+
   constructor(
     private readonly errorService: ErrorService,
     private readonly httpService: HttpService,
@@ -63,6 +65,7 @@ export class AccumulationService {
         avg: item.avg,
         price: item.price,
         priceRate: item.price_rate / 100,
+        accTradePrice: item.data?.acc_trade_price_24h,
         strength: item.strength / 100,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
@@ -81,10 +84,12 @@ export class AccumulationService {
 
     const filteredItems = items.filter(
       (item) =>
-        (!request.strengthLower || item.strength >= request.strengthLower) &&
-        (!request.strengthUpper || item.strength <= request.strengthUpper) &&
         (!request.priceRateLower || item.priceRate >= request.priceRateLower) &&
-        (!request.priceRateUpper || item.priceRate <= request.priceRateUpper),
+        (!request.priceRateUpper || item.priceRate <= request.priceRateUpper) &&
+        (!request.accTradePriceLower || item.accTradePrice >= request.accTradePriceLower) &&
+        (!request.accTradePriceUpper || item.accTradePrice <= request.accTradePriceUpper) &&
+        (!request.strengthLower || item.strength >= request.strengthLower) &&
+        (!request.strengthUpper || item.strength <= request.strengthUpper),
     );
 
     return request.display ? filteredItems.slice(0, request.display) : filteredItems;
