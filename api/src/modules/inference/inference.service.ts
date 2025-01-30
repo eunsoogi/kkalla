@@ -90,6 +90,13 @@ export class InferenceService {
       this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
 
+    // Add inferences in the last 4 hours ago
+    const recentDate = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const recentInferences = await Inference.getRecent(request.ticker, recentDate);
+    if (recentInferences.length > 0) {
+      this.addMessagePair(messages, 'prompt.input.recent', recentInferences);
+    }
+
     this.logger.debug(messages);
 
     return messages;
@@ -154,10 +161,7 @@ export class InferenceService {
     };
   }
 
-  public async requestCacheInference(
-    request: CachedInferenceMessageRequest,
-    retryOptions?: RetryOptions,
-  ): Promise<void> {
+  public async requestCacheAPI(request: CachedInferenceMessageRequest, retryOptions?: RetryOptions): Promise<void> {
     const messages = await this.buildCachedMessages(request);
     const client = await this.openaiService.getServerClient();
 
@@ -183,7 +187,7 @@ export class InferenceService {
     return Promise.resolve();
   }
 
-  public async requestInference(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
+  public async requestAPI(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
     const messages = await this.buildMessages(request);
     const responseFormat = this.getResponseFormat();
     const client = await this.openaiService.getServerClient();
@@ -213,18 +217,18 @@ export class InferenceService {
     return inferenceData;
   }
 
-  public async cacheInference(item: InferenceItem): Promise<void> {
-    await this.requestCacheInference({
+  public async cache(item: InferenceItem): Promise<void> {
+    await this.requestCacheAPI({
       newsLimit: INFERENCE_CONFIG.message.newsLimit,
       category: item.category,
     });
   }
 
-  public async getInference(item: InferenceItem): Promise<Inference> {
+  public async request(item: InferenceItem): Promise<Inference> {
     this.logger.log(this.i18n.t('logging.inference.start', { args: item }));
 
     try {
-      const data = await this.requestInference({
+      const data = await this.requestAPI({
         ...INFERENCE_CONFIG.message,
         ticker: item.ticker,
         category: item.category,
@@ -273,6 +277,10 @@ export class InferenceService {
     inference.seq = await this.sequenceService.getNextSequence();
 
     return inference.save();
+  }
+
+  public async getRecent(ticker: string, recentDate: Date): Promise<Inference[]> {
+    return Inference.getRecent(ticker, recentDate);
   }
 
   public async paginate(user: User, request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {

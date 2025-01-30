@@ -174,10 +174,10 @@ export class TradeService implements OnModuleInit {
 
   public async executeInferences(items: InferenceItem[]): Promise<Inference[]> {
     // 추론 사전 캐싱
-    await Promise.all(items.map((item) => this.inferenceService.cacheInference(item)));
+    await Promise.all(items.map((item) => this.inferenceService.cache(item)));
 
     // 추론 수행
-    const inferences = await Promise.all(items.map((item) => this.inferenceService.getInference(item)));
+    const inferences = await Promise.all(items.map((item) => this.inferenceService.request(item)));
 
     return inferences.filter((item) => item !== null);
   }

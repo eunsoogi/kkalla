@@ -56,6 +56,18 @@ export class Inference extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  public static async getRecent(ticker: string, recentDate: Date): Promise<Inference[]> {
+    return await this.find({
+      where: {
+        ticker,
+        createdAt: MoreThanOrEqual(recentDate),
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
   public static async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
     const where: any = {
       category: request.category,
