@@ -29,8 +29,9 @@ export class ScheduleService {
     display: 10,
     order: 'price_rate',
     sortDirection: SortDirection.ASC,
-    strengthLower: 0.8,
     priceRateUpper: 0.02,
+    accTradePriceLower: 10 ** 10,
+    strengthLower: 0.8,
   };
 
   constructor(
