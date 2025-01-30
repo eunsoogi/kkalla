@@ -77,7 +77,7 @@ export class InferenceController {
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
   public async post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
-    return this.inferenceService.requestInference(<InferenceMessageRequest>{
+    return this.inferenceService.requestAPI(<InferenceMessageRequest>{
       ...INFERENCE_CONFIG.message,
       ...body,
     });
