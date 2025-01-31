@@ -234,12 +234,21 @@ export class TradeService implements OnModuleInit {
 
   private sortInferences(inferences: Inference[]): Inference[] {
     return inferences.sort((a, b) => {
-      if (a.hasStock) {
+      if (a.hasStock && b.hasStock) {
+        return 0;
+      } else if (a.hasStock) {
         return -1;
       } else if (b.hasStock) {
         return 1;
       }
-      return b.rate - a.rate;
+
+      const rateDiff = b.rate - a.rate;
+
+      if (Math.abs(rateDiff) < Number.EPSILON) {
+        return 0;
+      }
+
+      return rateDiff;
     });
   }
 
