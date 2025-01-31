@@ -65,7 +65,7 @@ export class AccumulationService {
         avg: item.avg,
         price: item.price,
         priceRate: item.price_rate / 100,
-        accTradePrice: item.data?.acc_trade_price_24h,
+        accTradePrice: item.acc_trade_price,
         strength: item.strength / 100,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
