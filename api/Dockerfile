@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} node:22.11.0-alpine AS base
+FROM --platform=${BUILDPLATFORM} node:22.13.1-alpine AS base
 WORKDIR /app
 RUN corepack enable pnpm
 COPY package.json .
@@ -12,7 +12,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
 
-FROM node:22.11.0-bookworm AS runner-development
+FROM node:22.13.1-bookworm AS runner-development
 WORKDIR /app
 RUN corepack enable pnpm
 COPY --from=deps /app/node_modules ./node_modules
@@ -21,7 +21,7 @@ ENV NODE_ENV=development
 EXPOSE 3000
 CMD ["pnpm", "start:dev"]
 
-FROM node:22.11.0-alpine AS runner-production
+FROM node:22.13.1-alpine AS runner-production
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
