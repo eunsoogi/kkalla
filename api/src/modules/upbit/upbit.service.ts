@@ -8,7 +8,7 @@ import { NotifyService } from '../notify/notify.service';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
-import { AdjustOrderRequest, OrderRequest, UpbitConfigData } from './upbit.interface';
+import { AdjustOrderRequest, CandleRequest, OrderRequest, UpbitConfigData } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
@@ -16,6 +16,7 @@ export class UpbitService {
   private serverClient: upbit;
   private client: upbit[] = [];
   private readonly MINIMUM_TRADE_PRICE = 5000;
+  private readonly MAX_PRECISION = 8;
 
   constructor(
     private readonly notifyService: NotifyService,
@@ -200,8 +201,8 @@ export class UpbitService {
       const tickerPrice = this.calculatePrice(balances, ticker);
       const tickerVolume = this.getVolume(balances, symbol);
       const marketPrice = this.calculateTotalPrice(balances);
-      const tradePrice = (tickerPrice || marketPrice) * diff * 0.9995;
-      const tradeVolume = Math.min(tickerVolume, tickerVolume * diff * -1);
+      const tradePrice = (tickerPrice || marketPrice) * Math.abs(diff) * 0.9995;
+      const tradeVolume = this.preciseRound(tickerVolume * Math.abs(diff));
 
       // 매수해야 할 경우
       if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {
@@ -226,11 +227,9 @@ export class UpbitService {
 
     return null;
   }
-}
 
-export interface CandleRequest {
-  ticker: string;
-  since?: number;
-  limit?: number;
-  timeframe: string;
+  private preciseRound(value: number): number {
+    const factor = 10 ** this.MAX_PRECISION;
+    return Math.round(value * factor) / factor;
+  }
 }
