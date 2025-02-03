@@ -7,6 +7,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { User } from '../user/entities/user.entity';
 import { CreateUpbitConfigDto } from './dto/create-config.dto';
+import { RequestAdjustOrderDto } from './dto/request-adjust-order.dto';
 import { RequestOrderDto } from './dto/request-order.dto';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { UpbitService } from './upbit.service';
@@ -19,6 +20,15 @@ export class UpbitController {
   @UseGuards(GoogleTokenAuthGuard)
   public async postOrder(@CurrentUser() user: User, @Body() request: RequestOrderDto): Promise<Order> {
     return this.upbitService.order(user, request);
+  }
+
+  @Post('order/adjust')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async postAdjustOrder(@CurrentUser() user: User, @Body() request: RequestAdjustOrderDto): Promise<Order> {
+    return this.upbitService.adjustOrder(user, {
+      ...request,
+      balances: await this.upbitService.getBalances(user),
+    });
   }
 
   @Post('config')

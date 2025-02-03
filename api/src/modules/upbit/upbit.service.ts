@@ -4,6 +4,7 @@ import { Balances, OHLCV, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
+import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
@@ -19,8 +20,9 @@ export class UpbitService {
   private readonly MAX_PRECISION = 8;
 
   constructor(
-    private readonly notifyService: NotifyService,
     private readonly i18n: I18nService,
+    private readonly errorService: ErrorService,
+    private readonly notifyService: NotifyService,
   ) {}
 
   public async readConfig(user: User): Promise<UpbitConfig> {
@@ -74,7 +76,11 @@ export class UpbitService {
   public async getBalances(user: User): Promise<Balances> {
     try {
       const client = await this.getClient(user);
-      return await client.fetchBalance();
+      const balances = await client.fetchBalance();
+
+      this.logger.debug(`balances: ${JSON.stringify(balances)}`);
+
+      return balances;
     } catch {
       this.notifyService.notify(user, this.i18n.t('notify.balance.fail'));
     }
@@ -167,16 +173,29 @@ export class UpbitService {
   }
 
   public async order(user: User, request: OrderRequest): Promise<Order | null> {
+    const deductionAmount = 1 / 10 ** this.MAX_PRECISION;
+
     try {
       const client = await this.getClient(user);
+      let retries = 0;
 
-      switch (request.type) {
-        case OrderTypes.BUY:
-          return await client.createOrder(request.ticker, 'market', request.type, 1, request.amount);
+      return await this.errorService.retry(
+        async () => {
+          const amount = request.amount - deductionAmount * retries++;
 
-        case OrderTypes.SELL:
-          return await client.createOrder(request.ticker, 'market', request.type, request.amount);
-      }
+          switch (request.type) {
+            case OrderTypes.BUY:
+              return await client.createOrder(request.ticker, 'market', request.type, 1, amount);
+
+            case OrderTypes.SELL:
+              return await client.createOrder(request.ticker, 'market', request.type, amount);
+          }
+        },
+        {
+          maxRetries: 10,
+          retryDelay: 1000,
+        },
+      );
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
       this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
@@ -202,7 +221,7 @@ export class UpbitService {
       const tickerVolume = this.getVolume(balances, symbol);
       const marketPrice = this.calculateTotalPrice(balances);
       const tradePrice = (tickerPrice || marketPrice) * Math.abs(diff) * 0.9995;
-      const tradeVolume = this.preciseRound(tickerVolume * Math.abs(diff));
+      const tradeVolume = tickerVolume * Math.abs(diff);
 
       // 매수해야 할 경우
       if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {
@@ -226,10 +245,5 @@ export class UpbitService {
     }
 
     return null;
-  }
-
-  private preciseRound(value: number): number {
-    const factor = 10 ** this.MAX_PRECISION;
-    return Math.round(value * factor) / factor;
   }
 }
