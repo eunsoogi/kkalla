@@ -201,7 +201,7 @@ export class UpbitService {
       const tickerVolume = this.getVolume(balances, symbol);
       const marketPrice = this.calculateTotalPrice(balances);
       const tradePrice = (tickerPrice || marketPrice) * diff * 0.9995;
-      const tradeVolume = tickerVolume * diff * -1;
+      const tradeVolume = Math.min(tickerVolume, tickerVolume * diff * -1);
 
       // 매수해야 할 경우
       if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {
