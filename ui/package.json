@@ -2,7 +2,7 @@
   "name": "kkalla-ui",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@10.1.0",
   "scripts": {
     "build": "next build",
     "start:dev": "next dev",
