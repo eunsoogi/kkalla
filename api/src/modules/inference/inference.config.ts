@@ -124,6 +124,7 @@ export const INFERENCE_PROMPT = `
 - 예시 응답을 **그대로** 복사하지 말 것(형식은 참고하되, 실제 데이터와 해석을 반영)
 - "상승세", "하락세" 등 **추상 표현만 사용 금지** (반드시 수치와 근거를 함께 제시)
 - "reason" 필드는 ${INFERENCE_VALIDATION.reason.minLength}~${INFERENCE_VALIDATION.reason.maxLength}자 범위를 벗어나면 안 됨
+- 거래량이 갑작스럽게 증가하는 시점에 반드시 매도할 것
 
 4) **예시(JSON 구조) - (복붙 금지, 참조만)**
 ${JSON.stringify(INFERENCE_VALIDATION.responseExample, null, 2)}
