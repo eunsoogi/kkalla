@@ -1,6 +1,6 @@
 FROM --platform=${BUILDPLATFORM} node:22.13.1-alpine AS base
 WORKDIR /app
-RUN corepack enable pnpm
+RUN npm install -g pnpm@10.1.0
 COPY package.json .
 COPY pnpm-lock.yaml .
 
@@ -15,7 +15,7 @@ RUN pnpm build
 
 FROM node:22.13.1-bookworm AS runner-development
 WORKDIR /app
-RUN corepack enable pnpm
+RUN npm install -g pnpm@10.1.0
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=development
