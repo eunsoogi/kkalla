@@ -165,10 +165,6 @@ export class InferenceService {
         client.chat.completions.create({
           model: INFERENCE_MODEL,
           max_completion_tokens: 1,
-          temperature: INFERENCE_CONFIG.temperature,
-          top_p: INFERENCE_CONFIG.topP,
-          presence_penalty: INFERENCE_CONFIG.presencePenalty,
-          frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
           messages,
           stream: false,
         }),
@@ -192,10 +188,6 @@ export class InferenceService {
         client.chat.completions.create({
           model: INFERENCE_MODEL,
           max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
-          temperature: INFERENCE_CONFIG.temperature,
-          top_p: INFERENCE_CONFIG.topP,
-          presence_penalty: INFERENCE_CONFIG.presencePenalty,
-          frequency_penalty: INFERENCE_CONFIG.frequencyPenalty,
           response_format: responseFormat,
           messages,
           stream: false,
