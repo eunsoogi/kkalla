@@ -11,11 +11,6 @@ export interface InferenceFilter {
   sortDirection?: SortDirection;
 }
 
-export interface CachedInferenceMessageRequest {
-  category: Category;
-  newsLimit: number;
-}
-
 export interface InferenceMessageRequest {
   ticker: string;
   category: Category;
