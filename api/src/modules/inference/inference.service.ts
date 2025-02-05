@@ -21,7 +21,6 @@ import { User } from '../user/entities/user.entity';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
 import {
-  CachedInferenceMessageRequest,
   CandleRequest,
   InferenceData,
   InferenceFilter,
@@ -43,7 +42,7 @@ export class InferenceService {
     private readonly feargreedService: FeargreedService,
   ) {}
 
-  private async buildCachedMessages(request: CachedInferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
+  private async buildMessages(request: InferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
     const messages: ChatCompletionMessageParam[] = [];
 
     // Add system prompt
@@ -55,13 +54,6 @@ export class InferenceService {
       this.addMessagePair(messages, 'prompt.input.news', news);
     }
 
-    this.logger.debug(messages);
-
-    return messages;
-  }
-
-  private async buildMessages(request: InferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
-    const messages = await this.buildCachedMessages(request);
     const [symbol] = request.ticker.split('/');
 
     // Add ticker
@@ -95,7 +87,7 @@ export class InferenceService {
     return messages;
   }
 
-  private async fetchNewsData(request: CachedInferenceMessageRequest): Promise<CompactNews[]> {
+  private async fetchNewsData(request: InferenceMessageRequest): Promise<CompactNews[]> {
     this.logger.log(this.i18n.t('logging.news.loading', { args: request }));
 
     const news = await this.newsService.getCompactNews({
@@ -154,28 +146,6 @@ export class InferenceService {
     };
   }
 
-  public async requestCacheAPI(request: CachedInferenceMessageRequest, retryOptions?: RetryOptions): Promise<void> {
-    const messages = await this.buildCachedMessages(request);
-    const client = await this.openaiService.getServerClient();
-
-    this.logger.log(this.i18n.t('logging.inference.caching', { args: request }));
-
-    const response = await this.errorService.retry(
-      async () =>
-        client.chat.completions.create({
-          model: INFERENCE_MODEL,
-          max_completion_tokens: 1,
-          messages,
-          stream: false,
-        }),
-      retryOptions,
-    );
-
-    this.logger.debug(response);
-
-    return Promise.resolve();
-  }
-
   public async requestAPI(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
     const messages = await this.buildMessages(request);
     const responseFormat = this.getResponseFormat();
@@ -200,13 +170,6 @@ export class InferenceService {
     const inferenceData = JSON.parse(response.choices[0].message?.content || '{}');
 
     return inferenceData;
-  }
-
-  public async cache(item: InferenceItem): Promise<void> {
-    await this.requestCacheAPI({
-      newsLimit: INFERENCE_CONFIG.message.newsLimit,
-      category: item.category,
-    });
   }
 
   public async request(item: InferenceItem): Promise<Inference> {
