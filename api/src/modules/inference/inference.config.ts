@@ -1,11 +1,7 @@
-export const INFERENCE_MODEL = 'gpt-4o-mini';
+export const INFERENCE_MODEL = 'o3-mini';
 
 export const INFERENCE_CONFIG = {
-  maxCompletionTokens: 2048,
-  temperature: 0.2,
-  topP: 0.7,
-  presencePenalty: 0,
-  frequencyPenalty: 0,
+  maxCompletionTokens: 4096,
   message: {
     candles: {
       '1d': 90, // 90 days
