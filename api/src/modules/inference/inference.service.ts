@@ -82,6 +82,13 @@ export class InferenceService {
       this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
 
+    // Add inferences in the last 4 hours ago
+    const recentDate = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const recentInferences = await this.getRecent(request.ticker, recentDate);
+    if (recentInferences.length > 0) {
+      this.addMessagePair(messages, 'prompt.input.recent', recentInferences);
+    }
+
     this.logger.debug(messages);
 
     return messages;
@@ -225,6 +232,10 @@ export class InferenceService {
     inference.seq = await this.sequenceService.getNextSequence();
 
     return inference.save();
+  }
+
+  public async getRecent(ticker: string, recentDate: Date): Promise<Inference[]> {
+    return Inference.getRecent(ticker, recentDate);
   }
 
   public async paginate(user: User, request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {

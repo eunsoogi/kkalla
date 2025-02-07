@@ -11,7 +11,7 @@ import { InferenceDto } from './dto/inference.dto';
 import { PostInferenceDto } from './dto/post-inference.dto';
 import { Inference } from './entities/inference.entity';
 import { INFERENCE_CONFIG } from './inference.config';
-import { InferenceMessageRequest } from './inference.interface';
+import { InferenceItem } from './inference.interface';
 import { InferenceService } from './inference.service';
 
 @Controller('api/v1/inferences')
@@ -77,9 +77,10 @@ export class InferenceController {
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
   public async post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
-    return this.inferenceService.requestAPI(<InferenceMessageRequest>{
+    return this.inferenceService.request(<InferenceItem>{
       ...INFERENCE_CONFIG.message,
       ...body,
+      hasStock: false,
     });
   }
 }
