@@ -66,7 +66,7 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
-  @Cron(ScheduleExpression.EVERY_15_MINUTES_WITHOUT_4_HOURS)
+  @Cron(ScheduleExpression.EVERY_30_MINUTES_WITHOUT_EVERY_4_HOURS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithExistItems(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
