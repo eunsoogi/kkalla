@@ -26,6 +26,7 @@ import {
   InferenceFilter,
   InferenceItem,
   InferenceMessageRequest,
+  RecentInferenceResult,
 } from './inference.interface';
 
 @Injectable()
@@ -84,7 +85,7 @@ export class InferenceService {
 
     // Add inferences in the last 4 hours ago
     const recentDate = new Date(Date.now() - 4 * 60 * 60 * 1000);
-    const recentInferences = await this.getRecent(request.ticker, recentDate);
+    const recentInferences = await this.getRecentResult(request.ticker, recentDate);
     if (recentInferences.length > 0) {
       this.addMessagePair(messages, 'prompt.input.recent', recentInferences);
     }
@@ -234,8 +235,13 @@ export class InferenceService {
     return inference.save();
   }
 
-  public async getRecent(ticker: string, recentDate: Date): Promise<Inference[]> {
-    return Inference.getRecent(ticker, recentDate);
+  public async getRecentResult(ticker: string, recentDate: Date): Promise<RecentInferenceResult[]> {
+    const inferences = await Inference.getRecent(ticker, recentDate);
+
+    return inferences.map((inference) => ({
+      timestamp: inference.updatedAt,
+      rate: inference.rate,
+    }));
   }
 
   public async paginate(user: User, request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
