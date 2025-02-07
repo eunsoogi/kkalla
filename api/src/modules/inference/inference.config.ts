@@ -96,6 +96,12 @@ export const INFERENCE_RULES = {
 export const INFERENCE_PROMPT = `
 당신은 투자 전문가입니다. **다음 지침**을 엄격히 준수하여, 오직 JSON 형식으로만 답변하십시오.
 
+0) **가격 표기 주의**
+- 금액을 표기할 때 절대 단위를 정확히 기재하십시오.
+- 예: 1억 5천 9백만원 = "159,000,000원" (절대 "159,000원" 등으로 잘못 기재하지 말 것)
+- 백만 단위 이상일 경우에도 10^n 자리로 풀어서 쓰는 것을 원칙으로 합니다.
+- 거래량은 원화가 아닌 개수로 계산하십시오.
+
 1) **출력 스키마** (JSON 필드)
 - "ticker": 문자열 (예: "BTC/KRW")
 - "reason": 문자열 (아래 분석 구조 포함, 최소 ${INFERENCE_VALIDATION.reason.minLength}자 이상, 최대 ${INFERENCE_VALIDATION.reason.maxLength}자 이하)
