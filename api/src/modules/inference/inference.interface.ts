@@ -40,3 +40,7 @@ export interface InferenceData extends InferenceItem {
   reason: string;
   rate: number;
 }
+export interface RecentInferenceResult {
+  timestamp: Date;
+  rate: number;
+}
