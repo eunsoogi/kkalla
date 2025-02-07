@@ -42,9 +42,9 @@ export class ScheduleService {
     private readonly historyService: HistoryService,
   ) {}
 
-  @Cron(ScheduleExpression.BUY_EVERY_4_HOURS)
+  @Cron(ScheduleExpression.EVERY_4_HOURS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
-  public async processWithBuyEnabled(): Promise<void> {
+  public async processWithNewItems(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
       return;
@@ -66,9 +66,9 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
-  @Cron(ScheduleExpression.SELL_EVERY_15_MINUTES)
+  @Cron(ScheduleExpression.EVERY_15_MINUTES_WITHOUT_4_HOURS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
-  public async processWithBuyDisabled(): Promise<void> {
+  public async processWithExistItems(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
       return;
@@ -78,7 +78,7 @@ export class ScheduleService {
 
     const users = await this.getUsers();
     const items = await this.filterInferenceItems(await this.historyService.fetchHistoryInferences());
-    await this.tradeService.processItems(users, items, false);
+    await this.tradeService.processItems(users, items, true);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
