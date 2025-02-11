@@ -1,7 +1,7 @@
 export const INFERENCE_MODEL = 'o3-mini';
 
 export const INFERENCE_CONFIG = {
-  maxCompletionTokens: 4096,
+  maxCompletionTokens: 2048 + 4096,
   message: {
     candles: {
       '1d': 90, // 90 days
