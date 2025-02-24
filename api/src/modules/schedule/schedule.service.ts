@@ -27,8 +27,9 @@ export class ScheduleService {
     open: true,
     distinct: true,
     display: 10,
-    order: 'price_rate',
-    sortDirection: SortDirection.ASC,
+    order: 'updated_at',
+    sortDirection: SortDirection.DESC,
+    priceRateLower: -0.04,
     priceRateUpper: 0.02,
     accTradePriceLower: 10 ** 10,
     strengthLower: 0.8,
@@ -42,7 +43,7 @@ export class ScheduleService {
     private readonly historyService: HistoryService,
   ) {}
 
-  @Cron(ScheduleExpression.EVERY_4_HOURS)
+  @Cron(ScheduleExpression.EVERY_4_HOURS_WITH_NEW_ITEMS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithNewItems(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
@@ -66,7 +67,7 @@ export class ScheduleService {
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
-  @Cron(ScheduleExpression.EVERY_30_MINUTES_WITHOUT_EVERY_4_HOURS)
+  @Cron(ScheduleExpression.EVERY_30_MINUTES_WITH_EXIST_ITEMS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithExistItems(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
