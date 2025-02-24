@@ -1,4 +1,4 @@
 export enum ScheduleExpression {
-  EVERY_4_HOURS = '0 0 */4 * * *',
-  EVERY_30_MINUTES_WITHOUT_EVERY_4_HOURS = '0 */30 1-3,5-7,9-11,13-15,17-19,21-23 * * *',
+  EVERY_4_HOURS_WITH_NEW_ITEMS = '0 0 4,8 * * *',
+  EVERY_30_MINUTES_WITH_EXIST_ITEMS = '0 15,45 * * * *',
 }
