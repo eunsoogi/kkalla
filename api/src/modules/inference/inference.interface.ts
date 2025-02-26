@@ -11,6 +11,12 @@ export interface InferenceFilter {
   sortDirection?: SortDirection;
 }
 
+export interface RecentInferenceRequest {
+  ticker: string;
+  createdAt: Date;
+  count: number;
+}
+
 export interface InferenceMessageRequest {
   ticker: string;
   category: Category;
