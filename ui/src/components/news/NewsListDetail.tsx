@@ -80,11 +80,6 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
               {label}
             </Badge>
           ))}
-          {item.relatedStocks.map((stock, i) => (
-            <Badge key={i} color='muted' className='text-white bg-stone-600'>
-              {stock}
-            </Badge>
-          ))}
         </div>
       </div>
     </div>
