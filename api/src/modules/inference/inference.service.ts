@@ -26,6 +26,7 @@ import {
   InferenceFilter,
   InferenceItem,
   InferenceMessageRequest,
+  RecentInferenceRequest,
   RecentInferenceResult,
 } from './inference.interface';
 
@@ -84,8 +85,12 @@ export class InferenceService {
     }
 
     // Add inferences in the last 4 hours ago
-    const recentDate = new Date(Date.now() - 4 * 60 * 60 * 1000);
-    const recentInferences = await this.getRecentResult(request.ticker, recentDate);
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const recentInferences = await this.getRecentResult({
+      ticker: request.ticker,
+      createdAt: fourHoursAgo,
+      count: 2,
+    });
     if (recentInferences.length > 0) {
       this.addMessagePair(messages, 'prompt.input.recent', recentInferences);
     }
@@ -233,8 +238,8 @@ export class InferenceService {
     return inference.save();
   }
 
-  public async getRecentResult(ticker: string, recentDate: Date): Promise<RecentInferenceResult[]> {
-    const inferences = await Inference.getRecent(ticker, recentDate);
+  public async getRecentResult(request: RecentInferenceRequest): Promise<RecentInferenceResult[]> {
+    const inferences = await Inference.getRecent(request);
 
     return inferences.map((inference) => ({
       timestamp: inference.updatedAt,
