@@ -43,7 +43,7 @@ export class ScheduleService {
     private readonly historyService: HistoryService,
   ) {}
 
-  @Cron(ScheduleExpression.EVERY_4_HOURS_WITH_NEW_ITEMS)
+  @Cron(ScheduleExpression.EVERY_DAY_WITH_NEW_ITEMS)
   @WithRedlock({ duration: 5 * 60 * 1000 })
   public async processWithNewItems(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
