@@ -84,12 +84,11 @@ export class InferenceService {
       this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
 
-    // Add inferences in the last 4 hours ago
-    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    // Add previous inferences
     const recentInferences = await this.getRecentResult({
       ticker: request.ticker,
-      createdAt: fourHoursAgo,
-      count: 2,
+      createdAt: new Date(Date.now() - request.recentDateLimit),
+      count: request.recentLimit,
     });
     if (recentInferences.length > 0) {
       this.addMessagePair(messages, 'prompt.input.recent', recentInferences);
