@@ -105,6 +105,7 @@ export class InferenceService {
     const news = await this.newsService.getCompactNews({
       type: this.newsService.getNewsType(request.category),
       limit: request.newsLimit,
+      importanceLower: request.newsImportanceLower,
       skip: true,
     });
 

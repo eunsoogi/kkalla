@@ -63,15 +63,19 @@ export class NewsService {
 
   public async getCompactNews(request: NewsRequest): Promise<CompactNews[]> {
     const items = await this.getNews(request);
-    return this.toCompactNews(items);
+    return this.toCompactNews(items, request);
   }
 
-  private toCompactNews(items: News[]): CompactNews[] {
-    return items.map((item) => ({
-      title: item.title,
-      importance: item.importance,
-      timestamp: new Date(item.publishedAt).getTime(),
-    }));
+  private toCompactNews(items: News[], request: NewsRequest): CompactNews[] {
+    const importanceLower = request.importanceLower ?? 0; // 기본값 0으로 설정 (모든 뉴스 표시)
+
+    return items
+      .filter((item) => item.importance >= importanceLower)
+      .map((item) => ({
+        title: item.title,
+        importance: item.importance,
+        timestamp: new Date(item.publishedAt).getTime(),
+      }));
   }
 
   public getNewsType(category: Category): NewsTypes {
