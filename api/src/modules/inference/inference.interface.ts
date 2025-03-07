@@ -28,6 +28,8 @@ export interface InferenceMessageRequest {
     '5m': number;
   };
   newsLimit: number;
+  recentLimit: number;
+  recentDateLimit: number;
 }
 
 export interface CandleRequest {
