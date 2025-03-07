@@ -24,6 +24,7 @@ export interface CompactNews {
 
 export interface NewsRequest extends CursorRequest<number> {
   type?: NewsTypes;
+  importanceLower?: number; // 최소 중요도 필터 기준값 (기본값: 0, 모든 뉴스 표시)
 }
 
 export interface NewsApiResponse {

@@ -11,6 +11,7 @@ export const INFERENCE_CONFIG = {
       '5m': 12 * 6, // 6 hours
     },
     newsLimit: 100,
+    newsImportanceLower: 3,
     recentLimit: 3,
     recentDateLimit: 4 * 60 * 60 * 1000, // 4 hours
   },

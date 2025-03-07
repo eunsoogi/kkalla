@@ -28,6 +28,7 @@ export interface InferenceMessageRequest {
     '5m': number;
   };
   newsLimit: number;
+  newsImportanceLower: number;
   recentLimit: number;
   recentDateLimit: number;
 }
