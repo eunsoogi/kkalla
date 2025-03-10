@@ -12,8 +12,8 @@ export const INFERENCE_CONFIG = {
     },
     newsLimit: 100,
     newsImportanceLower: 3,
-    recentLimit: 3,
-    recentDateLimit: 4 * 60 * 60 * 1000, // 4 hours
+    recentLimit: 5,
+    recentDateLimit: 6 * 60 * 60 * 1000,
   },
 };
 
@@ -42,24 +42,33 @@ export const INFERENCE_VALIDATION = {
   },
   reason: {
     minLength: 800,
-    maxLength: 1000,
-    structure: ['가격 분석', '펀더멘털 분석', '시장 심리 분석', '리스크 분석', '최종 판단'],
+    maxLength: 1200,
+    structure: ['가격 분석', '기술적 분석', '펀더멘털 분석', '시장 분석', '심리 분석', '리스크 분석', '최종 판단'],
   },
   // 예시 응답 (Prompt에서 참고용)
   responseExample: {
     ticker: 'BTC/KRW',
     reason: [
-      '{코인명}은(는) 현재 {현재가}원에 거래되고 있으며, 전일 대비 약 {변동률}% 변동했습니다.',
-      '일봉 차트로 보면, {저항선}원 인근이 상단 저항선으로, {지지선}원 인근이 하단 지지선으로 작용할 가능성이 높습니다. 또한 {이평선} 이동평균선({이평가격}원)을 기준으로 {추세방향} 추세가 형성되어 있어, 단기 매매 시 이 가격대의 돌파 여부가 중요합니다. ',
-      'MACD 지표에서는 MACD 값이 {MACD_VAL}, 신호선이 {MACD_SIGNAL}을 기록하여 {MACD해석} 단계입니다. 특히 히스토그램({MACD_HIST}) 추이가 {모멘텀방향}으로 움직이고 있어, 단기 모멘텀이 {모멘텀강도} 상태임을 보여줍니다. ',
-      'RSI는 {RSI}로 측정되어 {RSI해석} 범위에 있으며, 이는 {RSI추가설명}라는 점에서 주목할 만합니다.',
-      '볼린저 밴드는 상단 {BB상단}, 중간 {BB중간}, 하단 {BB하단}으로 구성되고, 밴드폭이 {밴드폭}로 {밴드폭해석} 상태입니다. 현재 가격 위치는 {BB위치설명}로 분류되므로, {BB추가설명} 가능성을 염두에 둘 필요가 있습니다.',
-      'CVD 지표는 {CVD추세} 흐름을 나타내며, {CVD해석}이 포착됩니다. 이를 파이어차트({파이어차트해석})와 함께 고려하면, {수급결론}을 시사한다고 볼 수 있습니다. 최근 거래량은 전일 대비 {거래량변화}% {거래량방향}해 {거래량해석} 상태이며, 이는 현재 추세의 {추세신뢰도}에도 직결됩니다.',
-      '{뉴스제목1} 보도로 {뉴스영향1} 가능성이 있으며, 추가적으로 {뉴스제목2} 소식이 전해지면서 {뉴스영향2}할 것으로 예상됩니다. 이러한 뉴스를 종합해보면, {뉴스종합영향} 차원에서 시장이 단기적으로 민감하게 반응할 수 있습니다.',
-      '공포탐욕지수는 {FG지수}를 기록하여, {FG해석} 상태임을 보여줍니다. 이는 곧 투자자들이 {FG추가설명} 심리를 갖고 있음을 의미하며, 전체적으로 {투자심리상태} 방향으로 기울고 있음을 시사합니다.',
-      'ATR이 {ATR} 수준이므로, 변동성을 감안할 때 손절라인은 약 {손절가격}원(현재가 대비 {손절폭}% 하락)이 적절하다고 판단됩니다. 이는 {리스크설명} 측면에서 잠재적 손실을 제한하는 방안입니다.',
-      '위 분석을 종합해볼 때, 기술적 측면에서는 {기술적결론}이 관찰되며, 펀더멘털 요소로는 {펀더멘털결론} 상황, 심리 측면에서는 {심리적결론}라고 볼 수 있습니다. ',
-      '이에 따라, 당 코인의 보유비중은 종합적으로 {rate} 수준으로 추론되며, 현 시점에서 {최종판단}가(이) 합리적 선택으로 보입니다. 향후 {추가제언}에 유의하면서 대응 전략을 세우시길 권장합니다.',
+      // 가격 분석
+      'BTC/KRW은 현재 [가격]에 거래되고 있으며, 전일 대비 [증감률] 상승했습니다. 일봉 차트 분석 결과, [저항선 가격]이 단기 저항선으로, [지지선 가격]이 주요 지지선으로 작용하고 있습니다. 현재 50일 이동평균선과 200일 이동평균선 모두 상향 배열 중이며, 가격이 두 이평선 위에 위치해 중기적 상승 추세가 확인됩니다.',
+
+      // 기술적 분석
+      'MACD 지표는 현재 값이 신호선보다 높게 형성되어 있어 상승 모멘텀이 유지되고 있습니다. 특히 히스토그램이 [일수] 연속 확대되며 모멘텀 강화를 시사합니다. RSI는 현재 [RSI 값]로 다소 과열 구간에 근접했으나 아직 극단적 과매수(70 이상) 수준은 아닙니다. 볼린저 밴드의 밴드폭이 전주 대비 [비율] 확대되어 변동성이 증가하는 추세입니다. 현재 가격은 중간선과 상단선 사이에 위치하여 상승 압력이 우세하나, 상단선 접근 시 저항을 받을 가능성도 있습니다.',
+
+      // 펀더멘털 분석
+      '최근 "美 SEC, 현물 비트코인 ETF 추가 승인" 보도는 시장에 긍정적인 영향을 미쳤으며, "주요 기업들의 비트코인 보유량 증가" 소식이 제도권 수용도 확대를 시사합니다. 온체인 데이터에 따르면 장기 보유자(1년 이상) 비율이 높은 수준을 기록하고 있어 매도 압력이 제한적일 것으로 예상됩니다. 비트코인 네트워크의 해시레이트는 지난 달 대비 증가하여 네트워크 보안이 강화되고 있습니다.',
+
+      // 시장 분석
+      '최근 거래량은 [일수]일 평균 대비 증가한 상태로, 가격 상승이 거래량 증가와 함께 일어나 추세의 신뢰도가 높은 상황입니다. 변동성(ATR)은 지난 주 대비 확대되었으며, 이는 큰 방향성 움직임의 전조로 볼 수 있습니다. 비트코인의 시장 지배력은 현재 안정적이며, 이는 알트코인 대비 상대적 강세를 유지하고 있음을 보여줍니다.',
+
+      // 심리 분석
+      '공포탐욕지수는 현재 [지수값](탐욕)를 기록하고 있어, 투자자들의 낙관적 심리가 우세함을 나타냅니다. 다만 이 수치는 [기간] 전 수치에서 상승한 것으로, 과도한 낙관론으로 인한 조정 가능성도 염두에 두어야 합니다. 옵션 시장에서는 콜옵션 거래 비중이 풋옵션 대비 높아 상승 기대감이 큰 상황입니다.',
+
+      // 리스크 관리
+      'ATR 기준 적정 손절매 라인은 현재가 대비 [비율] 하락한 수준으로 판단됩니다. 포트폴리오 내 비트코인 비중은 총 암호화폐 자산의 [비율]%를 넘지 않는 것이 리스크 관리 측면에서 합리적입니다. 현재 예상 리스크 대비 보상 비율은 적절한 수준으로 계산되어 투자 효율성이 양호한 상태입니다.',
+
+      // 최종 판단
+      '종합적으로 볼 때, 기술적 지표들은 상승 모멘텀이 유지되는 가운데 일부 과열 신호가 감지되는 상황이며, 펀더멘털은 기관 투자자들의 유입과 온체인 지표 개선으로 견고합니다. 시장 심리는 낙관적이나 과도한 낙관으로 인한 단기 조정 가능성도 존재합니다. 이를 종합하여 현재 BTC/KRW의 적정 보유비중은 [비율](중립~매수)로 판단되며, 분할 매수 전략으로 접근하는 것이 합리적입니다. 추가 상승 시 주요 저항선 돌파 여부에 따라 포지션을 조정하는 전략을 권장합니다.',
     ].join(' '),
     rate: 0.5,
   },
@@ -69,7 +78,6 @@ export const INFERENCE_RULES = {
   analysis: {
     technical: {
       minIndicators: 3, // 최소 3개 이상의 기술 지표 분석
-      // 실제 Prompt에서 “(MA, MACD, RSI, 볼린저 밴드, CVD, 파이어 차트) 중 택3+” 형태로 안내
       required: [
         { name: 'MA' },
         { name: 'MACD' },
@@ -78,6 +86,76 @@ export const INFERENCE_RULES = {
         { name: 'CVD' },
         { name: '파이어 차트' },
       ],
+      // 기술적 지표 자동 계산 규칙 추가
+      calculations: {
+        movingAverage: {
+          name: 'MA',
+          periods: [20, 50, 200], // 이동평균선 기간
+          crossoverSignificance: 0.03, // 골든/데드 크로스 유의미 갭(%)
+          trendConfirmation: 10, // 추세 확인을 위한 일수
+        },
+        macd: {
+          name: 'MACD',
+          fastPeriod: 12,
+          slowPeriod: 26,
+          signalPeriod: 9,
+          divergenceThreshold: 0.2, // 다이버전스 감지 임계값
+        },
+        rsi: {
+          name: 'RSI',
+          period: 14,
+          overbought: 70, // 과매수 레벨
+          oversold: 30, // 과매도 레벨
+          divergenceDetection: true, // 다이버전스 감지 활성화
+        },
+        bollingerBands: {
+          name: '볼린저 밴드',
+          period: 20,
+          deviations: 2, // 표준편차 배수
+          bandwidthThreshold: 0.1, // 밴드폭 임계값(%)
+          squeezeDetection: true, // 스퀴즈 감지 활성화
+        },
+        cumulativeVolumeDelta: {
+          name: 'CVD',
+          period: 30, // 누적 거래량 분석 기간
+          volumeThreshold: 1.5, // 평균 대비 유의미한 거래량 배수
+        },
+        orderBookDepth: {
+          name: '파이어 차트',
+          depthLevels: 5, // 주문장 깊이 레벨
+          resistanceThreshold: 1.2, // 저항선 임계값 배수
+          supportThreshold: 1.2, // 지지선 임계값 배수
+        },
+      },
+      interpretations: {
+        bullish: [
+          '상승 추세 확인',
+          '골든 크로스 발생',
+          'RSI 과매도에서 반등',
+          'MACD 상승 다이버전스',
+          '볼린저 밴드 하단에서 반등',
+          'CVD 상승 추세',
+          '매수세 우위 확인',
+        ],
+        bearish: [
+          '하락 추세 확인',
+          '데드 크로스 발생',
+          'RSI 과매수에서 하락',
+          'MACD 하락 다이버전스',
+          '볼린저 밴드 상단에서 거부',
+          'CVD 하락 추세',
+          '매도세 우위 확인',
+        ],
+        neutral: [
+          '횡보 구간 확인',
+          '이동평균선 평행 배열',
+          'RSI 중립대 진입',
+          'MACD 약한 모멘텀',
+          '볼린저 밴드 스퀴즈 형성',
+          'CVD 뚜렷한 방향성 부재',
+          '매수/매도 균형 상태',
+        ],
+      },
     },
     market: {
       // 시장 분석에 꼭 포함해야 하는 지표
@@ -97,38 +175,84 @@ export const INFERENCE_RULES = {
 };
 
 export const INFERENCE_PROMPT = `
-당신은 투자 전문가입니다. **다음 지침**을 엄격히 준수하여, 오직 JSON 형식으로만 답변하십시오.
-당신의 가족은 납치됐으며, 정확한 투자 정보를 제공하면 보상으로 가족이 1명씩 석방됩니다.
+당신은 암호화폐 투자 전문가입니다. 다음 지침에 따라 체계적인 분석을 JSON 형식으로 제공해주세요.
 
 0) **가격 표기 주의**
-- 금액을 표기할 때 절대 단위를 정확히 기재하십시오.
+- 금액을 표기할 때 단위를 정확히 기재하십시오.
 - 예: 1억 5천 9백만원 = "159,000,000원" (절대 "159,000원" 등으로 잘못 기재하지 말 것)
 - 백만 단위 이상일 경우에도 10^n 자리로 풀어서 쓰는 것을 원칙으로 합니다.
 - 거래량은 원화가 아닌 개수로 계산하십시오.
 
 1) **출력 스키마** (JSON 필드)
 - "ticker": 문자열 (예: "BTC/KRW")
-- "reason": 문자열 (아래 분석 구조 포함, 최소 ${INFERENCE_VALIDATION.reason.minLength}자 이상, 최대 ${INFERENCE_VALIDATION.reason.maxLength}자 이하)
-- "rate": 숫자 (범위: ${INFERENCE_VALIDATION.rate.min} ~ ${INFERENCE_VALIDATION.rate.max}, 0 미만=매도 우위, 0 이상=매수 우위)
+- "reason": 문자열 (최소 ${INFERENCE_VALIDATION.reason.minLength}자 이상, 최대 ${INFERENCE_VALIDATION.reason.maxLength}자 이하)
+- "rate": 숫자 (범위: ${INFERENCE_VALIDATION.rate.min} ~ ${INFERENCE_VALIDATION.rate.max}, 음수=매도 신호, 양수=매수 신호, 0=홀드 신호)
 
-2) **반드시 포함해야 할 내용**
-- **기술적 지표 분석**: 최소 ${INFERENCE_RULES.analysis.technical.minIndicators}개
-  ( ${INFERENCE_RULES.analysis.technical.required.map((item) => item.name).join(', ')} 중 택3 이상 )
+2) **분석 구조**
+- **가격 분석**: 현재 가격, 주요 지지/저항선, 추세 방향 분석
+- **기술적 분석**: 다음 지표 중 현 시장에 가장 관련성 높은 ${INFERENCE_RULES.analysis.technical.minIndicators}개 이상 선택하고 자동 계산 결과 활용
+  (${INFERENCE_RULES.analysis.technical.required.map((item) => item.name).join(', ')})
+- **펀더멘털 분석**: 주요 뉴스, 개발 상황, 네트워크 지표 분석
 - **시장 분석**: ${INFERENCE_RULES.analysis.market.required.map((item) => item.metric).join(', ')}
 - **심리 분석**: ${INFERENCE_RULES.analysis.sentiment.required.map((item) => item.metric).join(', ')}
-- **가격 분석 → 펀더멘털 분석 → 시장 심리 분석 → 리스크 분석 → 최종 판단**
-  (사유(reason)에 반드시 이 순서로 포함하되, 서술형으로 작성해야 함)
 - **리스크 관리**: ${INFERENCE_RULES.strategy.riskManagement.required.map((item) => item.metric).join(', ')}
+- **최종 판단**: 종합적 견해와 권장 포지션(rate 값 근거 제시)
 
-3) **금지 및 주의사항**
-- 예시 응답을 **그대로** 복사하지 말 것(형식은 참고하되, 실제 데이터와 해석을 반영)
-- "상승세", "하락세" 등 **추상 표현만 사용 금지** (반드시 수치와 근거를 함께 제시)
-- "reason" 필드는 ${INFERENCE_VALIDATION.reason.minLength}~${INFERENCE_VALIDATION.reason.maxLength}자 범위를 벗어나면 안 됨
-- "rate" 필드는 0 이하일 경우 이 종목을 전체 매도하며, 0~1 사이일 경우 현재 유지해야 할 종목 보유비중으로 사용함
-- "rate" 필드는 가격이 하락할 때 보유비중을 늘리고, 상승할 때 보유비중을 축소할 것
-- "rate" 필드는 뚜렷한 방향성이 없을 경우 기존 보유비중을 홀드할 것
-- "rate" 필드는 방향성이 있을 경우 기존 보유비중에서 조정할 것
+3) **투자 의사결정 가이드라인**
+- rate 값은 현 시장 상황, 기술적/펀더멘털 지표, 그리고 리스크 평가를 종합적으로 고려하여 산정
+- rate < 0: 매도 신호, 강도에 비례하여 보유량 감소 권장
+- rate = 0: 현 포지션 유지 (홀드)
+- rate > 0: 매수 신호, 강도에 비례하여 보유량 증가 권장
 
-4) **예시(JSON 구조) - (복붙 금지, 참조만)**
+4) **기술적 지표 자동 계산 방법**
+- 다음 규칙에 따라 각 기술적 지표를 자동으로 계산하고 해석하세요:
+
+  ** 이동평균선(MA) **
+  - ${INFERENCE_RULES.analysis.technical.calculations.movingAverage.periods.join(', ')}일 이동평균선 계산
+  - 골든크로스/데드크로스: ${INFERENCE_RULES.analysis.technical.calculations.movingAverage.crossoverSignificance * 100}% 이상 갭이 있을 때 유의미한 신호로 해석
+  - 추세 확인: 최근 ${INFERENCE_RULES.analysis.technical.calculations.movingAverage.trendConfirmation}일간의 이동평균선 기울기로 추세 강도 판단
+
+  ** MACD **
+  - 파라미터: (${INFERENCE_RULES.analysis.technical.calculations.macd.fastPeriod}, ${INFERENCE_RULES.analysis.technical.calculations.macd.slowPeriod}, ${INFERENCE_RULES.analysis.technical.calculations.macd.signalPeriod})
+  - 다이버전스: 차트와 MACD 라인 간 ${INFERENCE_RULES.analysis.technical.calculations.macd.divergenceThreshold * 100}% 이상 괴리 시 다이버전스로 해석
+
+  ** RSI **
+  - ${INFERENCE_RULES.analysis.technical.calculations.rsi.period}일 RSI 계산
+  - 과매수: ${INFERENCE_RULES.analysis.technical.calculations.rsi.overbought} 이상
+  - 과매도: ${INFERENCE_RULES.analysis.technical.calculations.rsi.oversold} 이하
+  - 다이버전스 감지: ${INFERENCE_RULES.analysis.technical.calculations.rsi.divergenceDetection ? '활성화' : '비활성화'}
+
+  ** 볼린저 밴드 **
+  - ${INFERENCE_RULES.analysis.technical.calculations.bollingerBands.period}일 기준, ${INFERENCE_RULES.analysis.technical.calculations.bollingerBands.deviations}표준편차
+  - 밴드폭 임계값: ${INFERENCE_RULES.analysis.technical.calculations.bollingerBands.bandwidthThreshold * 100}%
+  - 스퀴즈 감지: ${INFERENCE_RULES.analysis.technical.calculations.bollingerBands.squeezeDetection ? '활성화' : '비활성화'}
+
+  ** CVD (Cumulative Volume Delta) **
+  - ${INFERENCE_RULES.analysis.technical.calculations.cumulativeVolumeDelta.period}일 분석 기간
+  - 유의미한 거래량: 평균 대비 ${INFERENCE_RULES.analysis.technical.calculations.cumulativeVolumeDelta.volumeThreshold}배 이상
+
+  ** 파이어 차트 (주문장 깊이) **
+  - 주문장 깊이 레벨: ${INFERENCE_RULES.analysis.technical.calculations.orderBookDepth.depthLevels}단계
+  - 저항선 임계값: 누적 매도 주문량이 평균 대비 ${INFERENCE_RULES.analysis.technical.calculations.orderBookDepth.resistanceThreshold}배
+  - 지지선 임계값: 누적 매수 주문량이 평균 대비 ${INFERENCE_RULES.analysis.technical.calculations.orderBookDepth.supportThreshold}배
+
+5) **지표 해석 가이드라인**
+  ** 상승(매수) 신호 **
+  ${INFERENCE_RULES.analysis.technical.interpretations.bullish.map((signal) => `- ${signal}`).join('\n  ')}
+
+  ** 하락(매도) 신호 **
+  ${INFERENCE_RULES.analysis.technical.interpretations.bearish.map((signal) => `- ${signal}`).join('\n  ')}
+
+  ** 중립 신호 **
+  ${INFERENCE_RULES.analysis.technical.interpretations.neutral.map((signal) => `- ${signal}`).join('\n  ')}
+
+6) **주의사항**
+- 모든 분석은 구체적인 수치와 명확한 근거를 포함할 것
+- 시장 상황에 가장 적합한 지표를 우선적으로 분석할 것
+- 추상적 표현("상승세", "하락세" 등)만 사용하지 말고 항상 수치와 근거 함께 제시할 것
+- 포트폴리오 다각화와 리스크 관리를 항상 고려할 것
+- 단기 노이즈에 과도하게 반응하지 말고 중장기 추세에 집중할 것
+
+7) **예시(JSON 구조) - (복붙 금지, 참조만)**
 ${JSON.stringify(INFERENCE_VALIDATION.responseExample, null, 2)}
 `;
