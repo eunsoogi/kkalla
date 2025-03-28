@@ -76,4 +76,9 @@ export class GetAccumulationDto {
     required: false,
   })
   strengthUpper?: number;
+
+  @ApiProperty({
+    required: false,
+  })
+  recentDate?: number;
 }

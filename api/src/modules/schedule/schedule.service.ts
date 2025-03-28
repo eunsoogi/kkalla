@@ -26,13 +26,13 @@ export class ScheduleService {
     market: 'KRW',
     open: true,
     distinct: true,
-    display: 10,
     order: 'updated_at',
     sortDirection: SortDirection.DESC,
     priceRateLower: -0.04,
     priceRateUpper: 0.02,
     accTradePriceLower: 10 ** 10,
     strengthLower: 0.8,
+    recentDate: 12 * 60 * 60 * 1000, // 6시간
   };
 
   constructor(
