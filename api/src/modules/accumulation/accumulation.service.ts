@@ -82,6 +82,8 @@ export class AccumulationService {
       display,
     });
 
+    const now = new Date().getTime();
+
     const filteredItems = items.filter(
       (item) =>
         (!request.priceRateLower || item.priceRate >= request.priceRateLower) &&
@@ -89,7 +91,8 @@ export class AccumulationService {
         (!request.accTradePriceLower || item.accTradePrice >= request.accTradePriceLower) &&
         (!request.accTradePriceUpper || item.accTradePrice <= request.accTradePriceUpper) &&
         (!request.strengthLower || item.strength >= request.strengthLower) &&
-        (!request.strengthUpper || item.strength <= request.strengthUpper),
+        (!request.strengthUpper || item.strength <= request.strengthUpper) &&
+        (!request.recentDate || new Date(item.updatedAt).getTime() + request.recentDate > now),
     );
 
     return request.display ? filteredItems.slice(0, request.display) : filteredItems;
