@@ -220,7 +220,7 @@ export class TradeService implements OnModuleInit {
 
   private getIncludedInferencesByCategory(categoryInferences: Inference[], category: Category): Inference[] {
     return this.sortInferences(categoryInferences)
-      .filter((item) => item.rate >= this.MINIMUM_TRADE_RATE)
+      .filter((item) => item.rate > this.MINIMUM_TRADE_RATE)
       .slice(0, this.getItemCountByCategory(category));
   }
 
