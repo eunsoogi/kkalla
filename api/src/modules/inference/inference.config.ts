@@ -13,7 +13,7 @@ export const INFERENCE_CONFIG = {
     newsLimit: 100,
     newsImportanceLower: 3,
     recentLimit: 5,
-    recentDateLimit: 6 * 60 * 60 * 1000,
+    recentDateLimit: 6 * 60 * 60 * 1000, // 6시간
   },
 };
 

@@ -32,7 +32,7 @@ export class ScheduleService {
     priceRateUpper: 0.02,
     accTradePriceLower: 10 ** 10,
     strengthLower: 0.8,
-    recentDate: 12 * 60 * 60 * 1000, // 6시간
+    recentDate: 48 * 60 * 60 * 1000, // 48시간
   };
 
   constructor(
