@@ -7,8 +7,7 @@ export const INFERENCE_CONFIG = {
       '1d': 90, // 90 days
       '4h': 6 * 21, // 21 days
       '1h': 24 * 3, // 3 days
-      '15m': 4 * 12, // 12 hours
-      '5m': 12 * 6, // 6 hours
+      '15m': 4 * 24, // 1 day
     },
     newsLimit: 100,
     newsImportanceLower: 3,
