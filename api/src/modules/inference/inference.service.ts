@@ -62,7 +62,7 @@ export class InferenceService {
     this.addMessagePair(messages, 'prompt.input.ticker', request.ticker);
 
     // Add candle data
-    const timeframes = ['1d', '4h', '1h', '15m', '5m'];
+    const timeframes = ['1d', '4h', '1h', '15m'];
 
     for (const timeframe of timeframes) {
       const candleData = await this.fetchCandleData({
