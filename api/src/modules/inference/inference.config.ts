@@ -1,4 +1,4 @@
-export const INFERENCE_MODEL = 'o3-mini';
+export const INFERENCE_MODEL = 'o3';
 
 export const INFERENCE_CONFIG = {
   maxCompletionTokens: 2048 + 4096,
