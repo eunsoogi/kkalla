@@ -232,6 +232,11 @@ export class InferenceService {
   public async create(data: InferenceData): Promise<Inference> {
     const inference = new Inference();
 
+    // 줄바꿈 문자를 공백으로 변경
+    if (data.reason) {
+      data.reason = data.reason.replace(/[\r\n]+/g, ' ');
+    }
+
     Object.assign(inference, data);
     inference.seq = await this.sequenceService.getNextSequence();
 
