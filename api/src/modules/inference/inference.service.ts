@@ -195,6 +195,7 @@ export class InferenceService {
 
       return this.create({
         ...data,
+        ticker: item.ticker,
         category: item.category,
         hasStock: item.hasStock,
       });
