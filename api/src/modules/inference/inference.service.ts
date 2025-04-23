@@ -193,12 +193,13 @@ export class InferenceService {
         category: item.category,
       });
 
-      return this.create({
+      const inference = await this.create({
         ...data,
-        ticker: item.ticker,
         category: item.category,
         hasStock: item.hasStock,
       });
+
+      return inference;
     } catch (error) {
       this.logger.error(this.i18n.t('logging.inference.fail', { args: item }), error);
       return null;
