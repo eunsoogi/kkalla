@@ -177,7 +177,7 @@ export class InferenceService {
 
       this.logger.debug(response);
 
-      return JSON.parse(response.choices[0].message?.content || '{}');
+      return JSON.parse(response.choices[0].message.content);
     }, retryOptions);
 
     return inferenceData;
