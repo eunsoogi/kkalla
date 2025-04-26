@@ -4,10 +4,10 @@ export const INFERENCE_CONFIG = {
   maxCompletionTokens: 2048 + 4096,
   message: {
     candles: {
-      '1d': 90, // 90 days
-      '4h': 6 * 21, // 21 days
-      '1h': 24 * 3, // 3 days
-      '15m': 4 * 24, // 1 day
+      '1d': 60, // 60 days
+      '4h': 6 * 7, // 7 days
+      '1h': 24, // 1 day
+      '15m': 4 * 12, // 12 hours
     },
     newsLimit: 100,
     newsImportanceLower: 3,
