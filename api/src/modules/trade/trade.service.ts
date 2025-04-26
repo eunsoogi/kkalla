@@ -173,10 +173,26 @@ export class TradeService implements OnModuleInit {
   }
 
   public async executeInferences(items: InferenceItem[]): Promise<Inference[]> {
-    // 추론 수행
-    const inferences = await Promise.all(items.map((item) => this.inferenceService.request(item)));
+    // 우선 처리할 아이템 선택
+    const priorityItems = [];
 
-    return inferences.filter((item) => item !== null);
+    const nasdaqItem = items.find((item) => item.category === Category.NASDAQ);
+    if (nasdaqItem) priorityItems.push(nasdaqItem);
+
+    const coinItem =
+      items.find((item) => item.category === Category.COIN_MAJOR) ||
+      items.find((item) => item.category === Category.COIN_MINOR);
+    if (coinItem) priorityItems.push(coinItem);
+
+    const restItems = items.filter((item) => !priorityItems.includes(item));
+
+    // 카테고리별 선발된 아이템을 먼저 처리해 캐싱 처리
+    const priorityInferences = await Promise.all(priorityItems.map((item) => this.inferenceService.request(item)));
+
+    // 나머지 아이템 처리
+    const restInferences = await Promise.all(restItems.map((item) => this.inferenceService.request(item)));
+
+    return [...priorityInferences, ...restInferences].filter((item) => item !== null);
   }
 
   public async filterUserAuthorizedInferences(user: User, inferences: Inference[]): Promise<Inference[]> {
