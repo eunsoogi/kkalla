@@ -33,6 +33,7 @@ export class ScheduleService {
     accTradePriceLower: 10 ** 10,
     strengthLower: 0.8,
     recentDate: 48 * 60 * 60 * 1000, // 48시간
+    display: 10,
   };
 
   constructor(
