@@ -137,7 +137,7 @@ const UserTableData = () => {
     queryKey: [...usersQueryKey, page],
     queryFn: () => getUsersAction({ page, perPage }),
     initialData: initialPaginatedState,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return <UserTableBase items={data} />;

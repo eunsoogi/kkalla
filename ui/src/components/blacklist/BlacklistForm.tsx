@@ -54,7 +54,7 @@ const BlacklistFormContent: React.FC<BlacklistFormProps> = ({ id }) => {
     queryKey: ['blacklist', id],
     queryFn: () => (id ? getBlacklistAction(id) : null),
     initialData: null,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   if (id && !blacklist) {

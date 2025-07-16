@@ -74,7 +74,7 @@ const BlacklistTableContent = () => {
     queryKey: ['blacklists', page],
     queryFn: () => getBlacklistsAction({ page, perPage }),
     initialData: initialPaginatedState,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const handlePageChange = useCallback(

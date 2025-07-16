@@ -62,14 +62,14 @@ const RoleFormContent: React.FC<RoleFormProps> = ({ id }) => {
     queryKey: ['role', id],
     queryFn: () => (id ? getRoleAction(id) : null),
     initialData: null,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: permissions } = useSuspenseQuery<Permission[]>({
     queryKey: ['permissions'],
     queryFn: getPermissionsAction,
     initialData: [],
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   if (id && !role) {

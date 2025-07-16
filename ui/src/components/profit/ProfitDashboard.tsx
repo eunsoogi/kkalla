@@ -27,7 +27,7 @@ export const ProfitDashboardContent = () => {
     queryKey: ['profit'],
     queryFn: getMyProfitAction,
     initialData: null,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const profit = data?.data?.profit ?? 0;

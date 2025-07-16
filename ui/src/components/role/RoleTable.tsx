@@ -138,7 +138,7 @@ const RoleTableData = () => {
     queryKey: [...rolesQueryKey, page],
     queryFn: () => getRolesAction({ page, perPage }),
     initialData: initialPaginatedState,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return <RoleTableBase items={data} />;

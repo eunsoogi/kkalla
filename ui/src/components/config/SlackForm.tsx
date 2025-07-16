@@ -24,7 +24,7 @@ const SlackStatusBadge: React.FC = () => {
     queryKey: badgeQueryKey,
     queryFn: getSlackStatusAction,
     initialData: ApikeyStatus.UNKNOWN,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
@@ -43,7 +43,7 @@ const SlackFormItem = memo(() => {
     queryKey: configQueryKey,
     queryFn: getSlackConfigAction,
     initialData: initialConfigState,
-    staleTime: 0,
+    refetchOnMount: 'always',
     select: (data) => ({
       channel: data.channel ?? '',
     }),

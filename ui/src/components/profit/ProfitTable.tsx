@@ -109,7 +109,7 @@ const ProfitTableData = ({ page, email, onPageChange }: ProfitTableProps) => {
     queryKey: [...profitsQueryKey, page, email],
     queryFn: () => getProfitsAction({ page, email }),
     initialData: initialPaginatedState,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return <ProfitTableBase items={data} onPageChange={onPageChange} />;

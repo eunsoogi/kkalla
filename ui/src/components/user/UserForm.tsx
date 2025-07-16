@@ -54,14 +54,14 @@ const UserFormContent: React.FC<UserFormProps> = ({ id }) => {
     queryKey: ['users', id],
     queryFn: () => getUserAction(id),
     initialData: null,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: roles = [] } = useSuspenseQuery<Role[]>({
     queryKey: ['roles'],
     queryFn: () => getRolesAction(),
     initialData: [],
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   if (!user) {

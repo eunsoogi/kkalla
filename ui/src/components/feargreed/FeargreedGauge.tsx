@@ -14,7 +14,7 @@ const FeargreedGaugeContent: React.FC = () => {
     queryKey: ['feargreeds'],
     queryFn: () => getFeargreedAction(),
     initialData: null,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   if (!data) {

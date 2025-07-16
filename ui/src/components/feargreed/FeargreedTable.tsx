@@ -17,7 +17,7 @@ const FeargreedTableContent: React.FC = () => {
     queryKey: ['feargreeds-history'],
     queryFn: () => getFeargreedHistoryAction(7), // 최근 7일 데이터
     initialData: null,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   if (!data || !data.data.length) {

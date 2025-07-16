@@ -45,7 +45,7 @@ const CategoryFormContent = () => {
     queryKey: ['categories'],
     queryFn: getCategoriesAction,
     initialData: [],
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const allCategories = Object.values(CategoryEnum);

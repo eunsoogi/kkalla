@@ -21,7 +21,7 @@ const TradeContent = () => {
     queryKey: ['trades'],
     queryFn: getTradeAction,
     initialData: initialState,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return (
