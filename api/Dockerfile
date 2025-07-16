@@ -1,6 +1,6 @@
-FROM --platform=${BUILDPLATFORM} node:22.13.1-alpine AS base
+FROM --platform=${BUILDPLATFORM} node:22.17.0-alpine AS base
 WORKDIR /app
-RUN npm install -g pnpm@10.1.0
+RUN npm install -g pnpm@10.13.1
 COPY package.json .
 COPY pnpm-lock.yaml .
 
@@ -12,16 +12,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
 
-FROM node:22.13.1-bookworm AS runner-development
+FROM node:22.17.0-bookworm AS runner-development
 WORKDIR /app
-RUN npm install -g pnpm@10.1.0
+RUN npm install -g pnpm@10.13.1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=development
 EXPOSE 3000
 CMD ["pnpm", "start:dev"]
 
-FROM node:22.13.1-alpine AS runner-production
+FROM node:22.17.0-alpine AS runner-production
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist

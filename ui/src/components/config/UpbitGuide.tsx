@@ -21,7 +21,7 @@ const UpbitIp: React.FC = () => {
     queryKey: ipQueryKey,
     queryFn: getIpAction,
     initialData: t('status.unknown'),
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return (

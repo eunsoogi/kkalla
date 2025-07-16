@@ -20,7 +20,7 @@ const ScheduleToggleSwitch: React.FC = () => {
     queryKey: queryKey,
     queryFn: () => getScheduleAction(),
     initialData: initialState,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const handleToggle = async (checked: boolean) => {

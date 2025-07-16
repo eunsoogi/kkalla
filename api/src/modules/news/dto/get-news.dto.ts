@@ -10,6 +10,7 @@ export class GetNewsDto extends GetCursorDto<number> {
   @ApiProperty({
     required: true,
     example: NewsTypes.COIN,
+    enum: NewsTypes,
   })
   type: NewsTypes = NewsTypes.COIN;
 

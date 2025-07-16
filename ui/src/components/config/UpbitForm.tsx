@@ -22,7 +22,7 @@ const UpbitStatusBadge: React.FC = () => {
     queryKey: badgeQueryKey,
     queryFn: getUpbitStatusAction,
     initialData: ApikeyStatus.UNKNOWN,
-    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
