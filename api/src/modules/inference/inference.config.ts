@@ -9,8 +9,8 @@ export const INFERENCE_CONFIG = {
       '1h': 3 * 24, // 3 days (단기 추세)
       '15m': 12 * 4, // 12 hours (진입점 분석)
     },
-    newsLimit: 100,
-    newsImportanceLower: 3,
+    newsLimit: 50,
+    newsImportanceLower: 2,
     recentLimit: 5,
     recentDateLimit: 7 * 24 * 60 * 60 * 1000, // 7일 (매매 규칙 적용을 위한 충분한 기간)
   },
