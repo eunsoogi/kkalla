@@ -30,7 +30,7 @@ export class UserSeeder implements Seeder {
 
 export class InferenceSeeder implements Seeder {
   public async run(): Promise<void> {
-    await Inference.delete({});
+    await Inference.createQueryBuilder().delete().execute();
 
     for (let i = 0; i < 11; i++) {
       await Inference.save([
@@ -64,7 +64,7 @@ export class TradeSeeder implements Seeder {
   async run(): Promise<void> {
     const users = await User.find();
     const inferences = await Inference.find();
-    await Trade.delete({});
+    await Trade.createQueryBuilder().delete().execute();
 
     await Trade.save([
       {
@@ -92,7 +92,7 @@ export class TradeSeeder implements Seeder {
 export class NotifySeeder implements Seeder {
   async run(): Promise<void> {
     const users = await User.find();
-    await Notify.delete({});
+    await Notify.createQueryBuilder().delete().execute();
 
     await Notify.save([
       {
@@ -111,4 +111,4 @@ export class NotifySeeder implements Seeder {
   }
 }
 
-export const seeders = [UserSeeder, InferenceSeeder, TradeSeeder, NotifySeeder];
+export const seeders = [UserSeeder, TradeSeeder, NotifySeeder, InferenceSeeder];
