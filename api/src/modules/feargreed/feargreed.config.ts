@@ -1,1 +1,1 @@
-export const API_URL = 'https://ubci-api.ubcindex.com/v1/crix/feargreed';
+export const API_URL = 'https://api.alternative.me/fng/';

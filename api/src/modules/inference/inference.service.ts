@@ -112,10 +112,10 @@ export class InferenceService {
     return news;
   }
 
-  private async fetchFearGreedData(symbol: string): Promise<CompactFeargreed> {
-    this.logger.log(this.i18n.t('logging.feargreed.loading', { args: { symbol } }));
+  private async fetchFearGreedData(): Promise<CompactFeargreed> {
+    this.logger.log(this.i18n.t('logging.feargreed.loading'));
 
-    const feargreed = await this.feargreedService.getCompactFeargreed(symbol);
+    const feargreed = await this.feargreedService.getCompactFeargreed();
 
     return feargreed;
   }

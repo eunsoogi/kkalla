@@ -9,25 +9,26 @@ import { Feargreed } from '@/interfaces/feargreed.interface';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 
 export const FeargreedTableItem: React.FC<Feargreed | null> = (item) => {
-  const intervals = item?.intv ?? [];
   const formatter = useFormatter();
 
+  if (!item) {
+    return null;
+  }
+
+  const diff = item.diff ?? 0; // 이전 값과의 차이
+
   return (
-    <Table.Body className='divide-y divide-border dark:divide-gray-800'>
-      {intervals.map((interval, index) => (
-        <Table.Row key={index}>
-          <Table.Cell className='px-3 py-3 whitespace-nowrap'>
-            {formatter.relativeTime(new Date(interval.date))}
-          </Table.Cell>
-          <Table.Cell className='px-3 py-3 whitespace-nowrap'>{interval.score.toLocaleString()}</Table.Cell>
-          <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(interval.diff)}`}>
-            {getDiffPrefix(interval.diff)}
-            {interval.diff.toLocaleString()}
-          </Table.Cell>
-          <Table.Cell className='px-3 py-3 whitespace-nowrap'>{interval.stage}</Table.Cell>
-        </Table.Row>
-      ))}
-    </Table.Body>
+    <Table.Row>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>
+        {formatter.relativeTime(new Date(item.date))}
+      </Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.value.toLocaleString()}</Table.Cell>
+      <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(diff)}`}>
+        {getDiffPrefix(diff)}
+        {diff.toLocaleString()}
+      </Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.classification}</Table.Cell>
+    </Table.Row>
   );
 };
 

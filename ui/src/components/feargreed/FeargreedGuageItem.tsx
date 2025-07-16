@@ -8,10 +8,9 @@ import { Feargreed } from '@/interfaces/feargreed.interface';
 import { getDiffColor, getDiffPrefix, getScoreColor } from '@/utils/color';
 
 export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
-  const score = item?.today.score ?? 0;
-  const diff = item?.today.diff ?? 0;
-  const stage = item?.today.stage ?? '';
-  const comment = item?.today.comment ?? '';
+  const score = item?.value ?? 0;
+  const diff = item?.diff ?? 0;
+  const stage = item?.classification ?? '';
 
   return (
     <div className='flex flex-col items-center'>
@@ -57,7 +56,6 @@ export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
           <div className='text-sm mt-1'>{stage}</div>
         </div>
       </div>
-      <div className='text-sm text-center max-w-xs -mt-8'>{comment}</div>
     </div>
   );
 };
