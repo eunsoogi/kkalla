@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 
-import { Feargreed } from './feargreed.interface';
+import { FeargreedHistoryDto } from './dto/get-feargreed-history.dto';
+import { Feargreed, FeargreedHistory } from './feargreed.interface';
 import { FeargreedService } from './feargreed.service';
 
 @Controller('api/v1/feargreeds')
@@ -10,5 +11,10 @@ export class FeargreedController {
   @Get()
   async get(): Promise<Feargreed> {
     return this.feargreedService.getFeargreed();
+  }
+
+  @Get('history')
+  async getHistory(@Query() query: FeargreedHistoryDto): Promise<FeargreedHistory> {
+    return this.feargreedService.getFeargreedHistory(query.limit || 30);
   }
 }

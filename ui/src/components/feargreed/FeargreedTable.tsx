@@ -7,24 +7,30 @@ import { Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
-import { Feargreed } from '@/interfaces/feargreed.interface';
+import { FeargreedHistory } from '@/interfaces/feargreed.interface';
 
 import { FeargreedTableItem, FeargreedTableSkeleton } from './FeargreedTableItem';
-import { getFeargreedAction } from './action';
+import { getFeargreedHistoryAction } from './action';
 
 const FeargreedTableContent: React.FC = () => {
-  const { data } = useSuspenseQuery<Feargreed | null>({
-    queryKey: ['feargreeds'],
-    queryFn: () => getFeargreedAction(),
+  const { data } = useSuspenseQuery<FeargreedHistory | null>({
+    queryKey: ['feargreeds-history'],
+    queryFn: () => getFeargreedHistoryAction(7), // 최근 7일 데이터
     initialData: null,
     staleTime: 0,
   });
 
-  if (!data) {
+  if (!data || !data.data.length) {
     return null;
   }
 
-  return <FeargreedTableItem {...data} />;
+  return (
+    <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+      {data.data.map((item, index) => (
+        <FeargreedTableItem key={`${item.timestamp}-${index}`} {...item} />
+      ))}
+    </Table.Body>
+  );
 };
 
 export const FeargreedTable = () => {
