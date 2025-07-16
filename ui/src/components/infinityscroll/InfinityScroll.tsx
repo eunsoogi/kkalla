@@ -11,7 +11,7 @@ export const InfinityScroll: React.FC<{
   loadingText?: string;
   children?: React.ReactNode;
 }> = ({ onIntersect, isLoading, loadingText, children }) => {
-  const observerRef = useRef<IntersectionObserver>();
+  const observerRef = useRef<IntersectionObserver>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const handleObserver = useCallback(
