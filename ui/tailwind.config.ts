@@ -1,10 +1,13 @@
-import flowbite from 'flowbite-react/tailwind';
 import flowbitePlugin from 'flowbite/plugin';
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
   darkMode: 'media',
-  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}', flowbite.content()],
+  content: [
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
+    './node_modules/flowbite-react/**/*.{js,ts,jsx,tsx}',
+    './node_modules/flowbite/**/*.{js,ts,jsx,tsx}'
+  ],
   theme: {
     extend: {
       boxShadow: {
