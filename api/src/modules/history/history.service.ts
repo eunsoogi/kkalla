@@ -21,7 +21,7 @@ export class HistoryService {
   }
 
   public async saveHistory(items: HistoryItem[]): Promise<History[]> {
-    await History.delete({});
+    await History.createQueryBuilder().delete().execute();
 
     return History.save(
       items.map((item) =>
