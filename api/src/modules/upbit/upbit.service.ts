@@ -4,6 +4,7 @@ import { Balances, OHLCV, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
+import { TwoPhaseRetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
 import { User } from '../user/entities/user.entity';
@@ -18,6 +19,18 @@ export class UpbitService {
   private client: upbit[] = [];
   private readonly MINIMUM_TRADE_PRICE = 5000;
   private readonly MAX_PRECISION = 8;
+
+  // API 호출에 대한 2단계 재시도 옵션
+  private readonly retryOptions: TwoPhaseRetryOptions = {
+    firstPhase: {
+      maxRetries: 5,
+      retryDelay: 1000, // 1초 간격
+    },
+    secondPhase: {
+      maxRetries: 3,
+      retryDelay: 60000, // 1분 간격
+    },
+  };
 
   constructor(
     private readonly i18n: I18nService,
@@ -70,13 +83,17 @@ export class UpbitService {
 
   public async getCandles(request: CandleRequest): Promise<OHLCV[]> {
     const client = this.getServerClient();
-    return await client.fetchOHLCV(request.ticker, request.timeframe, undefined, request.limit);
+    return await this.errorService.retryWithFallback(async () => {
+      return await client.fetchOHLCV(request.ticker, request.timeframe, undefined, request.limit);
+    }, this.retryOptions);
   }
 
   public async getBalances(user: User): Promise<Balances> {
     try {
       const client = await this.getClient(user);
-      const balances = await client.fetchBalance();
+      const balances = await this.errorService.retryWithFallback(async () => {
+        return await client.fetchBalance();
+      }, this.retryOptions);
 
       this.logger.debug(`balances: ${JSON.stringify(balances)}`);
 
@@ -126,7 +143,9 @@ export class UpbitService {
       return order.cost;
     } else if (order?.amount) {
       const client = await this.getServerClient();
-      const ticker = await client.fetchTicker(order.symbol);
+      const ticker = await this.errorService.retryWithFallback(async () => {
+        return await client.fetchTicker(order.symbol);
+      }, this.retryOptions);
       const amount = order.amount * ticker.last;
       return amount;
     }
@@ -152,14 +171,18 @@ export class UpbitService {
     const client = await this.getServerClient();
     let markets = client.markets;
     if (!markets) {
-      markets = await client.loadMarkets();
+      markets = await this.errorService.retryWithFallback(async () => {
+        return await client.loadMarkets();
+      }, this.retryOptions);
     }
     return ticker in markets;
   }
 
   public async getPrice(ticker: string): Promise<number> {
     const client = await this.getServerClient();
-    const info = await client.fetchTicker(ticker);
+    const info = await this.errorService.retryWithFallback(async () => {
+      return await client.fetchTicker(ticker);
+    }, this.retryOptions);
     return info.last;
   }
 

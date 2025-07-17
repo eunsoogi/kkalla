@@ -63,7 +63,9 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
                   <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>{role.description}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>
                     <div className='flex flex-row flex-wrap gap-1 max-h-[48px] overflow-hidden relative'>
-                      {role.permissions?.map((permission) => <ColoredBadge key={permission} text={permission} />)}
+                      {role.permissions?.map((permission) => (
+                        <ColoredBadge key={permission} text={permission} />
+                      ))}
                       <div className='absolute bottom-0 right-0 left-0 h-6 bg-gradient-to-t from-white dark:from-gray-900'></div>
                     </div>
                   </Table.Cell>
