@@ -26,4 +26,3 @@ export const getFeargreedHistoryAction = async (limit: number = 30): Promise<Fea
     return null;
   }
 };
-

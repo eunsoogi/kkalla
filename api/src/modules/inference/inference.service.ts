@@ -56,8 +56,6 @@ export class InferenceService {
       this.addMessagePair(messages, 'prompt.input.news', news);
     }
 
-    const [symbol] = request.ticker.split('/');
-
     // Add ticker
     this.addMessagePair(messages, 'prompt.input.ticker', request.ticker);
 
@@ -79,7 +77,7 @@ export class InferenceService {
     }
 
     // Add fear & greed data
-    const feargreed = await this.fetchFearGreedData(symbol);
+    const feargreed = await this.fetchFearGreedData();
     if (feargreed) {
       this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }

@@ -19,9 +19,7 @@ export const FeargreedTableItem: React.FC<Feargreed | null> = (item) => {
 
   return (
     <Table.Row>
-      <Table.Cell className='px-3 py-3 whitespace-nowrap'>
-        {formatter.relativeTime(new Date(item.date))}
-      </Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatter.relativeTime(new Date(item.date))}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.value.toLocaleString()}</Table.Cell>
       <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(diff)}`}>
         {getDiffPrefix(diff)}
