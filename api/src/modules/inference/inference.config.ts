@@ -1,7 +1,10 @@
-export const INFERENCE_MODEL = 'o3';
+export const INFERENCE_MODEL = 'gpt-5';
 
 export const INFERENCE_CONFIG = {
-  maxCompletionTokens: 2048 + 4096,
+  maxCompletionTokens: 16384,
+  reasoningEffort: 'medium',
+  verbosity: 'medium',
+  serviceTier: 'flex',
   message: {
     candles: {
       '1d': 50, // 50 days (장기 추세)
@@ -12,7 +15,7 @@ export const INFERENCE_CONFIG = {
     newsLimit: 50,
     newsImportanceLower: 2,
     recentLimit: 5,
-    recentDateLimit: 7 * 24 * 60 * 60 * 1000, // 7일 (매매 규칙 적용을 위한 충분한 기간)
+    recentDateLimit: 7 * 24 * 60 * 60 * 1000, // 7일
   },
 };
 

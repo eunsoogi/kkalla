@@ -165,13 +165,18 @@ export class InferenceService {
     this.logger.log(this.i18n.t('logging.inference.loading', { args: request }));
 
     const inferenceData = await this.errorService.retry(async () => {
-      const response = await client.chat.completions.create({
+      const body = {
         model: INFERENCE_MODEL,
         max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
+        reasoning_effort: INFERENCE_CONFIG.reasoningEffort,
+        verbosity: INFERENCE_CONFIG.verbosity,
+        service_tier: INFERENCE_CONFIG.serviceTier,
         response_format: responseFormat,
         messages,
         stream: false,
-      });
+      };
+
+      const response = await client.chat.completions.create(body);
 
       this.logger.debug(response);
 
