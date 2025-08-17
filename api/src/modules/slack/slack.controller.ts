@@ -9,6 +9,7 @@ import { User } from '../user/entities/user.entity';
 import { SlackConfigResponseDto } from './dto/config-response';
 import { PostSlackConfigDto } from './dto/post-config.dto';
 import { SendSlackMessageDto } from './dto/send-message.dto';
+import { SendServerMessageDto } from './dto/send-server-message.dto';
 import { SlackService } from './slack.service';
 
 @Controller('api/v1/slack')
@@ -48,5 +49,13 @@ export class SlackController {
   @UseGuards(GoogleTokenAuthGuard)
   public async status(@CurrentUser() user: User): Promise<ApikeyStatus> {
     return this.slackService.status(user);
+  }
+
+  @Post('server')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async sendServer(@Body() body: SendServerMessageDto): Promise<ChatPostMessageResponse> {
+    const fullMessage = body.context ? `${body.message}\n\n${body.context}` : body.message;
+
+    return this.slackService.sendServer({ message: fullMessage });
   }
 }

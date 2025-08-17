@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 
+import { NotifyService } from '../notify/notify.service';
 import { RetryOptions, TwoPhaseRetryOptions } from './error.interface';
 
 @Injectable()
@@ -10,7 +11,10 @@ export class ErrorService {
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY = 60000;
 
-  constructor(private readonly i18n: I18nService) {}
+  constructor(
+    private readonly i18n: I18nService,
+    private readonly notifyService: NotifyService,
+  ) {}
 
   public async retry<T>(operation: () => Promise<T>, options?: RetryOptions): Promise<T> {
     const maxRetries = options?.maxRetries || this.MAX_RETRIES;
@@ -20,7 +24,24 @@ export class ErrorService {
       try {
         return await operation();
       } catch (error) {
-        if (attempt === maxRetries) throw error;
+        if (attempt === maxRetries) {
+          // 최종 실패 시 서버 알림 발송
+          const errorMessage = this.getErrorMessage(error);
+          await this.notifyService.sendServer(
+            this.i18n.t('logging.notify.send.retry_failed', {
+              args: { maxRetries },
+            }),
+            this.i18n.t('logging.notify.server.retry_context', {
+              args: {
+                functionName: operation.name || 'unknown',
+                maxRetries,
+                retryDelay,
+                error: errorMessage,
+              },
+            }),
+          );
+          throw error;
+        }
 
         this.logger.warn(
           this.i18n.t('logging.retry.attempt', {
@@ -79,18 +100,43 @@ export class ErrorService {
     try {
       // 1차 재시도: 짧은 지연, 여러번 시도
       return await this.retry(operation, firstPhase);
-    } catch (error) {
-      // unknown 타입의 error에서 message 가져오기
-      const errorMessage = this.getErrorMessage(error);
+    } catch (firstError) {
+      // unknown 타입의 firstError에서 message 가져오기
+      const errorMessage = this.getErrorMessage(firstError);
 
       this.logger.warn(
         this.i18n.t('logging.retry.fallback', {
-          args: { error: errorMessage },
+          args: { message: errorMessage },
         }),
       );
 
-      // 2차 재시도: 긴 지연, 추가 시도
-      return await this.retry(operation, secondPhase);
+      try {
+        // 2차 재시도: 긴 지연, 추가 시도
+        return await this.retry(operation, secondPhase);
+      } catch (secondError) {
+        // 2차 재시도도 실패 시 서버 알림 발송
+        const secondErrorMessage = this.getErrorMessage(secondError);
+
+        await this.notifyService.sendServer(
+          this.i18n.t('logging.alert.fallback_failed', {
+            args: {
+              maxRetries: secondPhase.maxRetries,
+            },
+          }),
+          this.i18n.t('logging.error.fallback_context', {
+            args: {
+              functionName: operation.name || 'unknown',
+              firstMaxRetries: firstPhase.maxRetries,
+              firstRetryDelay: firstPhase.retryDelay,
+              secondMaxRetries: secondPhase.maxRetries,
+              secondRetryDelay: secondPhase.retryDelay,
+              message: secondErrorMessage,
+            },
+          }),
+        );
+
+        throw secondError;
+      }
     }
   }
 }
