@@ -117,6 +117,9 @@ jobs:
             aws:
               accessKey: ${{ secrets.AWS_ACCESS_KEY_ID }}
               secretKey: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            notify:
+              secretKey: ${{ secrets.NOTIFY_SECRET_KEY }}
+              channel: ${{ secrets.NOTIFY_CHANNEL }}
             openai:
               secretKey: ${{ secrets.OPENAI_SECRET_KEY }}
             upbit:
