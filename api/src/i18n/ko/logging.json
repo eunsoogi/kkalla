@@ -41,7 +41,7 @@
   "retry": {
     "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중...",
     "failed": "재시도 실패.",
-    "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {error}"
+    "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {message}"
   },
   "user": {
     "error": {
@@ -85,5 +85,24 @@
       "released": "{resourceName}에 대한 락 해제 완료",
       "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
     }
+  },
+  "slack": {
+    "send": {
+      "complete": "서버 슬랙 발송 완료: {message}",
+      "fail": "서버 슬랙 발송 실패"
+    },
+    "config": {
+      "missing": "서버 슬랙 설정이 없습니다. NOTIFY_SECRET_KEY 또는 NOTIFY_CHANNEL 환경변수를 확인하세요."
+    }
+  },
+  "alert": {
+    "system": "[시스템 알림] {message}",
+    "system_with_context": "[시스템 알림] {message}\n\n상세 정보:\n{context}",
+    "retry_failed": "1차 재시도 {maxRetries}회 실패",
+    "fallback_failed": "2차 재시도 {maxRetries}회 실패"
+  },
+  "error": {
+    "retry_context": "함수명: {functionName}\n최대 재시도 횟수: {maxRetries}\n재시도 간격: {retryDelay}ms\n오류: {error}",
+    "fallback_context": "함수명: {functionName}\n1차 재시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n2차 재시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n1차 실패 오류: {firstError}\n2차 실패 오류: {finalError}"
   }
 }

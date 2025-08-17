@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import { I18nService } from 'nestjs-i18n';
+
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '../item/item.interface';
 import { SequenceService } from '../sequence/sequence.service';
 import { SlackService } from '../slack/slack.service';
@@ -12,6 +14,7 @@ export class NotifyService {
   constructor(
     private readonly sequenceService: SequenceService,
     private readonly slackService: SlackService,
+    private readonly i18n: I18nService,
   ) {}
 
   public async findAll(user: User) {
@@ -45,5 +48,23 @@ export class NotifyService {
 
   public async cursor(user: User, request: CursorRequest<string>): Promise<CursorItem<Notify, string>> {
     return Notify.cursor(user, request);
+  }
+
+  /**
+   * 서버용 발송 (시스템 오류 등 중요한 알림)
+   * @param message 발송할 메시지
+   * @param context 추가 컨텍스트 정보 (선택사항)
+   */
+  public async sendServer(message: string, context?: string): Promise<void> {
+    const fullMessage = context
+      ? this.i18n.t('logging.alert.system.with_context', {
+          args: { message, context },
+        })
+      : this.i18n.t('logging.alert.system.message', {
+          args: { message },
+        });
+
+    // Send to slack
+    this.slackService.sendServer({ message: fullMessage });
   }
 }
