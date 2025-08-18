@@ -90,8 +90,5 @@
       "released": "{resourceName}에 대한 락 해제 완료",
       "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
     }
-  },
-  "error": {
-    "fallback_context": "> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
   }
 }

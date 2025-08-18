@@ -103,8 +103,7 @@ export class ErrorService {
         const secondErrorMessage = this.getErrorMessage(secondError);
 
         await this.notifyService.notifyServer(
-          this.i18n.t('notify.fallback.failed'),
-          this.i18n.t('logging.error.fallback_context', {
+          this.i18n.t('notify.fallback.failed', {
             args: {
               functionName: operation.name || 'unknown',
               firstMaxRetries: firstPhase.maxRetries,
