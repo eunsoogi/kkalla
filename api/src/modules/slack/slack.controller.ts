@@ -4,7 +4,10 @@ import { ChatPostMessageResponse } from '@slack/web-api';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
+import { Permission } from '../permission/permission.enum';
 import { User } from '../user/entities/user.entity';
 import { SlackConfigResponseDto } from './dto/config-response';
 import { PostSlackConfigDto } from './dto/post-config.dto';
@@ -52,7 +55,8 @@ export class SlackController {
   }
 
   @Post('server')
-  @UseGuards(GoogleTokenAuthGuard)
+  @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
+  @RequirePermissions(Permission.SEND_SLACK_SERVER_MESSAGE)
   public async sendServer(@Body() body: SendServerMessageDto): Promise<ChatPostMessageResponse> {
     const fullMessage = body.context ? `${body.message}\n\n${body.context}` : body.message;
 
