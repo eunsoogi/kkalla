@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { Balances, OHLCV, Order, upbit } from 'ccxt';
+import { AuthenticationError, Balances, OHLCV, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
 import { TwoPhaseRetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
+import { Schedule } from '../schedule/entities/schedule.entity';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
@@ -62,18 +63,58 @@ export class UpbitService {
     });
   }
 
-  public getServerClient(): upbit {
+  public async getServerClient(): Promise<upbit> {
     if (!this.serverClient) {
-      this.serverClient = this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
+      const client = this.createClient(process.env.UPBIT_ACCESS_KEY!, process.env.UPBIT_SECRET_KEY!);
+
+      try {
+        // API 키 만료 확인
+        await client.fetchBalance();
+        this.serverClient = client;
+      } catch (error) {
+        // API 키가 만료됐다면
+        if (error instanceof AuthenticationError) {
+          this.logger.error(this.i18n.t('logging.upbit.apikey.server_expired'));
+          this.notifyService.notifyServer(this.i18n.t('notify.upbit.apikey.server_expired'));
+        }
+
+        throw error;
+      }
     }
+
     return this.serverClient;
   }
 
   public async getClient(user: User): Promise<upbit> {
     if (!this.client[user.id]) {
       const { accessKey, secretKey } = await this.readConfig(user);
-      this.client[user.id] = this.createClient(accessKey, secretKey);
+      const client = this.createClient(accessKey, secretKey);
+
+      try {
+        // API 키 만료 확인
+        await client.fetchBalance();
+        this.client[user.id] = client;
+      } catch (error) {
+        // API 키가 만료됐다면
+        if (error instanceof AuthenticationError) {
+          this.logger.warn(this.i18n.t('logging.upbit.apikey.user_expired', { args: { id: user.id } }));
+
+          // 스케줄 비활성화
+          const schedule = await Schedule.findByUser(user);
+
+          if (schedule) {
+            schedule.enabled = false;
+            await schedule.save();
+            this.logger.log(this.i18n.t('logging.upbit.apikey.schedule_disabled', { args: { id: user.id } }));
+          }
+
+          this.notifyService.notify(user, this.i18n.t('notify.upbit.apikey.user_expired'));
+        }
+
+        throw error;
+      }
     }
+
     return this.client[user.id];
   }
 
@@ -82,7 +123,8 @@ export class UpbitService {
   }
 
   public async getCandles(request: CandleRequest): Promise<OHLCV[]> {
-    const client = this.getServerClient();
+    const client = await this.getServerClient();
+
     return await this.errorService.retryWithFallback(async () => {
       return await client.fetchOHLCV(request.ticker, request.timeframe, undefined, request.limit);
     }, this.retryOptions);
@@ -91,11 +133,10 @@ export class UpbitService {
   public async getBalances(user: User): Promise<Balances> {
     try {
       const client = await this.getClient(user);
+
       const balances = await this.errorService.retryWithFallback(async () => {
         return await client.fetchBalance();
       }, this.retryOptions);
-
-      this.logger.debug(`balances: ${JSON.stringify(balances)}`);
 
       return balances;
     } catch {
@@ -143,10 +184,13 @@ export class UpbitService {
       return order.cost;
     } else if (order?.amount) {
       const client = await this.getServerClient();
+
       const ticker = await this.errorService.retryWithFallback(async () => {
         return await client.fetchTicker(order.symbol);
       }, this.retryOptions);
+
       const amount = order.amount * ticker.last;
+
       return amount;
     }
 
@@ -170,27 +214,29 @@ export class UpbitService {
   public async isTickerExist(ticker: string): Promise<boolean> {
     const client = await this.getServerClient();
     let markets = client.markets;
+
     if (!markets) {
       markets = await this.errorService.retryWithFallback(async () => {
         return await client.loadMarkets();
       }, this.retryOptions);
     }
+
     return ticker in markets;
   }
 
   public async getPrice(ticker: string): Promise<number> {
     const client = await this.getServerClient();
+
     const info = await this.errorService.retryWithFallback(async () => {
       return await client.fetchTicker(ticker);
     }, this.retryOptions);
+
     return info.last;
   }
 
   public getVolume(balances: Balances, symbol: string): number {
     const balance = balances[symbol];
     const free = Number(balance?.free) || 0;
-
-    this.logger.debug(`free: ${free}`);
 
     return free;
   }

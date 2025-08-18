@@ -21,10 +21,6 @@ export class NotifyService {
     return Notify.findAllByUser(user);
   }
 
-  public async notify(user: User, message: string): Promise<Notify> {
-    return this.create(user, { message });
-  }
-
   public async create(user: User, data: NotifyData): Promise<Notify> {
     const notify = new Notify();
 
@@ -50,12 +46,16 @@ export class NotifyService {
     return Notify.cursor(user, request);
   }
 
+  public async notify(user: User, message: string): Promise<Notify> {
+    return this.create(user, { message });
+  }
+
   /**
    * 서버용 발송 (시스템 오류 등 중요한 알림)
    * @param message 발송할 메시지
    * @param context 추가 컨텍스트 정보 (선택사항)
    */
-  public async sendServer(message: string, context?: string): Promise<void> {
+  public async notifyServer(message: string, context?: string): Promise<void> {
     const fullMessage = context
       ? this.i18n.t('logging.alert.system_with_context', {
           args: { message, context },

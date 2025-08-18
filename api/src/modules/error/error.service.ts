@@ -102,8 +102,8 @@ export class ErrorService {
         // 2차 재시도도 실패 시 서버 알림 발송
         const secondErrorMessage = this.getErrorMessage(secondError);
 
-        await this.notifyService.sendServer(
-          this.i18n.t('logging.alert.fallback_failed'),
+        await this.notifyService.notifyServer(
+          this.i18n.t('notify.fallback.failed'),
           this.i18n.t('logging.error.fallback_context', {
             args: {
               functionName: operation.name || 'unknown',

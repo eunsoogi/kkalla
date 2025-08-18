@@ -2,6 +2,11 @@
   "upbit": {
     "candle": {
       "loading": "{ticker} {timeframe} 캔들 차트 불러오는 중..."
+    },
+    "apikey": {
+      "server_expired": "서버 API 키가 만료되었거나 유효하지 않습니다.",
+      "user_expired": "사용자 {id}의 API 키가 만료되었거나 유효하지 않습니다.",
+      "schedule_disabled": "사용자 {id}의 스케줄을 비활성화했습니다."
     }
   },
   "news": {
@@ -85,20 +90,6 @@
       "released": "{resourceName}에 대한 락 해제 완료",
       "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
     }
-  },
-  "slack": {
-    "send": {
-      "complete": "서버 슬랙 발송 완료: {message}",
-      "fail": "서버 슬랙 발송 실패"
-    },
-    "config": {
-      "missing": "서버 슬랙 설정이 없습니다. NOTIFY_SECRET_KEY 또는 NOTIFY_CHANNEL 환경변수를 확인하세요."
-    }
-  },
-  "alert": {
-    "system": "*[시스템 알림]* {message}",
-    "system_with_context": "*[시스템 알림]* {message}\n\n상세 정보\n{context}",
-    "fallback_failed": "재시도에 실패했습니다."
   },
   "error": {
     "fallback_context": "> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
