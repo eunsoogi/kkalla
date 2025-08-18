@@ -96,13 +96,11 @@
     }
   },
   "alert": {
-    "system": "[시스템 알림] {message}",
-    "system_with_context": "[시스템 알림] {message}\n\n상세 정보:\n{context}",
-    "retry_failed": "1차 재시도 {maxRetries}회 실패",
-    "fallback_failed": "2차 재시도 {maxRetries}회 실패"
+    "system": "*[시스템 알림]* {message}",
+    "system_with_context": "*[시스템 알림]* {message}\n\n상세 정보\n{context}",
+    "fallback_failed": "재시도에 실패했습니다."
   },
   "error": {
-    "retry_context": "함수명: {functionName}\n최대 재시도 횟수: {maxRetries}\n재시도 간격: {retryDelay}ms\n오류: {error}",
-    "fallback_context": "함수명: {functionName}\n1차 재시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n2차 재시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n1차 실패 오류: {firstError}\n2차 실패 오류: {finalError}"
+    "fallback_context": "> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
   }
 }

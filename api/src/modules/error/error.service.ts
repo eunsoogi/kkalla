@@ -25,21 +25,6 @@ export class ErrorService {
         return await operation();
       } catch (error) {
         if (attempt === maxRetries) {
-          // 최종 실패 시 서버 알림 발송
-          const errorMessage = this.getErrorMessage(error);
-          await this.notifyService.sendServer(
-            this.i18n.t('logging.notify.send.retry_failed', {
-              args: { maxRetries },
-            }),
-            this.i18n.t('logging.notify.server.retry_context', {
-              args: {
-                functionName: operation.name || 'unknown',
-                maxRetries,
-                retryDelay,
-                error: errorMessage,
-              },
-            }),
-          );
           throw error;
         }
 
@@ -118,11 +103,7 @@ export class ErrorService {
         const secondErrorMessage = this.getErrorMessage(secondError);
 
         await this.notifyService.sendServer(
-          this.i18n.t('logging.alert.fallback_failed', {
-            args: {
-              maxRetries: secondPhase.maxRetries,
-            },
-          }),
+          this.i18n.t('logging.alert.fallback_failed'),
           this.i18n.t('logging.error.fallback_context', {
             args: {
               functionName: operation.name || 'unknown',
