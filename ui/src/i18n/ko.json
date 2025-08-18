@@ -19,7 +19,8 @@
     "userManagement": "사용자 관리",
     "roleManagement": "권한 관리",
     "profitManagement": "수익 관리",
-    "blacklistManagement": "블랙리스트 관리"
+    "blacklistManagement": "블랙리스트 관리",
+    "scheduleManagement": "스케줄 관리"
   },
   "title": {
     "coin": "코인"
@@ -160,5 +161,32 @@
   "token": "토큰",
   "channel": "채널",
   "profile": "프로필",
-  "more": "더 보기"
+  "more": "더 보기",
+  "schedule": {
+    "management": {
+      "title": "스케줄 관리",
+      "description": "스케줄이 정상적으로 실행되지 않았을 때 수동으로 실행할 수 있습니다."
+    },
+    "execute": {
+      "executing": "실행 중...",
+      "existItems": {
+        "title": "기존 종목 스케줄 실행",
+        "description": "기존에 보유한 종목들에 대한 AI 추론을 실행합니다.",
+        "button": "기존 종목 스케줄 실행",
+        "success": "기존 종목 스케줄이 성공적으로 실행되었습니다.",
+        "error": "기존 종목 스케줄 실행에 실패했습니다."
+      },
+      "newItems": {
+        "title": "신규 종목 스케줄 실행",
+        "description": "신규 종목들을 포함한 전체 AI 추론을 실행합니다.",
+        "button": "신규 종목 스케줄 실행",
+        "success": "신규 종목 스케줄이 성공적으로 실행되었습니다.",
+        "error": "신규 종목 스케줄 실행에 실패했습니다."
+      },
+      "warning": {
+        "title": "주의사항",
+        "description": "스케줄 실행은 시간이 오래 걸릴 수 있으며, 실행 중에는 다른 작업을 수행하지 마세요. 또한 개발 환경에서는 실행되지 않습니다."
+      }
+    }
+  }
 }
