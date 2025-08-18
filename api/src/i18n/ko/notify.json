@@ -19,6 +19,6 @@
     "result": "수익금: {profit}"
   },
   "fallback": {
-    "failed": "재시도에 실패했습니다."
+    "failed": "*[시스템 알림]* 재시도에 실패했습니다.\n\n상세 정보\n> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
   }
 }
