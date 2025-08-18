@@ -1,4 +1,10 @@
 {
+  "upbit": {
+    "apikey": {
+      "server_expired": "서버용 API 키가 만료되었거나 유효하지 않습니다.",
+      "user_expired": "API 키가 만료되었거나 유효하지 않아 매매를 중지합니다."
+    }
+  },
   "balance": {
     "fail": "계좌 조회에 실패했습니다."
   },
@@ -11,5 +17,8 @@
   },
   "profit": {
     "result": "수익금: {profit}"
+  },
+  "fallback": {
+    "failed": "재시도에 실패했습니다."
   }
 }

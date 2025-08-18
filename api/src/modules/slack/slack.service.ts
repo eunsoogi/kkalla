@@ -49,11 +49,6 @@ export class SlackService {
     const serverToken = process.env.NOTIFY_SECRET_KEY;
     const serverChannel = process.env.NOTIFY_CHANNEL;
 
-    if (!serverToken || !serverChannel) {
-      this.logger.warn(this.i18n.t('logging.slack.config.missing'));
-      return null;
-    }
-
     // 서버 클라이언트 초기화 (캐싱)
     if (!this.serverClient) {
       this.serverClient = new WebClient(serverToken);
