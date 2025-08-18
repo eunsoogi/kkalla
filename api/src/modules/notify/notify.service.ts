@@ -57,10 +57,10 @@ export class NotifyService {
    */
   public async sendServer(message: string, context?: string): Promise<void> {
     const fullMessage = context
-      ? this.i18n.t('logging.alert.system.with_context', {
+      ? this.i18n.t('logging.alert.system_with_context', {
           args: { message, context },
         })
-      : this.i18n.t('logging.alert.system.message', {
+      : this.i18n.t('logging.alert.system', {
           args: { message },
         });
 
