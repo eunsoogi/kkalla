@@ -6,6 +6,8 @@ export enum Permission {
   VIEW_PROFIT = 'view:profit',
   VIEW_BLACKLISTS = 'view:blacklists',
   MANAGE_BLACKLISTS = 'manage:blacklists',
+  EXEC_SCHEDULE_WITH_NEW_ITEMS = 'exec:schedule:with_new_items',
+  EXEC_SCHEDULE_WITH_EXIST_ITEMS = 'exec:schedule:with_exist_items',
   VIEW_INFERENCE_NASDAQ = 'view:inference:nasdaq',
   VIEW_INFERENCE_COIN_MAJOR = 'view:inference:coin:major',
   VIEW_INFERENCE_COIN_MINOR = 'view:inference:coin:minor',

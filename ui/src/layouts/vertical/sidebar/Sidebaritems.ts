@@ -120,6 +120,15 @@ export const SidebarContent = (): MenuItem[] => {
     });
   }
 
+  if (hasPermission([Permission.EXEC_SCHEDULE_WITH_EXIST_ITEMS, Permission.EXEC_SCHEDULE_WITH_NEW_ITEMS])) {
+    adminChildren.push({
+      name: t('scheduleManagement'),
+      icon: 'solar:calendar-mark-line-duotone',
+      id: uniqueId(),
+      url: '/schedules',
+    });
+  }
+
   if (adminChildren.length > 0) {
     menuItems.push({
       heading: t('admin'),
