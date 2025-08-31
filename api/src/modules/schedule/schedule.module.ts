@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 
 import { BlacklistModule } from '../blacklist/blacklist.module';
 import { HistoryModule } from '../history/history.module';
@@ -10,7 +11,15 @@ import { ScheduleController } from './schedule.controller';
 import { ScheduleService } from './schedule.service';
 
 @Module({
-  imports: [RedlockModule, TradeModule, BlacklistModule, HistoryModule, InferenceModule, UpbitModule],
+  imports: [
+    NestScheduleModule.forRoot(),
+    RedlockModule,
+    TradeModule,
+    BlacklistModule,
+    HistoryModule,
+    InferenceModule,
+    UpbitModule,
+  ],
   controllers: [ScheduleController],
   providers: [ScheduleService],
 })
