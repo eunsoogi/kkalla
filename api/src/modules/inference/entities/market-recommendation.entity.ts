@@ -30,6 +30,12 @@ export class MarketRecommendation extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
+
   @Column({ type: 'varchar', length: 20 })
   symbol: string;
 
@@ -88,7 +94,7 @@ export class MarketRecommendation extends BaseEntity {
     const findOptions = {
       where,
       order: {
-        createdAt: sortDirection,
+        seq: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,
@@ -129,17 +135,15 @@ export class MarketRecommendation extends BaseEntity {
     if (request.cursor) {
       const cursorEntity = await this.findOne({ where: { id: request.cursor } });
       if (cursorEntity) {
-        where.createdAt =
-          sortDirection === SortDirection.DESC
-            ? LessThanOrEqual(cursorEntity.createdAt)
-            : MoreThanOrEqual(cursorEntity.createdAt);
+        where.seq =
+          sortDirection === SortDirection.DESC ? LessThanOrEqual(cursorEntity.seq) : MoreThanOrEqual(cursorEntity.seq);
       }
     }
 
     const findOptions = {
       where,
       order: {
-        createdAt: sortDirection,
+        seq: sortDirection,
       },
       take: request.limit + 1,
       skip: request.cursor && request.skip ? 1 : 0,

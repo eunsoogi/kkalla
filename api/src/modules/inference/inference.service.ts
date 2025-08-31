@@ -14,6 +14,7 @@ import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
 import { NotifyService } from '@/modules/notify/notify.service';
 import { OpenaiService } from '@/modules/openai/openai.service';
+import { SequenceService } from '@/modules/sequence/sequence.service';
 
 import { MarketFeatures } from '../upbit/upbit.interface';
 import { BalanceRecommendationDto } from './dto/balance-recommendation.dto';
@@ -22,7 +23,12 @@ import { GetRecommendationsPaginationDto } from './dto/get-recommendations-pagin
 import { MarketRecommendationDto } from './dto/market-recommendation.dto';
 import { BalanceRecommendation } from './entities/balance-recommendation.entity';
 import { MarketRecommendation } from './entities/market-recommendation.entity';
-import { MarketRecommendationResponse } from './inference.interface';
+import {
+  BalanceRecommendationData,
+  MarketRecommendationData,
+  MarketRecommendationResponse,
+  RecommendationItem,
+} from './inference.interface';
 import {
   UPBIT_BALANCE_RECOMMENDATION_CONFIG,
   UPBIT_BALANCE_RECOMMENDATION_PROMPT,
@@ -48,6 +54,7 @@ export class InferenceService {
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
     private readonly notifyService: NotifyService,
+    private readonly sequenceService: SequenceService,
   ) {}
 
   /**
@@ -96,13 +103,9 @@ export class InferenceService {
 
       // 결과 저장
       if (result.recommendations?.length > 0) {
-        const newRecommends = result.recommendations.map((rec) =>
-          MarketRecommendation.create({
-            ...rec,
-            batchId: result.batchId,
-          }),
+        await Promise.all(
+          result.recommendations.map((recommendation) => this.saveMarketRecommendation(recommendation, result.batchId)),
         );
-        await MarketRecommendation.save(newRecommends);
 
         // 추천 결과 전송
         const recommendSymbols = result.recommendations.map((rec) => rec.symbol).join(', ');
@@ -118,28 +121,31 @@ export class InferenceService {
       this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
       return result;
     } catch (error) {
-      this.logger.error(
-        this.i18n.t('logging.inference.marketRecommendation.error'),
-        this.errorService.getErrorMessage(error),
-      );
+      this.logger.error(this.i18n.t('logging.inference.marketRecommendation.error'), error);
       throw error;
     }
   }
 
   /**
    * 선택된 종목들의 매수 비율 추천
-   * @param symbols 분석할 종목 목록
+   * @param items 분석할 종목 목록 (hasStock 정보 포함)
    * @returns 각 종목별 매수 비율 추천 결과
    */
-  public async balanceRecommendation(symbols: string[]): Promise<any[]> {
-    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: symbols.length } }));
+  public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
+    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
+
+    // hasStock 정보를 포함한 매핑 생성
+    const itemsMap = new Map<string, RecommendationItem>();
+    items.forEach((item) => {
+      itemsMap.set(item.ticker, item);
+    });
 
     try {
-      // 1. 각 종목에 대한 개별 배치 요청 생성
+      // 각 종목에 대한 개별 배치 요청 생성
       const batchRequests = await Promise.all(
-        symbols.map(async (symbol) => {
+        items.map(async (item) => {
           const { ...config } = UPBIT_BALANCE_RECOMMENDATION_CONFIG;
-          const messages = await this.buildBalanceRecommendationMessages(symbol);
+          const messages = await this.buildBalanceRecommendationMessages(item.ticker);
           const requestConfig = {
             response_format: {
               type: 'json_schema' as const,
@@ -152,36 +158,50 @@ export class InferenceService {
             ...config,
           };
 
-          return this.openaiService.createBatchRequest(`balance-recommendation-${symbol}`, messages, requestConfig);
+          return this.openaiService.createBatchRequest(
+            `balance-recommendation-${item.ticker}`,
+            messages,
+            requestConfig,
+          );
         }),
       );
 
       const batchRequestsJsonl = batchRequests.join('\n');
 
-      // 2. 배치 작업 생성 및 완료 대기
+      // 배치 작업 생성 및 완료 대기
       const batchId = await this.openaiService.createBatchJob(batchRequestsJsonl);
       const batchResults = await this.openaiService.waitForBatchCompletion(batchId);
 
-      // 3. 결과 처리
+      // 결과 처리
       const results = batchResults.map((result) => {
-        const symbol = result.custom_id.replace('balance-recommendation-', '');
+        const ticker = result.custom_id.replace('balance-recommendation-', '');
+        const item = itemsMap.get(ticker);
+
         if (result.error) {
           this.logger.error(
-            this.i18n.t('logging.inference.balanceRecommendation.error', { args: { symbol } }),
+            this.i18n.t('logging.inference.balanceRecommendation.error', { args: { symbol: ticker } }),
             result.error,
           );
-          return { ticker: symbol, error: result.error };
+          return { ticker, error: result.error };
         }
-        return result.data;
+
+        // hasStock 정보를 결과에 포함
+        return {
+          ...result.data,
+          hasStock: item?.hasStock || false,
+        };
       });
+
+      // 결과 저장
+      const successResults = results.filter((result) => !result.error);
+      if (successResults.length > 0) {
+        await Promise.all(successResults.map((recommendation) => this.saveBalanceRecommendation(recommendation)));
+      }
 
       this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
       return results;
     } catch (error) {
-      this.logger.error(
-        this.i18n.t('logging.inference.balanceRecommendation.error'),
-        this.errorService.getErrorMessage(error),
-      );
+      this.logger.error(this.i18n.t('logging.inference.balanceRecommendation.error'), error);
       throw error;
     }
   }
@@ -410,7 +430,6 @@ export class InferenceService {
       category: entity.category,
       rate: entity.rate,
       reason: entity.reason,
-      hasStock: entity.hasStock,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     }));
@@ -431,7 +450,6 @@ export class InferenceService {
       ticker: entity.ticker,
       category: entity.category,
       rate: entity.rate,
-      hasStock: entity.hasStock,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     }));
@@ -440,5 +458,27 @@ export class InferenceService {
       ...cursorResult,
       items,
     };
+  }
+
+  public async saveMarketRecommendation(
+    recommendation: MarketRecommendationData,
+    batchId: string,
+  ): Promise<MarketRecommendation> {
+    const marketRecommendation = new MarketRecommendation();
+
+    Object.assign(marketRecommendation, recommendation);
+    marketRecommendation.batchId = batchId;
+    marketRecommendation.seq = await this.sequenceService.getNextSequence();
+
+    return marketRecommendation.save();
+  }
+
+  public async saveBalanceRecommendation(recommendation: BalanceRecommendationData): Promise<BalanceRecommendation> {
+    const balanceRecommendation = new BalanceRecommendation();
+
+    Object.assign(balanceRecommendation, recommendation);
+    balanceRecommendation.seq = await this.sequenceService.getNextSequence();
+
+    return balanceRecommendation.save();
   }
 }
