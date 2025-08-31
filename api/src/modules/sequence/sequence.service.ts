@@ -11,7 +11,7 @@ export class SequenceService {
     return savedSequence.value;
   }
 
-  async getCurrentvalueuence(): Promise<number> {
+  async getCurrentSequence(): Promise<number> {
     const lastSequence = await Sequence.findOne({
       order: { value: 'DESC' },
     });

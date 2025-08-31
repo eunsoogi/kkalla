@@ -19,9 +19,6 @@ export class BalanceRecommendationDto {
   rate: number;
 
   @ApiProperty()
-  hasStock: boolean;
-
-  @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()

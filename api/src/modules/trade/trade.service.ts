@@ -180,21 +180,7 @@ export class TradeService implements OnModuleInit {
     const symbols = items.map((item) => item.ticker);
     const recommendations = await this.inferenceService.balanceRecommendation(symbols);
 
-    // 원래 items의 hasStock 정보를 결과에 병합
-    const recommendationMap = new Map(recommendations.map((rec) => [rec.ticker, rec]));
-    const mergedRecommendations = items.map((item) => {
-      const rec = recommendationMap.get(item.ticker);
-      if (rec) {
-        return {
-          ...rec,
-          hasStock: item.hasStock,
-          category: item.category,
-        };
-      }
-      return null;
-    });
-
-    return mergedRecommendations.filter((item) => item !== null) as BalanceRecommendation[];
+    return recommendations.filter((item) => item !== null);
   }
 
   public async filterUserAuthorizedBalanceRecommendations(
