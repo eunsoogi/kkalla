@@ -1,5 +1,5 @@
 import { TradeTypes } from '../enums/trade.enum';
-import { Inference } from './inference.interface';
+import { BalanceRecommendation } from './inference.interface';
 import { CursorItem, PaginatedItem } from './item.interface';
 import { State } from './state.interface';
 
@@ -9,7 +9,7 @@ export interface Trade {
   ticker: string;
   amount: number;
   profit: number;
-  inference: Inference;
+  inference: BalanceRecommendation;
   createdAt: Date;
   updatedAt: Date;
 }
