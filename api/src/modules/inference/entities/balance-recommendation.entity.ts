@@ -49,8 +49,6 @@ export class BalanceRecommendation extends BaseEntity {
   })
   reason: string | null;
 
-  hasStock: boolean;
-
   @CreateDateColumn()
   createdAt: Date;
 

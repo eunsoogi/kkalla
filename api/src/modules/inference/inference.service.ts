@@ -4,7 +4,6 @@ import * as Handlebars from 'handlebars';
 import { I18nService } from 'nestjs-i18n';
 import { ChatCompletionMessageParam } from 'openai/resources/index.mjs';
 
-import { Category } from '@/modules/category/category.enum';
 import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
 import { FeargreedService } from '@/modules/feargreed/feargreed.service';
@@ -24,7 +23,12 @@ import { GetRecommendationsPaginationDto } from './dto/get-recommendations-pagin
 import { MarketRecommendationDto } from './dto/market-recommendation.dto';
 import { BalanceRecommendation } from './entities/balance-recommendation.entity';
 import { MarketRecommendation } from './entities/market-recommendation.entity';
-import { MarketRecommendationResponse } from './inference.interface';
+import {
+  BalanceRecommendationData,
+  MarketRecommendationData,
+  MarketRecommendationResponse,
+  RecommendationItem,
+} from './inference.interface';
 import {
   UPBIT_BALANCE_RECOMMENDATION_CONFIG,
   UPBIT_BALANCE_RECOMMENDATION_PROMPT,
@@ -37,19 +41,6 @@ import {
   UPBIT_MARKET_RECOMMENDATION_PROMPT,
   UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
 } from './prompts/market-recommendation.prompt';
-
-interface MarketRecommendationData {
-  symbol: string;
-  weight: number;
-  reason: string;
-  confidence: number;
-}
-
-interface BalanceRecommendationData {
-  ticker: string;
-  category: Category;
-  rate: number;
-}
 
 @Injectable()
 export class InferenceService {
@@ -137,18 +128,24 @@ export class InferenceService {
 
   /**
    * 선택된 종목들의 매수 비율 추천
-   * @param symbols 분석할 종목 목록
+   * @param items 분석할 종목 목록 (hasStock 정보 포함)
    * @returns 각 종목별 매수 비율 추천 결과
    */
-  public async balanceRecommendation(symbols: string[]): Promise<any[]> {
-    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: symbols.length } }));
+  public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
+    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
+
+    // hasStock 정보를 포함한 매핑 생성
+    const itemsMap = new Map<string, RecommendationItem>();
+    items.forEach((item) => {
+      itemsMap.set(item.ticker, item);
+    });
 
     try {
       // 각 종목에 대한 개별 배치 요청 생성
       const batchRequests = await Promise.all(
-        symbols.map(async (symbol) => {
+        items.map(async (item) => {
           const { ...config } = UPBIT_BALANCE_RECOMMENDATION_CONFIG;
-          const messages = await this.buildBalanceRecommendationMessages(symbol);
+          const messages = await this.buildBalanceRecommendationMessages(item.ticker);
           const requestConfig = {
             response_format: {
               type: 'json_schema' as const,
@@ -161,7 +158,11 @@ export class InferenceService {
             ...config,
           };
 
-          return this.openaiService.createBatchRequest(`balance-recommendation-${symbol}`, messages, requestConfig);
+          return this.openaiService.createBatchRequest(
+            `balance-recommendation-${item.ticker}`,
+            messages,
+            requestConfig,
+          );
         }),
       );
 
@@ -173,15 +174,22 @@ export class InferenceService {
 
       // 결과 처리
       const results = batchResults.map((result) => {
-        const symbol = result.custom_id.replace('balance-recommendation-', '');
+        const ticker = result.custom_id.replace('balance-recommendation-', '');
+        const item = itemsMap.get(ticker);
+
         if (result.error) {
           this.logger.error(
-            this.i18n.t('logging.inference.balanceRecommendation.error', { args: { symbol } }),
+            this.i18n.t('logging.inference.balanceRecommendation.error', { args: { symbol: ticker } }),
             result.error,
           );
-          return { ticker: symbol, error: result.error };
+          return { ticker, error: result.error };
         }
-        return result.data;
+
+        // hasStock 정보를 결과에 포함
+        return {
+          ...result.data,
+          hasStock: item?.hasStock || false,
+        };
       });
 
       // 결과 저장

@@ -66,3 +66,17 @@ export interface MarketRecommendationResponse {
   batchId: string;
   recommendations: MarketRecommendation[];
 }
+
+export interface MarketRecommendationData {
+  symbol: string;
+  weight: number;
+  reason: string;
+  confidence: number;
+}
+
+export interface BalanceRecommendationData {
+  ticker: string;
+  category: Category;
+  rate: number;
+  hasStock: boolean;
+}

@@ -16,8 +16,7 @@ import { formatNumber } from '@/utils/number';
 import { Category } from '../category/category.enum';
 import { CategoryService } from '../category/category.service';
 import { HistoryService } from '../history/history.service';
-import { BalanceRecommendation } from '../inference/entities/balance-recommendation.entity';
-import { RecommendationItem } from '../inference/inference.interface';
+import { BalanceRecommendationData, RecommendationItem } from '../inference/inference.interface';
 import { InferenceService } from '../inference/inference.service';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
@@ -149,7 +148,7 @@ export class TradeService implements OnModuleInit {
 
   public async produceMessage(
     users: User[],
-    inferences: BalanceRecommendation[],
+    inferences: BalanceRecommendationData[],
     buyAvailable: boolean = true,
   ): Promise<void> {
     this.logger.log(
@@ -176,17 +175,16 @@ export class TradeService implements OnModuleInit {
     }
   }
 
-  public async executeBalanceRecommendations(items: RecommendationItem[]): Promise<BalanceRecommendation[]> {
-    const symbols = items.map((item) => item.ticker);
-    const recommendations = await this.inferenceService.balanceRecommendation(symbols);
+  public async executeBalanceRecommendations(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
+    const recommendations = await this.inferenceService.balanceRecommendation(items);
 
     return recommendations.filter((item) => item !== null);
   }
 
   public async filterUserAuthorizedBalanceRecommendations(
     user: User,
-    inferences: BalanceRecommendation[],
-  ): Promise<BalanceRecommendation[]> {
+    inferences: BalanceRecommendationData[],
+  ): Promise<BalanceRecommendationData[]> {
     const enabledCategories = await this.categoryService.findEnabledByUser(user);
 
     return inferences.filter(
@@ -196,7 +194,7 @@ export class TradeService implements OnModuleInit {
     );
   }
 
-  public filterIncludedBalanceRecommendations(inferences: BalanceRecommendation[]): BalanceRecommendation[] {
+  public filterIncludedBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
     const results = this.groupBalanceRecommendationsByCategory(inferences).map(
       ([category, categoryBalanceRecommendations]) =>
         this.getIncludedBalanceRecommendationsByCategory(categoryBalanceRecommendations, category as Category),
@@ -204,7 +202,7 @@ export class TradeService implements OnModuleInit {
     return this.mergeSortedBalanceRecommendations(results);
   }
 
-  public filterExcludedBalanceRecommendations(inferences: BalanceRecommendation[]): BalanceRecommendation[] {
+  public filterExcludedBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
     const results = this.groupBalanceRecommendationsByCategory(inferences).map(
       ([category, categoryBalanceRecommendations]) =>
         this.getExcludedBalanceRecommendationsByCategory(categoryBalanceRecommendations, category as Category),
@@ -213,8 +211,8 @@ export class TradeService implements OnModuleInit {
   }
 
   private groupBalanceRecommendationsByCategory(
-    inferences: BalanceRecommendation[],
-  ): Array<[string, BalanceRecommendation[]]> {
+    inferences: BalanceRecommendationData[],
+  ): Array<[string, BalanceRecommendationData[]]> {
     return Object.entries(
       inferences.reduce(
         (acc, curr) => {
@@ -224,24 +222,24 @@ export class TradeService implements OnModuleInit {
           acc[curr.category].push(curr);
           return acc;
         },
-        {} as Record<string, BalanceRecommendation[]>,
+        {} as Record<string, BalanceRecommendationData[]>,
       ),
     );
   }
 
   private getIncludedBalanceRecommendationsByCategory(
-    categoryBalanceRecommendations: BalanceRecommendation[],
+    categoryBalanceRecommendations: BalanceRecommendationData[],
     category: Category,
-  ): BalanceRecommendation[] {
+  ): BalanceRecommendationData[] {
     return this.sortBalanceRecommendations(categoryBalanceRecommendations)
       .filter((item) => item.rate > this.MINIMUM_TRADE_RATE)
       .slice(0, this.getItemCountByCategory(category));
   }
 
   private getExcludedBalanceRecommendationsByCategory(
-    categoryBalanceRecommendations: BalanceRecommendation[],
+    categoryBalanceRecommendations: BalanceRecommendationData[],
     category: Category,
-  ): BalanceRecommendation[] {
+  ): BalanceRecommendationData[] {
     const includedBalanceRecommendations = this.getIncludedBalanceRecommendationsByCategory(
       categoryBalanceRecommendations,
       category as Category,
@@ -251,7 +249,7 @@ export class TradeService implements OnModuleInit {
     );
   }
 
-  private sortBalanceRecommendations(inferences: BalanceRecommendation[]): BalanceRecommendation[] {
+  private sortBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
     return inferences.sort((a, b) => {
       if (a.hasStock && b.hasStock) {
         return 0;
@@ -271,13 +269,13 @@ export class TradeService implements OnModuleInit {
     });
   }
 
-  private mergeSortedBalanceRecommendations(results: BalanceRecommendation[][]): BalanceRecommendation[] {
+  private mergeSortedBalanceRecommendations(results: BalanceRecommendationData[][]): BalanceRecommendationData[] {
     return this.sortBalanceRecommendations(results.flat());
   }
 
   public generateNonBalanceRecommendationTradeRequests(
     balances: Balances,
-    inferences: BalanceRecommendation[],
+    inferences: BalanceRecommendationData[],
   ): TradeRequest[] {
     const tradeRequests: TradeRequest[] = balances.info
       .filter((item) => {
@@ -295,7 +293,7 @@ export class TradeService implements OnModuleInit {
 
   public generateIncludedTradeRequests(
     balances: Balances,
-    inferences: BalanceRecommendation[],
+    inferences: BalanceRecommendationData[],
     count: number,
   ): TradeRequest[] {
     const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).slice(0, count);
@@ -314,7 +312,7 @@ export class TradeService implements OnModuleInit {
 
   public generateExcludedTradeRequests(
     balances: Balances,
-    inferences: BalanceRecommendation[],
+    inferences: BalanceRecommendationData[],
     count: number,
   ): TradeRequest[] {
     const filteredBalanceRecommendations = [
@@ -363,7 +361,7 @@ export class TradeService implements OnModuleInit {
 
   public async processUserItems(
     user: User,
-    inferences: BalanceRecommendation[],
+    inferences: BalanceRecommendationData[],
     buyAvailable: boolean = true,
   ): Promise<Trade[]> {
     // 권한이 있는 추론만 필터링
