@@ -1,6 +1,6 @@
 import { Balances } from 'ccxt';
 
-import { Inference } from '../inference/entities/inference.entity';
+import { BalanceRecommendation } from '../inference/entities/balance-recommendation.entity';
 import { SortDirection } from '../item/item.enum';
 import { OrderTypes } from '../upbit/upbit.enum';
 
@@ -18,7 +18,7 @@ export interface TradeRequest {
   ticker: string;
   diff: number;
   balances: Balances;
-  inference?: Inference;
+  inference?: BalanceRecommendation;
 }
 
 export interface TradeData {
@@ -26,5 +26,5 @@ export interface TradeData {
   type: OrderTypes;
   amount: number;
   profit: number;
-  inference: Inference;
+  inference: BalanceRecommendation;
 }

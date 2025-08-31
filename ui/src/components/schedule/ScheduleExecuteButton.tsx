@@ -9,7 +9,7 @@ import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { Permission } from '@/interfaces/permission.interface';
 
 interface ScheduleExecuteButtonProps {
-  type: 'existItems' | 'newItems';
+  type: 'marketRecommendation' | 'existItems' | 'newItems';
   isPending: boolean;
   onExecute: () => void;
 }
@@ -22,27 +22,38 @@ const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
   const t = useTranslations();
 
   const config = {
+    marketRecommendation: {
+      permission: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+      color: 'purple' as const,
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+      borderColor: 'border-purple-200 dark:border-purple-800',
+      titleColor: 'text-purple-900 dark:text-purple-200',
+      descColor: 'text-purple-700 dark:text-purple-300',
+      title: t('schedule.execute.marketRecommendation.title'),
+      description: t('schedule.execute.marketRecommendation.description'),
+      button: t('schedule.execute.marketRecommendation.button'),
+    },
     existItems: {
-      permission: Permission.EXEC_SCHEDULE_WITH_EXIST_ITEMS,
+      permission: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
       color: 'blue' as const,
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       borderColor: 'border-blue-200 dark:border-blue-800',
       titleColor: 'text-blue-900 dark:text-blue-200',
       descColor: 'text-blue-700 dark:text-blue-300',
-      title: t('schedule.execute.existItems.title'),
-      description: t('schedule.execute.existItems.description'),
-      button: t('schedule.execute.existItems.button'),
+      title: t('schedule.execute.balanceRecommendationExisting.title'),
+      description: t('schedule.execute.balanceRecommendationExisting.description'),
+      button: t('schedule.execute.balanceRecommendationExisting.button'),
     },
     newItems: {
-      permission: Permission.EXEC_SCHEDULE_WITH_NEW_ITEMS,
+      permission: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
       color: 'green' as const,
       bgColor: 'bg-green-50 dark:bg-green-900/20',
       borderColor: 'border-green-200 dark:border-green-800',
       titleColor: 'text-green-900 dark:text-green-200',
       descColor: 'text-green-700 dark:text-green-300',
-      title: t('schedule.execute.newItems.title'),
-      description: t('schedule.execute.newItems.description'),
-      button: t('schedule.execute.newItems.button'),
+      title: t('schedule.execute.balanceRecommendationNew.title'),
+      description: t('schedule.execute.balanceRecommendationNew.description'),
+      button: t('schedule.execute.balanceRecommendationNew.button'),
     },
   };
 

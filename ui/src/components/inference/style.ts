@@ -10,3 +10,15 @@ export const getRateColor = (rate: number) => {
     color: 'white',
   };
 };
+
+export const getWeightColor = (weight: number) => {
+  if (weight > 0.7) return { backgroundColor: '#7E22CE', color: 'white' }; // purple-700
+  if (weight > 0.4) return { backgroundColor: '#9333EA', color: 'white' }; // purple-600
+  return { backgroundColor: '#A855F7', color: 'white' }; // purple-500
+};
+
+export const getConfidenceColor = (confidence: number) => {
+  if (confidence > 0.7) return { backgroundColor: '#312E81', color: 'white' }; // indigo-900
+  if (confidence > 0.4) return { backgroundColor: '#4338CA', color: 'white' }; // indigo-700
+  return { backgroundColor: '#4F46E5', color: 'white' }; // indigo-600
+};

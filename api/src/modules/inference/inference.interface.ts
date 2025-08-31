@@ -1,9 +1,11 @@
 import { Category } from '../category/category.enum';
 import { SortDirection } from '../item/item.enum';
 
-export interface InferenceFilter {
+export interface BalanceRecommendationFilter {
   ticker?: string;
   category?: Category;
+  startDate?: Date;
+  endDate?: Date;
   createdAt?: {
     gte?: Date;
     lte?: Date;
@@ -11,7 +13,16 @@ export interface InferenceFilter {
   sortDirection?: SortDirection;
 }
 
-export interface RecentInferenceRequest {
+export interface MarketRecommendationFilter {
+  ticker?: string;
+  createdAt?: {
+    gte?: Date;
+    lte?: Date;
+  };
+  sortDirection?: SortDirection;
+}
+
+export interface RecentBalanceRecommendationRequest {
   ticker: string;
   createdAt: Date;
   count: number;
@@ -38,17 +49,20 @@ export interface CandleRequest {
   limit: number;
 }
 
-export interface InferenceItem {
+export interface RecommendationItem {
   ticker: string;
   category: Category;
   hasStock: boolean;
 }
 
-export interface InferenceData extends InferenceItem {
+export interface MarketRecommendation {
+  symbol: string;
   reason: string;
-  rate: number;
+  confidence: number;
+  weight: number;
 }
-export interface RecentInferenceResult {
-  timestamp: Date;
-  rate: number;
+
+export interface MarketRecommendationResponse {
+  batchId: string;
+  recommendations: MarketRecommendation[];
 }

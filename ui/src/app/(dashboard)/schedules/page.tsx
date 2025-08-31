@@ -8,7 +8,11 @@ import { useTranslations } from 'next-intl';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { ForbiddenError } from '@/components/error/403';
 import { Permission } from '@/interfaces/permission.interface';
-import { executeExistItemsAction, executeNewItemsAction } from '@/components/schedule/action';
+import {
+  executeMarketRecommendationAction,
+  executeBalanceRecommendationWithExistingItemsAction,
+  executebalanceRecommendationNewItemsAction
+} from '@/components/schedule/action';
 import ScheduleExecuteButton from '@/components/schedule/ScheduleExecuteButton';
 import ScheduleWarning from '@/components/schedule/ScheduleWarning';
 
@@ -17,11 +21,23 @@ const Page: React.FC = () => {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const handleExecuteMarketRecommendation = () => {
+    startTransition(async () => {
+      setMessage(null);
+      const result = await executeMarketRecommendationAction();
+
+      setMessage({
+        type: result.success ? 'success' : 'error',
+        text: result.message || '',
+      });
+    });
+  };
+
   const handleExecuteExistItems = () => {
     startTransition(async () => {
       setMessage(null);
-      const result = await executeExistItemsAction();
-      
+      const result = await executeBalanceRecommendationWithExistingItemsAction();
+
       setMessage({
         type: result.success ? 'success' : 'error',
         text: result.message || '',
@@ -32,8 +48,8 @@ const Page: React.FC = () => {
   const handleExecuteNewItems = () => {
     startTransition(async () => {
       setMessage(null);
-      const result = await executeNewItemsAction();
-      
+      const result = await executebalanceRecommendationNewItemsAction();
+
       setMessage({
         type: result.success ? 'success' : 'error',
         text: result.message || '',
@@ -42,8 +58,12 @@ const Page: React.FC = () => {
   };
 
   return (
-    <PermissionGuard 
-      permissions={[Permission.EXEC_SCHEDULE_WITH_EXIST_ITEMS, Permission.EXEC_SCHEDULE_WITH_NEW_ITEMS]} 
+    <PermissionGuard
+      permissions={[
+        Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+        Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
+        Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW
+      ]}
       fallback={<ForbiddenError />}
     >
       <div className='space-y-6'>
@@ -61,7 +81,13 @@ const Page: React.FC = () => {
             </Alert>
           )}
 
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+            <ScheduleExecuteButton
+              type='marketRecommendation'
+              isPending={isPending}
+              onExecute={handleExecuteMarketRecommendation}
+            />
+
             <ScheduleExecuteButton
               type='existItems'
               isPending={isPending}

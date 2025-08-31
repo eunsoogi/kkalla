@@ -51,10 +51,16 @@ export const SidebarContent = (): MenuItem[] => {
           url: '/news',
         },
         {
-          name: t('inferenceList'),
-          icon: 'mingcute:ai-line',
+          name: t('marketReport'),
+          icon: 'solar:chart-line-duotone',
           id: uniqueId(),
-          url: '/inferences',
+          url: '/market-recommendations',
+        },
+        {
+          name: t('portfolioReport'),
+          icon: 'solar:chart-line-duotone',
+          id: uniqueId(),
+          url: '/balance-recommendations',
         },
         {
           name: t('tradeList'),
@@ -120,7 +126,11 @@ export const SidebarContent = (): MenuItem[] => {
     });
   }
 
-  if (hasPermission([Permission.EXEC_SCHEDULE_WITH_EXIST_ITEMS, Permission.EXEC_SCHEDULE_WITH_NEW_ITEMS])) {
+  if (hasPermission([
+    Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING, 
+    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW
+  ])) {
     adminChildren.push({
       name: t('scheduleManagement'),
       icon: 'solar:calendar-mark-line-duotone',

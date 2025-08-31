@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { AuthenticationError, Balances, OHLCV, Order, upbit } from 'ccxt';
+import { AuthenticationError, Balances, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
@@ -11,7 +11,7 @@ import { Schedule } from '../schedule/entities/schedule.entity';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
-import { AdjustOrderRequest, CandleRequest, OrderRequest, UpbitConfigData } from './upbit.interface';
+import { AdjustOrderRequest, KrwMarketData, OrderRequest, UpbitConfigData } from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
@@ -120,14 +120,6 @@ export class UpbitService {
 
   public clearClients(): void {
     this.client = [];
-  }
-
-  public async getCandles(request: CandleRequest): Promise<OHLCV[]> {
-    const client = await this.getServerClient();
-
-    return await this.errorService.retryWithFallback(async () => {
-      return await client.fetchOHLCV(request.ticker, request.timeframe, undefined, request.limit);
-    }, this.retryOptions);
   }
 
   public async getBalances(user: User): Promise<Balances> {
@@ -314,5 +306,70 @@ export class UpbitService {
     }
 
     return null;
+  }
+
+  /**
+   * KRW 마켓의 모든 종목을 가져옵니다
+   */
+  public async getAllKrwMarkets(): Promise<string[]> {
+    const client = await this.getServerClient();
+
+    try {
+      const markets = await this.errorService.retryWithFallback(async () => {
+        return await client.loadMarkets();
+      }, this.retryOptions);
+
+      // KRW 마켓만 필터링
+      const krwMarkets = Object.keys(markets).filter((symbol) => symbol.endsWith('/KRW'));
+
+      this.logger.log(this.i18n.t('logging.upbit.markets.found', { args: { count: krwMarkets.length } }));
+      return krwMarkets;
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.upbit.markets.load_failed'), error);
+      throw error;
+    }
+  }
+
+  /**
+   * 특정 종목의 시장 데이터를 가져옵니다
+   */
+  public async getMarketData(symbol: string): Promise<KrwMarketData> {
+    const client = await this.getServerClient();
+
+    try {
+      const [ticker, candles1d, candles1w, candles1h, candles4h] = await Promise.all([
+        this.errorService.retryWithFallback(async () => {
+          return await client.fetchTicker(symbol);
+        }, this.retryOptions),
+
+        this.errorService.retryWithFallback(async () => {
+          return await client.fetchOHLCV(symbol, '1d', undefined, 200);
+        }, this.retryOptions),
+
+        this.errorService.retryWithFallback(async () => {
+          return await client.fetchOHLCV(symbol, '1w', undefined, 52);
+        }, this.retryOptions),
+
+        this.errorService.retryWithFallback(async () => {
+          return await client.fetchOHLCV(symbol, '1h', undefined, 100);
+        }, this.retryOptions),
+
+        this.errorService.retryWithFallback(async () => {
+          return await client.fetchOHLCV(symbol, '4h', undefined, 60);
+        }, this.retryOptions),
+      ]);
+
+      return {
+        symbol,
+        ticker,
+        candles1d,
+        candles1w,
+        candles1h,
+        candles4h,
+      };
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.upbit.market.load_failed', { args: { symbol } }), error);
+      throw error;
+    }
   }
 }

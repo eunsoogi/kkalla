@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Category } from '@/modules/category/category.enum';
-import { GetPaginationDto } from '@/modules/item/dto/get-pagination.dto';
+import { GetCursorDto } from '@/modules/item/dto/get-cursor.dto';
 import { ToDate } from '@/transforms/date.transform';
 
-export class GetInferenceDto extends GetPaginationDto {
+export class GetRecommendationsCursorDto extends GetCursorDto<string> {
   @ApiProperty({
     required: false,
     example: 'BTC/KRW',

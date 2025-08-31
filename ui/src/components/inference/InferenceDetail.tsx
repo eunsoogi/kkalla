@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -10,17 +9,19 @@ import { useTranslations } from 'next-intl';
 
 import { Category } from '@/enums/category.enum';
 import { SortDirection } from '@/enums/sort.enum';
-import { Inference } from '@/interfaces/inference.interface';
+import { BalanceRecommendation, MarketRecommendation } from '@/interfaces/inference.interface';
 import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
 import { CopyLinkButton } from '../common/CopyLinkButton';
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
-import { getInferenceCursorAction } from './action';
-import { getRateColor } from './style';
-import UserImg from '/public/images/profile/user-ai.png';
+import { getBalanceRecommendationsCursorAction, getMarketRecommendationsCursorAction } from './action';
+import { getConfidenceColor, getRateColor, getWeightColor } from './style';
+
+type Recommendation = MarketRecommendation | BalanceRecommendation;
 
 interface InferenceDetailListContentProps {
+  type: 'market' | 'balance';
   ticker?: string;
   category?: Category;
   sortDirection: SortDirection;
@@ -28,16 +29,18 @@ interface InferenceDetailListContentProps {
   endDate?: Date;
 }
 
-const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = (params) => {
+const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
   const t = useTranslations();
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Inference>>({
-    queryKey: ['inferences', 'cursor', params],
-    queryFn: ({ pageParam = null }) =>
-      getInferenceCursorAction({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Recommendation>>({
+    queryKey: ['inferences', type, 'cursor', params],
+    queryFn: ({ pageParam = null }) => {
+      const action = type === 'market' ? getMarketRecommendationsCursorAction : getBalanceRecommendationsCursorAction;
+      return action({
         cursor: pageParam as string,
         ...params,
-      }),
+      }) as Promise<CursorItem<Recommendation>>;
+    },
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });
@@ -62,25 +65,28 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = (params) 
                 `}
               >
                 <div className='relative'>
-                  <Image
-                    src={UserImg}
-                    className='h-10 w-10 rounded-full absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
-                    alt={t('profile')}
-                    priority
-                  />
                 </div>
                 <div className='p-6'>
                   <div className='flex flex-row gap-6 items-center'>
-                    <h4 className='text-dark dark:text-white'>{item.ticker}</h4>
-                    <Badge style={getRateColor(item.rate)}>{Math.floor(item.rate * 100)}%</Badge>
+                    {'ticker' in item ? (
+                      <>
+                        <h4 className='text-dark dark:text-white'>{item.ticker}</h4>
+                        <Badge style={getRateColor(item.rate)}>{`${t('inference.rate')}: ${Math.floor(item.rate * 100)}%`}</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
+                        <Badge style={getWeightColor(item.weight)}>{`${t('inference.weight')}: ${Math.floor(item.weight * 100)}%`}</Badge>
+                        <Badge style={getConfidenceColor(item.confidence)}>{`${t('inference.confidence')}: ${Math.floor(item.confidence * 100)}%`}</Badge>
+                      </>
+                    )}
                     <div className='ml-auto'>
                       <CopyLinkButton path={`/inferences/${item.id}`} />
                     </div>
                   </div>
-                  <div className='flex flex-col mt-3'>
-                    <h4 className='text-dark dark:text-white'>{t('inference.reason')}</h4>
-                    <div className='whitespace-pre-wrap'>{item.reason}</div>
-                  </div>
+                  {'reason' in item && type === 'market' && (
+                    <p className='text-gray-600 dark:text-gray-400 mt-4'>{item.reason}</p>
+                  )}
                   <div className='flex mt-3'>
                     <div className='flex gap-1 items-center ms-auto'>
                       <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />
@@ -114,6 +120,7 @@ export const InferenceDetailSkeleton: React.FC = () => {
 };
 
 interface InferenceDetailProps {
+  type: 'market' | 'balance';
   ticker?: string;
   category?: Category;
   decision?: string;
@@ -123,6 +130,7 @@ interface InferenceDetailProps {
 }
 
 export const InferenceDetail: React.FC<InferenceDetailProps> = ({
+  type,
   ticker,
   category,
   sortDirection,
@@ -132,6 +140,7 @@ export const InferenceDetail: React.FC<InferenceDetailProps> = ({
   return (
     <Suspense fallback={<InferenceDetailSkeleton />}>
       <InferenceDetailItem
+        type={type}
         ticker={ticker}
         category={category}
         sortDirection={sortDirection}

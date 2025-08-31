@@ -9,7 +9,7 @@
     "fail": "계좌 조회에 실패했습니다."
   },
   "inference": {
-    "result": "{ticker} ({rate}%)\n> {reason}"
+    "result": "{ticker} ({rate}%)"
   },
   "order": {
     "result": "{ticker} {type}, 거래금: {amount}, 수익금: {profit}",
@@ -20,5 +20,8 @@
   },
   "fallback": {
     "failed": "*[시스템 알림]* 재시도에 실패했습니다.\n\n상세 정보\n> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
+  },
+  "marketRecommendation": {
+    "completed": "📈 마켓 리포트 생성 완료!\n추천 종목 ({count}개): {symbols}"
   }
 }

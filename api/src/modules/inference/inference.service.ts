@@ -1,34 +1,40 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
-import { OHLCV } from 'ccxt';
+import * as Handlebars from 'handlebars';
 import { I18nService } from 'nestjs-i18n';
-import { ChatCompletionMessageParam, ResponseFormatJSONSchema } from 'openai/resources/index.mjs';
+import { ChatCompletionMessageParam } from 'openai/resources/index.mjs';
 
-import { Category } from '@/modules/category/category.enum';
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ErrorService } from '@/modules/error/error.service';
+import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
+import { FeargreedService } from '@/modules/feargreed/feargreed.service';
+import { FeatureService } from '@/modules/feature/feature.service';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
+import { NewsTypes } from '@/modules/news/news.enum';
+import { CompactNews } from '@/modules/news/news.interface';
+import { NewsService } from '@/modules/news/news.service';
+import { NotifyService } from '@/modules/notify/notify.service';
+import { OpenaiService } from '@/modules/openai/openai.service';
 
-import { RetryOptions } from '../error/error.interface';
-import { ErrorService } from '../error/error.service';
-import { CompactFeargreed } from '../feargreed/feargreed.interface';
-import { FeargreedService } from '../feargreed/feargreed.service';
-import { CompactNews } from '../news/news.interface';
-import { NewsService } from '../news/news.service';
-import { OpenaiService } from '../openai/openai.service';
-import { Permission } from '../permission/permission.enum';
-import { SequenceService } from '../sequence/sequence.service';
-import { UpbitService } from '../upbit/upbit.service';
-import { User } from '../user/entities/user.entity';
-import { Inference } from './entities/inference.entity';
-import { INFERENCE_CONFIG, INFERENCE_MODEL, INFERENCE_PROMPT, INFERENCE_RESPONSE_SCHEMA } from './inference.config';
+import { MarketFeatures } from '../upbit/upbit.interface';
+import { BalanceRecommendationDto } from './dto/balance-recommendation.dto';
+import { GetRecommendationsCursorDto } from './dto/get-recommendations-cursor.dto';
+import { GetRecommendationsPaginationDto } from './dto/get-recommendations-pagination.dto';
+import { MarketRecommendationDto } from './dto/market-recommendation.dto';
+import { BalanceRecommendation } from './entities/balance-recommendation.entity';
+import { MarketRecommendation } from './entities/market-recommendation.entity';
+import { MarketRecommendationResponse } from './inference.interface';
 import {
-  CandleRequest,
-  InferenceData,
-  InferenceFilter,
-  InferenceItem,
-  InferenceMessageRequest,
-  RecentInferenceRequest,
-  RecentInferenceResult,
-} from './inference.interface';
+  UPBIT_BALANCE_RECOMMENDATION_CONFIG,
+  UPBIT_BALANCE_RECOMMENDATION_PROMPT,
+  UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA,
+} from './prompts/balance-recommendation.prompt';
+import {
+  MARKET_DATA_TEMPLATE,
+  UPBIT_MARKET_DATA_LEGEND,
+  UPBIT_MARKET_RECOMMENDATION_CONFIG,
+  UPBIT_MARKET_RECOMMENDATION_PROMPT,
+  UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
+} from './prompts/market-recommendation.prompt';
 
 @Injectable()
 export class InferenceService {
@@ -36,103 +42,270 @@ export class InferenceService {
 
   constructor(
     private readonly i18n: I18nService,
-    private readonly errorService: ErrorService,
-    private readonly sequenceService: SequenceService,
-    private readonly openaiService: OpenaiService,
-    private readonly upbitService: UpbitService,
     private readonly newsService: NewsService,
     private readonly feargreedService: FeargreedService,
+    private readonly openaiService: OpenaiService,
+    private readonly featureService: FeatureService,
+    private readonly errorService: ErrorService,
+    private readonly notifyService: NotifyService,
   ) {}
 
-  private async buildMessages(request: InferenceMessageRequest): Promise<ChatCompletionMessageParam[]> {
+  /**
+   * 전체 KRW 마켓에서 상위 10개 종목 추천
+   * @returns 상위 10개 종목 추천 결과
+   */
+  public async marketRecommendation(symbols?: string[]): Promise<MarketRecommendationResponse> {
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.start'));
+
+    try {
+      // 메시지 빌드
+      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.build_msg_start'));
+      const messages = await this.errorService.retryWithFallback(() => this.buildMarketRecommendationMessages(symbols));
+      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.build_msg_complete'));
+
+      // 배치 요청 처리
+      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_start'));
+      const result = await this.errorService.retryWithFallback(async () => {
+        const requestConfig = {
+          ...UPBIT_MARKET_RECOMMENDATION_CONFIG,
+          response_format: {
+            type: 'json_schema' as const,
+            json_schema: {
+              name: 'market_recommendation',
+              strict: true,
+              schema: UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
+            },
+          },
+        };
+
+        const batchRequest = this.openaiService.createBatchRequest('market-recommendation', messages, requestConfig);
+        const batchId = await this.openaiService.createBatchJob(batchRequest);
+        const batchResults = await this.openaiService.waitForBatchCompletion(batchId);
+
+        const batchResult = batchResults[0];
+        if (batchResult.error) {
+          throw new Error(`Batch request failed: ${JSON.stringify(batchResult.error)}`);
+        }
+
+        return {
+          batchId,
+          recommendations: batchResult.data.recommendations,
+        };
+      });
+      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
+
+      // 결과 저장
+      if (result.recommendations?.length > 0) {
+        const newRecommends = result.recommendations.map((rec) =>
+          MarketRecommendation.create({
+            ...rec,
+            batchId: result.batchId,
+          }),
+        );
+        await MarketRecommendation.save(newRecommends);
+
+        // 추천 결과 전송
+        const recommendSymbols = result.recommendations.map((rec) => rec.symbol).join(', ');
+        const message = this.i18n.t('notify.marketRecommendation.completed', {
+          args: {
+            count: result.recommendations.length,
+            symbols: recommendSymbols,
+          },
+        });
+        await this.notifyService.notifyServer(message);
+      }
+
+      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
+      return result;
+    } catch (error) {
+      this.logger.error(
+        this.i18n.t('logging.inference.marketRecommendation.error'),
+        this.errorService.getErrorMessage(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 선택된 종목들의 매수 비율 추천
+   * @param symbols 분석할 종목 목록
+   * @returns 각 종목별 매수 비율 추천 결과
+   */
+  public async balanceRecommendation(symbols: string[]): Promise<any[]> {
+    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: symbols.length } }));
+
+    try {
+      // 1. 각 종목에 대한 개별 배치 요청 생성
+      const batchRequests = await Promise.all(
+        symbols.map(async (symbol) => {
+          const { ...config } = UPBIT_BALANCE_RECOMMENDATION_CONFIG;
+          const messages = await this.buildBalanceRecommendationMessages(symbol);
+          const requestConfig = {
+            response_format: {
+              type: 'json_schema' as const,
+              json_schema: {
+                name: 'balance_recommendation',
+                strict: true,
+                schema: UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA,
+              },
+            },
+            ...config,
+          };
+
+          return this.openaiService.createBatchRequest(`balance-recommendation-${symbol}`, messages, requestConfig);
+        }),
+      );
+
+      const batchRequestsJsonl = batchRequests.join('\n');
+
+      // 2. 배치 작업 생성 및 완료 대기
+      const batchId = await this.openaiService.createBatchJob(batchRequestsJsonl);
+      const batchResults = await this.openaiService.waitForBatchCompletion(batchId);
+
+      // 3. 결과 처리
+      const results = batchResults.map((result) => {
+        const symbol = result.custom_id.replace('balance-recommendation-', '');
+        if (result.error) {
+          this.logger.error(
+            this.i18n.t('logging.inference.balanceRecommendation.error', { args: { symbol } }),
+            result.error,
+          );
+          return { ticker: symbol, error: result.error };
+        }
+        return result.data;
+      });
+
+      this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
+      return results;
+    } catch (error) {
+      this.logger.error(
+        this.i18n.t('logging.inference.balanceRecommendation.error'),
+        this.errorService.getErrorMessage(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * 마켓 분석 메시지 빌드
+   */
+  private async buildMarketRecommendationMessages(symbols?: string[]): Promise<ChatCompletionMessageParam[]> {
     const messages: ChatCompletionMessageParam[] = [];
 
-    // Add system prompt
-    this.addMessage(messages, 'system', INFERENCE_PROMPT);
+    // 시스템 프롬프트 추가
+    this.addMessage(messages, 'system', UPBIT_MARKET_RECOMMENDATION_PROMPT);
 
-    // Add news data
-    const news = await this.fetchNewsData(request);
-    if (news) {
+    // 뉴스 데이터 추가
+    const news = await this.fetchNewsData();
+    if (news && news.length > 0) {
       this.addMessagePair(messages, 'prompt.input.news', news);
     }
 
-    // Add ticker
-    this.addMessagePair(messages, 'prompt.input.ticker', request.ticker);
-
-    // Add candle data
-    const timeframes = ['1d', '4h', '1h', '15m'];
-
-    for (const timeframe of timeframes) {
-      const candleData = await this.fetchCandleData({
-        ticker: request.ticker,
-        timeframe,
-        limit: request.candles[timeframe],
-      });
-
-      if (candleData.length > 0) {
-        this.addMessagePair(messages, 'prompt.input.candle', candleData, {
-          args: { timeframe: this.i18n.t(`prompt.input.timeframe.${timeframe}`) },
-        });
-      }
-    }
-
-    // Add fear & greed data
+    // 공포탐욕지수 추가
     const feargreed = await this.fetchFearGreedData();
     if (feargreed) {
       this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
 
-    // Add previous inferences
-    const recentInferences = await this.getRecentResult({
-      ticker: request.ticker,
-      createdAt: new Date(Date.now() - request.recentDateLimit),
-      count: request.recentLimit,
-    });
-    if (recentInferences.length > 0) {
-      this.addMessagePair(messages, 'prompt.input.recent', recentInferences);
-    }
-
-    this.logger.debug(messages);
+    // 종목 feature 데이터 추가
+    const marketFeatures = await this.featureService.extractAllKrwMarketFeatures(symbols);
+    const marketData = this.formatMarketData(marketFeatures);
+    this.addMessage(messages, 'user', `${UPBIT_MARKET_DATA_LEGEND}\n\n${marketData}`);
 
     return messages;
   }
 
-  private async fetchNewsData(request: InferenceMessageRequest): Promise<CompactNews[]> {
-    this.logger.log(this.i18n.t('logging.news.loading', { args: request }));
+  /**
+   * 포트폴리오 분석 메시지 빌드
+   */
+  private async buildBalanceRecommendationMessages(symbol: string): Promise<ChatCompletionMessageParam[]> {
+    const messages: ChatCompletionMessageParam[] = [];
 
-    const news = await this.newsService.getCompactNews({
-      type: this.newsService.getNewsType(request.category),
-      limit: request.newsLimit,
-      importanceLower: request.newsImportanceLower,
-      skip: true,
-    });
+    // 시스템 프롬프트 추가
+    this.addMessage(messages, 'system', UPBIT_BALANCE_RECOMMENDATION_PROMPT);
 
-    return news;
+    // 뉴스 데이터 추가
+    const news = await this.fetchNewsData();
+    if (news && news.length > 0) {
+      this.addMessagePair(messages, 'prompt.input.news', news);
+    }
+
+    // 공포탐욕지수 추가
+    const feargreed = await this.fetchFearGreedData();
+    if (feargreed) {
+      this.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    }
+
+    // 이전 추론 추가
+    const recentRecommendations = await this.fetchRecentRecommendations(symbol);
+    if (recentRecommendations.length > 0) {
+      this.addMessagePair(messages, 'prompt.input.recent', recentRecommendations);
+    }
+
+    // 개별 종목 feature 데이터 추가
+    const marketFeatures = await this.featureService.extractMarketFeatures(symbol);
+    const marketData = this.formatMarketData([marketFeatures]);
+    this.addMessage(messages, 'user', `${UPBIT_MARKET_DATA_LEGEND}\n\n${marketData}`);
+
+    return messages;
   }
 
-  private async fetchFearGreedData(): Promise<CompactFeargreed> {
-    this.logger.log(this.i18n.t('logging.feargreed.loading'));
+  /**
+   * 뉴스 데이터 가져오기
+   */
+  private async fetchNewsData(): Promise<CompactNews[]> {
+    const operation = () =>
+      this.newsService.getCompactNews({
+        type: NewsTypes.COIN,
+        limit: 100,
+        importanceLower: 1,
+        skip: false,
+      });
 
-    const feargreed = await this.feargreedService.getCompactFeargreed();
-
-    return feargreed;
+    try {
+      return await this.errorService.retryWithFallback(operation);
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.news.load_failed'), error);
+      return [];
+    }
   }
 
-  private async fetchCandleData(request: CandleRequest): Promise<OHLCV[]> {
-    this.logger.log(
-      this.i18n.t('logging.upbit.candle.loading', {
-        args: {
-          ticker: request.ticker,
-          timeframe: this.i18n.t(`prompt.input.timeframe.${request.timeframe}`),
-        },
-      }),
-    );
+  /**
+   * 공포탐욕지수 데이터 가져오기
+   */
+  private async fetchFearGreedData(): Promise<CompactFeargreed | null> {
+    const operation = () => this.feargreedService.getCompactFeargreed();
 
-    const candles = await this.upbitService.getCandles(request);
-
-    return candles;
+    try {
+      return await this.errorService.retryWithFallback(operation);
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.feargreed.load_failed'), error);
+      return null;
+    }
   }
 
+  /**
+   * 이전 추론 데이터 가져오기
+   */
+  private async fetchRecentRecommendations(symbol: string): Promise<BalanceRecommendation[]> {
+    const operation = () =>
+      BalanceRecommendation.getRecent({
+        ticker: symbol,
+        createdAt: new Date(Date.now() - UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recentDateLimit),
+        count: UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recent,
+      });
+
+    try {
+      return await this.errorService.retryWithFallback(operation);
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
+      return [];
+    }
+  }
+
+  /**
+   * 메시지 추가 헬퍼
+   */
   private addMessage(
     messages: ChatCompletionMessageParam[],
     role: 'system' | 'assistant' | 'user',
@@ -141,138 +314,131 @@ export class InferenceService {
     messages.push({ role, content });
   }
 
+  /**
+   * 메시지 페어 추가 헬퍼 (i18n 지원)
+   */
   private addMessagePair(messages: ChatCompletionMessageParam[], promptKey: string, data: any, args?: any): void {
-    this.addMessage(messages, 'system', this.i18n.t(promptKey, args));
-    this.addMessage(messages, 'user', JSON.stringify(data));
+    const content = String(this.i18n.t(promptKey, args));
+    const dataString = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+
+    this.addMessage(messages, 'user', content);
+    this.addMessage(messages, 'user', dataString);
   }
 
-  public getResponseFormat(): ResponseFormatJSONSchema {
-    return {
-      type: 'json_schema',
-      json_schema: {
-        strict: true,
-        name: InferenceService.name,
-        schema: INFERENCE_RESPONSE_SCHEMA,
-      },
-    };
+  /**
+   * 마켓 특성 데이터를 압축 형태로 포맷팅
+   */
+  private formatMarketData(marketFeatures: MarketFeatures[]): string {
+    const template = Handlebars.compile(MARKET_DATA_TEMPLATE);
+
+    return marketFeatures
+      .filter((feature) => feature && feature.symbol)
+      .map((feature) => {
+        const context = {
+          symbol: feature.symbol,
+          price: feature.price ?? 0,
+          changePercent: feature.priceChangePercent24h ?? 0,
+          volumeM: (feature.volume24h ?? 0) / 1000000,
+          marketCapM: (feature.marketCap ?? 0) / 1000000,
+          rsi14: feature.rsi14 ?? 0,
+          stochK: feature.stochastic?.percentK ?? 0,
+          stochD: feature.stochastic?.percentD ?? 0,
+          williamsR: feature.williamsR ?? 0,
+          mfi: feature.mfi ?? 0,
+          cci: feature.cci ?? 0,
+          macdValue: feature.macd?.macd ?? 0,
+          macdSignal: feature.macd?.signal ?? 0,
+          macdHist: feature.macd?.histogram ?? 0,
+          sma20: feature.sma?.sma20 ?? 0,
+          sma50: feature.sma?.sma50 ?? 0,
+          sma200: feature.sma?.sma200 ?? 0,
+          bbUpper: feature.bollingerBands?.upper ?? 0,
+          bbMiddle: feature.bollingerBands?.middle ?? 0,
+          bbLower: feature.bollingerBands?.lower ?? 0,
+          bbPercent: feature.bollingerBands?.percentB ?? 0,
+          atr14: feature.atr?.atr14 ?? 0,
+          volatility: feature.volatility ?? 0,
+          vwap: feature.vwap ?? 0,
+          obvTrend: feature.obv?.trend ?? 0,
+          obvSignal: feature.obv?.signal || 'neutral',
+          support1: feature.supportResistance?.support1 ?? 0,
+          resistance1: feature.supportResistance?.resistance1 ?? 0,
+          trendType: feature.patterns?.trend || 'sideways',
+          trendStrength: feature.patterns?.strength ?? 0,
+          divergence: feature.patterns?.divergence || 'none',
+        };
+        return template(context);
+      })
+      .join('\n');
   }
 
-  public async requestAPI(request: InferenceMessageRequest, retryOptions?: RetryOptions): Promise<InferenceData> {
-    const messages = await this.buildMessages(request);
-    const responseFormat = this.getResponseFormat();
-    const client = await this.openaiService.getServerClient();
-
-    this.logger.log(this.i18n.t('logging.inference.loading', { args: request }));
-
-    const inferenceData = await this.errorService.retry(async () => {
-      const body = {
-        model: INFERENCE_MODEL,
-        max_completion_tokens: INFERENCE_CONFIG.maxCompletionTokens,
-        reasoning_effort: INFERENCE_CONFIG.reasoningEffort,
-        verbosity: INFERENCE_CONFIG.verbosity,
-        service_tier: INFERENCE_CONFIG.serviceTier,
-        response_format: responseFormat,
-        messages,
-        stream: false,
-      };
-
-      const response = await client.chat.completions.create(body);
-
-      this.logger.debug(response);
-
-      return JSON.parse(response.choices[0].message.content);
-    }, retryOptions);
-
-    return inferenceData;
+  public async paginateMarketRecommendations(
+    params: GetRecommendationsPaginationDto,
+  ): Promise<PaginatedItem<MarketRecommendationDto>> {
+    return MarketRecommendation.paginate(params);
   }
 
-  public async request(item: InferenceItem): Promise<Inference> {
-    this.logger.log(this.i18n.t('logging.inference.start', { args: item }));
-
-    try {
-      const data = await this.requestAPI({
-        ...INFERENCE_CONFIG.message,
-        ticker: item.ticker,
-        category: item.category,
-      });
-
-      const inference = await this.create({
-        ...data,
-        category: item.category,
-        hasStock: item.hasStock,
-      });
-
-      return inference;
-    } catch (error) {
-      this.logger.error(this.i18n.t('logging.inference.fail', { args: item }), error);
-      return null;
-    }
-  }
-
-  private getCategoryPermission(category: Category): Permission {
-    const permissionMap: Record<Category, Permission> = {
-      [Category.NASDAQ]: Permission.VIEW_INFERENCE_NASDAQ,
-      [Category.COIN_MAJOR]: Permission.VIEW_INFERENCE_COIN_MAJOR,
-      [Category.COIN_MINOR]: Permission.VIEW_INFERENCE_COIN_MINOR,
-    };
-
-    const permission = permissionMap[category];
-    if (!permission) {
-      throw new Error(
-        this.i18n.t('logging.category.unknown', {
-          args: { category },
-        }),
-      );
-    }
-
-    return permission;
-  }
-
-  public validateCategoryPermission(user: User, category: Category): boolean {
-    const userPermissions = user.roles.flatMap((role) => role.permissions || []);
-    const requiredPermission = this.getCategoryPermission(category);
-    return userPermissions.includes(requiredPermission);
-  }
-
-  public async create(data: InferenceData): Promise<Inference> {
-    const inference = new Inference();
-
-    // 줄바꿈 문자를 공백으로 변경
-    if (data.reason) {
-      data.reason = data.reason.replace(/[\r\n]+/g, ' ');
-    }
-
-    Object.assign(inference, data);
-    inference.seq = await this.sequenceService.getNextSequence();
-
-    return inference.save();
-  }
-
-  public async getRecentResult(request: RecentInferenceRequest): Promise<RecentInferenceResult[]> {
-    const inferences = await Inference.getRecent(request);
-
-    return inferences.map((inference) => ({
-      timestamp: inference.updatedAt,
-      rate: inference.rate,
+  public async cursorMarketRecommendations(
+    params: GetRecommendationsCursorDto,
+  ): Promise<CursorItem<MarketRecommendationDto, string>> {
+    const cursorResult = await MarketRecommendation.cursor(params);
+    const items = cursorResult.items.map((entity) => ({
+      id: entity.id,
+      symbol: entity.symbol,
+      weight: entity.weight,
+      reason: entity.reason,
+      confidence: entity.confidence,
+      batchId: entity.batchId,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     }));
+
+    return {
+      ...cursorResult,
+      items,
+    };
   }
 
-  public async paginate(user: User, request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
-    if (!this.validateCategoryPermission(user, request.category)) {
-      throw new ForbiddenException(this.i18n.t('logging.category.access_denied'));
-    }
+  public async paginateBalanceRecommendations(
+    params: GetRecommendationsPaginationDto,
+  ): Promise<PaginatedItem<BalanceRecommendationDto>> {
+    const paginatedResult = await BalanceRecommendation.paginate(params);
+    const items = paginatedResult.items.map((entity) => ({
+      id: entity.id,
+      seq: entity.seq,
+      ticker: entity.ticker,
+      category: entity.category,
+      rate: entity.rate,
+      reason: entity.reason,
+      hasStock: entity.hasStock,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    }));
 
-    return Inference.paginate(request);
+    return {
+      ...paginatedResult,
+      items,
+    };
   }
 
-  public async cursor(
-    user: User,
-    request: CursorRequest<string> & InferenceFilter,
-  ): Promise<CursorItem<Inference, string>> {
-    if (!this.validateCategoryPermission(user, request.category)) {
-      throw new ForbiddenException(this.i18n.t('logging.category.access_denied'));
-    }
+  public async cursorBalanceRecommendations(
+    params: GetRecommendationsCursorDto,
+  ): Promise<CursorItem<BalanceRecommendationDto, string>> {
+    const cursorResult = await BalanceRecommendation.cursor(params);
+    const items = cursorResult.items.map((entity) => ({
+      id: entity.id,
+      seq: entity.seq,
+      ticker: entity.ticker,
+      category: entity.category,
+      rate: entity.rate,
+      hasStock: entity.hasStock,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    }));
 
-    return Inference.cursor(request);
+    return {
+      ...cursorResult,
+      items,
+    };
   }
 }

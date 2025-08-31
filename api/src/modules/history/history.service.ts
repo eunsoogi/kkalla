@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
-import { InferenceItem } from '../inference/inference.interface';
+import { RecommendationItem } from '../inference/inference.interface';
 import { History } from './entities/history.entity';
 import { HistoryItem } from './history.interface';
 
 @Injectable()
 export class HistoryService {
-  public async fetchHistoryInferences(): Promise<InferenceItem[]> {
+  public async fetchHistory(): Promise<RecommendationItem[]> {
     const items = await History.find({
       order: {
         index: 'ASC',

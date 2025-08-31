@@ -121,6 +121,7 @@ jobs:
               secretKey: ${{ secrets.NOTIFY_SECRET_KEY }}
               channel: ${{ secrets.NOTIFY_CHANNEL }}
             openai:
+              project: ${{ secrets.OPENAI_PROJECT }}
               secretKey: ${{ secrets.OPENAI_SECRET_KEY }}
             upbit:
               accessKey: ${{ secrets.UPBIT_ACCESS_KEY }}

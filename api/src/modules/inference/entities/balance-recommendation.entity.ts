@@ -15,10 +15,10 @@ import { Category } from '@/modules/category/category.enum';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
-import { InferenceFilter, RecentInferenceRequest } from '../inference.interface';
+import { BalanceRecommendationFilter, RecentBalanceRecommendationRequest } from '../inference.interface';
 
 @Entity()
-export class Inference extends BaseEntity {
+export class BalanceRecommendation extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -38,15 +38,16 @@ export class Inference extends BaseEntity {
   category: Category;
 
   @Column({
-    type: 'text',
-  })
-  reason: string;
-
-  @Column({
     type: 'double',
     default: 0,
   })
   rate: number;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  reason: string | null;
 
   hasStock: boolean;
 
@@ -56,7 +57,7 @@ export class Inference extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  public static async getRecent(request: RecentInferenceRequest): Promise<Inference[]> {
+  public static async getRecent(request: RecentBalanceRecommendationRequest): Promise<BalanceRecommendation[]> {
     return await this.find({
       where: {
         ticker: request.ticker,
@@ -69,7 +70,9 @@ export class Inference extends BaseEntity {
     });
   }
 
-  public static async paginate(request: ItemRequest & InferenceFilter): Promise<PaginatedItem<Inference>> {
+  public static async paginate(
+    request: ItemRequest & BalanceRecommendationFilter,
+  ): Promise<PaginatedItem<BalanceRecommendation>> {
     const where: any = {
       category: request.category,
     };
@@ -104,7 +107,9 @@ export class Inference extends BaseEntity {
     };
   }
 
-  public static async cursor(request: CursorRequest<string> & InferenceFilter): Promise<CursorItem<Inference, string>> {
+  public static async cursor(
+    request: CursorRequest<string> & BalanceRecommendationFilter,
+  ): Promise<CursorItem<BalanceRecommendation, string>> {
     const where: any = {
       category: request.category,
     };
@@ -113,7 +118,10 @@ export class Inference extends BaseEntity {
       where.ticker = Like(`%${request.ticker}%`);
     }
 
-    if (request.createdAt) {
+    // startDate/endDate 또는 createdAt 처리
+    if (request.startDate || request.endDate) {
+      where.createdAt = Between(request.startDate ?? new Date(0), request.endDate ?? new Date());
+    } else if (request.createdAt) {
       where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
     }
 

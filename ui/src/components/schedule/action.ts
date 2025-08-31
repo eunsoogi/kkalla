@@ -9,40 +9,59 @@ export interface ScheduleActionState {
   message?: string;
 }
 
-export const executeExistItemsAction = async (): Promise<ScheduleActionState> => {
+export const executeMarketRecommendationAction = async (): Promise<ScheduleActionState> => {
   const client = await getClient();
   const t = await getTranslations();
 
   try {
-    client.post('/api/v1/schedules/execute/exist-items');
+    await client.post('/api/v1/schedules/execute/market-recommendation');
 
     return {
       success: true,
-      message: t('schedule.execute.existItems.success'),
+      message: t('schedule.execute.marketRecommendation.success'),
     };
   } catch {
     return {
       success: false,
-      message: t('schedule.execute.existItems.error'),
+      message: t('schedule.execute.marketRecommendation.error'),
     };
   }
 };
 
-export const executeNewItemsAction = async (): Promise<ScheduleActionState> => {
+export const executeBalanceRecommendationWithExistingItemsAction = async (): Promise<ScheduleActionState> => {
   const client = await getClient();
   const t = await getTranslations();
 
   try {
-    client.post('/api/v1/schedules/execute/new-items');
+    await client.post('/api/v1/schedules/execute/balance-recommendation/existing');
 
     return {
       success: true,
-      message: t('schedule.execute.newItems.success'),
+      message: t('schedule.execute.balanceRecommendationExisting.success'),
     };
   } catch {
     return {
       success: false,
-      message: t('schedule.execute.newItems.error'),
+      message: t('schedule.execute.balanceRecommendationExisting.error'),
+    };
+  }
+};
+
+export const executebalanceRecommendationNewItemsAction = async (): Promise<ScheduleActionState> => {
+  const client = await getClient();
+  const t = await getTranslations();
+
+  try {
+    await client.post('/api/v1/schedules/execute/balance-recommendation/new');
+
+    return {
+      success: true,
+      message: t('schedule.execute.balanceRecommendationNew.success'),
+    };
+  } catch {
+    return {
+      success: false,
+      message: t('schedule.execute.balanceRecommendationNew.error'),
     };
   }
 };
