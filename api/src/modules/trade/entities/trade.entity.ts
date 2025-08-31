@@ -13,7 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Inference } from '@/modules/inference/entities/inference.entity';
+import { BalanceRecommendation } from '@/modules/inference/entities/balance-recommendation.entity';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
@@ -62,14 +62,14 @@ export class Trade extends BaseEntity {
   })
   profit: number = 0;
 
-  @ManyToOne(() => Inference, {
+  @ManyToOne(() => BalanceRecommendation, {
     nullable: true,
     cascade: true,
     eager: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn()
-  inference: Inference;
+  inference: BalanceRecommendation;
 
   @CreateDateColumn()
   createdAt: Date;

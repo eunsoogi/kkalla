@@ -1,86 +1,47 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
-import { User } from '../user/entities/user.entity';
-import { GetInferenceCursorDto } from './dto/get-inference-cursor.dto';
-import { GetInferenceDto } from './dto/get-inference.dto';
-import { InferenceDto } from './dto/inference.dto';
-import { PostInferenceDto } from './dto/post-inference.dto';
-import { Inference } from './entities/inference.entity';
-import { INFERENCE_CONFIG } from './inference.config';
-import { InferenceItem } from './inference.interface';
+import { BalanceRecommendationDto } from './dto/balance-recommendation.dto';
+import { GetRecommendationsCursorDto } from './dto/get-recommendations-cursor.dto';
+import { GetRecommendationsPaginationDto } from './dto/get-recommendations-pagination.dto';
+import { MarketRecommendationDto } from './dto/market-recommendation.dto';
 import { InferenceService } from './inference.service';
 
 @Controller('api/v1/inferences')
 export class InferenceController {
   constructor(private readonly inferenceService: InferenceService) {}
 
-  @Get()
+  @Get('market-recommendations')
   @UseGuards(GoogleTokenAuthGuard)
-  public get(@CurrentUser() user: User, @Query() params: GetInferenceDto): Promise<PaginatedItem<Inference>> {
-    const filters: any = {
-      ticker: params.ticker,
-      category: params.category,
-      page: params.page,
-      perPage: params.perPage,
-      sortDirection: params.sortDirection,
-    };
-
-    if (params.startDate || params.endDate) {
-      filters.createdAt = {};
-
-      if (params.startDate) {
-        filters.createdAt.gte = params.startDate;
-      }
-
-      if (params.endDate) {
-        filters.createdAt.lte = params.endDate;
-      }
-    }
-
-    return this.inferenceService.paginate(user, filters);
+  public getMarketRecommendations(
+    @Query() params: GetRecommendationsPaginationDto,
+  ): Promise<PaginatedItem<MarketRecommendationDto>> {
+    return this.inferenceService.paginateMarketRecommendations(params);
   }
 
-  @Get('cursor')
+  @Get('market-recommendations/cursor')
   @UseGuards(GoogleTokenAuthGuard)
-  public async cursor(
-    @CurrentUser() user: User,
-    @Query() params: GetInferenceCursorDto,
-  ): Promise<CursorItem<Inference, string>> {
-    const filters: any = {
-      cursor: params.cursor,
-      limit: params.limit,
-      skip: params.skip,
-      ticker: params.ticker,
-      category: params.category,
-      sortDirection: params.sortDirection,
-    };
-
-    if (params.startDate || params.endDate) {
-      filters.createdAt = {};
-
-      if (params.startDate) {
-        filters.createdAt.gte = params.startDate;
-      }
-
-      if (params.endDate) {
-        filters.createdAt.lte = params.endDate;
-      }
-    }
-
-    return this.inferenceService.cursor(user, filters);
+  public getMarketRecommendationsCursor(
+    @Query() params: GetRecommendationsCursorDto,
+  ): Promise<CursorItem<MarketRecommendationDto, string>> {
+    return this.inferenceService.cursorMarketRecommendations(params);
   }
 
-  @Post()
+  @Get('balance-recommendations')
   @UseGuards(GoogleTokenAuthGuard)
-  public async post(@Body() body: PostInferenceDto): Promise<InferenceDto> {
-    return this.inferenceService.request(<InferenceItem>{
-      ...INFERENCE_CONFIG.message,
-      ...body,
-      hasStock: false,
-    });
+  public getBalanceRecommendations(
+    @Query() params: GetRecommendationsPaginationDto,
+  ): Promise<PaginatedItem<BalanceRecommendationDto>> {
+    return this.inferenceService.paginateBalanceRecommendations(params);
+  }
+
+  @Get('balance-recommendations/cursor')
+  @UseGuards(GoogleTokenAuthGuard)
+  public getBalanceRecommendationsCursor(
+    @Query() params: GetRecommendationsCursorDto,
+  ): Promise<CursorItem<BalanceRecommendationDto, string>> {
+    return this.inferenceService.cursorBalanceRecommendations(params);
   }
 }

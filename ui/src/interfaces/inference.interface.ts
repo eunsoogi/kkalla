@@ -2,7 +2,7 @@ import { Category } from '@/enums/category.enum';
 
 import { CursorItem, PaginatedItem } from './item.interface';
 
-export interface Inference {
+export interface BalanceRecommendation {
   id: string;
   seq: number;
   ticker: string;
@@ -13,7 +13,18 @@ export interface Inference {
   updatedAt?: string;
 }
 
-export const initialPaginatedState: PaginatedItem<Inference> = {
+export interface MarketRecommendation {
+  id: string;
+  symbol: string;
+  weight: number;
+  reason: string;
+  confidence: number;
+  batchId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const initialPaginatedState: PaginatedItem<any> = {
   success: true,
   message: null,
   items: [],
@@ -22,7 +33,7 @@ export const initialPaginatedState: PaginatedItem<Inference> = {
   totalPages: 1,
 };
 
-export const initialCursorState: CursorItem<Inference> = {
+export const initialCursorState: CursorItem<any> = {
   success: true,
   message: null,
   items: [],

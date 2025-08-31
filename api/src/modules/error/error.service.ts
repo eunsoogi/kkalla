@@ -28,6 +28,8 @@ export class ErrorService {
           throw error;
         }
 
+        this.logger.debug(error);
+
         this.logger.warn(
           this.i18n.t('logging.retry.attempt', {
             args: { attempt, maxRetries },
@@ -46,7 +48,7 @@ export class ErrorService {
    * @param error 임의의 에러 객체
    * @returns 문자열로 변환된 에러 메시지
    */
-  private getErrorMessage(error: unknown): string {
+  public getErrorMessage(error: unknown): string {
     if (error === null) return 'null';
     if (error === undefined) return 'undefined';
 

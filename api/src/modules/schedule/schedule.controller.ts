@@ -25,17 +25,24 @@ export class ScheduleController {
     return this.scheduleService.create(user, createScheduleDto);
   }
 
-  @Post('execute/exist-items')
+  @Post('execute/market-recommendation')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
-  @RequirePermissions(Permission.EXEC_SCHEDULE_WITH_EXIST_ITEMS)
-  public async executeExistItems(): Promise<void> {
-    this.scheduleService.processWithExistItems();
+  @RequirePermissions(Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION)
+  public async executeMarketRecommendation(): Promise<void> {
+    this.scheduleService.marketRecommendation();
   }
 
-  @Post('execute/new-items')
+  @Post('execute/balance-recommendation/existing')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
-  @RequirePermissions(Permission.EXEC_SCHEDULE_WITH_NEW_ITEMS)
-  public async executeNewItems(): Promise<void> {
-    this.scheduleService.processWithNewItems();
+  @RequirePermissions(Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING)
+  public async executeBalanceRecommendationWithExistingItems(): Promise<void> {
+    this.scheduleService.balanceRecommendationExisting();
+  }
+
+  @Post('execute/balance-recommendation/new')
+  @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
+  @RequirePermissions(Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW)
+  public async executebalanceRecommendationNewItems(): Promise<void> {
+    this.scheduleService.balanceRecommendationNew();
   }
 }

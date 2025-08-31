@@ -1,7 +1,7 @@
 import { Seeder } from 'typeorm-extension';
 
 import { Category } from '@/modules/category/category.enum';
-import { Inference } from '@/modules/inference/entities/inference.entity';
+import { BalanceRecommendation } from '@/modules/inference/entities/balance-recommendation.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
 import { Role } from '@/modules/role/entities/role.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
@@ -28,12 +28,12 @@ export class UserSeeder implements Seeder {
   }
 }
 
-export class InferenceSeeder implements Seeder {
+export class BalanceRecommendationSeeder implements Seeder {
   public async run(): Promise<void> {
-    await Inference.createQueryBuilder().delete().execute();
+    await BalanceRecommendation.createQueryBuilder().delete().execute();
 
     for (let i = 0; i < 11; i++) {
-      await Inference.save([
+      await BalanceRecommendation.save([
         {
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MAJOR,
@@ -63,7 +63,7 @@ export class InferenceSeeder implements Seeder {
 export class TradeSeeder implements Seeder {
   async run(): Promise<void> {
     const users = await User.find();
-    const inferences = await Inference.find();
+    const inferences = await BalanceRecommendation.find();
     await Trade.createQueryBuilder().delete().execute();
 
     await Trade.save([
@@ -111,4 +111,4 @@ export class NotifySeeder implements Seeder {
   }
 }
 
-export const seeders = [UserSeeder, TradeSeeder, NotifySeeder, InferenceSeeder];
+export const seeders = [UserSeeder, TradeSeeder, NotifySeeder, BalanceRecommendationSeeder];

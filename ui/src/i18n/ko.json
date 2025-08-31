@@ -10,7 +10,8 @@
     "service": "서비스",
     "dashboard": "대시보드",
     "newsList": "뉴스 목록",
-    "inferenceList": "AI 리포트",
+    "portfolioReport": "포트폴리오 리포트",
+    "marketReport": "마켓 리포트",
     "tradeList": "거래 목록",
     "config": "설정",
     "register": "서비스 등록",
@@ -64,7 +65,9 @@
   "inference": {
     "list": "추론 목록",
     "mine": "내 추론만 보기",
-    "reason": "추론 내용"
+    "rate": "비율",
+    "weight": "가중치",
+    "confidence": "신뢰도"
   },
   "trade": {
     "list": "거래 목록",
@@ -169,19 +172,26 @@
     },
     "execute": {
       "executing": "실행 중...",
-      "existItems": {
-        "title": "기존 종목 스케줄 실행",
-        "description": "기존에 보유한 종목들에 대한 AI 추론을 실행합니다.",
-        "button": "기존 종목 스케줄 실행",
-        "success": "기존 종목 스케줄이 성공적으로 실행되었습니다.",
-        "error": "기존 종목 스케줄 실행에 실패했습니다."
+      "marketRecommendation": {
+        "title": "마켓 리포트 생성",
+        "description": "상위 10개 종목 추천 분석을 실행하여 마켓 리포트를 생성합니다.",
+        "button": "마켓 리포트 생성",
+        "success": "마켓 리포트가 성공적으로 생성되었습니다.",
+        "error": "마켓 리포트 생성에 실패했습니다."
       },
-      "newItems": {
-        "title": "신규 종목 스케줄 실행",
+      "balanceRecommendationExisting": {
+        "title": "기존 종목 포트폴리오 분석",
+        "description": "기존에 보유한 종목들에 대한 AI 추론을 실행합니다.",
+        "button": "기존 종목 포트폴리오 분석",
+        "success": "기존 종목 포트폴리오 분석이 성공적으로 실행되었습니다.",
+        "error": "기존 종목 포트폴리오 분석 실행에 실패했습니다."
+      },
+      "balanceRecommendationNew": {
+        "title": "신규 종목 포트폴리오 분석",
         "description": "신규 종목들을 포함한 전체 AI 추론을 실행합니다.",
-        "button": "신규 종목 스케줄 실행",
-        "success": "신규 종목 스케줄이 성공적으로 실행되었습니다.",
-        "error": "신규 종목 스케줄 실행에 실패했습니다."
+        "button": "신규 종목 포트폴리오 분석",
+        "success": "신규 종목 포트폴리오 분석이 성공적으로 실행되었습니다.",
+        "error": "신규 종목 포트폴리오 분석 실행에 실패했습니다."
       },
       "warning": {
         "title": "주의사항",

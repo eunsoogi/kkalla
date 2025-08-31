@@ -16,8 +16,8 @@ import { formatNumber } from '@/utils/number';
 import { Category } from '../category/category.enum';
 import { CategoryService } from '../category/category.service';
 import { HistoryService } from '../history/history.service';
-import { Inference } from '../inference/entities/inference.entity';
-import { InferenceItem } from '../inference/inference.interface';
+import { BalanceRecommendation } from '../inference/entities/balance-recommendation.entity';
+import { RecommendationItem } from '../inference/inference.interface';
 import { InferenceService } from '../inference/inference.service';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
@@ -147,7 +147,11 @@ export class TradeService implements OnModuleInit {
     }
   }
 
-  public async produceMessage(users: User[], inferences: Inference[], buyAvailable: boolean = true): Promise<void> {
+  public async produceMessage(
+    users: User[],
+    inferences: BalanceRecommendation[],
+    buyAvailable: boolean = true,
+  ): Promise<void> {
     this.logger.log(
       this.i18n.t('logging.sqs.producer.start', {
         args: { count: users.length },
@@ -172,30 +176,31 @@ export class TradeService implements OnModuleInit {
     }
   }
 
-  public async executeInferences(items: InferenceItem[]): Promise<Inference[]> {
-    // 우선 처리할 아이템 선택
-    const priorityItems = [];
+  public async executeBalanceRecommendations(items: RecommendationItem[]): Promise<BalanceRecommendation[]> {
+    const symbols = items.map((item) => item.ticker);
+    const recommendations = await this.inferenceService.balanceRecommendation(symbols);
 
-    const nasdaqItem = items.find((item) => item.category === Category.NASDAQ);
-    if (nasdaqItem) priorityItems.push(nasdaqItem);
+    // 원래 items의 hasStock 정보를 결과에 병합
+    const recommendationMap = new Map(recommendations.map((rec) => [rec.ticker, rec]));
+    const mergedRecommendations = items.map((item) => {
+      const rec = recommendationMap.get(item.ticker);
+      if (rec) {
+        return {
+          ...rec,
+          hasStock: item.hasStock,
+          category: item.category,
+        };
+      }
+      return null;
+    });
 
-    const coinItem =
-      items.find((item) => item.category === Category.COIN_MAJOR) ||
-      items.find((item) => item.category === Category.COIN_MINOR);
-    if (coinItem) priorityItems.push(coinItem);
-
-    const restItems = items.filter((item) => !priorityItems.includes(item));
-
-    // 카테고리별 선발된 아이템을 먼저 처리해 캐싱 처리
-    const priorityInferences = await Promise.all(priorityItems.map((item) => this.inferenceService.request(item)));
-
-    // 나머지 아이템 처리
-    const restInferences = await Promise.all(restItems.map((item) => this.inferenceService.request(item)));
-
-    return [...priorityInferences, ...restInferences].filter((item) => item !== null);
+    return mergedRecommendations.filter((item) => item !== null) as BalanceRecommendation[];
   }
 
-  public async filterUserAuthorizedInferences(user: User, inferences: Inference[]): Promise<Inference[]> {
+  public async filterUserAuthorizedBalanceRecommendations(
+    user: User,
+    inferences: BalanceRecommendation[],
+  ): Promise<BalanceRecommendation[]> {
     const enabledCategories = await this.categoryService.findEnabledByUser(user);
 
     return inferences.filter(
@@ -205,21 +210,25 @@ export class TradeService implements OnModuleInit {
     );
   }
 
-  public filterIncludedInferences(inferences: Inference[]): Inference[] {
-    const results = this.groupInferencesByCategory(inferences).map(([category, categoryInferences]) =>
-      this.getIncludedInferencesByCategory(categoryInferences, category as Category),
+  public filterIncludedBalanceRecommendations(inferences: BalanceRecommendation[]): BalanceRecommendation[] {
+    const results = this.groupBalanceRecommendationsByCategory(inferences).map(
+      ([category, categoryBalanceRecommendations]) =>
+        this.getIncludedBalanceRecommendationsByCategory(categoryBalanceRecommendations, category as Category),
     );
-    return this.mergeSortedInferences(results);
+    return this.mergeSortedBalanceRecommendations(results);
   }
 
-  public filterExcludedInferences(inferences: Inference[]): Inference[] {
-    const results = this.groupInferencesByCategory(inferences).map(([category, categoryInferences]) =>
-      this.getExcludedInferencesByCategory(categoryInferences, category as Category),
+  public filterExcludedBalanceRecommendations(inferences: BalanceRecommendation[]): BalanceRecommendation[] {
+    const results = this.groupBalanceRecommendationsByCategory(inferences).map(
+      ([category, categoryBalanceRecommendations]) =>
+        this.getExcludedBalanceRecommendationsByCategory(categoryBalanceRecommendations, category as Category),
     );
-    return this.mergeSortedInferences(results);
+    return this.mergeSortedBalanceRecommendations(results);
   }
 
-  private groupInferencesByCategory(inferences: Inference[]): Array<[string, Inference[]]> {
+  private groupBalanceRecommendationsByCategory(
+    inferences: BalanceRecommendation[],
+  ): Array<[string, BalanceRecommendation[]]> {
     return Object.entries(
       inferences.reduce(
         (acc, curr) => {
@@ -229,23 +238,34 @@ export class TradeService implements OnModuleInit {
           acc[curr.category].push(curr);
           return acc;
         },
-        {} as Record<string, Inference[]>,
+        {} as Record<string, BalanceRecommendation[]>,
       ),
     );
   }
 
-  private getIncludedInferencesByCategory(categoryInferences: Inference[], category: Category): Inference[] {
-    return this.sortInferences(categoryInferences)
+  private getIncludedBalanceRecommendationsByCategory(
+    categoryBalanceRecommendations: BalanceRecommendation[],
+    category: Category,
+  ): BalanceRecommendation[] {
+    return this.sortBalanceRecommendations(categoryBalanceRecommendations)
       .filter((item) => item.rate > this.MINIMUM_TRADE_RATE)
       .slice(0, this.getItemCountByCategory(category));
   }
 
-  private getExcludedInferencesByCategory(categoryInferences: Inference[], category: Category): Inference[] {
-    const includedInferences = this.getIncludedInferencesByCategory(categoryInferences, category as Category);
-    return this.sortInferences(categoryInferences).filter((item) => !includedInferences.includes(item));
+  private getExcludedBalanceRecommendationsByCategory(
+    categoryBalanceRecommendations: BalanceRecommendation[],
+    category: Category,
+  ): BalanceRecommendation[] {
+    const includedBalanceRecommendations = this.getIncludedBalanceRecommendationsByCategory(
+      categoryBalanceRecommendations,
+      category as Category,
+    );
+    return this.sortBalanceRecommendations(categoryBalanceRecommendations).filter(
+      (item) => !includedBalanceRecommendations.includes(item),
+    );
   }
 
-  private sortInferences(inferences: Inference[]): Inference[] {
+  private sortBalanceRecommendations(inferences: BalanceRecommendation[]): BalanceRecommendation[] {
     return inferences.sort((a, b) => {
       if (a.hasStock && b.hasStock) {
         return 0;
@@ -265,11 +285,14 @@ export class TradeService implements OnModuleInit {
     });
   }
 
-  private mergeSortedInferences(results: Inference[][]): Inference[] {
-    return this.sortInferences(results.flat());
+  private mergeSortedBalanceRecommendations(results: BalanceRecommendation[][]): BalanceRecommendation[] {
+    return this.sortBalanceRecommendations(results.flat());
   }
 
-  public generateNonInferenceTradeRequests(balances: Balances, inferences: Inference[]): TradeRequest[] {
+  public generateNonBalanceRecommendationTradeRequests(
+    balances: Balances,
+    inferences: BalanceRecommendation[],
+  ): TradeRequest[] {
     const tradeRequests: TradeRequest[] = balances.info
       .filter((item) => {
         const ticker = `${item.currency}/${item.unit_currency}`;
@@ -284,10 +307,14 @@ export class TradeService implements OnModuleInit {
     return tradeRequests;
   }
 
-  public generateIncludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
-    const filteredInferences = this.filterIncludedInferences(inferences).slice(0, count);
+  public generateIncludedTradeRequests(
+    balances: Balances,
+    inferences: BalanceRecommendation[],
+    count: number,
+  ): TradeRequest[] {
+    const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).slice(0, count);
 
-    const tradeRequests: TradeRequest[] = filteredInferences
+    const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
       .map((inference) => ({
         ticker: inference.ticker,
         diff: this.calculateDiff(balances, inference.ticker, inference.rate / count, inference.category),
@@ -299,13 +326,17 @@ export class TradeService implements OnModuleInit {
     return tradeRequests;
   }
 
-  public generateExcludedTradeRequests(balances: Balances, inferences: Inference[], count: number): TradeRequest[] {
-    const filteredInferences = [
-      ...this.filterIncludedInferences(inferences).slice(count),
-      ...this.filterExcludedInferences(inferences),
+  public generateExcludedTradeRequests(
+    balances: Balances,
+    inferences: BalanceRecommendation[],
+    count: number,
+  ): TradeRequest[] {
+    const filteredBalanceRecommendations = [
+      ...this.filterIncludedBalanceRecommendations(inferences).slice(count),
+      ...this.filterExcludedBalanceRecommendations(inferences),
     ];
 
-    const tradeRequests: TradeRequest[] = filteredInferences.map((inference) => ({
+    const tradeRequests: TradeRequest[] = filteredBalanceRecommendations.map((inference) => ({
       ticker: inference.ticker,
       diff: -1,
       balances,
@@ -325,16 +356,16 @@ export class TradeService implements OnModuleInit {
     return 0;
   }
 
-  public async processItems(users: User[], items: InferenceItem[], buyAvailable: boolean = true): Promise<void> {
+  public async processItems(users: User[], items: RecommendationItem[], buyAvailable: boolean = true): Promise<void> {
     // 추론 실행
-    const inferences = await this.executeInferences(items);
+    const inferences = await this.executeBalanceRecommendations(items);
 
     // 큐에 메시지 전송
     await this.produceMessage(users, inferences, buyAvailable);
 
     // 현재 포트폴리오 저장
     await this.historyService.saveHistory(
-      this.filterIncludedInferences(inferences).map((inference, index) => ({
+      this.filterIncludedBalanceRecommendations(inferences).map((inference, index) => ({
         ...inference,
         index,
       })),
@@ -344,14 +375,18 @@ export class TradeService implements OnModuleInit {
     this.clearClients();
   }
 
-  public async processUserItems(user: User, inferences: Inference[], buyAvailable: boolean = true): Promise<Trade[]> {
+  public async processUserItems(
+    user: User,
+    inferences: BalanceRecommendation[],
+    buyAvailable: boolean = true,
+  ): Promise<Trade[]> {
     // 권한이 있는 추론만 필터링
-    const authorizedInferences = await this.filterUserAuthorizedInferences(user, inferences);
+    const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
 
     // 종목 개수 계산
     const count = await this.getItemCount(user);
 
-    authorizedInferences.map((inference) => {
+    authorizedBalanceRecommendations.map((inference) => {
       this.notifyService.notify(
         user,
         this.i18n.t('notify.inference.result', {
@@ -369,20 +404,20 @@ export class TradeService implements OnModuleInit {
     if (!balances) return [];
 
     // 편입/편출 결정 분리
-    const nonInferenceTradeRequests: TradeRequest[] = this.generateNonInferenceTradeRequests(
+    const nonBalanceRecommendationTradeRequests: TradeRequest[] = this.generateNonBalanceRecommendationTradeRequests(
       balances,
-      authorizedInferences,
+      authorizedBalanceRecommendations,
     );
 
     const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
-      authorizedInferences,
+      authorizedBalanceRecommendations,
       count,
     );
 
     let includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
       balances,
-      authorizedInferences,
+      authorizedBalanceRecommendations,
       count,
     );
 
@@ -391,8 +426,8 @@ export class TradeService implements OnModuleInit {
     }
 
     // 편출 처리
-    const nonInferenceTrades: Trade[] = await Promise.all(
-      nonInferenceTradeRequests.map((request) => this.executeTrade(user, request)),
+    const nonBalanceRecommendationTrades: Trade[] = await Promise.all(
+      nonBalanceRecommendationTradeRequests.map((request) => this.executeTrade(user, request)),
     );
 
     const excludedTrades: Trade[] = await Promise.all(
@@ -407,7 +442,7 @@ export class TradeService implements OnModuleInit {
     // 클라이언트 초기화
     this.clearClients();
 
-    return [...nonInferenceTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
+    return [...nonBalanceRecommendationTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
   }
 
   private async getItemCount(user: User): Promise<number> {

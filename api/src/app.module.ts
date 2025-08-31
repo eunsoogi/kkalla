@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 
 import { TypeOrmModule } from './databases/typeorm.module';
-import { AccumulationModule } from './modules/accumulation/accumulation.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlacklistModule } from './modules/blacklist/blacklist.module';
 import { CategoryModule } from './modules/category/category.module';
 import { ErrorModule } from './modules/error/error.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
+import { FeatureModule } from './modules/feature/feature.module';
 import { HealthModule } from './modules/health/health.module';
 import { HistoryModule } from './modules/history/history.module';
 import { InferenceModule } from './modules/inference/inference.module';
@@ -50,7 +50,6 @@ import { UserModule } from './modules/user/user.module';
     UpbitModule,
     NewsModule,
     FeargreedModule,
-    AccumulationModule,
     InferenceModule,
     TradeModule,
     HistoryModule,
@@ -59,6 +58,7 @@ import { UserModule } from './modules/user/user.module';
     NotifyModule,
     ProfitModule,
     CategoryModule,
+    FeatureModule,
   ],
 })
 export class AppModule {}

@@ -7,13 +7,30 @@
       "server_expired": "서버 API 키가 만료되었거나 유효하지 않습니다.",
       "user_expired": "사용자 {id}의 API 키가 만료되었거나 유효하지 않습니다.",
       "schedule_disabled": "사용자 {id}의 스케줄을 비활성화했습니다."
+    },
+    "markets": {
+      "found": "{count}개 KRW 마켓을 발견했습니다.",
+      "load_failed": "KRW 마켓 로드에 실패했습니다."
+    },
+    "features": {
+      "start_all": "{count}개 종목의 특성 추출을 시작합니다.",
+      "success_all": "{count}개 종목의 특성 추출을 완료했습니다.",
+      "failed_all": "모든 KRW 마켓 특성 추출에 실패했습니다.",
+      "start_one": "{symbol} 종목의 특성 추출을 시작합니다.",
+      "success_one": "{symbol} 종목의 특성 추출을 완료했습니다.",
+      "failed_one": "{symbol} 종목의 특성 추출에 실패했습니다.",
+      "market_data_failed": "{symbol}의 마켓 데이터 가져오기에 실패했습니다.",
+      "extract_failed": "{symbol}의 특성 추출에 실패했습니다.",
+      "skipping": "오류로 인해 {symbol}을 건너뜁니다."
     }
   },
   "news": {
-    "loading": "{category} 뉴스 불러오는 중..."
+    "loading": "{category} 뉴스 불러오는 중...",
+    "load_failed": "뉴스 데이터 로드에 실패했습니다."
   },
   "feargreed": {
-    "loading": "공포탐욕지수 불러오는 중..."
+    "loading": "공포탐욕지수 불러오는 중...",
+    "load_failed": "공포탐욕지수 데이터 로드에 실패했습니다."
   },
   "category": {
     "access_denied": "카테고리에 대한 접근 권한이 없습니다.",
@@ -23,7 +40,26 @@
     "caching": "{category} 메시지 캐싱 중...",
     "loading": "{ticker} 추론 중...",
     "start": "{ticker} 추론 시작...",
-    "fail": "{ticker} 추론 실패."
+    "fail": "{ticker} 추론 실패.",
+    "recent_recommendations_failed": "이전 추천 데이터 로드에 실패했습니다.",
+    "marketRecommendation": {
+      "start": "상위 10개 종목 추천 분석을 시작합니다...",
+      "build_msg_start": "추론 메시지 빌드를 시작합니다...",
+      "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
+      "batch_start": "배치 요청 처리를 시작합니다...",
+      "batch_complete": "배치 요청 처리를 완료했습니다.",
+      "complete": "상위 10개 종목 추천 분석을 완료했습니다.",
+      "error": "상위 10개 종목 추천 분석 중 오류가 발생했습니다."
+    },
+    "balanceRecommendation": {
+      "start": "포트폴리오 추천 분석을 시작합니다...",
+      "build_msg_start": "추론 메시지 빌드를 시작합니다...",
+      "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
+      "batch_start": "배치 요청 처리를 시작합니다...",
+      "batch_complete": "배치 요청 처리를 완료했습니다.",
+      "complete": "포트폴리오 추천 분석을 완료했습니다.",
+      "error": "포트폴리오 추천 분석 중 오류가 발생했습니다."
+    }
   },
   "blacklist": {
     "not_found": "ID가 {id}인 블랙리스트를 찾을 수 없습니다."
@@ -41,7 +77,13 @@
   "schedule": {
     "start": "포트폴리오 조정 스케줄 시작...",
     "end": "포트폴리오 조정 스케줄 종료.",
-    "skip": "개발 환경에서는 스케줄이 실행되지 않습니다."
+    "skip": "개발 환경에서는 스케줄이 실행되지 않습니다.",
+    "marketRecommendation": {
+      "start": "일일 상위 10개 종목 추천 분석을 시작합니다...",
+      "filtered": "추천을 위해 {count}개 종목을 필터링했습니다.",
+      "completed": "{count}개 종목에 대한 일일 상위 10개 추천을 완료했습니다.",
+      "failed": "일일 상위 10개 종목 추천 분석에 실패했습니다."
+    }
   },
   "retry": {
     "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중...",
@@ -89,6 +131,42 @@
       "acquired": "{resourceName}에 대한 락 획득 성공",
       "released": "{resourceName}에 대한 락 해제 완료",
       "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
+    }
+  },
+  "openai": {
+    "batch": {
+      "upload_start": "Batch 요청 파일을 업로드합니다...",
+      "upload_complete": "파일 업로드 완료: {fileId}",
+      "job_created": "Batch 작업 생성 완료: {batchId}",
+      "waiting": "Batch 작업 {batchId} 완료를 대기합니다...",
+      "status": "Batch 상태: {status}",
+      "completed": "배치 작업 완료",
+      "downloading": "배치 결과 파일을 다운로드합니다...",
+      "failed": "Batch 작업 실패: {status}",
+      "timeout": "Batch 작업 타임아웃",
+      "request_failed": "Batch 요청 실패: {customId}, 오류: {error}",
+      "parse_error": "Batch 결과 파싱 오류",
+      "results_processed": "{count}개의 성공적인 분석 결과를 처리했습니다.",
+      "no_output_file": "배치 작업 결과 파일이 없습니다. 빈 결과를 반환합니다.",
+      "has_errors": "배치 작업에 오류가 포함되어 있습니다.",
+      "error_details": "배치 오류 상세 내역",
+      "failed_with_errors": "오류가 포함된 배치 작업이 실패했습니다.",
+      "no_files": "배치 작업 완료 후 결과 또는 오류 파일을 찾을 수 없습니다."
+    }
+  },
+  "market": {
+    "analysis": {
+      "start_all": "모든 KRW 마켓 종목에 대한 {mode} 분석을 시작합니다...",
+      "batch_trying": "Batch API를 시도합니다...",
+      "batch_fallback": "Batch API 실패, 병렬 처리로 폴백합니다: {error}",
+      "parallel_forced": "병렬 처리 모드로 강제 실행합니다...",
+      "features_extracted": "{count}개 종목의 특성을 추출했습니다.",
+      "batch_processing": "{start}~{end}번째 종목 분석 중...",
+      "symbol_failed": "{symbol} 분석 실패: {error}",
+      "symbol_batch_failed": "{symbol} 분석 실패",
+      "completed": "총 {successCount}개 종목 분석 완료 (전체 {totalCount}개 중)",
+      "batch_completed": "Batch API를 통해 총 {count}개 종목 분석 완료",
+      "llm_start": "시장 특성 분석을 위한 LLM 추론을 시작합니다..."
     }
   }
 }

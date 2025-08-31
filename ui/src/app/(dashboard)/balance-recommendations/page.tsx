@@ -90,6 +90,7 @@ const Page: React.FC = () => {
         </div>
       </div>
       <InferenceDetail
+        type='balance'
         ticker={ticker}
         category={category}
         sortDirection={sortDirection}
