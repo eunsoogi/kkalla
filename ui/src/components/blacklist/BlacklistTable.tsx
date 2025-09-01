@@ -1,15 +1,15 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useCallback } from 'react';
+import React, { useCallback } from 'react';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { ColoredBadge } from '@/components/common/ColoredBadge';
-import { Blacklist, initialPaginatedState } from '@/interfaces/blacklist.interface';
+import { Blacklist } from '@/interfaces/blacklist.interface';
 import { PaginatedItem } from '@/interfaces/item.interface';
 import { getCategoryText } from '@/utils/category';
 import { formatYearDate } from '@/utils/date';
@@ -70,11 +70,11 @@ const BlacklistTableContent = () => {
   const page = Number(searchParams.get('page')) || 1;
   const perPage = 10;
 
-  const { data } = useSuspenseQuery({
-    queryKey: ['blacklists', page],
+  const { data, isLoading } = useQuery({
+    queryKey: ['blacklists', page, perPage],
     queryFn: () => getBlacklistsAction({ page, perPage }),
-    initialData: initialPaginatedState,
     refetchOnMount: 'always',
+    staleTime: 0,
   });
 
   const handlePageChange = useCallback(
@@ -85,6 +85,10 @@ const BlacklistTableContent = () => {
     },
     [router, searchParams],
   );
+
+  if (isLoading || !data) {
+    return <BlacklistTableSkeleton />;
+  }
 
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-full break-words'>
@@ -151,9 +155,5 @@ const BlacklistTableContent = () => {
 };
 
 export const BlacklistTable = () => {
-  return (
-    <Suspense fallback={<BlacklistTableSkeleton />}>
-      <BlacklistTableContent />
-    </Suspense>
-  );
+  return <BlacklistTableContent />;
 };
