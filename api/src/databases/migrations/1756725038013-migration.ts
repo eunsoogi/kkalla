@@ -25,17 +25,22 @@ export class Migration1756725038013 implements MigrationInterface {
     await queryRunner.changeColumn('balance_recommendation', oldReasonColumn, newReasonColumn);
 
     // seq 컬럼의 중복 값 정리: created_at asc 순서로 seq 재부여
-    await queryRunner.query(`
-      UPDATE market_recommendation 
-      SET seq = (
-        SELECT row_number 
-        FROM (
-          SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC) as row_number
-          FROM market_recommendation
-        ) ranked
-        WHERE ranked.id = market_recommendation.id
-      )
-    `);
+    const recommendations = await queryRunner.manager
+      .createQueryBuilder()
+      .select(['id', 'created_at'])
+      .from('market_recommendation', 'mr')
+      .orderBy('created_at', 'ASC')
+      .getRawMany();
+
+    // 순차적으로 seq 값 업데이트
+    for (let i = 0; i < recommendations.length; i++) {
+      await queryRunner.manager
+        .createQueryBuilder()
+        .update('market_recommendation')
+        .set({ seq: i + 1 })
+        .where('id = :id', { id: recommendations[i].id })
+        .execute();
+    }
 
     // seq 컬럼 유니크 인덱스 생성
     await queryRunner.createIndex(
