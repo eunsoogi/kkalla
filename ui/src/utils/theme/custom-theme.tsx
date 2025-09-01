@@ -156,6 +156,28 @@ const customTheme = {
       base: 'mt-4 space-y-2 border-t border-ld pt-4 first:mt-0 first:border-t-0 first:pt-0 sidebar-nav ',
     },
   },
+
+  datepicker: {
+    root: {
+      input: {
+        base: 'relative',
+        field: {
+          input: {
+            base: 'block w-full border disabled:cursor-not-allowed disabled:opacity-50 bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500 pl-10 text-sm rounded-lg',
+          },
+          icon: {
+            base: 'pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3',
+            svg: 'h-4 w-4 text-gray-500 dark:text-gray-400',
+          },
+        },
+      },
+    },
+    popup: {
+      root: {
+        base: 'absolute z-50 rounded-lg bg-white shadow-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700 right-0 lg:left-0 w-auto',
+      },
+    },
+  },
 };
 
 export default customTheme;
