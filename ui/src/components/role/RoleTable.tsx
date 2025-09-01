@@ -1,15 +1,15 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useCallback } from 'react';
+import React, { useCallback } from 'react';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { PaginatedItem } from '@/interfaces/item.interface';
-import { Role, initialPaginatedState } from '@/interfaces/role.interface';
+import { Role } from '@/interfaces/role.interface';
 import { formatYearDate } from '@/utils/date';
 
 import { ColoredBadge } from '../common/ColoredBadge';
@@ -136,20 +136,20 @@ const RoleTableData = () => {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const perPage = 10;
 
-  const { data } = useSuspenseQuery<PaginatedItem<Role>>({
-    queryKey: [...rolesQueryKey, page],
+  const { data, isLoading } = useQuery<PaginatedItem<Role>>({
+    queryKey: [...rolesQueryKey, page, perPage],
     queryFn: () => getRolesAction({ page, perPage }),
-    initialData: initialPaginatedState,
     refetchOnMount: 'always',
+    staleTime: 0,
   });
+
+  if (isLoading || !data) {
+    return <RoleTableSkeleton />;
+  }
 
   return <RoleTableBase items={data} />;
 };
 
 export const RoleTable = () => {
-  return (
-    <Suspense fallback={<RoleTableSkeleton />}>
-      <RoleTableData />
-    </Suspense>
-  );
+  return <RoleTableData />;
 };
