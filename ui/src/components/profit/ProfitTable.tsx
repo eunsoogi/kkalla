@@ -1,14 +1,14 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React from 'react';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Table } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { PaginatedItem } from '@/interfaces/item.interface';
-import { ProfitData, initialPaginatedState } from '@/interfaces/profit.interface';
+import { ProfitData } from '@/interfaces/profit.interface';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatNumber } from '@/utils/number';
 
@@ -105,20 +105,20 @@ const ProfitTableSkeleton = () => {
 };
 
 const ProfitTableData = ({ page, email, onPageChange }: ProfitTableProps) => {
-  const { data } = useSuspenseQuery<PaginatedItem<ProfitData>>({
+  const { data, isLoading } = useQuery<PaginatedItem<ProfitData>>({
     queryKey: [...profitsQueryKey, page, email],
     queryFn: () => getProfitsAction({ page, email }),
-    initialData: initialPaginatedState,
     refetchOnMount: 'always',
+    staleTime: 0,
   });
+
+  if (isLoading || !data) {
+    return <ProfitTableSkeleton />;
+  }
 
   return <ProfitTableBase items={data} onPageChange={onPageChange} />;
 };
 
 export const ProfitTable = (props: ProfitTableProps) => {
-  return (
-    <Suspense fallback={<ProfitTableSkeleton />}>
-      <ProfitTableData {...props} />
-    </Suspense>
-  );
+  return <ProfitTableData {...props} />;
 };
