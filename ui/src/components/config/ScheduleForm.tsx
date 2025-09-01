@@ -1,8 +1,8 @@
 'use client';
 
-import React, { Suspense, useTransition } from 'react';
+import React, { useTransition } from 'react';
 
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ToggleSwitch } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
@@ -16,7 +16,7 @@ const ScheduleToggleSwitch: React.FC = () => {
   const [isPending, startTransition] = useTransition();
   const queryKey = ['schedule'];
 
-  const { data } = useSuspenseQuery<Schedule>({
+  const { data, isLoading } = useQuery<Schedule>({
     queryKey: queryKey,
     queryFn: () => getScheduleAction(),
     initialData: initialState,
@@ -30,14 +30,35 @@ const ScheduleToggleSwitch: React.FC = () => {
     });
   };
 
-  return <ToggleSwitch checked={data.enabled} onChange={handleToggle} disabled={isPending} label={t('activate')} />;
+  if (isLoading) {
+    return (
+      <div style={{ minWidth: 'fit-content', display: 'flex', alignItems: 'center' }}>
+        <ToggleSwitch
+          checked={false}
+          onChange={() => null}
+          label={t('activate')}
+          style={{ gap: '12px' }}
+          className="flex items-center gap-4"
+          disabled
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minWidth: 'fit-content', display: 'flex', alignItems: 'center' }}>
+      <ToggleSwitch
+        checked={data.enabled}
+        onChange={handleToggle}
+        disabled={isPending}
+        label={t('activate')}
+        style={{ gap: '12px' }}
+        className="flex items-center gap-4"
+      />
+    </div>
+  );
 };
 
-const ScheduleToggleSwitchSkeleton: React.FC = () => {
-  const t = useTranslations();
-
-  return <ToggleSwitch checked={false} onChange={() => null} label={t('activate')} />;
-};
 
 const ScheduleForm: React.FC = () => {
   const t = useTranslations();
@@ -51,9 +72,7 @@ const ScheduleForm: React.FC = () => {
         <p className='text-gray-500 dark:text-gray-400'>{t('service.termsofuse')}</p>
       </div>
       <div className='mt-6'>
-        <Suspense fallback={<ScheduleToggleSwitchSkeleton />}>
-          <ScheduleToggleSwitch />
-        </Suspense>
+        <ScheduleToggleSwitch />
       </div>
     </>
   );
