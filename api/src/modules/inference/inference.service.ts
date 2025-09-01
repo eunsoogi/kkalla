@@ -188,6 +188,7 @@ export class InferenceService {
         // hasStock 정보를 결과에 포함
         return {
           ...result.data,
+          category: item?.category,
           hasStock: item?.hasStock || false,
         };
       });
