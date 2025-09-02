@@ -34,7 +34,7 @@ export class ScheduleService {
   ) {}
 
   @Cron(ScheduleExpression.DAILY_MARKET_RECOMMENDATION)
-  @WithRedlock({ duration: 10 * 60 * 1000 })
+  @WithRedlock({ duration: 60 * 60 * 1000 })
   public async marketRecommendation(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
@@ -79,7 +79,7 @@ export class ScheduleService {
   }
 
   @Cron(ScheduleExpression.DAILY_BALANCE_RECOMMENDATION_NEW)
-  @WithRedlock({ duration: 5 * 60 * 1000 })
+  @WithRedlock({ duration: 60 * 60 * 1000 })
   public async balanceRecommendationNew(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
@@ -108,7 +108,7 @@ export class ScheduleService {
   }
 
   @Cron(ScheduleExpression.DAILY_BALANCE_RECOMMENDATION_EXISTING)
-  @WithRedlock({ duration: 5 * 60 * 1000 })
+  @WithRedlock({ duration: 60 * 60 * 1000 })
   public async balanceRecommendationExisting(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
