@@ -1,28 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-
-import { Repository } from 'typeorm';
 
 import { Sequence } from './entities/sequence.entity';
 
 @Injectable()
 export class SequenceService {
-  constructor(
-    @InjectRepository(Sequence)
-    private readonly sequenceRepository: Repository<Sequence>,
-  ) {}
+  private sequenceQueue: Promise<number> = Promise.resolve(0);
 
   public async getNextSequence(): Promise<number> {
-    const res = await this.sequenceRepository.insert({});
-    const id = res.identifiers[0]?.value ?? res.generatedMaps[0]?.value ?? (res as any).raw?.insertId;
-    return id as number;
+    this.sequenceQueue = this.sequenceQueue.then(async () => {
+      const sequence = new Sequence();
+      const savedSequence = await sequence.save();
+      return savedSequence.value;
+    });
+
+    return this.sequenceQueue;
   }
 
   public async getCurrentSequence(): Promise<number> {
-    const lastSequence = await this.sequenceRepository.findOne({
+    const sequences = await Sequence.find({
       order: { value: 'DESC' },
+      take: 1,
     });
 
-    return lastSequence ? lastSequence.value : 0;
+    return sequences.length > 0 ? sequences[0].value : 0;
   }
 }
