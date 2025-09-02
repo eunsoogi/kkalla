@@ -26,5 +26,5 @@ export interface TradeData {
   type: OrderTypes;
   amount: number;
   profit: number;
-  inference: BalanceRecommendationData;
+  inference?: BalanceRecommendationData;
 }
