@@ -14,7 +14,6 @@ import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
 import { NotifyService } from '@/modules/notify/notify.service';
 import { OpenaiService } from '@/modules/openai/openai.service';
-import { SequenceService } from '@/modules/sequence/sequence.service';
 
 import { MarketFeatures } from '../upbit/upbit.interface';
 import { BalanceRecommendationDto } from './dto/balance-recommendation.dto';
@@ -54,7 +53,6 @@ export class InferenceService {
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
     private readonly notifyService: NotifyService,
-    private readonly sequenceService: SequenceService,
   ) {}
 
   /**
@@ -469,17 +467,13 @@ export class InferenceService {
 
     Object.assign(marketRecommendation, recommendation);
     marketRecommendation.batchId = batchId;
-    marketRecommendation.seq = await this.sequenceService.getNextSequence();
 
     return marketRecommendation.save();
   }
 
   public async saveBalanceRecommendation(recommendation: BalanceRecommendationData): Promise<BalanceRecommendation> {
     const balanceRecommendation = new BalanceRecommendation();
-
     Object.assign(balanceRecommendation, recommendation);
-    balanceRecommendation.seq = await this.sequenceService.getNextSequence();
-
     return balanceRecommendation.save();
   }
 }

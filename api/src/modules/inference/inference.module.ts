@@ -6,22 +6,12 @@ import { FeatureModule } from '../feature/feature.module';
 import { NewsModule } from '../news/news.module';
 import { NotifyModule } from '../notify/notify.module';
 import { OpenaiModule } from '../openai/openai.module';
-import { SequenceModule } from '../sequence/sequence.module';
 import { UpbitModule } from '../upbit/upbit.module';
 import { InferenceController } from './inference.controller';
 import { InferenceService } from './inference.service';
 
 @Module({
-  imports: [
-    ErrorModule,
-    SequenceModule,
-    OpenaiModule,
-    UpbitModule,
-    FeatureModule,
-    NewsModule,
-    FeargreedModule,
-    NotifyModule,
-  ],
+  imports: [ErrorModule, OpenaiModule, UpbitModule, FeatureModule, NewsModule, FeargreedModule, NotifyModule],
   controllers: [InferenceController],
   providers: [InferenceService],
   exports: [InferenceService],
