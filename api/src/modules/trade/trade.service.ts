@@ -20,7 +20,6 @@ import { BalanceRecommendationData, RecommendationItem } from '../inference/infe
 import { InferenceService } from '../inference/inference.service';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
-import { SequenceService } from '../sequence/sequence.service';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { PostTradeDto } from './dto/post-trade.dto';
@@ -49,7 +48,6 @@ export class TradeService implements OnModuleInit {
 
   constructor(
     private readonly i18n: I18nService,
-    private readonly sequenceService: SequenceService,
     private readonly inferenceService: InferenceService,
     private readonly upbitService: UpbitService,
     private readonly profitService: ProfitService,
@@ -465,13 +463,34 @@ export class TradeService implements OnModuleInit {
   }
 
   public async executeTrade(user: User, request: TradeRequest): Promise<Trade> {
+    this.logger.log(this.i18n.t('logging.trade.start', { args: { id: user.id, ticker: request.ticker } }));
+
     const order = await this.upbitService.adjustOrder(user, request);
 
-    if (!order) return null;
+    if (!order) {
+      this.logger.log(this.i18n.t('logging.trade.not_exist', { args: { id: user.id, ticker: request.ticker } }));
+      return null;
+    }
+
+    this.logger.log(this.i18n.t('logging.trade.calculate.start', { args: { id: user.id, ticker: request.ticker } }));
 
     const type = this.upbitService.getOrderType(order);
     const amount = await this.upbitService.calculateAmount(order);
     const profit = await this.upbitService.calculateProfit(request.balances, order, amount);
+
+    this.logger.log(
+      this.i18n.t('logging.trade.calculate.end', {
+        args: {
+          id: user.id,
+          ticker: request.ticker,
+          type,
+          amount,
+          profit,
+        },
+      }),
+    );
+
+    this.logger.log(this.i18n.t('logging.trade.save.start', { args: { id: user.id, ticker: request.ticker } }));
 
     const trade = await this.saveTrade(user, {
       ticker: request.ticker,
@@ -480,6 +499,8 @@ export class TradeService implements OnModuleInit {
       profit,
       inference: request.inference,
     });
+
+    this.logger.log(this.i18n.t('logging.trade.save.end', { args: { id: user.id, ticker: request.ticker } }));
 
     this.notifyService.notify(
       user,
@@ -500,7 +521,6 @@ export class TradeService implements OnModuleInit {
     const trade = new Trade();
 
     Object.assign(trade, data);
-    trade.seq = await this.sequenceService.getNextSequence();
     trade.user = user;
 
     return trade.save();

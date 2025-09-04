@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { I18nService } from 'nestjs-i18n';
-
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '../item/item.interface';
-import { SequenceService } from '../sequence/sequence.service';
 import { SlackService } from '../slack/slack.service';
 import { User } from '../user/entities/user.entity';
 import { Notify } from './entities/notify.entity';
@@ -11,11 +8,7 @@ import { NotifyData } from './notify.interface';
 
 @Injectable()
 export class NotifyService {
-  constructor(
-    private readonly sequenceService: SequenceService,
-    private readonly slackService: SlackService,
-    private readonly i18n: I18nService,
-  ) {}
+  constructor(private readonly slackService: SlackService) {}
 
   public async findAll(user: User) {
     return Notify.findAllByUser(user);
@@ -25,7 +18,6 @@ export class NotifyService {
     const notify = new Notify();
 
     Object.assign(notify, data);
-    notify.seq = await this.sequenceService.getNextSequence();
     notify.user = user;
 
     // Send to slack

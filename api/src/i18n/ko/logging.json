@@ -168,5 +168,17 @@
       "batch_completed": "Batch API를 통해 총 {count}개 종목 분석 완료",
       "llm_start": "시장 특성 분석을 위한 LLM 추론을 시작합니다..."
     }
+  },
+  "trade": {
+    "start": "사용자 {id}, {ticker} 주문 시작...",
+    "not_exist": "사용자 {id}, {ticker} 주문 정보가 없습니다.",
+    "calculate": {
+      "start": "사용자 {id}, {ticker} 주문 수익 계산 시작...",
+      "end": "사용자 {id}, {ticker} 주문 수익 계산 완료. {ticker} {type}, 거래금: {amount}, 수익금: {profit}"
+    },
+    "save": {
+      "start": "사용자 {id}, {ticker} 주문 저장 시작...",
+      "end": "사용자 {id}, {ticker} 주문 저장 완료."
+    }
   }
 }
