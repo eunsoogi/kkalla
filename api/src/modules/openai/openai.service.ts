@@ -21,6 +21,8 @@ export class OpenaiService {
     const client = new OpenAI({
       project: process.env.OPENAI_PROJECT,
       apiKey: process.env.OPENAI_SECRET_KEY,
+      timeout: 3_600_000, // 1시간
+      maxRetries: 3,
     });
 
     return client;
