@@ -36,7 +36,12 @@ export class OpenaiService {
     const client = await this.getServerClient();
 
     const params: ChatCompletionCreateParams = {
-      ...config,
+      model: config.model,
+      max_completion_tokens: config.max_completion_tokens,
+      reasoning_effort: config.reasoning_effort,
+      verbosity: config.verbosity,
+      service_tier: config.service_tier,
+      response_format: config.response_format,
       messages,
       stream: false,
     };
