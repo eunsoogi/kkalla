@@ -142,8 +142,8 @@
       "status": "Batch 상태: {status}",
       "completed": "배치 작업 완료",
       "downloading": "배치 결과 파일을 다운로드합니다...",
-      "failed": "Batch 작업 실패: {status}",
-      "timeout": "Batch 작업 타임아웃",
+      "failed": "Batch 작업 {batchId} 실패: {status}",
+      "timeout": "Batch 작업 {batchId} 타임아웃",
       "request_failed": "Batch 요청 실패: {customId}, 오류: {error}",
       "parse_error": "Batch 결과 파싱 오류",
       "results_processed": "{count}개의 성공적인 분석 결과를 처리했습니다.",
@@ -151,7 +151,10 @@
       "has_errors": "배치 작업에 오류가 포함되어 있습니다.",
       "error_details": "배치 오류 상세 내역",
       "failed_with_errors": "오류가 포함된 배치 작업이 실패했습니다.",
-      "no_files": "배치 작업 완료 후 결과 또는 오류 파일을 찾을 수 없습니다."
+      "no_files": "배치 작업 완료 후 결과 또는 오류 파일을 찾을 수 없습니다.",
+      "timeout_cancelling": "타임아웃으로 인해 배치 작업 {batchId}를 취소합니다...",
+      "cancelled": "배치 작업 {batchId}가 취소되었습니다.",
+      "cancel_failed": "배치 작업 {batchId} 취소에 실패했습니다."
     }
   },
   "market": {
