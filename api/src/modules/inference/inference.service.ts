@@ -62,66 +62,66 @@ export class InferenceService {
   public async marketRecommendation(symbols?: string[]): Promise<MarketRecommendationResponse> {
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.start'));
 
-    try {
-      // 메시지 빌드
-      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.build_msg_start'));
-      const messages = await this.errorService.retryWithFallback(() => this.buildMarketRecommendationMessages(symbols));
-      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.build_msg_complete'));
+    // 메시지 빌드
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.build_msg_start'));
 
-      // 배치 요청 처리
-      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_start'));
-      const result = await this.errorService.retryWithFallback(async () => {
-        const requestConfig = {
-          ...UPBIT_MARKET_RECOMMENDATION_CONFIG,
-          response_format: {
-            type: 'json_schema' as const,
-            json_schema: {
-              name: 'market_recommendation',
-              strict: true,
-              schema: UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
-            },
+    const messages = await this.errorService.retryWithFallback(() => this.buildMarketRecommendationMessages(symbols));
+
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.build_msg_complete'));
+
+    // 배치 요청 처리
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_start'));
+
+    const result = await this.errorService.retryWithFallback(async () => {
+      const requestConfig = {
+        ...UPBIT_MARKET_RECOMMENDATION_CONFIG,
+        response_format: {
+          type: 'json_schema' as const,
+          json_schema: {
+            name: 'market_recommendation',
+            strict: true,
+            schema: UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
           },
-        };
+        },
+      };
 
-        const batchRequest = this.openaiService.createBatchRequest('market-recommendation', messages, requestConfig);
-        const batchId = await this.openaiService.createBatch(batchRequest);
-        const batchResults = await this.openaiService.waitBatch(batchId);
+      const batchRequest = this.openaiService.createBatchRequest('market-recommendation', messages, requestConfig);
+      const batchId = await this.openaiService.createBatch(batchRequest);
+      const batchResults = await this.openaiService.waitBatch(batchId);
 
-        const batchResult = batchResults[0];
-        if (batchResult.error) {
-          throw new Error(`Batch request failed: ${JSON.stringify(batchResult.error)}`);
-        }
-
-        return {
-          batchId,
-          recommendations: batchResult.data.recommendations,
-        };
-      });
-      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
-
-      // 결과 저장
-      if (result.recommendations?.length > 0) {
-        await Promise.all(
-          result.recommendations.map((recommendation) => this.saveMarketRecommendation(recommendation, result.batchId)),
-        );
-
-        // 추천 결과 전송
-        const recommendSymbols = result.recommendations.map((rec) => rec.symbol).join(', ');
-        const message = this.i18n.t('notify.marketRecommendation.completed', {
-          args: {
-            count: result.recommendations.length,
-            symbols: recommendSymbols,
-          },
-        });
-        await this.notifyService.notifyServer(message);
+      const batchResult = batchResults[0];
+      if (batchResult.error) {
+        throw new Error(`Batch request failed: ${JSON.stringify(batchResult.error)}`);
       }
 
-      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
-      return result;
-    } catch (error) {
-      this.logger.error(this.i18n.t('logging.inference.marketRecommendation.error'), error);
-      throw error;
+      return {
+        batchId,
+        recommendations: batchResult.data.recommendations,
+      };
+    });
+
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
+
+    // 결과 저장
+    if (result.recommendations?.length > 0) {
+      await Promise.all(
+        result.recommendations.map((recommendation) => this.saveMarketRecommendation(recommendation, result.batchId)),
+      );
+
+      // 추천 결과 전송
+      const recommendSymbols = result.recommendations.map((rec) => rec.symbol).join(', ');
+      const message = this.i18n.t('notify.marketRecommendation.completed', {
+        args: {
+          count: result.recommendations.length,
+          symbols: recommendSymbols,
+        },
+      });
+
+      await this.notifyService.notifyServer(message);
     }
+
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
+    return result;
   }
 
   /**
@@ -132,16 +132,10 @@ export class InferenceService {
   public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
 
-    // hasStock 정보를 포함한 매핑 생성
-    const itemsMap = new Map<string, RecommendationItem>();
-    items.forEach((item) => {
-      itemsMap.set(item.ticker, item);
-    });
-
-    try {
-      // 각 종목에 대한 개별 배치 요청 생성
-      const batchRequests = await Promise.all(
-        items.map(async (item) => {
+    // 각 종목에 대한 실시간 API 호출을 병렬로 처리
+    const results = await Promise.all(
+      items.map(async (item) => {
+        return await this.errorService.retryWithFallback(async () => {
           const { ...config } = UPBIT_BALANCE_RECOMMENDATION_CONFIG;
           const messages = await this.buildBalanceRecommendationMessages(item.ticker);
           const requestConfig = {
@@ -156,53 +150,28 @@ export class InferenceService {
             ...config,
           };
 
-          return this.openaiService.createBatchRequest(
-            `balance-recommendation-${item.ticker}`,
-            messages,
-            requestConfig,
-          );
-        }),
-      );
+          // 실시간 API 호출
+          const completion = await this.openaiService.createChatCompletion(messages, requestConfig);
+          const responseData = JSON.parse(completion.choices[0].message.content);
 
-      const batchRequestsJsonl = batchRequests.join('\n');
+          // 추론 결과와 아이템 병합
+          return {
+            ...responseData,
+            category: item?.category,
+            hasStock: item?.hasStock || false,
+          };
+        });
+      }),
+    );
 
-      // 배치 작업 생성 및 완료 대기
-      const batchId = await this.openaiService.createBatch(batchRequestsJsonl);
-      const batchResults = await this.openaiService.waitBatch(batchId);
-
-      // 결과 처리
-      const results = batchResults.map((result) => {
-        const ticker = result.custom_id.replace('balance-recommendation-', '');
-        const item = itemsMap.get(ticker);
-
-        if (result.error) {
-          this.logger.error(
-            this.i18n.t('logging.inference.balanceRecommendation.error', { args: { symbol: ticker } }),
-            result.error,
-          );
-          return { ticker, error: result.error };
-        }
-
-        // hasStock 정보를 결과에 포함
-        return {
-          ...result.data,
-          category: item?.category,
-          hasStock: item?.hasStock || false,
-        };
-      });
-
-      // 결과 저장
-      const successResults = results.filter((result) => !result.error);
-      if (successResults.length > 0) {
-        await Promise.all(successResults.map((recommendation) => this.saveBalanceRecommendation(recommendation)));
-      }
-
-      this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
-      return results;
-    } catch (error) {
-      this.logger.error(this.i18n.t('logging.inference.balanceRecommendation.error'), error);
-      throw error;
+    // 결과 저장
+    const successResults = results.filter((result) => !result.error);
+    if (successResults.length > 0) {
+      await Promise.all(successResults.map((recommendation) => this.saveBalanceRecommendation(recommendation)));
     }
+
+    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
+    return results;
   }
 
   /**

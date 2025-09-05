@@ -136,7 +136,7 @@ export const UPBIT_BALANCE_RECOMMENDATION_CONFIG = {
   max_completion_tokens: 8196,
   reasoning_effort: 'medium' as const,
   verbosity: 'low' as const,
-  service_tier: 'auto' as const,
+  service_tier: 'flex' as const,
   message: {
     news: 10,
     recent: 5,
