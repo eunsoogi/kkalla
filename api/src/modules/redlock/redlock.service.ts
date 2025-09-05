@@ -19,9 +19,9 @@ export class RedlockService implements OnModuleDestroy {
     private readonly i18n: I18nService,
   ) {
     this.redisClient = new Redis({
-      host: options.redis.host,
-      port: options.redis.port,
-      password: options.redis.password,
+      host: this.options.redis.host,
+      port: this.options.redis.port,
+      password: this.options.redis.password,
     });
 
     this.redlock = new Redlock([this.redisClient], {
@@ -49,39 +49,20 @@ export class RedlockService implements OnModuleDestroy {
 
       // Lock 획득 실패 시 함수 실행 건너뜀
       if (!lock) {
-        this.logger.debug(
-          await this.i18n.translate('logging.redlock.lock.not_acquired', {
-            args: { resourceName },
-          }),
-        );
+        this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
         return undefined;
       }
 
       // Lock을 얻으면 함수 실행
-      this.logger.debug(
-        await this.i18n.translate('logging.redlock.lock.acquired', {
-          args: { resourceName },
-        }),
-      );
-
+      this.logger.debug(this.i18n.t('logging.redlock.lock.acquired', { args: { resourceName } }));
       return await callback();
     } finally {
       if (lock) {
         try {
           await lock.release();
-
-          this.logger.debug(
-            await this.i18n.translate('logging.redlock.lock.released', {
-              args: { resourceName },
-            }),
-          );
+          this.logger.debug(this.i18n.t('logging.redlock.lock.released', { args: { resourceName } }));
         } catch (error) {
-          this.logger.error(
-            await this.i18n.translate('logging.redlock.lock.release_error', {
-              args: { resourceName },
-            }),
-            error,
-          );
+          this.logger.error(this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName } }), error);
         }
       }
     }

@@ -48,8 +48,7 @@
       "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
       "batch_start": "배치 요청 처리를 시작합니다...",
       "batch_complete": "배치 요청 처리를 완료했습니다.",
-      "complete": "상위 10개 종목 추천 분석을 완료했습니다.",
-      "error": "상위 10개 종목 추천 분석 중 오류가 발생했습니다."
+      "complete": "상위 10개 종목 추천 분석을 완료했습니다."
     },
     "balanceRecommendation": {
       "start": "포트폴리오 추천 분석을 시작합니다...",
@@ -57,8 +56,7 @@
       "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
       "batch_start": "배치 요청 처리를 시작합니다...",
       "batch_complete": "배치 요청 처리를 완료했습니다.",
-      "complete": "포트폴리오 추천 분석을 완료했습니다.",
-      "error": "포트폴리오 추천 분석 중 오류가 발생했습니다."
+      "complete": "포트폴리오 추천 분석을 완료했습니다."
     }
   },
   "blacklist": {
@@ -134,6 +132,10 @@
     }
   },
   "openai": {
+    "chat": {
+      "completion_start": "실시간 채팅 API 호출을 시작합니다...",
+      "completion_complete": "실시간 채팅 API 호출을 완료했습니다."
+    },
     "batch": {
       "upload_start": "Batch 요청 파일을 업로드합니다...",
       "upload_complete": "파일 업로드 완료: {fileId}",

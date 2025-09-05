@@ -34,7 +34,7 @@ export class ScheduleService {
   ) {}
 
   @Cron(ScheduleExpression.DAILY_MARKET_RECOMMENDATION)
-  @WithRedlock({ duration: 5400000 }) // 90분 동안 실행
+  @WithRedlock({ duration: 88200000 }) // 24시간 30분 동안 실행
   public async marketRecommendation(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
@@ -79,7 +79,7 @@ export class ScheduleService {
   }
 
   @Cron(ScheduleExpression.DAILY_BALANCE_RECOMMENDATION_NEW)
-  @WithRedlock({ duration: 5400000 }) // 90분 동안 실행
+  @WithRedlock({ duration: 3600000 }) // 1시간 동안 실행
   public async balanceRecommendationNew(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));
@@ -108,7 +108,7 @@ export class ScheduleService {
   }
 
   @Cron(ScheduleExpression.DAILY_BALANCE_RECOMMENDATION_EXISTING)
-  @WithRedlock({ duration: 5400000 }) // 90분 동안 실행
+  @WithRedlock({ duration: 3600000 }) // 1시간 동안 실행
   public async balanceRecommendationExisting(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));

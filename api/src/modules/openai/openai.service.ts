@@ -27,6 +27,30 @@ export class OpenaiService {
   }
 
   /**
+   * 실시간 채팅 완성 API 호출
+   */
+  public async createChatCompletion(
+    messages: ChatCompletionMessageParam[],
+    config: Omit<ChatCompletionCreateParams, 'messages'>,
+  ) {
+    const client = await this.getServerClient();
+
+    const params: ChatCompletionCreateParams = {
+      ...config,
+      messages,
+      stream: false,
+    };
+
+    this.logger.log(this.i18n.t('logging.openai.chat.completion_start'));
+
+    const completion = await client.chat.completions.create(params);
+
+    this.logger.log(this.i18n.t('logging.openai.chat.completion_complete'));
+
+    return completion;
+  }
+
+  /**
    * 배치 요청 생성
    */
   public createBatchRequest(
@@ -75,7 +99,6 @@ export class OpenaiService {
       endpoint: '/v1/chat/completions',
       completion_window: '24h',
       metadata: {
-        description: 'KRW 마켓 종목 분석 배치',
         timestamp: new Date().toISOString(),
       },
     });
@@ -87,11 +110,15 @@ export class OpenaiService {
   /**
    * 배치 작업 완료 대기 및 결과 처리
    * @param batchId 대기할 배치 작업 ID
-   * @param maxWaitTime 최대 대기 시간(밀리초, 기본값: 3600000ms = 1시간)
+   * @param maxWaitTime 최대 대기 시간(밀리초, 기본값: 86400000ms = 24시간)
    * @param pollInterval 상태 확인 간격(밀리초, 기본값: 30000ms = 30초)
    * @returns 배치 작업 결과 배열
    */
-  public async waitBatch(batchId: string, maxWaitTime: number = 3600000, pollInterval: number = 30000): Promise<any[]> {
+  public async waitBatch(
+    batchId: string,
+    maxWaitTime: number = 86400000,
+    pollInterval: number = 30000,
+  ): Promise<any[]> {
     const client = await this.getServerClient();
     const startTime = Date.now();
 
