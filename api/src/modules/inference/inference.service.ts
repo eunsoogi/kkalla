@@ -84,8 +84,8 @@ export class InferenceService {
         };
 
         const batchRequest = this.openaiService.createBatchRequest('market-recommendation', messages, requestConfig);
-        const batchId = await this.openaiService.createBatchJob(batchRequest);
-        const batchResults = await this.openaiService.waitForBatchCompletion(batchId);
+        const batchId = await this.openaiService.createBatch(batchRequest);
+        const batchResults = await this.openaiService.waitBatch(batchId);
 
         const batchResult = batchResults[0];
         if (batchResult.error) {
@@ -167,8 +167,8 @@ export class InferenceService {
       const batchRequestsJsonl = batchRequests.join('\n');
 
       // 배치 작업 생성 및 완료 대기
-      const batchId = await this.openaiService.createBatchJob(batchRequestsJsonl);
-      const batchResults = await this.openaiService.waitForBatchCompletion(batchId);
+      const batchId = await this.openaiService.createBatch(batchRequestsJsonl);
+      const batchResults = await this.openaiService.waitBatch(batchId);
 
       // 결과 처리
       const results = batchResults.map((result) => {

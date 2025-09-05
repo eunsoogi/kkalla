@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 import { ChatCompletionCreateParams, ChatCompletionMessageParam } from 'openai/resources/index.mjs';
 
 import { ErrorService } from '../error/error.service';
+import { NotifyService } from '../notify/notify.service';
 
 @Injectable()
 export class OpenaiService {
@@ -13,6 +14,7 @@ export class OpenaiService {
   constructor(
     private readonly i18n: I18nService,
     private readonly errorService: ErrorService,
+    private readonly notifyService: NotifyService,
   ) {}
 
   public async getServerClient() {
@@ -25,10 +27,7 @@ export class OpenaiService {
   }
 
   /**
-   * 전체 마켓 분석용 Batch 요청 생성
-   */
-  /**
-   * 범용 Batch 요청 생성
+   * 배치 요청 생성
    */
   public createBatchRequest(
     customId: string,
@@ -54,12 +53,15 @@ export class OpenaiService {
     return JSON.stringify(request);
   }
 
-  public async createBatchJob(batchRequests: string): Promise<string> {
+  /**
+   * 배치 요청 파일 업로드
+   */
+  public async createBatch(batchRequests: string): Promise<string> {
     const client = await this.getServerClient();
 
     this.logger.log(this.i18n.t('logging.openai.batch.upload_start'));
 
-    // 1. 배치 요청 파일 업로드
+    // 배치 요청 파일 업로드
     const file = await client.files.create({
       file: new File([batchRequests], 'batch_requests.jsonl', { type: 'application/jsonl' }),
       purpose: 'batch',
@@ -67,7 +69,7 @@ export class OpenaiService {
 
     this.logger.log(this.i18n.t('logging.openai.batch.upload_complete', { args: { fileId: file.id } }));
 
-    // 2. 배치 작업 생성
+    // 배치 작업 생성
     const batch = await client.batches.create({
       input_file_id: file.id,
       endpoint: '/v1/chat/completions',
@@ -83,30 +85,36 @@ export class OpenaiService {
   }
 
   /**
-   * Batch 작업 완료 대기 및 결과 처리
+   * 배치 작업 완료 대기 및 결과 처리
+   * @param batchId 대기할 배치 작업 ID
+   * @param maxWaitTime 최대 대기 시간(밀리초, 기본값: 3600000ms = 1시간)
+   * @param pollInterval 상태 확인 간격(밀리초, 기본값: 30000ms = 30초)
+   * @returns 배치 작업 결과 배열
    */
-  public async waitForBatchCompletion(batchId: string): Promise<any[]> {
+  public async waitBatch(batchId: string, maxWaitTime: number = 3600000, pollInterval: number = 30000): Promise<any[]> {
     const client = await this.getServerClient();
-    const maxWaitTime = 3600000; // 1시간 최대 대기
-    const pollInterval = 30000; // 30초마다 상태 확인
     const startTime = Date.now();
 
     this.logger.log(this.i18n.t('logging.openai.batch.waiting', { args: { batchId } }));
 
+    // 최대 대기 시간까지 배치 작업이 완료될 때까지 대기
     while (Date.now() - startTime < maxWaitTime) {
       const batch = await client.batches.retrieve(batchId);
 
       this.logger.log(this.i18n.t('logging.openai.batch.status', { args: { status: batch.status } }));
 
+      // 배치 작업이 완료된 경우
       if (batch.status === 'completed') {
         this.logger.log(this.i18n.t('logging.openai.batch.completed'));
 
         if (batch.output_file_id) {
+          // 배치 작업에 성공한 경우
           this.logger.log(this.i18n.t('logging.openai.batch.downloading'));
-          return await this.downloadAndParseBatchResults(batch.output_file_id);
+          return await this.downloadBatchResult(batch.output_file_id);
         } else if (batch.error_file_id) {
+          // 배치 작업에 실패한 경우
           this.logger.error(this.i18n.t('logging.openai.batch.has_errors'));
-          const errors = await this.downloadAndParseBatchResults(batch.error_file_id);
+          const errors = await this.downloadBatchResult(batch.error_file_id);
           this.logger.error({
             message: this.i18n.t('logging.openai.batch.error_details'),
             errors,
@@ -116,21 +124,33 @@ export class OpenaiService {
           // 두 ID가 모두 없는 예외적인 경우
           throw new Error(this.i18n.t('logging.openai.batch.no_files'));
         }
-      } else if (batch.status === 'failed' || batch.status === 'cancelled') {
-        throw new Error(this.i18n.t('logging.openai.batch.failed', { args: { status: batch.status } }));
+      } else if (['failed', 'cancelled', 'expired'].includes(batch.status)) {
+        // 배치 작업에 실패한 경우
+        throw new Error(this.i18n.t('logging.openai.batch.failed', { args: { batchId, status: batch.status } }));
       }
 
       // 대기
       await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
 
-    throw new Error(this.i18n.t('logging.openai.batch.timeout'));
+    // 최대 대기 시간 초과 시 배치 취소
+    try {
+      this.logger.warn(this.i18n.t('logging.openai.batch.timeout_cancelling', { args: { batchId } }));
+      await client.batches.cancel(batchId);
+      this.logger.log(this.i18n.t('logging.openai.batch.cancelled', { args: { batchId } }));
+    } catch (cancelError) {
+      this.logger.error(this.i18n.t('logging.openai.batch.cancel_failed', { args: { batchId } }), cancelError);
+    }
+
+    this.notifyService.notifyServer(this.i18n.t('logging.openai.batch.timeout', { args: { batchId } }));
+
+    throw new Error(this.i18n.t('logging.openai.batch.timeout', { args: { batchId } }));
   }
 
   /**
-   * Batch 결과 파일 다운로드 및 파싱
+   * 배치 결과 파일 다운로드 및 파싱
    */
-  public async downloadAndParseBatchResults(outputFileId: string | null | undefined): Promise<any[]> {
+  public async downloadBatchResult(outputFileId: string | null | undefined): Promise<any[]> {
     if (!outputFileId) {
       this.logger.warn(this.i18n.t('logging.openai.batch.no_output_file'));
       return [];
@@ -150,23 +170,25 @@ export class OpenaiService {
 
       try {
         const result = JSON.parse(line);
+
         if (result.error) {
+          // 오류가 발생했을 떄
           this.logger.warn(
             this.i18n.t('logging.openai.batch.request_failed', {
               args: { customId: result.custom_id, error: result.error.message },
             }),
           );
-          // 실패한 요청에 대해서는 null 또는 에러 객체를 결과에 추가할 수 있습니다.
           results.push({ custom_id: result.custom_id, error: result.error.message });
         } else if (result.response?.body?.choices?.[0]?.message?.content) {
+          // 메시지가 있을 때
           const content = JSON.parse(result.response.body.choices[0].message.content);
           results.push({ custom_id: result.custom_id, data: content });
         } else {
+          // 메시지가 없을 때
           results.push({ custom_id: result.custom_id, error: 'No content in response' });
         }
       } catch (error) {
         this.logger.error(this.i18n.t('logging.openai.batch.parse_error'), this.errorService.getErrorMessage(error));
-        // 파싱 에러가 발생한 라인을 식별할 수 있도록 정보를 추가합니다.
         results.push({ error: 'Failed to parse result line', line });
       }
     }
