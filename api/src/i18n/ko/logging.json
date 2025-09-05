@@ -84,9 +84,9 @@
     }
   },
   "retry": {
-    "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중...",
-    "failed": "재시도 실패.",
-    "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {message}"
+    "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중... 오류: {message}",
+    "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {message}",
+    "failed": "재시도 실패."
   },
   "user": {
     "error": {

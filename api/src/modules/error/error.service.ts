@@ -28,13 +28,8 @@ export class ErrorService {
           throw error;
         }
 
-        this.logger.debug(error);
-
-        this.logger.warn(
-          this.i18n.t('logging.retry.attempt', {
-            args: { attempt, maxRetries },
-          }),
-        );
+        const message = this.getErrorMessage(error);
+        this.logger.warn(this.i18n.t('logging.retry.attempt', { args: { attempt, maxRetries, message } }));
 
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
       }
@@ -90,12 +85,7 @@ export class ErrorService {
     } catch (firstError) {
       // unknown 타입의 firstError에서 message 가져오기
       const errorMessage = this.getErrorMessage(firstError);
-
-      this.logger.warn(
-        this.i18n.t('logging.retry.fallback', {
-          args: { message: errorMessage },
-        }),
-      );
+      this.logger.warn(this.i18n.t('logging.retry.fallback', { args: { message: errorMessage } }));
 
       try {
         // 2차 재시도: 긴 지연, 추가 시도
@@ -105,7 +95,7 @@ export class ErrorService {
         const secondErrorMessage = this.getErrorMessage(secondError);
 
         await this.notifyService.notifyServer(
-          this.i18n.t('notify.fallback.failed', {
+          this.i18n.t('notify.retry.failed', {
             args: {
               functionName: operation.name || 'unknown',
               firstMaxRetries: firstPhase.maxRetries,
