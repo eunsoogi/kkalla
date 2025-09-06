@@ -9,7 +9,7 @@ export class GetRecommendationsPaginationDto extends GetPaginationDto {
     required: false,
     example: 'BTC/KRW',
   })
-  ticker?: string;
+  symbol?: string;
 
   @ApiProperty({
     required: true,

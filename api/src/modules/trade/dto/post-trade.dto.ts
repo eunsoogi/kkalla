@@ -7,7 +7,7 @@ export class PostTradeDto {
     required: true,
     example: 'BTC/KRW',
   })
-  ticker: string;
+  symbol: string;
 
   @Type(() => Number)
   @ApiProperty({

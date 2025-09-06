@@ -25,7 +25,9 @@ export class UserCategory extends BaseEntity {
   })
   category: Category;
 
-  @Column({ default: true })
+  @Column({
+    default: true,
+  })
   enabled: boolean;
 
   @CreateDateColumn()

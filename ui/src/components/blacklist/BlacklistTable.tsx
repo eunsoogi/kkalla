@@ -32,7 +32,7 @@ const BlacklistTableSkeleton = () => {
         <div className='overflow-x-auto'>
           <Table hoverable>
             <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('ticker')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap'>{t('symbol')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('category.label')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
@@ -99,7 +99,7 @@ const BlacklistTableContent = () => {
         <div className='overflow-x-auto'>
           <Table hoverable>
             <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('ticker')}</Table.HeadCell>
+              <Table.HeadCell className='whitespace-nowrap'>{t('symbol')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('category.label')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
               <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
@@ -111,7 +111,7 @@ const BlacklistTableContent = () => {
                   className='hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
                   onClick={() => router.push(`./blacklists/${blacklist.id}`)}
                 >
-                  <Table.Cell className='whitespace-nowrap'>{blacklist.ticker}</Table.Cell>
+                  <Table.Cell className='whitespace-nowrap'>{blacklist.symbol}</Table.Cell>
                   <Table.Cell className='whitespace-nowrap'>
                     <ColoredBadge text={getCategoryText(blacklist.category, t)} />
                   </Table.Cell>

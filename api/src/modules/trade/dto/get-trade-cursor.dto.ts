@@ -9,7 +9,7 @@ export class GetTradeCursorDto extends GetCursorDto<string> {
     required: false,
     example: 'BTC/KRW',
   })
-  ticker?: string;
+  symbol?: string;
 
   @ApiProperty({
     required: false,

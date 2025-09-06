@@ -9,11 +9,11 @@
     "fail": "계좌 조회에 실패했습니다."
   },
   "inference": {
-    "result": "{ticker} ({rate}%)"
+    "result": "{symbol} ({rate}%)"
   },
   "order": {
-    "result": "{ticker} {type}, 거래금: {amount}, 수익금: {profit}",
-    "fail": "{ticker} 주문에 실패했습니다."
+    "result": "{symbol} {type}, 거래금: {amount}, 수익금: {profit}",
+    "fail": "{symbol} 주문에 실패했습니다."
   },
   "profit": {
     "result": "수익금: {profit}"

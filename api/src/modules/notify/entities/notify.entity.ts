@@ -19,11 +19,12 @@ import { User } from '@/modules/user/entities/user.entity';
 @Index('idx_notify_user_seq', ['user', 'seq'])
 export class Notify extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @Column({
     type: 'bigint',
     unique: true,
+    nullable: false,
   })
   seq: number;
 
@@ -33,9 +34,12 @@ export class Notify extends BaseEntity {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  user!: User;
+  user: User;
 
-  @Column({ type: 'text' })
+  @Column({
+    type: 'text',
+    nullable: false,
+  })
   message: string;
 
   @CreateDateColumn()

@@ -20,7 +20,7 @@ import { User } from '@/modules/user/entities/user.entity';
 })
 export class SlackConfig extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @OneToOne(() => User, {
     nullable: false,
@@ -37,7 +37,11 @@ export class SlackConfig extends BaseEntity {
   })
   token: string;
 
-  @Column()
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
   channel: string;
 
   @CreateDateColumn()

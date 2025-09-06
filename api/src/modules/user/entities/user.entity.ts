@@ -23,14 +23,17 @@ import { UserFilter } from '../user.interface';
 })
 export class User extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
-  @Column({ nullable: false, unique: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+    unique: true,
+  })
   email: string;
 
-  @ManyToMany(() => Role, (role) => role.users, {
-    eager: true,
-  })
+  @ManyToMany(() => Role, (role) => role.users, { eager: true })
   @JoinTable()
   roles: Role[];
 

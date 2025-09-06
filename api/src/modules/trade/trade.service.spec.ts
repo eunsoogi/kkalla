@@ -81,7 +81,7 @@ describe('TradeService', () => {
 
   it('should save trade successfully with auto-assigned sequence by TradeSubscriber', async () => {
     const tradeData: TradeData = {
-      ticker: 'KRW-BTC',
+      symbol: 'KRW-BTC',
       type: OrderTypes.BUY,
       amount: 10000,
       profit: 100,
@@ -90,7 +90,7 @@ describe('TradeService', () => {
     // TradeSubscriber의 beforeInsert 동작을 시뮬레이션
     const mockTrade = {
       id: 'trade-1',
-      ticker: tradeData.ticker,
+      symbol: tradeData.symbol,
       type: tradeData.type,
       amount: tradeData.amount,
       profit: tradeData.profit,
@@ -111,7 +111,7 @@ describe('TradeService', () => {
     const result = await service.saveTrade(testUser, tradeData);
 
     expect(result).toBeDefined();
-    expect(result.ticker).toBe(tradeData.ticker);
+    expect(result.symbol).toBe(tradeData.symbol);
     expect(result.type).toBe(tradeData.type);
     expect(result.amount).toBe(tradeData.amount);
     expect(result.profit).toBe(tradeData.profit);
@@ -125,7 +125,7 @@ describe('TradeService', () => {
   it('should handle concurrent saveTrade with Promise.all and unique sequences via TradeSubscriber', async () => {
     const concurrentCount = 10;
     const tradeDataArray: TradeData[] = Array.from({ length: concurrentCount }, (_, index) => ({
-      ticker: `KRW-BTC${index}`,
+      symbol: `KRW-BTC${index}`,
       type: index % 2 === 0 ? OrderTypes.BUY : OrderTypes.SELL,
       amount: 10000 + index * 1000,
       profit: 100 + index * 10,
@@ -137,7 +137,7 @@ describe('TradeService', () => {
       const currentIndex = callCount++;
       const mockTrade = {
         id: `trade-${currentIndex + 1}`,
-        ticker: tradeDataArray[currentIndex].ticker,
+        symbol: tradeDataArray[currentIndex].symbol,
         type: tradeDataArray[currentIndex].type,
         amount: tradeDataArray[currentIndex].amount,
         profit: tradeDataArray[currentIndex].profit,
@@ -162,7 +162,7 @@ describe('TradeService', () => {
     // 모든 거래가 정의되어야 함
     trades.forEach((trade, index) => {
       expect(trade).toBeDefined();
-      expect(trade.ticker).toBe(tradeDataArray[index].ticker);
+      expect(trade.symbol).toBe(tradeDataArray[index].symbol);
       expect(trade.type).toBe(tradeDataArray[index].type);
       expect(trade.amount).toBe(tradeDataArray[index].amount);
       expect(trade.profit).toBe(tradeDataArray[index].profit);
@@ -183,7 +183,7 @@ describe('TradeService', () => {
   it('should handle high concurrency stress test with TradeSubscriber sequence generation', async () => {
     const concurrentCount = 50;
     const tradeDataArray: TradeData[] = Array.from({ length: concurrentCount }, (_, index) => ({
-      ticker: `KRW-ETH${index}`,
+      symbol: `KRW-ETH${index}`,
       type: index % 3 === 0 ? OrderTypes.BUY : OrderTypes.SELL,
       amount: 5000 + index * 500,
       profit: 50 + index * 5,
@@ -195,7 +195,7 @@ describe('TradeService', () => {
       const currentIndex = callCount++;
       const mockTrade = {
         id: `trade-${currentIndex + 1}`,
-        ticker: tradeDataArray[currentIndex].ticker,
+        symbol: tradeDataArray[currentIndex].symbol,
         type: tradeDataArray[currentIndex].type,
         amount: tradeDataArray[currentIndex].amount,
         profit: tradeDataArray[currentIndex].profit,
@@ -223,7 +223,7 @@ describe('TradeService', () => {
       expect(trade).not.toBeNull();
       expect(trade).not.toBeUndefined();
       expect(trade.seq).toBeGreaterThan(0);
-      expect(trade.ticker).toBe(tradeDataArray[index].ticker);
+      expect(trade.symbol).toBe(tradeDataArray[index].symbol);
       expect(trade.user).toBe(testUser);
     });
 
@@ -243,7 +243,7 @@ describe('TradeService', () => {
 
     for (let round = 0; round < rounds; round++) {
       const tradeDataArray: TradeData[] = Array.from({ length: concurrentPerRound }, (_, index) => ({
-        ticker: `KRW-ADA${round}-${index}`,
+        symbol: `KRW-ADA${round}-${index}`,
         type: (round + index) % 2 === 0 ? OrderTypes.BUY : OrderTypes.SELL,
         amount: 1000 + round * 1000 + index * 100,
         profit: 10 + round * 10 + index,
@@ -255,7 +255,7 @@ describe('TradeService', () => {
         const localIndex = currentIndex % concurrentPerRound;
         const mockTrade = {
           id: `trade-${currentIndex + 1}`,
-          ticker: tradeDataArray[localIndex].ticker,
+          symbol: tradeDataArray[localIndex].symbol,
           type: tradeDataArray[localIndex].type,
           amount: tradeDataArray[localIndex].amount,
           profit: tradeDataArray[localIndex].profit,
@@ -282,7 +282,7 @@ describe('TradeService', () => {
       // 각 라운드별로 모든 거래가 유효해야 함
       trades.forEach((trade, index) => {
         expect(trade).toBeDefined();
-        expect(trade.ticker).toBe(tradeDataArray[index].ticker);
+        expect(trade.symbol).toBe(tradeDataArray[index].symbol);
         expect(trade.user).toBe(testUser);
         expect(trade.seq).toBeDefined();
         expect(typeof trade.seq).toBe('number');

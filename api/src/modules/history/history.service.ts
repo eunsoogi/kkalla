@@ -14,7 +14,7 @@ export class HistoryService {
     });
 
     return items.map((item) => ({
-      ticker: item.ticker,
+      symbol: item.symbol,
       category: item.category,
       hasStock: true,
     }));
@@ -26,7 +26,7 @@ export class HistoryService {
     return History.save(
       items.map((item) =>
         History.create({
-          ticker: item.ticker,
+          symbol: item.symbol,
           category: item.category,
           index: item.index,
         }),

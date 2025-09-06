@@ -2,7 +2,7 @@ import { PaginatedItem } from './item.interface';
 
 export interface Blacklist {
   id: string;
-  ticker: string;
+  symbol: string;
   category: string;
   createdAt: Date;
   updatedAt: Date;

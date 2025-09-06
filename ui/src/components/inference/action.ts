@@ -14,7 +14,7 @@ import { getClient } from '@/utils/api';
 export interface InferenceParams {
   page?: number | null;
   mine?: boolean;
-  ticker?: string;
+  symbol?: string;
   category?: string;
 }
 
@@ -47,7 +47,7 @@ interface InferenceCursorParams {
   limit?: number;
   skip?: boolean;
   mine?: boolean;
-  ticker?: string;
+  symbol?: string;
   category?: string;
   sortBy?: string;
   sortDirection?: string;

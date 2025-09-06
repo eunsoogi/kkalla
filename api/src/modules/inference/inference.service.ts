@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import * as Handlebars from 'handlebars';
+import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
 import { ChatCompletionMessageParam } from 'openai/resources/index.mjs';
 
@@ -111,7 +112,9 @@ export class InferenceService {
       );
 
       const savedResults = await Promise.all(
-        result.recommendations.map((recommendation) => this.saveMarketRecommendation(recommendation, result.batchId)),
+        result.recommendations.map((recommendation) =>
+          this.saveMarketRecommendation({ ...recommendation, batchId: result.batchId }),
+        ),
       );
 
       this.logger.log(
@@ -146,7 +149,7 @@ export class InferenceService {
     const results = await Promise.all(
       items.map((item) => {
         return this.errorService.retryWithFallback(async () => {
-          const messages = await this.buildBalanceRecommendationMessages(item.ticker);
+          const messages = await this.buildBalanceRecommendationMessages(item.symbol);
 
           const requestConfig = {
             ...UPBIT_BALANCE_RECOMMENDATION_CONFIG,
@@ -180,8 +183,10 @@ export class InferenceService {
         this.i18n.t('logging.inference.balanceRecommendation.presave', { args: { count: results.length } }),
       );
 
+      const batchId = randomUUID();
+
       const savedResults = await Promise.all(
-        results.map((recommendation) => this.saveBalanceRecommendation(recommendation)),
+        results.map((recommendation) => this.saveBalanceRecommendation({ ...recommendation, batchId })),
       );
 
       this.logger.log(
@@ -297,7 +302,7 @@ export class InferenceService {
   private async fetchRecentRecommendations(symbol: string): Promise<BalanceRecommendation[]> {
     const operation = () =>
       BalanceRecommendation.getRecent({
-        ticker: symbol,
+        symbol,
         createdAt: new Date(Date.now() - UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recentDateLimit),
         count: UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recent,
       });
@@ -391,6 +396,7 @@ export class InferenceService {
     const cursorResult = await MarketRecommendation.cursor(params);
     const items = cursorResult.items.map((entity) => ({
       id: entity.id,
+      seq: entity.seq,
       symbol: entity.symbol,
       weight: entity.weight,
       reason: entity.reason,
@@ -413,7 +419,7 @@ export class InferenceService {
     const items = paginatedResult.items.map((entity) => ({
       id: entity.id,
       seq: entity.seq,
-      ticker: entity.ticker,
+      symbol: entity.symbol,
       category: entity.category,
       rate: entity.rate,
       reason: entity.reason,
@@ -434,7 +440,7 @@ export class InferenceService {
     const items = cursorResult.items.map((entity) => ({
       id: entity.id,
       seq: entity.seq,
-      ticker: entity.ticker,
+      symbol: entity.symbol,
       category: entity.category,
       rate: entity.rate,
       createdAt: entity.createdAt,
@@ -447,15 +453,9 @@ export class InferenceService {
     };
   }
 
-  public async saveMarketRecommendation(
-    recommendation: MarketRecommendationData,
-    batchId: string,
-  ): Promise<MarketRecommendation> {
+  public async saveMarketRecommendation(recommendation: MarketRecommendationData): Promise<MarketRecommendation> {
     const marketRecommendation = new MarketRecommendation();
-
     Object.assign(marketRecommendation, recommendation);
-    marketRecommendation.batchId = batchId;
-
     return marketRecommendation.save();
   }
 

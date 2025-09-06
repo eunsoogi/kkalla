@@ -6,13 +6,13 @@ import { Notify } from './notify.entity';
 
 @EventSubscriber()
 export class NotifySubscriber implements EntitySubscriberInterface<Notify> {
-  listenTo() {
+  public listenTo() {
     return Notify;
   }
 
-  async beforeInsert(event: InsertEvent<Notify>) {
+  public async beforeInsert(event: InsertEvent<Notify>) {
     if (event.entity.seq == null) {
-      const res = await event.manager.createQueryBuilder().insert().into(Sequence).values({}).execute();
+      const res = await event.manager.insert(Sequence, {});
       const id = res.identifiers?.[0]?.value ?? res.raw?.insertId ?? res.raw?.lastID;
       event.entity.seq = id;
     }

@@ -7,18 +7,25 @@ export class History extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ nullable: false })
-  ticker!: string;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  symbol: string;
 
   @Column({
     type: 'enum',
     enum: Category,
     nullable: false,
   })
-  category!: Category;
+  category: Category;
 
-  @Column({ nullable: false })
-  index!: number;
+  @Column({
+    type: 'int',
+    nullable: false,
+  })
+  index: number;
 
   @CreateDateColumn()
   createdAt: Date;

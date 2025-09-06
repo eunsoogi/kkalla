@@ -138,21 +138,21 @@ export class UpbitService {
     return null;
   }
 
-  public calculateDiff(balances: Balances, ticker: string, rate: number): number {
-    const tickerPrice = this.calculatePrice(balances, ticker);
+  public calculateDiff(balances: Balances, symbol: string, rate: number): number {
+    const symbolPrice = this.calculatePrice(balances, symbol);
     const marketPrice = this.calculateTotalPrice(balances);
-    const tickerRate = tickerPrice / marketPrice;
-    const diff = (rate - tickerRate) / (tickerRate || 1);
+    const symbolRate = symbolPrice / marketPrice;
+    const diff = (rate - symbolRate) / (symbolRate || 1);
 
     return diff;
   }
 
-  public getBalance(balances: Balances, ticker: string): any {
-    return balances.info.find((item) => ticker === `${item.currency}/${item.unit_currency}`) || {};
+  public getBalance(balances: Balances, symbol: string): any {
+    return balances.info.find((item) => symbol === `${item.currency}/${item.unit_currency}`) || {};
   }
 
-  public calculatePrice(balances: Balances, ticker: string): number {
-    const { balance = 0, avg_buy_price = 0 } = this.getBalance(balances, ticker);
+  public calculatePrice(balances: Balances, symbol: string): number {
+    const { balance = 0, avg_buy_price = 0 } = this.getBalance(balances, symbol);
     const totalBalance = parseFloat(balance);
     const avgBuyPrice = parseFloat(avg_buy_price) || 1;
     return totalBalance * avgBuyPrice;
@@ -203,7 +203,7 @@ export class UpbitService {
     return profit;
   }
 
-  public async isTickerExist(ticker: string): Promise<boolean> {
+  public async isSymbolExist(symbol: string): Promise<boolean> {
     const client = await this.getServerClient();
     let markets = client.markets;
 
@@ -213,14 +213,14 @@ export class UpbitService {
       }, this.retryOptions);
     }
 
-    return ticker in markets;
+    return symbol in markets;
   }
 
-  public async getPrice(ticker: string): Promise<number> {
+  public async getPrice(symbol: string): Promise<number> {
     const client = await this.getServerClient();
 
     const info = await this.errorService.retryWithFallback(async () => {
-      return await client.fetchTicker(ticker);
+      return await client.fetchTicker(symbol);
     }, this.retryOptions);
 
     return info.last;
@@ -246,10 +246,10 @@ export class UpbitService {
 
           switch (request.type) {
             case OrderTypes.BUY:
-              return await client.createOrder(request.ticker, 'market', request.type, 1, amount);
+              return await client.createOrder(request.symbol, 'market', request.type, 1, amount);
 
             case OrderTypes.SELL:
-              return await client.createOrder(request.ticker, 'market', request.type, amount);
+              return await client.createOrder(request.symbol, 'market', request.type, amount);
           }
         },
         {
@@ -268,26 +268,26 @@ export class UpbitService {
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<Order | null> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
-    const { ticker, diff, balances } = request;
-    const [symbol] = ticker.split('/');
-    const tickerExist = await this.isTickerExist(ticker);
+    const { symbol, diff, balances } = request;
+    const [baseAsset] = symbol.split('/');
+    const symbolExist = await this.isSymbolExist(baseAsset);
 
-    if (!tickerExist) {
+    if (!symbolExist) {
       return null;
     }
 
     try {
-      const currPrice = await this.getPrice(ticker);
-      const tickerPrice = this.calculatePrice(balances, ticker);
-      const tickerVolume = this.getVolume(balances, symbol);
+      const currPrice = await this.getPrice(symbol);
+      const symbolPrice = this.calculatePrice(balances, symbol);
+      const symbolVolume = this.getVolume(balances, symbol);
       const marketPrice = this.calculateTotalPrice(balances);
-      const tradePrice = (tickerPrice || marketPrice) * Math.abs(diff) * 0.9995;
-      const tradeVolume = tickerVolume * Math.abs(diff);
+      const tradePrice = (symbolPrice || marketPrice) * Math.abs(diff) * 0.9995;
+      const tradeVolume = symbolVolume * Math.abs(diff);
 
       // 매수해야 할 경우
       if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {
         return await this.order(user, {
-          ticker,
+          symbol,
           type: OrderTypes.BUY,
           amount: tradePrice,
         });
@@ -295,7 +295,7 @@ export class UpbitService {
       // 매도해야 할 경우
       else if (diff < 0 && tradeVolume * currPrice > this.MINIMUM_TRADE_PRICE) {
         return await this.order(user, {
-          ticker,
+          symbol,
           type: OrderTypes.SELL,
           amount: tradeVolume,
         });

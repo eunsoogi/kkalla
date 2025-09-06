@@ -105,17 +105,17 @@ const BlacklistFormContent: React.FC<BlacklistFormProps> = ({ id }) => {
         <form action={handleSubmit} className='flex flex-col gap-4'>
           {id && <input type='hidden' name='id' value={id} />}
           <div>
-            <Label htmlFor='ticker' className='flex items-center gap-2 text-base'>
+            <Label htmlFor='symbol' className='flex items-center gap-2 text-base'>
               <Icon icon='mdi:ticket' className='w-5 h-5' />
-              {t('ticker')}
+              {t('symbol')}
             </Label>
             <TextInput
-              id='ticker'
-              name='ticker'
+              id='symbol'
+              name='symbol'
               type='text'
               required
               className='mt-2'
-              defaultValue={blacklist?.ticker || ''}
+              defaultValue={blacklist?.symbol || ''}
             />
           </div>
           <div>

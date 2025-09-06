@@ -19,7 +19,7 @@ import { getTradeCursorAction } from './action';
 import { TRADE_STYLES } from './style';
 
 interface TradeDetailListContentProps {
-  ticker?: string;
+  symbol?: string;
   type?: TradeTypes;
   sortDirection: SortDirection;
   startDate?: Date;
@@ -61,7 +61,7 @@ const TradeDetailItem: React.FC<TradeDetailListContentProps> = (params) => {
               >
                 <div className='p-6'>
                   <div className='flex flex-row gap-6 items-center'>
-                    <h4 className='text-dark dark:text-white'>{item.ticker}</h4>
+                    <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
                   </div>
                   <div className='flex flex-col mt-3 gap-2'>
                     <div className='flex justify-between'>
@@ -98,7 +98,7 @@ const TradeDetailItem: React.FC<TradeDetailListContentProps> = (params) => {
 };
 
 interface TradeDetailProps {
-  ticker?: string;
+  symbol?: string;
   type?: TradeTypes;
   sortDirection: SortDirection;
   startDate?: Date;
@@ -106,7 +106,7 @@ interface TradeDetailProps {
 }
 
 export const TradeDetail: React.FC<TradeDetailProps> = ({
-  ticker,
+  symbol,
   type,
   sortDirection = SortDirection.DESC,
   startDate,
@@ -115,7 +115,7 @@ export const TradeDetail: React.FC<TradeDetailProps> = ({
   return (
     <Suspense>
       <TradeDetailItem
-        ticker={ticker}
+        symbol={symbol}
         type={type}
         sortDirection={sortDirection}
         startDate={startDate}

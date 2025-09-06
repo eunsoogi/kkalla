@@ -31,7 +31,7 @@ export class TradeController {
       cursor: params.cursor,
       limit: params.limit,
       skip: params.skip,
-      ticker: params.ticker,
+      symbol: params.symbol,
       type: params.type,
       sortDirection: params.sortDirection,
     };

@@ -5,8 +5,9 @@ import { State } from './state.interface';
 
 export interface Trade {
   id: number;
+  seq: number;
   type: TradeTypes;
-  ticker: string;
+  symbol: string;
   amount: number;
   profit: number;
   inference: BalanceRecommendation;

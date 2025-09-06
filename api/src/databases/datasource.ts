@@ -9,6 +9,7 @@ const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD ?? 'kkalla',
   database: process.env.DB_DATABASE ?? 'test',
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  subscribers: [__dirname + '/../**/*.subscriber{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
   migrationsRun: process.env.NODE_ENV === 'production',

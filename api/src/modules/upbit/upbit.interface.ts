@@ -7,20 +7,14 @@ export interface UpbitConfigData {
   secretKey: string;
 }
 
-export interface CandleRequest {
-  ticker: string;
-  timeframe: string;
-  limit?: number;
-}
-
 export interface OrderRequest {
-  ticker: string;
+  symbol: string;
   type: OrderTypes;
   amount: number;
 }
 
 export interface AdjustOrderRequest {
-  ticker: string;
+  symbol: string;
   diff: number;
   balances: Balances;
 }
