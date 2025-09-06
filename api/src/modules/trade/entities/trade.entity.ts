@@ -4,7 +4,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   JoinColumn,
   LessThanOrEqual,
   Like,
@@ -23,8 +22,6 @@ import { User } from '@/modules/user/entities/user.entity';
 import { TradeFilter } from '../trade.interface';
 
 @Entity()
-@Index(['inference'])
-@Index(['user'])
 export class Trade extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

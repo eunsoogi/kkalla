@@ -3,7 +3,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -19,7 +18,6 @@ import { User } from '@/modules/user/entities/user.entity';
     createdAt: 'ASC',
   },
 })
-@Index(['user'])
 export class UpbitConfig extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
