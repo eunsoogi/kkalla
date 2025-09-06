@@ -54,14 +54,14 @@ export class Migration1757170293754 implements MigrationInterface {
     // role 테이블의 name 인덱스
     await this.recreateIndex(queryRunner, 'role', ['name'], 'idx_role_name');
 
+    // user 테이블의 email 인덱스 (unique)
+    await this.recreateIndex(queryRunner, 'user', ['email'], 'idx_user_email', true);
+
     // trade 테이블의 seq 인덱스 (unique)
     await this.recreateIndex(queryRunner, 'trade', ['seq'], 'idx_trade_seq', true);
 
-    // inference 테이블의 seq 인덱스 (unique)
-    await this.recreateIndex(queryRunner, 'inference', ['seq'], 'idx_inference_seq', true);
-
-    // user 테이블의 email 인덱스 (unique)
-    await this.recreateIndex(queryRunner, 'user', ['email'], 'idx_user_email', true);
+    // balance_recommendation 테이블의 seq 인덱스 (unique)
+    await this.recreateIndex(queryRunner, 'balance_recommendation', ['seq'], 'idx_balance_recommendation_seq', true);
 
     // market_recommendation 테이블의 seq 인덱스 (unique)
     await this.recreateIndex(queryRunner, 'market_recommendation', ['seq'], 'idx_market_recommendation_seq', true);
@@ -74,9 +74,9 @@ export class Migration1757170293754 implements MigrationInterface {
     // 이름 있는 인덱스들을 drop하고 이름 없는 인덱스로 복원
     const indexesToDrop = [
       { table: 'role', name: 'idx_role_name', columns: ['name'], unique: false },
-      { table: 'trade', name: 'idx_trade_seq', columns: ['seq'], unique: true },
-      { table: 'inference', name: 'idx_inference_seq', columns: ['seq'], unique: true },
       { table: 'user', name: 'idx_user_email', columns: ['email'], unique: true },
+      { table: 'trade', name: 'idx_trade_seq', columns: ['seq'], unique: true },
+      { table: 'balance_recommendation', name: 'idx_balance_recommendation_seq', columns: ['seq'], unique: true },
       { table: 'market_recommendation', name: 'idx_market_recommendation_seq', columns: ['seq'], unique: true },
       { table: 'notify', name: 'idx_notify_seq', columns: ['seq'], unique: true },
     ];
