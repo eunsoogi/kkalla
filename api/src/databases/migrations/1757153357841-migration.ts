@@ -79,5 +79,27 @@ export class Migration1757153357841 implements MigrationInterface {
     });
 
     await queryRunner.changeColumn('market_recommendation', oldUpdatedAtColumn, newUpdatedAtColumn);
+
+    // symbol 컬럼 길이 변경
+    const oldSymbolColumn = table.findColumnByName('symbol');
+    const newSymbolColumn = new TableColumn({
+      name: 'symbol',
+      type: 'varchar',
+      length: '20',
+      isNullable: false,
+    });
+
+    await queryRunner.changeColumn('market_recommendation', oldSymbolColumn, newSymbolColumn);
+
+    // batch_id 컬럼 길이 변경
+    const oldBatchIdColumn = table.findColumnByName('batch_id');
+    const newBatchIdColumn = new TableColumn({
+      name: 'batch_id',
+      type: 'varchar',
+      length: '50',
+      isNullable: false,
+    });
+
+    await queryRunner.changeColumn('market_recommendation', oldBatchIdColumn, newBatchIdColumn);
   }
 }
