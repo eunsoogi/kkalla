@@ -19,7 +19,7 @@ import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules
 import { BalanceRecommendationFilter, RecentBalanceRecommendationRequest } from '../inference.interface';
 
 @Entity()
-@Index('idx_balance_recommendation_batch_id_symbol', ['batch_id', 'symbol'], { unique: true })
+@Index('idx_balance_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })
 export class BalanceRecommendation extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -18,6 +19,7 @@ import { User } from '@/modules/user/entities/user.entity';
     createdAt: 'ASC',
   },
 })
+@Index(['user'])
 export class SlackConfig extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -28,7 +30,7 @@ export class SlackConfig extends BaseEntity {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  user!: User;
+  user: User;
 
   @Column({
     type: 'text',

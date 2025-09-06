@@ -34,7 +34,7 @@ export class Role extends BaseEntity {
     length: 255,
     nullable: true,
   })
-  description?: string;
+  description: string;
 
   @Column({
     type: 'simple-array',

@@ -5,7 +5,7 @@ import { Category } from '@/modules/category/category.enum';
 @Entity()
 export class History extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @Column({
     type: 'varchar',

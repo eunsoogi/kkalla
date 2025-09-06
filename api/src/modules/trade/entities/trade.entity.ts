@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   LessThanOrEqual,
   Like,
@@ -22,6 +23,8 @@ import { User } from '@/modules/user/entities/user.entity';
 import { TradeFilter } from '../trade.interface';
 
 @Entity()
+@Index(['inference'])
+@Index(['user'])
 export class Trade extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -39,14 +42,14 @@ export class Trade extends BaseEntity {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  user!: User;
+  user: User;
 
   @Column({
     type: 'enum',
     enum: OrderTypes,
     nullable: false,
   })
-  type!: OrderTypes;
+  type: OrderTypes;
 
   @Column({
     type: 'varchar',
@@ -59,7 +62,7 @@ export class Trade extends BaseEntity {
     type: 'double',
     nullable: false,
   })
-  amount!: number;
+  amount: number;
 
   @Column({
     type: 'double',
