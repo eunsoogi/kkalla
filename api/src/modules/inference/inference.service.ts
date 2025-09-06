@@ -23,12 +23,7 @@ import { GetRecommendationsPaginationDto } from './dto/get-recommendations-pagin
 import { MarketRecommendationDto } from './dto/market-recommendation.dto';
 import { BalanceRecommendation } from './entities/balance-recommendation.entity';
 import { MarketRecommendation } from './entities/market-recommendation.entity';
-import {
-  BalanceRecommendationData,
-  MarketRecommendationData,
-  MarketRecommendationResponse,
-  RecommendationItem,
-} from './inference.interface';
+import { BalanceRecommendationData, MarketRecommendationData, RecommendationItem } from './inference.interface';
 import {
   UPBIT_BALANCE_RECOMMENDATION_CONFIG,
   UPBIT_BALANCE_RECOMMENDATION_PROMPT,
@@ -58,9 +53,9 @@ export class InferenceService {
 
   /**
    * 전체 KRW 마켓에서 상위 10개 종목 추천
-   * @returns 상위 10개 종목 추천 결과
+   * @returns 저장된 상위 10개 종목 추천 결과
    */
-  public async marketRecommendation(symbols?: string[]): Promise<MarketRecommendationResponse> {
+  public async marketRecommendation(symbols?: string[]): Promise<MarketRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.start'));
 
     // 메시지 빌드
@@ -103,50 +98,64 @@ export class InferenceService {
 
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
 
-    // 결과 저장
-    if (result.recommendations?.length > 0) {
-      this.logger.log(
-        this.i18n.t('logging.inference.marketRecommendation.presave', {
-          args: { count: result.recommendations.length },
-        }),
-      );
-
-      const savedResults = await Promise.all(
-        result.recommendations.map((recommendation) =>
-          this.saveMarketRecommendation({ ...recommendation, batchId: result.batchId }),
-        ),
-      );
-
-      this.logger.log(
-        this.i18n.t('logging.inference.marketRecommendation.save', { args: { count: savedResults.length } }),
-      );
-
-      // 추천 결과 전송
-      const recommendSymbols = result.recommendations.map((rec) => rec.symbol).join(', ');
-      const message = this.i18n.t('notify.marketRecommendation.completed', {
-        args: {
-          count: result.recommendations.length,
-          symbols: recommendSymbols,
-        },
-      });
-
-      await this.notifyService.notifyServer(message);
+    // 추론 결과가 없으면 빈 배열 반환
+    if (!result.recommendations?.length) {
+      this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
+      return [];
     }
 
+    // 결과 저장
+    this.logger.log(
+      this.i18n.t('logging.inference.marketRecommendation.presave', {
+        args: { count: result.recommendations.length },
+      }),
+    );
+
+    const savedResults = await Promise.all(
+      result.recommendations.map((recommendation) =>
+        this.saveMarketRecommendation({ ...recommendation, batchId: result.batchId }),
+      ),
+    );
+
+    this.logger.log(
+      this.i18n.t('logging.inference.marketRecommendation.save', { args: { count: savedResults.length } }),
+    );
+
+    // 저장된 결과를 MarketRecommendationData 형태로 변환하여 반환
+    const savedResultsData = savedResults.map((saved) => ({
+      id: saved.id,
+      batchId: saved.batchId,
+      symbol: saved.symbol,
+      weight: saved.weight,
+      reason: saved.reason,
+      confidence: saved.confidence,
+    }));
+
+    // 추천 결과 전송
+    const recommendSymbols = savedResultsData.map((rec) => rec.symbol).join(', ');
+    const message = this.i18n.t('notify.marketRecommendation.completed', {
+      args: {
+        count: savedResultsData.length,
+        symbols: recommendSymbols,
+      },
+    });
+
+    await this.notifyService.notifyServer(message);
+
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
-    return result;
+    return savedResultsData;
   }
 
   /**
    * 선택된 종목들의 매수 비율 추천
    * @param items 분석할 종목 목록 (hasStock 정보 포함)
-   * @returns 각 종목별 매수 비율 추천 결과
+   * @returns 저장된 각 종목별 매수 비율 추천 결과
    */
   public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
 
     // 각 종목에 대한 실시간 API 호출을 병렬로 처리
-    const results = await Promise.all(
+    const inferenceResults = await Promise.all(
       items.map((item) => {
         return this.errorService.retryWithFallback(async () => {
           const messages = await this.buildBalanceRecommendationMessages(item.symbol);
@@ -177,25 +186,38 @@ export class InferenceService {
       }),
     );
 
-    // 결과 저장
-    if (results.length > 0) {
-      this.logger.log(
-        this.i18n.t('logging.inference.balanceRecommendation.presave', { args: { count: results.length } }),
-      );
-
-      const batchId = randomUUID();
-
-      const savedResults = await Promise.all(
-        results.map((recommendation) => this.saveBalanceRecommendation({ ...recommendation, batchId })),
-      );
-
-      this.logger.log(
-        this.i18n.t('logging.inference.balanceRecommendation.save', { args: { count: savedResults.length } }),
-      );
+    // 추론 결과가 없으면 빈 배열 반환
+    if (inferenceResults.length === 0) {
+      this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
+      return [];
     }
 
+    // 결과 저장
+    this.logger.log(
+      this.i18n.t('logging.inference.balanceRecommendation.presave', { args: { count: inferenceResults.length } }),
+    );
+
+    const batchId = randomUUID();
+    const savedResults = await Promise.all(
+      inferenceResults.map((recommendation) => this.saveBalanceRecommendation({ ...recommendation, batchId })),
+    );
+
+    this.logger.log(
+      this.i18n.t('logging.inference.balanceRecommendation.save', { args: { count: savedResults.length } }),
+    );
+
+    // 저장된 결과를 BalanceRecommendationData 형태로 변환하여 반환
+    const savedResultsData = savedResults.map((saved, index) => ({
+      id: saved.id,
+      batchId: saved.batchId,
+      symbol: saved.symbol,
+      category: saved.category,
+      rate: saved.rate,
+      hasStock: inferenceResults[index].hasStock,
+    }));
+
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
-    return results;
+    return savedResultsData;
   }
 
   /**
