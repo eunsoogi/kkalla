@@ -48,7 +48,9 @@
       "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
       "batch_start": "배치 요청 처리를 시작합니다...",
       "batch_complete": "배치 요청 처리를 완료했습니다.",
-      "complete": "상위 10개 종목 추천 분석을 완료했습니다."
+      "complete": "상위 10개 종목 추천 분석을 완료했습니다.",
+      "presave": "상위 10개 종목 추천 데이터 {count}개를 저장합니다...",
+      "save": "상위 10개 종목 추천 데이터 {count}개를 저장했습니다."
     },
     "balanceRecommendation": {
       "start": "포트폴리오 추천 분석을 시작합니다...",
@@ -56,7 +58,9 @@
       "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
       "batch_start": "배치 요청 처리를 시작합니다...",
       "batch_complete": "배치 요청 처리를 완료했습니다.",
-      "complete": "포트폴리오 추천 분석을 완료했습니다."
+      "complete": "포트폴리오 추천 분석을 완료했습니다.",
+      "presave": "포트폴리오 추천 데이터 {count}개를 저장합니다...",
+      "save": "포트폴리오 추천 데이터 {count}개를 저장했습니다."
     }
   },
   "blacklist": {
