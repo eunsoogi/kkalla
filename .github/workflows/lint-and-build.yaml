@@ -1,5 +1,5 @@
 ---
-name: Lint
+name: lint-and-build
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
       - main
 
 jobs:
-  lint:
+  lint-and-build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,3 +44,7 @@ jobs:
       - name: Run lint
         working-directory: ${{ matrix.project }}
         run: pnpm lint
+
+      - name: Run build
+        working-directory: ${{ matrix.project }}
+        run: pnpm build

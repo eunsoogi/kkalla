@@ -4,6 +4,7 @@ import { CursorItem, PaginatedItem } from './item.interface';
 
 export interface BalanceRecommendation {
   id: string;
+  batchId: string;
   seq: number;
   symbol: string;
   rate: number;
@@ -15,12 +16,12 @@ export interface BalanceRecommendation {
 
 export interface MarketRecommendation {
   id: string;
+  batchId: string;
   seq: number;
   symbol: string;
   weight: number;
   reason: string;
   confidence: number;
-  batchId: string;
   createdAt?: string;
   updatedAt?: string;
 }
