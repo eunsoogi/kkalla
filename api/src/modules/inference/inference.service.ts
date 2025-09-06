@@ -104,8 +104,18 @@ export class InferenceService {
 
     // 결과 저장
     if (result.recommendations?.length > 0) {
-      await Promise.all(
+      this.logger.log(
+        this.i18n.t('logging.inference.marketRecommendation.presave', {
+          args: { count: result.recommendations.length },
+        }),
+      );
+
+      const savedResults = await Promise.all(
         result.recommendations.map((recommendation) => this.saveMarketRecommendation(recommendation, result.batchId)),
+      );
+
+      this.logger.log(
+        this.i18n.t('logging.inference.marketRecommendation.save', { args: { count: savedResults.length } }),
       );
 
       // 추천 결과 전송
@@ -134,11 +144,12 @@ export class InferenceService {
 
     // 각 종목에 대한 실시간 API 호출을 병렬로 처리
     const results = await Promise.all(
-      items.map(async (item) => {
-        return await this.errorService.retryWithFallback(async () => {
-          const { ...config } = UPBIT_BALANCE_RECOMMENDATION_CONFIG;
+      items.map((item) => {
+        return this.errorService.retryWithFallback(async () => {
           const messages = await this.buildBalanceRecommendationMessages(item.ticker);
+
           const requestConfig = {
+            ...UPBIT_BALANCE_RECOMMENDATION_CONFIG,
             response_format: {
               type: 'json_schema' as const,
               json_schema: {
@@ -147,7 +158,6 @@ export class InferenceService {
                 schema: UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA,
               },
             },
-            ...config,
           };
 
           // 실시간 API 호출
@@ -165,9 +175,18 @@ export class InferenceService {
     );
 
     // 결과 저장
-    const successResults = results.filter((result) => !result.error);
-    if (successResults.length > 0) {
-      await Promise.all(successResults.map((recommendation) => this.saveBalanceRecommendation(recommendation)));
+    if (results.length > 0) {
+      this.logger.log(
+        this.i18n.t('logging.inference.balanceRecommendation.presave', { args: { count: results.length } }),
+      );
+
+      const savedResults = await Promise.all(
+        results.map((recommendation) => this.saveBalanceRecommendation(recommendation)),
+      );
+
+      this.logger.log(
+        this.i18n.t('logging.inference.balanceRecommendation.save', { args: { count: savedResults.length } }),
+      );
     }
 
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
