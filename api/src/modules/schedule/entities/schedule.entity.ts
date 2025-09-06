@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -16,6 +17,7 @@ import { User } from '@/modules/user/entities/user.entity';
     createdAt: 'ASC',
   },
 })
+@Index(['user'])
 export class Schedule extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -26,7 +28,7 @@ export class Schedule extends BaseEntity {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  user!: User;
+  user: User;
 
   @Column({
     default: false,
