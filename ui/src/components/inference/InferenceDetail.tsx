@@ -68,32 +68,27 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                 <div className='p-6'>
                   <div className='flex flex-row justify-between items-start'>
                     <div className='flex flex-col gap-3'>
-                      {'symbol' in item ? (
-                        <>
-                          <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
-                          <div className='flex items-center gap-2'>
-                            <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
-                            <Badge style={getRateColor(item.rate)}>{`${Math.floor(item.rate * 100)}%`}</Badge>
-                          </div>
-                        </>
+                      <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
+                      {type === 'balance' ? (
+                        <div className='flex items-center gap-2'>
+                          <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
+                          <Badge style={getRateColor((item as BalanceRecommendation).rate)}>{`${Math.floor((item as BalanceRecommendation).rate * 100)}%`}</Badge>
+                        </div>
                       ) : (
-                        <>
-                          <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
-                          <div className='flex items-center gap-4'>
-                            <div className='flex items-center gap-2'>
-                              <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.weight')}:</span>
-                              <Badge style={getWeightColor(item.weight)}>{`${Math.floor(item.weight * 100)}%`}</Badge>
-                            </div>
-                            <div className='flex items-center gap-2'>
-                              <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.confidence')}:</span>
-                              <Badge style={getConfidenceColor(item.confidence)}>{`${Math.floor(item.confidence * 100)}%`}</Badge>
-                            </div>
+                        <div className='flex items-center gap-4'>
+                          <div className='flex items-center gap-2'>
+                            <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.weight')}:</span>
+                            <Badge style={getWeightColor((item as MarketRecommendation).weight)}>{`${Math.floor((item as MarketRecommendation).weight * 100)}%`}</Badge>
                           </div>
-                        </>
+                          <div className='flex items-center gap-2'>
+                            <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.confidence')}:</span>
+                            <Badge style={getConfidenceColor((item as MarketRecommendation).confidence)}>{`${Math.floor((item as MarketRecommendation).confidence * 100)}%`}</Badge>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
-                  {'reason' in item && type === 'market' && (
+                  {item.reason && (
                     <p className='text-gray-600 dark:text-gray-400 mt-4'>{item.reason}</p>
                   )}
                   <div className='flex mt-3'>
