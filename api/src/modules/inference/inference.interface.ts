@@ -49,6 +49,7 @@ export interface MarketRecommendationResponse {
 }
 
 export interface MarketRecommendationData {
+  id: string;
   batchId: string;
   symbol: string;
   weight: number;
@@ -57,6 +58,7 @@ export interface MarketRecommendationData {
 }
 
 export interface BalanceRecommendationData {
+  id: string;
   batchId: string;
   symbol: string;
   category: Category;

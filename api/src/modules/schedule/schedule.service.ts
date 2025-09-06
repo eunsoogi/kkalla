@@ -12,7 +12,7 @@ import { BlacklistService } from '../blacklist/blacklist.service';
 import { Category } from '../category/category.enum';
 import { HistoryService } from '../history/history.service';
 import { MarketRecommendation } from '../inference/entities/market-recommendation.entity';
-import { MarketRecommendationResponse, RecommendationItem } from '../inference/inference.interface';
+import { RecommendationItem } from '../inference/inference.interface';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { Schedule } from './entities/schedule.entity';
 import { ScheduleExpression } from './schedule.enum';
@@ -63,8 +63,7 @@ export class ScheduleService {
       );
 
       // 필터링된 종목으로 추천 요청
-      const { recommendations }: MarketRecommendationResponse =
-        await this.inferenceService.marketRecommendation(filteredSymbols);
+      const recommendations = await this.inferenceService.marketRecommendation(filteredSymbols);
 
       this.logger.log(
         this.i18n.t('logging.schedule.marketRecommendation.completed', {
