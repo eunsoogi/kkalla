@@ -8,17 +8,21 @@ import { GetBlacklistsDto } from '../dto/get-blacklists.dto';
 @Entity()
 export class Blacklist extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
-  @Column({ nullable: false })
-  ticker!: string;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  symbol: string;
 
   @Column({
     type: 'enum',
     enum: Category,
     nullable: false,
   })
-  category!: Category;
+  category: Category;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -30,7 +34,7 @@ export class Blacklist extends BaseEntity {
     const where: any = {};
 
     if (params.search) {
-      where.ticker = Like(`%${params.search}%`);
+      where.symbol = Like(`%${params.search}%`);
     }
 
     const [items, total] = await Blacklist.findAndCount({

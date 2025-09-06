@@ -54,7 +54,7 @@ export class BlacklistController {
   private toResponseDto(blacklist: Blacklist): BlacklistDto {
     const response = new BlacklistDto();
     response.id = blacklist.id;
-    response.ticker = blacklist.ticker;
+    response.symbol = blacklist.symbol;
     response.category = blacklist.category;
     response.createdAt = blacklist.createdAt;
     response.updatedAt = blacklist.updatedAt;

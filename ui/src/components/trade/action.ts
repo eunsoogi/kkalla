@@ -31,7 +31,7 @@ interface TradeCursorParams {
   cursor?: string;
   limit?: number;
   skip?: boolean;
-  ticker?: string;
+  symbol?: string;
   type?: string;
   sortBy?: string;
   sortDirection?: string;

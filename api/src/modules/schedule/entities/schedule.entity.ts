@@ -18,7 +18,7 @@ import { User } from '@/modules/user/entities/user.entity';
 })
 export class Schedule extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @OneToOne(() => User, {
     nullable: false,
@@ -28,7 +28,9 @@ export class Schedule extends BaseEntity {
   @JoinColumn()
   user!: User;
 
-  @Column({ default: false })
+  @Column({
+    default: false,
+  })
   enabled: boolean;
 
   @CreateDateColumn()

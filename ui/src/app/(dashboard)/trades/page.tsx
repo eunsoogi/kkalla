@@ -12,7 +12,7 @@ import { TradeTypes } from '@/enums/trade.enum';
 const Page: React.FC = () => {
   const t = useTranslations();
   const locale = useLocale();
-  const [ticker, setTicker] = useState<string>('');
+  const [symbol, setSymbol] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<SortDirection>(SortDirection.DESC);
   const [type, setType] = useState<TradeTypes | undefined>(undefined);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -22,8 +22,8 @@ const Page: React.FC = () => {
     <>
       <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-6 mb-4'>
         <div className='col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='ticker' value={t('ticker')} />
-          <TextInput id='ticker' value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder='BTC/KRW' />
+          <Label htmlFor='symbol' value={t('symbol')} />
+          <TextInput id='symbol' value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder='BTC/KRW' />
         </div>
 
         <div className='col-span-2 flex flex-col gap-2'>
@@ -81,7 +81,7 @@ const Page: React.FC = () => {
           />
         </div>
       </div>
-      <TradeDetail ticker={ticker} type={type} sortDirection={sortDirection} startDate={startDate} endDate={endDate} />
+      <TradeDetail symbol={symbol} type={type} sortDirection={sortDirection} startDate={startDate} endDate={endDate} />
     </>
   );
 };

@@ -19,12 +19,21 @@ import { RoleFilter } from '../role.interface';
 @Entity()
 export class Role extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
-  @Column({ unique: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    unique: true,
+    nullable: false,
+  })
   name: string;
 
-  @Column({ nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   description?: string;
 
   @Column({

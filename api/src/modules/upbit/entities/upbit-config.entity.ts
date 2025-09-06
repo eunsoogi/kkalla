@@ -20,7 +20,7 @@ import { User } from '@/modules/user/entities/user.entity';
 })
 export class UpbitConfig extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @OneToOne(() => User, {
     nullable: false,
@@ -28,21 +28,21 @@ export class UpbitConfig extends BaseEntity {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  user!: User;
+  user: User;
 
   @Column({
     type: 'text',
     nullable: false,
     transformer: new EncryptionTransformer(typeORMEncryptionConfig),
   })
-  accessKey!: string;
+  accessKey: string;
 
   @Column({
     type: 'text',
     nullable: false,
     transformer: new EncryptionTransformer(typeORMEncryptionConfig),
   })
-  secretKey!: string;
+  secretKey: string;
 
   @CreateDateColumn()
   createdAt: Date;

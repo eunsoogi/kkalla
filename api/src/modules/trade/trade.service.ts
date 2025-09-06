@@ -277,11 +277,11 @@ export class TradeService implements OnModuleInit {
   ): TradeRequest[] {
     const tradeRequests: TradeRequest[] = balances.info
       .filter((item) => {
-        const ticker = `${item.currency}/${item.unit_currency}`;
-        return item.currency !== item.unit_currency && !inferences.some((inference) => inference.ticker === ticker);
+        const symbol = `${item.currency}/${item.unit_currency}`;
+        return item.currency !== item.unit_currency && !inferences.some((inference) => inference.symbol === symbol);
       })
       .map((item) => ({
-        ticker: `${item.currency}/${item.unit_currency}`,
+        symbol: `${item.currency}/${item.unit_currency}`,
         diff: -1,
         balances,
       }));
@@ -298,8 +298,8 @@ export class TradeService implements OnModuleInit {
 
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
       .map((inference) => ({
-        ticker: inference.ticker,
-        diff: this.calculateDiff(balances, inference.ticker, inference.rate / count, inference.category),
+        symbol: inference.symbol,
+        diff: this.calculateDiff(balances, inference.symbol, inference.rate / count, inference.category),
         balances,
         inference,
       }))
@@ -319,7 +319,7 @@ export class TradeService implements OnModuleInit {
     ];
 
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations.map((inference) => ({
-      ticker: inference.ticker,
+      symbol: inference.symbol,
       diff: -1,
       balances,
       inference,
@@ -328,11 +328,11 @@ export class TradeService implements OnModuleInit {
     return tradeRequests;
   }
 
-  public calculateDiff(balances: Balances, ticker: string, rate: number, category: Category): number {
+  public calculateDiff(balances: Balances, symbol: string, rate: number, category: Category): number {
     switch (category) {
       case Category.COIN_MAJOR:
       case Category.COIN_MINOR:
-        return this.upbitService.calculateDiff(balances, ticker, rate);
+        return this.upbitService.calculateDiff(balances, symbol, rate);
     }
 
     return 0;
@@ -463,16 +463,16 @@ export class TradeService implements OnModuleInit {
   }
 
   public async executeTrade(user: User, request: TradeRequest): Promise<Trade> {
-    this.logger.log(this.i18n.t('logging.trade.start', { args: { id: user.id, ticker: request.ticker } }));
+    this.logger.log(this.i18n.t('logging.trade.start', { args: { id: user.id, symbol: request.symbol } }));
 
     const order = await this.upbitService.adjustOrder(user, request);
 
     if (!order) {
-      this.logger.log(this.i18n.t('logging.trade.not_exist', { args: { id: user.id, ticker: request.ticker } }));
+      this.logger.log(this.i18n.t('logging.trade.not_exist', { args: { id: user.id, symbol: request.symbol } }));
       return null;
     }
 
-    this.logger.log(this.i18n.t('logging.trade.calculate.start', { args: { id: user.id, ticker: request.ticker } }));
+    this.logger.log(this.i18n.t('logging.trade.calculate.start', { args: { id: user.id, symbol: request.symbol } }));
 
     const type = this.upbitService.getOrderType(order);
     const amount = await this.upbitService.calculateAmount(order);
@@ -482,25 +482,25 @@ export class TradeService implements OnModuleInit {
       this.i18n.t('logging.trade.calculate.end', {
         args: {
           id: user.id,
-          ticker: request.ticker,
-          type,
+          symbol: request.symbol,
+          type: this.i18n.t(`label.order.type.${type}`),
           amount,
           profit,
         },
       }),
     );
 
-    this.logger.log(this.i18n.t('logging.trade.save.start', { args: { id: user.id, ticker: request.ticker } }));
+    this.logger.log(this.i18n.t('logging.trade.save.start', { args: { id: user.id, symbol: request.symbol } }));
 
     const trade = await this.saveTrade(user, {
-      ticker: request.ticker,
+      symbol: request.symbol,
       type,
       amount,
       profit,
       inference: request.inference,
     });
 
-    this.logger.log(this.i18n.t('logging.trade.save.end', { args: { id: user.id, ticker: request.ticker } }));
+    this.logger.log(this.i18n.t('logging.trade.save.end', { args: { id: user.id, symbol: request.symbol } }));
 
     this.notifyService.notify(
       user,

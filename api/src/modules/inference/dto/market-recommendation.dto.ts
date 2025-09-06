@@ -5,6 +5,9 @@ export class MarketRecommendationDto {
   id: string;
 
   @ApiProperty()
+  seq: number;
+
+  @ApiProperty()
   symbol: string;
 
   @ApiProperty()

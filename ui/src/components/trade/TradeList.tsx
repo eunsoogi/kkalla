@@ -40,7 +40,7 @@ export const TradeListItem: React.FC<Trade> = (item) => {
         <Badge className={TRADE_STYLES[item.type].badgeStyle}>{item.type}</Badge>
       </Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</Table.Cell>
-      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.ticker}</Table.Cell>
+      <Table.Cell className='px-3 py-3 whitespace-nowrap'>{item.symbol}</Table.Cell>
       <Table.Cell className='px-3 py-3 whitespace-nowrap'>{formatNumber(item.amount)}</Table.Cell>
       <Table.Cell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(item.profit)}`}>
         {getDiffPrefix(item.profit)}
@@ -72,7 +72,7 @@ export const TradeList = () => {
           <Table.Head className='dark:border-gray-800'>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.type')}</Table.HeadCell>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.date')}</Table.HeadCell>
-            <Table.HeadCell className='whitespace-nowrap'>{t('ticker')}</Table.HeadCell>
+            <Table.HeadCell className='whitespace-nowrap'>{t('symbol')}</Table.HeadCell>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.amount')}</Table.HeadCell>
             <Table.HeadCell className='whitespace-nowrap'>{t('trade.profit')}</Table.HeadCell>
           </Table.Head>

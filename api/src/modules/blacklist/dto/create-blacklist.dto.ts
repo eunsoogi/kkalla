@@ -11,7 +11,7 @@ export class CreateBlacklistDto {
   })
   @IsString()
   @IsNotEmpty()
-  ticker!: string;
+  symbol!: string;
 
   @ApiProperty({
     required: true,

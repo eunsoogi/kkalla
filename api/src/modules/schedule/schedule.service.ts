@@ -49,14 +49,14 @@ export class ScheduleService {
 
       // RecommendationItem 형식으로 변환
       let inferenceItems: RecommendationItem[] = allKrwSymbols.map((symbol) => ({
-        ticker: symbol,
+        symbol,
         category: Category.COIN_MINOR, // 기본 카테고리를 COIN_MINOR로 설정
         hasStock: false,
       }));
 
       // 블랙리스트 필터링
       inferenceItems = await this.filterBalanceRecommendations(inferenceItems);
-      const filteredSymbols = inferenceItems.map((item) => item.ticker);
+      const filteredSymbols = inferenceItems.map((item) => item.symbol);
 
       this.logger.log(
         this.i18n.t('logging.schedule.marketRecommendation.filtered', { args: { count: filteredSymbols.length } }),
@@ -156,8 +156,8 @@ export class ScheduleService {
   }
 
   private async fetchMajorCoinItems(): Promise<RecommendationItem[]> {
-    return this.COIN_MAJOR.map((ticker) => ({
-      ticker,
+    return this.COIN_MAJOR.map((symbol) => ({
+      symbol,
       category: Category.COIN_MAJOR,
       hasStock: false,
     }));
@@ -170,7 +170,7 @@ export class ScheduleService {
     const recommendations = await MarketRecommendation.getLatestRecommends();
 
     return recommendations.map((recommendation) => ({
-      ticker: recommendation.symbol,
+      symbol: recommendation.symbol,
       category: Category.COIN_MINOR,
       hasStock: false,
     }));
@@ -182,8 +182,8 @@ export class ScheduleService {
     // 중복 및 블랙리스트 제거
     items = items.filter(
       (item, index, self) =>
-        index === self.findIndex((t) => t.ticker === item.ticker) &&
-        !blacklist.some((t) => t.ticker === item.ticker && t.category === item.category),
+        index === self.findIndex((t) => t.symbol === item.symbol) &&
+        !blacklist.some((t) => t.symbol === item.symbol && t.category === item.category),
     );
 
     return items;

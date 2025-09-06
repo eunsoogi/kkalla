@@ -14,16 +14,7 @@ import {
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
-export interface MarketRecommendationFilter {
-  ticker?: string;
-  startDate?: Date;
-  endDate?: Date;
-  createdAt?: {
-    gte?: Date;
-    lte?: Date;
-  };
-  sortDirection?: SortDirection;
-}
+import { MarketRecommendationFilter } from '../inference.interface';
 
 @Entity()
 export class MarketRecommendation extends BaseEntity {
@@ -33,22 +24,44 @@ export class MarketRecommendation extends BaseEntity {
   @Column({
     type: 'bigint',
     unique: true,
+    nullable: false,
   })
   seq: number;
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
   symbol: string;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    nullable: false,
+  })
   weight: number;
 
-  @Column({ type: 'text' })
+  @Column({
+    type: 'text',
+    nullable: false,
+  })
   reason: string;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    nullable: false,
+  })
   confidence: number;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
   batchId: string;
 
   @CreateDateColumn()
@@ -81,8 +94,8 @@ export class MarketRecommendation extends BaseEntity {
   ): Promise<PaginatedItem<MarketRecommendation>> {
     const where: any = {};
 
-    if (request.ticker) {
-      where.symbol = Like(`%${request.ticker}%`);
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
     }
 
     if (request.createdAt) {
@@ -119,8 +132,8 @@ export class MarketRecommendation extends BaseEntity {
   ): Promise<CursorItem<MarketRecommendation, string>> {
     const where: any = {};
 
-    if (request.ticker) {
-      where.symbol = Like(`%${request.ticker}%`);
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
     }
 
     // startDate/endDate 또는 createdAt 처리

@@ -8,7 +8,7 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 - 거래량은 원화가 아닌 개수로 계산하십시오.
 
 1) **출력 스키마** (JSON 필드)
-- "ticker": 문자열 (예: "BTC/KRW")
+- "symbol": 문자열 (예: "BTC/KRW")
 - "rate": 숫자 (범위: -1 ~ 1, 0 이하=매도 신호, 0 초과=매수 신호)
 
 2) **분석 방법**
@@ -126,7 +126,7 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 
 8) **예시(JSON 구조) - (복붙 금지, 참조만)**
 {
-  "ticker": "BTC/KRW",
+  "symbol": "BTC/KRW",
   "rate": 0.5
 }
 `;
@@ -147,7 +147,7 @@ export const UPBIT_BALANCE_RECOMMENDATION_CONFIG = {
 export const UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
-    ticker: {
+    symbol: {
       type: 'string',
     },
     rate: {
@@ -156,6 +156,6 @@ export const UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA = {
       maximum: 1,
     },
   },
-  required: ['ticker', 'rate'],
+  required: ['symbol', 'rate'],
   additionalProperties: false,
 };

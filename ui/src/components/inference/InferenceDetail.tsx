@@ -21,7 +21,7 @@ type Recommendation = MarketRecommendation | BalanceRecommendation;
 
 interface InferenceDetailListContentProps {
   type: 'market' | 'balance';
-  ticker?: string;
+  symbol?: string;
   category?: Category;
   sortDirection: SortDirection;
   startDate?: Date;
@@ -68,9 +68,9 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                 <div className='p-6'>
                   <div className='flex flex-row justify-between items-start'>
                     <div className='flex flex-col gap-3'>
-                      {'ticker' in item ? (
+                      {'symbol' in item ? (
                         <>
-                          <h4 className='text-dark dark:text-white'>{item.ticker}</h4>
+                          <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
                           <div className='flex items-center gap-2'>
                             <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
                             <Badge style={getRateColor(item.rate)}>{`${Math.floor(item.rate * 100)}%`}</Badge>
@@ -130,7 +130,7 @@ export const InferenceDetailSkeleton: React.FC = () => {
 
 interface InferenceDetailProps {
   type: 'market' | 'balance';
-  ticker?: string;
+  symbol?: string;
   category?: Category;
   decision?: string;
   sortDirection: SortDirection;
@@ -140,7 +140,7 @@ interface InferenceDetailProps {
 
 export const InferenceDetail: React.FC<InferenceDetailProps> = ({
   type,
-  ticker,
+  symbol,
   category,
   sortDirection,
   startDate,
@@ -150,7 +150,7 @@ export const InferenceDetail: React.FC<InferenceDetailProps> = ({
     <Suspense fallback={<InferenceDetailSkeleton />}>
       <InferenceDetailItem
         type={type}
-        ticker={ticker}
+        symbol={symbol}
         category={category}
         sortDirection={sortDirection}
         startDate={startDate}

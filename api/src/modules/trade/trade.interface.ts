@@ -5,7 +5,7 @@ import { SortDirection } from '../item/item.enum';
 import { OrderTypes } from '../upbit/upbit.enum';
 
 export interface TradeFilter {
-  ticker?: string;
+  symbol?: string;
   type?: OrderTypes;
   createdAt?: {
     gte?: Date;
@@ -15,14 +15,14 @@ export interface TradeFilter {
 }
 
 export interface TradeRequest {
-  ticker: string;
+  symbol: string;
   diff: number;
   balances: Balances;
   inference?: BalanceRecommendationData;
 }
 
 export interface TradeData {
-  ticker: string;
+  symbol: string;
   type: OrderTypes;
   amount: number;
   profit: number;

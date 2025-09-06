@@ -6,13 +6,13 @@ import { MarketRecommendation } from './market-recommendation.entity';
 
 @EventSubscriber()
 export class MarketRecommendationSubscriber implements EntitySubscriberInterface<MarketRecommendation> {
-  listenTo() {
+  public listenTo() {
     return MarketRecommendation;
   }
 
-  async beforeInsert(event: InsertEvent<MarketRecommendation>) {
+  public async beforeInsert(event: InsertEvent<MarketRecommendation>) {
     if (event.entity.seq == null) {
-      const res = await event.manager.createQueryBuilder().insert().into(Sequence).values({}).execute();
+      const res = await event.manager.insert(Sequence, {});
       const id = res.identifiers?.[0]?.value ?? res.raw?.insertId ?? res.raw?.lastID;
       event.entity.seq = id;
     }

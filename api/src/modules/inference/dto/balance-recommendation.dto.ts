@@ -10,9 +10,11 @@ export class BalanceRecommendationDto {
   seq: number;
 
   @ApiProperty()
-  ticker: string;
+  symbol: string;
 
-  @ApiProperty({ enum: Category })
+  @ApiProperty({
+    enum: Category,
+  })
   category: Category;
 
   @ApiProperty()

@@ -49,11 +49,11 @@ export async function createBlacklistAction(_: BlacklistState, formData: FormDat
   const t = await getTranslations();
 
   try {
-    const ticker = formData.get('ticker') as string;
+    const symbol = formData.get('symbol') as string;
     const category = formData.get('category') as string;
 
     const payload = {
-      ticker,
+      symbol,
       category,
     };
 
@@ -77,11 +77,11 @@ export async function updateBlacklistAction(_: BlacklistState, formData: FormDat
 
   try {
     const id = formData.get('id') as string;
-    const ticker = formData.get('ticker') as string;
+    const symbol = formData.get('symbol') as string;
     const category = formData.get('category') as string;
 
     const payload = {
-      ticker,
+      symbol,
       category,
     };
 

@@ -11,7 +11,7 @@ export class BlacklistDto {
   @ApiProperty({
     example: 'BTC/KRW',
   })
-  ticker!: string;
+  symbol!: string;
 
   @ApiProperty({
     enum: Category,

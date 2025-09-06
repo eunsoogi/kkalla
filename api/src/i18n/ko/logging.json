@@ -1,8 +1,5 @@
 {
   "upbit": {
-    "candle": {
-      "loading": "{ticker} {timeframe} 캔들 차트 불러오는 중..."
-    },
     "apikey": {
       "server_expired": "서버 API 키가 만료되었거나 유효하지 않습니다.",
       "user_expired": "사용자 {id}의 API 키가 만료되었거나 유효하지 않습니다.",
@@ -38,9 +35,9 @@
   },
   "inference": {
     "caching": "{category} 메시지 캐싱 중...",
-    "loading": "{ticker} 추론 중...",
-    "start": "{ticker} 추론 시작...",
-    "fail": "{ticker} 추론 실패.",
+    "loading": "{symbol} 추론 중...",
+    "start": "{symbol} 추론 시작...",
+    "fail": "{symbol} 추론 실패.",
     "recent_recommendations_failed": "이전 추천 데이터 로드에 실패했습니다.",
     "marketRecommendation": {
       "start": "상위 10개 종목 추천 분석을 시작합니다...",
@@ -73,8 +70,8 @@
     }
   },
   "order": {
-    "start": "유저 {id} 주문 시작...",
-    "fail": "유저 {id} 주문 실패."
+    "start": "사용자 {id} 주문 시작...",
+    "fail": "사용자 {id} 주문 실패."
   },
   "schedule": {
     "start": "포트폴리오 조정 스케줄 시작...",
@@ -179,15 +176,15 @@
     }
   },
   "trade": {
-    "start": "사용자 {id}, {ticker} 주문 시작...",
-    "not_exist": "사용자 {id}, {ticker} 주문 정보가 없습니다.",
+    "start": "사용자 {id}, {symbol} 주문 시작...",
+    "not_exist": "사용자 {id}, {symbol} 주문 정보가 없습니다.",
     "calculate": {
-      "start": "사용자 {id}, {ticker} 주문 수익 계산 시작...",
-      "end": "사용자 {id}, {ticker} 주문 수익 계산 완료. {ticker} {type}, 거래금: {amount}, 수익금: {profit}"
+      "start": "사용자 {id}, {symbol} 주문 수익 계산 시작...",
+      "end": "사용자 {id}, {symbol} 주문 수익 계산 완료. {symbol} {type}, 거래금: {amount}, 수익금: {profit}"
     },
     "save": {
-      "start": "사용자 {id}, {ticker} 주문 저장 시작...",
-      "end": "사용자 {id}, {ticker} 주문 저장 완료."
+      "start": "사용자 {id}, {symbol} 주문 저장 시작...",
+      "end": "사용자 {id}, {symbol} 주문 저장 완료."
     }
   }
 }

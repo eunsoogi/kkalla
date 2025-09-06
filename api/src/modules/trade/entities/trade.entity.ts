@@ -24,11 +24,12 @@ import { TradeFilter } from '../trade.interface';
 @Entity()
 export class Trade extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @Column({
     type: 'bigint',
     unique: true,
+    nullable: false,
   })
   seq: number;
 
@@ -47,8 +48,12 @@ export class Trade extends BaseEntity {
   })
   type!: OrderTypes;
 
-  @Column({ nullable: false })
-  ticker!: string;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  symbol: string;
 
   @Column({
     type: 'double',
@@ -62,12 +67,7 @@ export class Trade extends BaseEntity {
   })
   profit: number = 0;
 
-  @ManyToOne(() => BalanceRecommendation, {
-    nullable: true,
-    cascade: true,
-    eager: true,
-    onDelete: 'SET NULL',
-  })
+  @ManyToOne(() => BalanceRecommendation, { nullable: true, cascade: true, eager: true, onDelete: 'SET NULL' })
   @JoinColumn()
   inference: BalanceRecommendation;
 
@@ -85,8 +85,8 @@ export class Trade extends BaseEntity {
       type: request.type,
     };
 
-    if (request.ticker) {
-      where.ticker = Like(`%${request.ticker}%`);
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
     }
 
     if (request.type) {
@@ -132,8 +132,8 @@ export class Trade extends BaseEntity {
       },
     };
 
-    if (request.ticker) {
-      where.ticker = Like(`%${request.ticker}%`);
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
     }
 
     if (request.type) {

@@ -9,7 +9,7 @@ export class RequestOrderDto {
     required: true,
     example: 'BTC/KRW',
   })
-  ticker: string;
+  symbol: string;
 
   @ApiProperty({
     required: true,

@@ -26,7 +26,7 @@
   "title": {
     "coin": "코인"
   },
-  "ticker": "종목",
+  "symbol": "종목",
   "category": {
     "label": "카테고리",
     "title": "카테고리 설정",

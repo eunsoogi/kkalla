@@ -5,7 +5,7 @@ import { CursorItem, PaginatedItem } from './item.interface';
 export interface BalanceRecommendation {
   id: string;
   seq: number;
-  ticker: string;
+  symbol: string;
   rate: number;
   category: Category;
   reason: string;
@@ -15,6 +15,7 @@ export interface BalanceRecommendation {
 
 export interface MarketRecommendation {
   id: string;
+  seq: number;
   symbol: string;
   weight: number;
   reason: string;

@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   LessThanOrEqual,
   Like,
   MoreThanOrEqual,
@@ -18,9 +19,16 @@ import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules
 import { BalanceRecommendationFilter, RecentBalanceRecommendationRequest } from '../inference.interface';
 
 @Entity()
+@Index('idx_balance_recommendation_batch_id_symbol', ['batch_id', 'symbol'], { unique: true })
 export class BalanceRecommendation extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({
+    type: 'uuid',
+    nullable: false,
+  })
+  batchId: string;
 
   @Column({
     type: 'bigint',
@@ -28,18 +36,24 @@ export class BalanceRecommendation extends BaseEntity {
   })
   seq: number;
 
-  @Column()
-  ticker: string;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  symbol: string;
 
   @Column({
     type: 'enum',
     enum: Category,
+    nullable: false,
   })
   category: Category;
 
   @Column({
     type: 'double',
     default: 0,
+    nullable: false,
   })
   rate: number;
 
@@ -58,7 +72,7 @@ export class BalanceRecommendation extends BaseEntity {
   public static async getRecent(request: RecentBalanceRecommendationRequest): Promise<BalanceRecommendation[]> {
     return await this.find({
       where: {
-        ticker: request.ticker,
+        symbol: request.symbol,
         createdAt: MoreThanOrEqual(request.createdAt),
       },
       order: {
@@ -75,8 +89,8 @@ export class BalanceRecommendation extends BaseEntity {
       category: request.category,
     };
 
-    if (request.ticker) {
-      where.ticker = Like(`%${request.ticker}%`);
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
     }
 
     if (request.createdAt) {
@@ -112,8 +126,8 @@ export class BalanceRecommendation extends BaseEntity {
       category: request.category,
     };
 
-    if (request.ticker) {
-      where.ticker = Like(`%${request.ticker}%`);
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
     }
 
     // startDate/endDate 또는 createdAt 처리
