@@ -270,7 +270,7 @@ export class UpbitService {
 
     const { symbol, diff, balances } = request;
     const [baseAsset] = symbol.split('/');
-    const symbolExist = await this.isSymbolExist(baseAsset);
+    const symbolExist = await this.isSymbolExist(symbol);
 
     if (!symbolExist) {
       return null;
@@ -279,7 +279,7 @@ export class UpbitService {
     try {
       const currPrice = await this.getPrice(symbol);
       const symbolPrice = this.calculatePrice(balances, symbol);
-      const symbolVolume = this.getVolume(balances, symbol);
+      const symbolVolume = this.getVolume(balances, baseAsset);
       const marketPrice = this.calculateTotalPrice(balances);
       const tradePrice = (symbolPrice || marketPrice) * Math.abs(diff) * 0.9995;
       const tradeVolume = symbolVolume * Math.abs(diff);
