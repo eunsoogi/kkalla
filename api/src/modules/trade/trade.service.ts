@@ -374,7 +374,7 @@ export class TradeService implements OnModuleInit {
               this.i18n.t('notify.inference.transaction', {
                 args: {
                   symbol: recommendation.symbol,
-                  rate: recommendation.rate * 100,
+                  rate: Math.floor(recommendation.rate * 100),
                 },
               }),
             )
