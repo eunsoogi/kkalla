@@ -22,16 +22,16 @@ export class Migration1757204192259 implements MigrationInterface {
     await queryRunner.createIndex(
       'market_recommendation',
       new TableIndex({
-        name: 'idx_market_recommendation_symbol_seq',
-        columnNames: ['symbol', 'seq'],
+        name: 'idx_market_recommendation_symbol_created_at',
+        columnNames: ['symbol', 'created_at'],
       }),
     );
 
     await queryRunner.createIndex(
       'market_recommendation',
       new TableIndex({
-        name: 'idx_market_recommendation_symbol_created_at',
-        columnNames: ['symbol', 'created_at'],
+        name: 'idx_market_recommendation_created_at',
+        columnNames: ['created_at'],
       }),
     );
 
