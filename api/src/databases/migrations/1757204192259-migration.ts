@@ -41,6 +41,14 @@ export class Migration1757204192259 implements MigrationInterface {
     await queryRunner.createIndex(
       'balance_recommendation',
       new TableIndex({
+        name: 'idx_balance_recommendation_symbol',
+        columnNames: ['symbol'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'balance_recommendation',
+      new TableIndex({
         name: 'idx_balance_recommendation_category_seq',
         columnNames: ['category', 'seq'],
       }),
@@ -87,6 +95,7 @@ export class Migration1757204192259 implements MigrationInterface {
     await queryRunner.dropIndex('market_recommendation', 'idx_market_recommendation_symbol_created_at');
 
     // balance_recommendation 테이블 인덱스 삭제
+    await queryRunner.dropIndex('balance_recommendation', 'idx_balance_recommendation_symbol');
     await queryRunner.dropIndex('balance_recommendation', 'idx_balance_recommendation_category_seq');
     await queryRunner.dropIndex('balance_recommendation', 'idx_balance_recommendation_category_symbol_seq');
     await queryRunner.dropIndex('balance_recommendation', 'idx_balance_recommendation_category_created_at');

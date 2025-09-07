@@ -20,6 +20,7 @@ import { BalanceRecommendationFilter, RecentBalanceRecommendationRequest } from 
 
 @Entity()
 @Index('idx_balance_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })
+@Index('idx_balance_recommendation_symbol', ['symbol'])
 @Index('idx_balance_recommendation_category_seq', ['category', 'seq'])
 @Index('idx_balance_recommendation_category_symbol_seq', ['category', 'symbol', 'seq'])
 @Index('idx_balance_recommendation_category_created_at', ['category', 'createdAt'])
