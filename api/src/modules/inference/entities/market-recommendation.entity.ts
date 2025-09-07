@@ -18,8 +18,9 @@ import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules
 import { MarketRecommendationFilter } from '../inference.interface';
 
 @Entity()
-@Index('idx_market_recommendation_symbol', ['symbol'])
 @Index('idx_market_recommendation_batch_id', ['batchId'])
+@Index('idx_market_recommendation_symbol_seq', ['symbol', 'seq'])
+@Index('idx_market_recommendation_symbol_created_at', ['symbol', 'createdAt'])
 @Index('idx_market_recommendation_created_at', ['createdAt'])
 export class MarketRecommendation extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
