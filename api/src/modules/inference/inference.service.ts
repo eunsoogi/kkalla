@@ -68,7 +68,7 @@ export class InferenceService {
     // 배치 요청 처리
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_start'));
 
-    const result = await this.errorService.retryWithFallback(async () => {
+    const inferenceResult = await this.errorService.retryWithFallback(async () => {
       const requestConfig = {
         ...UPBIT_MARKET_RECOMMENDATION_CONFIG,
         response_format: {
@@ -99,7 +99,7 @@ export class InferenceService {
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
 
     // 추론 결과가 없으면 빈 배열 반환
-    if (!result.recommendations?.length) {
+    if (!inferenceResult.recommendations?.length) {
       this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
       return [];
     }
@@ -107,22 +107,23 @@ export class InferenceService {
     // 결과 저장
     this.logger.log(
       this.i18n.t('logging.inference.marketRecommendation.presave', {
-        args: { count: result.recommendations.length },
+        args: { count: inferenceResult.recommendations.length },
       }),
     );
 
-    const savedResults = await Promise.all(
-      result.recommendations.map((recommendation) =>
-        this.saveMarketRecommendation({ ...recommendation, batchId: result.batchId }),
+    const recommendationResults = await Promise.all(
+      inferenceResult.recommendations.map((recommendation) =>
+        this.saveMarketRecommendation({ ...recommendation, batchId: inferenceResult.batchId }),
       ),
     );
 
     this.logger.log(
-      this.i18n.t('logging.inference.marketRecommendation.save', { args: { count: savedResults.length } }),
+      this.i18n.t('logging.inference.marketRecommendation.save', { args: { count: recommendationResults.length } }),
     );
 
-    // 저장된 결과를 MarketRecommendationData 형태로 변환하여 반환
-    const savedResultsData = savedResults.map((saved) => ({
+    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
+
+    return recommendationResults.map((saved) => ({
       id: saved.id,
       batchId: saved.batchId,
       symbol: saved.symbol,
@@ -130,20 +131,6 @@ export class InferenceService {
       reason: saved.reason,
       confidence: saved.confidence,
     }));
-
-    // 추천 결과 전송
-    const recommendSymbols = savedResultsData.map((rec) => rec.symbol).join(', ');
-    const message = this.i18n.t('notify.marketRecommendation.completed', {
-      args: {
-        count: savedResultsData.length,
-        symbols: recommendSymbols,
-      },
-    });
-
-    await this.notifyService.notifyServer(message);
-
-    this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
-    return savedResultsData;
   }
 
   /**
@@ -198,16 +185,17 @@ export class InferenceService {
     );
 
     const batchId = randomUUID();
-    const savedResults = await Promise.all(
+    const recommendationResults = await Promise.all(
       inferenceResults.map((recommendation) => this.saveBalanceRecommendation({ ...recommendation, batchId })),
     );
 
     this.logger.log(
-      this.i18n.t('logging.inference.balanceRecommendation.save', { args: { count: savedResults.length } }),
+      this.i18n.t('logging.inference.balanceRecommendation.save', { args: { count: recommendationResults.length } }),
     );
 
-    // 저장된 결과를 BalanceRecommendationData 형태로 변환하여 반환
-    const savedResultsData = savedResults.map((saved, index) => ({
+    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
+
+    return recommendationResults.map((saved, index) => ({
       id: saved.id,
       batchId: saved.batchId,
       symbol: saved.symbol,
@@ -215,9 +203,6 @@ export class InferenceService {
       rate: saved.rate,
       hasStock: inferenceResults[index].hasStock,
     }));
-
-    this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
-    return savedResultsData;
   }
 
   /**

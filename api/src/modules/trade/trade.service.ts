@@ -365,20 +365,26 @@ export class TradeService implements OnModuleInit {
     // 권한이 있는 추론만 필터링
     const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
 
+    this.notifyService.notify(
+      user,
+      this.i18n.t('notify.inference.result', {
+        args: {
+          transactions: authorizedBalanceRecommendations
+            .map((recommendation) =>
+              this.i18n.t('notify.inference.transaction', {
+                args: {
+                  symbol: recommendation.symbol,
+                  rate: recommendation.rate * 100,
+                },
+              }),
+            )
+            .join('\n'),
+        },
+      }),
+    );
+
     // 종목 개수 계산
     const count = await this.getItemCount(user);
-
-    authorizedBalanceRecommendations.map((inference) => {
-      this.notifyService.notify(
-        user,
-        this.i18n.t('notify.inference.result', {
-          args: {
-            ...inference,
-            rate: inference.rate * 100,
-          },
-        }),
-      );
-    });
 
     // 유저 계좌 조회
     const balances = await this.upbitService.getBalances(user);
@@ -421,10 +427,35 @@ export class TradeService implements OnModuleInit {
       includedTradeRequests.map((request) => this.executeTrade(user, request)),
     );
 
+    // 메시지 전송
+    const allTrades: Trade[] = [...nonBalanceRecommendationTrades, ...excludedTrades, ...includedTrades].filter(
+      (item) => item !== null,
+    );
+
+    this.notifyService.notify(
+      user,
+      this.i18n.t('notify.order.result', {
+        args: {
+          transactions: allTrades
+            .map((trade) =>
+              this.i18n.t('notify.order.transaction', {
+                args: {
+                  symbol: trade.symbol,
+                  type: this.i18n.t(`label.order.type.${trade.type}`),
+                  amount: formatNumber(trade.amount),
+                  profit: formatNumber(trade.profit),
+                },
+              }),
+            )
+            .join('\n'),
+        },
+      }),
+    );
+
     // 클라이언트 초기화
     this.clearClients();
 
-    return [...nonBalanceRecommendationTrades, ...excludedTrades, ...includedTrades].filter((item) => item !== null);
+    return allTrades;
   }
 
   private async getItemCount(user: User): Promise<number> {
@@ -501,18 +532,6 @@ export class TradeService implements OnModuleInit {
     });
 
     this.logger.log(this.i18n.t('logging.trade.save.end', { args: { id: user.id, symbol: request.symbol } }));
-
-    this.notifyService.notify(
-      user,
-      this.i18n.t('notify.order.result', {
-        args: {
-          ...trade,
-          type: this.i18n.t(`label.order.type.${trade.type}`),
-          amount: formatNumber(trade.amount),
-          profit: formatNumber(trade.profit),
-        },
-      }),
-    );
 
     return trade;
   }

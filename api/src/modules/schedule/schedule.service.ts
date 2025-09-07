@@ -13,6 +13,7 @@ import { Category } from '../category/category.enum';
 import { HistoryService } from '../history/history.service';
 import { MarketRecommendation } from '../inference/entities/market-recommendation.entity';
 import { RecommendationItem } from '../inference/inference.interface';
+import { NotifyService } from '../notify/notify.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { Schedule } from './entities/schedule.entity';
 import { ScheduleExpression } from './schedule.enum';
@@ -26,6 +27,7 @@ export class ScheduleService {
 
   constructor(
     private readonly i18n: I18nService,
+    private readonly notifyService: NotifyService,
     private readonly tradeService: TradeService,
     private readonly blacklistService: BlacklistService,
     private readonly historyService: HistoryService,
@@ -64,6 +66,24 @@ export class ScheduleService {
 
       // 필터링된 종목으로 추천 요청
       const recommendations = await this.inferenceService.marketRecommendation(filteredSymbols);
+
+      // 추천 결과 전송
+      this.notifyService.notifyServer(
+        this.i18n.t('notify.marketRecommendation.result', {
+          args: {
+            transactions: recommendations
+              .map((recommendation) =>
+                this.i18n.t('notify.marketRecommendation.transaction', {
+                  args: {
+                    symbol: recommendation.symbol,
+                    reason: recommendation.reason,
+                  },
+                }),
+              )
+              .join('\n'),
+          },
+        }),
+      );
 
       this.logger.log(
         this.i18n.t('logging.schedule.marketRecommendation.completed', {

@@ -4,6 +4,7 @@ import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 import { BlacklistModule } from '../blacklist/blacklist.module';
 import { HistoryModule } from '../history/history.module';
 import { InferenceModule } from '../inference/inference.module';
+import { NotifyModule } from '../notify/notify.module';
 import { RedlockModule } from '../redlock/redlock.module';
 import { TradeModule } from '../trade/trade.module';
 import { UpbitModule } from '../upbit/upbit.module';
@@ -14,6 +15,7 @@ import { ScheduleService } from './schedule.service';
   imports: [
     NestScheduleModule.forRoot(),
     RedlockModule,
+    NotifyModule,
     TradeModule,
     BlacklistModule,
     HistoryModule,
