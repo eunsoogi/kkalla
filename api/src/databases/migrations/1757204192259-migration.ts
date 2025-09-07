@@ -3,8 +3,6 @@ import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 export class Migration1757204192259 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // market_recommendation 테이블 인덱스 추가
-    await queryRunner.dropIndex('market_recommendation', 'idx_market_recommendation_symbol');
-
     await queryRunner.createIndex(
       'market_recommendation',
       new TableIndex({
@@ -82,14 +80,6 @@ export class Migration1757204192259 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // market_recommendation 테이블 인덱스 삭제
-    await queryRunner.createIndex(
-      'market_recommendation',
-      new TableIndex({
-        name: 'idx_market_recommendation_symbol',
-        columnNames: ['symbol'],
-      }),
-    );
-
     await queryRunner.dropIndex('market_recommendation', 'idx_market_recommendation_batch_id');
     await queryRunner.dropIndex('market_recommendation', 'idx_market_recommendation_symbol_seq');
     await queryRunner.dropIndex('market_recommendation', 'idx_market_recommendation_symbol_created_at');
