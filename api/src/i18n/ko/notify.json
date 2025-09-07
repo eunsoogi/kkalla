@@ -9,10 +9,12 @@
     "fail": "계좌 조회에 실패했습니다."
   },
   "inference": {
-    "result": "{symbol} ({rate}%)"
+    "transaction": "> {symbol} ({rate}%)",
+    "result": "포트폴리오 리포트가 발행되었습니다.\n\n{transactions}"
   },
   "order": {
-    "result": "{symbol} {type}, 거래금: {amount}, 수익금: {profit}",
+    "transaction": "> {symbol} {type}, 거래금: {amount}, 수익금: {profit}",
+    "result": "다음과 같이 매매했습니다.\n\n{transactions}",
     "fail": "{symbol} 주문에 실패했습니다."
   },
   "profit": {
@@ -22,6 +24,7 @@
     "failed": "*[시스템 알림]* 재시도에 실패했습니다.\n\n상세 정보\n> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
   },
   "marketRecommendation": {
-    "completed": "📈 마켓 리포트 생성 완료!\n추천 종목 ({count}개): {symbols}"
+    "transaction": "> {symbol}, 이유: {reason}",
+    "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}"
   }
 }
