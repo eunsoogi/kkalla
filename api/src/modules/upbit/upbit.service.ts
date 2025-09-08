@@ -75,7 +75,7 @@ export class UpbitService {
         // API 키가 만료됐다면
         if (error instanceof AuthenticationError) {
           this.logger.error(this.i18n.t('logging.upbit.apikey.server_expired'));
-          this.notifyService.notifyServer(this.i18n.t('notify.upbit.apikey.server_expired'));
+          await this.notifyService.notifyServer(this.i18n.t('notify.upbit.apikey.server_expired'));
         }
 
         throw error;
@@ -108,7 +108,7 @@ export class UpbitService {
             this.logger.log(this.i18n.t('logging.upbit.apikey.schedule_disabled', { args: { id: user.id } }));
           }
 
-          this.notifyService.notify(user, this.i18n.t('notify.upbit.apikey.user_expired'));
+          await this.notifyService.notify(user, this.i18n.t('notify.upbit.apikey.user_expired'));
         }
 
         throw error;
@@ -132,7 +132,7 @@ export class UpbitService {
 
       return balances;
     } catch {
-      this.notifyService.notify(user, this.i18n.t('notify.balance.fail'));
+      await this.notifyService.notify(user, this.i18n.t('notify.balance.fail'));
     }
 
     return null;
@@ -259,7 +259,7 @@ export class UpbitService {
       );
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
-      this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
+      await this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
     }
 
     return null;
@@ -302,7 +302,7 @@ export class UpbitService {
       }
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
-      this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
+      await this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
     }
 
     return null;

@@ -21,7 +21,7 @@ export class NotifyService {
     notify.user = user;
 
     // Send to slack
-    this.slackService.send(user, { message: data?.message });
+    await this.slackService.send(user, { message: data?.message });
 
     return notify.save();
   }
@@ -48,6 +48,6 @@ export class NotifyService {
    */
   public async notifyServer(message: string): Promise<void> {
     // Send to slack
-    this.slackService.sendServer({ message });
+    await this.slackService.sendServer({ message });
   }
 }

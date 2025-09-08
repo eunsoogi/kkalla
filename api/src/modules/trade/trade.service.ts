@@ -114,7 +114,8 @@ export class TradeService implements OnModuleInit {
 
       // 수익금 알림
       const profitData = await this.profitService.getProfit(user);
-      this.notifyService.notify(
+
+      await this.notifyService.notify(
         user,
         this.i18n.t('notify.profit.result', {
           args: {
@@ -365,7 +366,7 @@ export class TradeService implements OnModuleInit {
     // 권한이 있는 추론만 필터링
     const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
 
-    this.notifyService.notify(
+    await this.notifyService.notify(
       user,
       this.i18n.t('notify.inference.result', {
         args: {
@@ -432,25 +433,27 @@ export class TradeService implements OnModuleInit {
       (item) => item !== null,
     );
 
-    this.notifyService.notify(
-      user,
-      this.i18n.t('notify.order.result', {
-        args: {
-          transactions: allTrades
-            .map((trade) =>
-              this.i18n.t('notify.order.transaction', {
-                args: {
-                  symbol: trade.symbol,
-                  type: this.i18n.t(`label.order.type.${trade.type}`),
-                  amount: formatNumber(trade.amount),
-                  profit: formatNumber(trade.profit),
-                },
-              }),
-            )
-            .join('\n'),
-        },
-      }),
-    );
+    if (allTrades.length > 0) {
+      await this.notifyService.notify(
+        user,
+        this.i18n.t('notify.order.result', {
+          args: {
+            transactions: allTrades
+              .map((trade) =>
+                this.i18n.t('notify.order.transaction', {
+                  args: {
+                    symbol: trade.symbol,
+                    type: this.i18n.t(`label.order.type.${trade.type}`),
+                    amount: formatNumber(trade.amount),
+                    profit: formatNumber(trade.profit),
+                  },
+                }),
+              )
+              .join('\n'),
+          },
+        }),
+      );
+    }
 
     // 클라이언트 초기화
     this.clearClients();

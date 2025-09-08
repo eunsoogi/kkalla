@@ -68,7 +68,7 @@ export class ScheduleService {
       const recommendations = await this.inferenceService.marketRecommendation(filteredSymbols);
 
       // 추천 결과 전송
-      this.notifyService.notifyServer(
+      await this.notifyService.notifyServer(
         this.i18n.t('notify.marketRecommendation.result', {
           args: {
             transactions: recommendations
