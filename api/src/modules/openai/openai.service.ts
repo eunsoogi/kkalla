@@ -176,7 +176,7 @@ export class OpenaiService {
       this.logger.error(this.i18n.t('logging.openai.batch.cancel_failed', { args: { batchId } }), cancelError);
     }
 
-    this.notifyService.notifyServer(this.i18n.t('logging.openai.batch.timeout', { args: { batchId } }));
+    await this.notifyService.notifyServer(this.i18n.t('logging.openai.batch.timeout', { args: { batchId } }));
 
     throw new Error(this.i18n.t('logging.openai.batch.timeout', { args: { batchId } }));
   }
