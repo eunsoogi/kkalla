@@ -142,7 +142,7 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 `;
 
 export const UPBIT_BALANCE_RECOMMENDATION_CONFIG = {
-  model: 'gpt-5',
+  model: 'gpt-5.1',
   max_completion_tokens: 8196,
   reasoning_effort: 'medium' as const,
   verbosity: 'low' as const,

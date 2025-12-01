@@ -85,7 +85,7 @@ export const MARKET_DATA_TEMPLATE = `[{{symbol}}] P: {{price}}, C: {{changePerce
 
 // GPT-5 모델 설정 - 상위 10개 종목 추천용
 export const UPBIT_MARKET_RECOMMENDATION_CONFIG = {
-  model: 'gpt-5',
+  model: 'gpt-5.1',
   max_completion_tokens: 16384,
   reasoning_effort: 'high' as const,
   verbosity: 'low' as const,
