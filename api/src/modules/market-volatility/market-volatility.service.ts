@@ -49,7 +49,7 @@ import {
  * 마켓 변동성 감시 모듈의 핵심 서비스.
  *
  * - `HistoryService` 에 저장된 종목 목록을 기준으로, 각 종목의 1분봉 캔들을 주기적으로 조회한다.
- * - 최근 6개의 1분봉을 사용해 5분 윈도우 2개(이전 5분, 현재 5분)의 변동폭을 계산한다.
+ * - 최근 11개의 1분봉을 사용해 10분 윈도우 2개(이전 10분, 현재 10분)의 변동폭을 계산한다.
  * - 변동폭을 5%p(기본 0.05) 단위 버킷으로 나눈 뒤, 이전 버킷보다 큰 버킷으로 진입한 경우에만
  *   변동성이 증가했다고 판단하고 잔고 추천 추론 및 Slack 알림을 트리거한다.
  * - 동시 실행 방지를 위해 Redlock 기반 분산 락을 사용한다.
@@ -446,8 +446,8 @@ export class MarketVolatilityService implements OnModuleInit {
   /**
    * 종목별 변동성 계산
    *
-   * - Upbit에서 최근 1분봉 6개를 조회합니다.
-   * - 앞의 5개: "이전 5분" 윈도우, 뒤의 5개: "현재 5분" 윈도우로 사용합니다.
+   * - Upbit에서 최근 1분봉 11개를 조회합니다.
+   * - 앞의 10개: "이전 10분" 윈도우, 뒤의 10개: "현재 10분" 윈도우로 사용합니다.
    * - 각 윈도우에 대해 최고 종가 / 최저 종가를 이용해 변동폭 비율을 계산합니다.
    *   - 변동폭 비율 = (maxClose - minClose) / minClose
    * - 변동폭 비율을 stepPercent로 나눠 버킷 인덱스를 구합니다.
@@ -462,19 +462,19 @@ export class MarketVolatilityService implements OnModuleInit {
     symbol: string,
     stepPercent: number = this.VOLATILITY_BUCKET_STEP,
   ): Promise<SymbolVolatility | null> {
-    // 최근 6개의 1분봉 캔들을 조회 (이전 5분 + 현재 5분 윈도우 구성용)
-    const candles = await this.upbitService.getRecentMinuteCandles(symbol, 6);
+    // 최근 11개의 1분봉 캔들을 조회 (이전 10분 + 현재 10분 윈도우 구성용)
+    const candles = await this.upbitService.getRecentMinuteCandles(symbol, 11);
 
     // 캔들이 부족하면 계산 불가
-    if (!candles || candles.length < 6) {
+    if (!candles || candles.length < 11) {
       this.logger.log(this.i18n.t('logging.market.volatility.not_enough_candles', { args: { symbol } }));
       return null;
     }
 
-    // 앞의 5개는 "이전 5분", 뒤의 5개는 "현재 5분" 윈도우
+    // 앞의 10개는 "이전 10분", 뒤의 10개는 "현재 10분" 윈도우
     // 슬라이딩 윈도우 방식: 1분씩 이동하여 비교
-    const prevWindow = candles.slice(0, 5);
-    const nextWindow = candles.slice(1, 6);
+    const prevWindow = candles.slice(0, 10);
+    const nextWindow = candles.slice(1, 11);
 
     // 각 윈도우의 종가 기준 변동폭 비율 계산
     const prevPercent = this.calculateWindowVolatilityPercent(prevWindow);
@@ -581,7 +581,7 @@ export class MarketVolatilityService implements OnModuleInit {
     // 각 캔들의 종가만 추출 (캔들 배열: [timestamp, open, high, low, close, volume])
     const closes = candles.map((candle) => candle[4]);
 
-    // 5분 구간 내 최저/최고 종가 계산
+    // 10분 구간 내 최저/최고 종가 계산
     const minClose = Math.min(...closes);
     const maxClose = Math.max(...closes);
 
