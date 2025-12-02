@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Seeder } from 'typeorm-extension';
 
 import { Category } from '@/modules/category/category.enum';
@@ -33,8 +34,10 @@ export class BalanceRecommendationSeeder implements Seeder {
     await BalanceRecommendation.createQueryBuilder().delete().execute();
 
     for (let i = 0; i < 11; i++) {
+      const batchId = randomUUID();
       await BalanceRecommendation.save([
         {
+          batchId,
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MAJOR,
           rate: 0.8,
@@ -42,6 +45,7 @@ export class BalanceRecommendationSeeder implements Seeder {
           symbol: 'BTC/KRW',
         },
         {
+          batchId,
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MINOR,
           rate: -0.5,
@@ -49,6 +53,7 @@ export class BalanceRecommendationSeeder implements Seeder {
           symbol: 'XRP/KRW',
         },
         {
+          batchId,
           seq: (await new Sequence().save()).value,
           category: Category.NASDAQ,
           rate: 0,
