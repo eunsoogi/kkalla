@@ -148,6 +148,13 @@ export class MarketVolatilityService {
       await this.tradeService.produceMessageForVolatility(users, inferences, true);
     }
 
+    // BTC 변동성이 발생했음을 Slack 서버 채널로 알림 전송
+    await this.slackService.sendServer({
+      message: this.i18n.t('notify.volatility.result', {
+        args: { symbols: `> ${this.BTC_SYMBOL}` },
+      }),
+    });
+
     return true;
   }
 
