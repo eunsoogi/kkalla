@@ -71,6 +71,11 @@ export class MarketVolatilityService {
   @Cron(CronExpression.EVERY_MINUTE)
   @WithRedlock({ duration: 30_000 })
   public async handleTick(): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(this.i18n.t('logging.schedule.skip'));
+      return;
+    }
+
     await this.checkMarketVolatility();
   }
 
