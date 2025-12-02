@@ -1,7 +1,7 @@
 import { Balances } from 'ccxt';
 
-import { BalanceRecommendationData } from '../inference/inference.interface';
 import { SortDirection } from '../item/item.enum';
+import { BalanceRecommendationData } from '../rebalance/rebalance.interface';
 import { OrderTypes } from '../upbit/upbit.enum';
 
 export interface TradeFilter {

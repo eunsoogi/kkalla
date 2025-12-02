@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import * as Handlebars from 'handlebars';
 import { I18nService } from 'nestjs-i18n';
 
 import { MarketFeatures } from '@/modules/upbit/upbit.interface';
@@ -733,5 +734,79 @@ export class FeatureService {
       strength: trendStrength,
       divergence,
     };
+  }
+
+  /**
+   * 마켓 데이터 범례 문자열
+   */
+  public readonly MARKET_DATA_LEGEND =
+    `범례: s=symbol, p=price, c24=change24h%, v24=volume24h(M), rsi=RSI14, ` +
+    `macd={m:macd,s:signal,h:histogram}, ma={20:SMA20,50:SMA50}, ` +
+    `bb={u:upper,l:lower,pb:percentB}, atr=normalizedATR, vol=volatility, liq=liquidityScore, pos=pricePosition`;
+
+  /**
+   * 마켓 데이터 템플릿
+   */
+  private readonly MARKET_DATA_TEMPLATE = `[{{symbol}}] P: {{price}}, C: {{changePercent}}%, V: {{volumeM}}M, MCap: {{marketCapM}}M
+- RSI(14): {{rsi14}}, Stoch(K/D): {{stochK}}%/{{stochD}}%, Williams%R: {{williamsR}}%, MFI: {{mfi}}, CCI: {{cci}}
+- MACD(v/s/h): {{macdValue}}/{{macdSignal}}/{{macdHist}}
+- SMA(20/50/200): {{sma20}}/{{sma50}}/{{sma200}}
+- BB(u/m/l): {{bbUpper}}/{{bbMiddle}}/{{bbLower}}, %B: {{bbPercent}}%
+- ATR(14): {{atr14}}, Volatility: {{volatility}}%, VWAP: {{vwap}}
+- OBV(trend/sig): {{obvTrend}}/{{obvSignal}}
+- Support/Resistance: {{support1}}/{{resistance1}}
+- Trend(type/str): {{trendType}}/{{trendStrength}}, Divergence: {{divergence}}`;
+
+  /**
+   * 마켓 특성 데이터를 압축 형태로 포맷팅
+   *
+   * - Handlebars 템플릿을 사용하여 시장 데이터를 포맷팅합니다.
+   * - AI 추론 프롬프트에 사용하기 위한 형식으로 변환합니다.
+   *
+   * @param marketFeatures 시장 특성 데이터 배열
+   * @returns 포맷팅된 시장 데이터 문자열
+   */
+  public formatMarketData(marketFeatures: MarketFeatures[]): string {
+    const template = Handlebars.compile(this.MARKET_DATA_TEMPLATE);
+
+    return marketFeatures
+      .filter((feature) => feature && feature.symbol)
+      .map((feature) => {
+        const context = {
+          symbol: feature.symbol,
+          price: feature.price ?? 0,
+          changePercent: feature.priceChangePercent24h ?? 0,
+          volumeM: (feature.volume24h ?? 0) / 1000000,
+          marketCapM: (feature.marketCap ?? 0) / 1000000,
+          rsi14: feature.rsi14 ?? 0,
+          stochK: feature.stochastic?.percentK ?? 0,
+          stochD: feature.stochastic?.percentD ?? 0,
+          williamsR: feature.williamsR ?? 0,
+          mfi: feature.mfi ?? 0,
+          cci: feature.cci ?? 0,
+          macdValue: feature.macd?.macd ?? 0,
+          macdSignal: feature.macd?.signal ?? 0,
+          macdHist: feature.macd?.histogram ?? 0,
+          sma20: feature.sma?.sma20 ?? 0,
+          sma50: feature.sma?.sma50 ?? 0,
+          sma200: feature.sma?.sma200 ?? 0,
+          bbUpper: feature.bollingerBands?.upper ?? 0,
+          bbMiddle: feature.bollingerBands?.middle ?? 0,
+          bbLower: feature.bollingerBands?.lower ?? 0,
+          bbPercent: feature.bollingerBands?.percentB ?? 0,
+          atr14: feature.atr?.atr14 ?? 0,
+          volatility: feature.volatility ?? 0,
+          vwap: feature.vwap ?? 0,
+          obvTrend: feature.obv?.trend ?? 0,
+          obvSignal: feature.obv?.signal || 'neutral',
+          support1: feature.supportResistance?.support1 ?? 0,
+          resistance1: feature.supportResistance?.resistance1 ?? 0,
+          trendType: feature.patterns?.trend || 'sideways',
+          trendStrength: feature.patterns?.strength ?? 0,
+          divergence: feature.patterns?.divergence || 'none',
+        };
+        return template(context);
+      })
+      .join('\n');
   }
 }

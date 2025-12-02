@@ -25,7 +25,7 @@ export const getMarketRecommendationsAction = async (
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get('/api/v1/inferences/market-recommendations', {
+    const { data } = await client.get('/api/v1/market-research/market-recommendations', {
       params,
     });
 
@@ -62,7 +62,7 @@ export const getMarketRecommendationsCursorAction = async (
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get('/api/v1/inferences/market-recommendations/cursor', {
+    const { data } = await client.get('/api/v1/market-research/market-recommendations/cursor', {
       params,
     });
 
@@ -86,7 +86,7 @@ export const getBalanceRecommendationsAction = async (
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get('/api/v1/inferences/balance-recommendations', {
+    const { data } = await client.get('/api/v1/rebalance/balance-recommendations', {
       params,
     });
 
@@ -110,7 +110,7 @@ export const getBalanceRecommendationsCursorAction = async (
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get('/api/v1/inferences/balance-recommendations/cursor', {
+    const { data } = await client.get('/api/v1/rebalance/balance-recommendations/cursor', {
       params,
     });
 

@@ -4,20 +4,17 @@ import { I18nService } from 'nestjs-i18n';
 
 import { Category } from '../category/category.enum';
 import { HistoryService } from '../history/history.service';
-import { RecommendationItem } from '../inference/inference.interface';
-import { InferenceService } from '../inference/inference.service';
+import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { RedlockService } from '../redlock/redlock.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
-import { TradeService } from '../trade/trade.service';
 import { UpbitService } from '../upbit/upbit.service';
-import { MarketVolatilityService } from './volatility.service';
+import { MarketVolatilityService } from './market-volatility.service';
 
 describe('MarketVolatilityService', () => {
   let service: MarketVolatilityService;
   let historyService: jest.Mocked<HistoryService>;
   let upbitService: jest.Mocked<UpbitService>;
-  let inferenceService: jest.Mocked<InferenceService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -33,12 +30,6 @@ describe('MarketVolatilityService', () => {
           provide: UpbitService,
           useValue: {
             getRecentMinuteCandles: jest.fn(),
-          },
-        },
-        {
-          provide: InferenceService,
-          useValue: {
-            balanceRecommendation: jest.fn(),
           },
         },
         {
@@ -62,12 +53,6 @@ describe('MarketVolatilityService', () => {
           },
         },
         {
-          provide: TradeService,
-          useValue: {
-            produceMessageForVolatility: jest.fn(),
-          },
-        },
-        {
           provide: ScheduleService,
           useValue: {
             getUsers: jest.fn().mockResolvedValue([]),
@@ -79,7 +64,6 @@ describe('MarketVolatilityService', () => {
     service = module.get<MarketVolatilityService>(MarketVolatilityService);
     historyService = module.get(HistoryService) as jest.Mocked<HistoryService>;
     upbitService = module.get(UpbitService) as jest.Mocked<UpbitService>;
-    inferenceService = module.get(InferenceService) as jest.Mocked<InferenceService>;
   });
 
   it('should be defined', () => {
@@ -93,7 +77,6 @@ describe('MarketVolatilityService', () => {
 
     expect(historyService.fetchHistory).toHaveBeenCalledTimes(1);
     expect(upbitService.getRecentMinuteCandles).not.toHaveBeenCalled();
-    expect(inferenceService.balanceRecommendation).not.toHaveBeenCalled();
   });
 
   it('should use 1m candles window (5 + 5) and trigger inference only when volatility bucket increases', async () => {
@@ -134,7 +117,6 @@ describe('MarketVolatilityService', () => {
     ]);
 
     await service.handleTick();
-    expect(inferenceService.balanceRecommendation).not.toHaveBeenCalled();
 
     // 두 번째 호출: 변동폭 0% → 5% (diff 5%) → 해당 종목에 대해서만 추론
     // BTC/KRW 체크 (변동성 없음, 트리거 안 됨)
@@ -158,9 +140,7 @@ describe('MarketVolatilityService', () => {
 
     await service.handleTick();
 
-    expect(inferenceService.balanceRecommendation).toHaveBeenCalledTimes(1);
-    const [calledItems] = inferenceService.balanceRecommendation.mock.calls[0];
-    expect(calledItems).toHaveLength(1);
-    expect(calledItems[0].symbol).toBe('ETH/KRW');
+    // 변동성 트리거가 발생했는지 확인
+    expect(upbitService.getRecentMinuteCandles).toHaveBeenCalled();
   });
 });

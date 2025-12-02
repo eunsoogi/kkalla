@@ -13,9 +13,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { BalanceRecommendation } from '@/modules/inference/entities/balance-recommendation.entity';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
 

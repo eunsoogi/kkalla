@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { RecommendationItem } from '../inference/inference.interface';
+import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { History } from './entities/history.entity';
 import { HistoryItem } from './history.interface';
 

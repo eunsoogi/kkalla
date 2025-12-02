@@ -2,8 +2,8 @@ import { randomUUID } from 'crypto';
 import { Seeder } from 'typeorm-extension';
 
 import { Category } from '@/modules/category/category.enum';
-import { BalanceRecommendation } from '@/modules/inference/entities/balance-recommendation.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
+import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
 import { Role } from '@/modules/role/entities/role.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';

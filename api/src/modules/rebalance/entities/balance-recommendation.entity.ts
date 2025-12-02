@@ -12,24 +12,32 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { Category } from '@/modules/category/category.enum';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
-import { MarketRecommendationFilter } from '../inference.interface';
+import { BalanceRecommendationFilter, RecentBalanceRecommendationRequest } from '../rebalance.interface';
 
 @Entity()
-@Index('idx_market_recommendation_batch_id', ['batchId'])
-@Index('idx_market_recommendation_symbol_seq', ['symbol', 'seq'])
-@Index('idx_market_recommendation_symbol_created_at', ['symbol', 'createdAt'])
-@Index('idx_market_recommendation_created_at', ['createdAt'])
-export class MarketRecommendation extends BaseEntity {
+@Index('idx_balance_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })
+@Index('idx_balance_recommendation_symbol', ['symbol'])
+@Index('idx_balance_recommendation_category_seq', ['category', 'seq'])
+@Index('idx_balance_recommendation_category_symbol_seq', ['category', 'symbol', 'seq'])
+@Index('idx_balance_recommendation_category_created_at', ['category', 'createdAt'])
+@Index('idx_balance_recommendation_category_symbol_created_at', ['category', 'symbol', 'createdAt'])
+export class BalanceRecommendation extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({
+    type: 'uuid',
+    nullable: false,
+  })
+  batchId: string;
+
+  @Column({
     type: 'bigint',
     unique: true,
-    nullable: false,
   })
   seq: number;
 
@@ -41,33 +49,24 @@ export class MarketRecommendation extends BaseEntity {
   symbol: string;
 
   @Column({
-    type: 'decimal',
-    precision: 3,
-    scale: 2,
+    type: 'enum',
+    enum: Category,
     nullable: false,
   })
-  weight: number;
+  category: Category;
+
+  @Column({
+    type: 'double',
+    default: 0,
+    nullable: false,
+  })
+  rate: number;
 
   @Column({
     type: 'text',
-    nullable: false,
+    nullable: true,
   })
-  reason: string;
-
-  @Column({
-    type: 'decimal',
-    precision: 3,
-    scale: 2,
-    nullable: false,
-  })
-  confidence: number;
-
-  @Column({
-    type: 'varchar',
-    length: 255,
-    nullable: false,
-  })
-  batchId: string;
+  reason: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -75,29 +74,25 @@ export class MarketRecommendation extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  /**
-   * 최신 추천 종목들을 조회
-   */
-  static async getLatestRecommends(): Promise<MarketRecommendation[]> {
-    const latest = await this.find({
-      order: { createdAt: 'DESC' },
-      take: 1,
+  public static async getRecent(request: RecentBalanceRecommendationRequest): Promise<BalanceRecommendation[]> {
+    return await this.find({
+      where: {
+        symbol: request.symbol,
+        createdAt: MoreThanOrEqual(request.createdAt),
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+      take: request.count,
     });
-
-    if (!latest.length) {
-      return [];
-    }
-
-    return this.find({ where: { batchId: latest[0].batchId } });
   }
 
-  /**
-   * 페이지네이션
-   */
-  static async paginate(
-    request: ItemRequest & MarketRecommendationFilter,
-  ): Promise<PaginatedItem<MarketRecommendation>> {
-    const where: any = {};
+  public static async paginate(
+    request: ItemRequest & BalanceRecommendationFilter,
+  ): Promise<PaginatedItem<BalanceRecommendation>> {
+    const where: any = {
+      category: request.category,
+    };
 
     if (request.symbol) {
       where.symbol = Like(`%${request.symbol}%`);
@@ -129,13 +124,12 @@ export class MarketRecommendation extends BaseEntity {
     };
   }
 
-  /**
-   * 커서 페이지네이션
-   */
-  static async cursor(
-    request: CursorRequest<string> & MarketRecommendationFilter,
-  ): Promise<CursorItem<MarketRecommendation, string>> {
-    const where: any = {};
+  public static async cursor(
+    request: CursorRequest<string> & BalanceRecommendationFilter,
+  ): Promise<CursorItem<BalanceRecommendation, string>> {
+    const where: any = {
+      category: request.category,
+    };
 
     if (request.symbol) {
       where.symbol = Like(`%${request.symbol}%`);
@@ -151,10 +145,12 @@ export class MarketRecommendation extends BaseEntity {
     const sortDirection = request.sortDirection ?? SortDirection.DESC;
 
     if (request.cursor) {
-      const cursorEntity = await this.findOne({ where: { id: request.cursor } });
-      if (cursorEntity) {
-        where.seq =
-          sortDirection === SortDirection.DESC ? LessThanOrEqual(cursorEntity.seq) : MoreThanOrEqual(cursorEntity.seq);
+      const cursor = await this.findOne({
+        where: { id: request.cursor },
+      });
+
+      if (cursor) {
+        where.seq = sortDirection === SortDirection.DESC ? LessThanOrEqual(cursor.seq) : MoreThanOrEqual(cursor.seq);
       }
     }
 

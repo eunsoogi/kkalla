@@ -11,6 +11,8 @@
     "prettier": "prettier 'src/**/*.{ts,tsx}' --write"
   },
   "dependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^9.39.1",
     "@iconify/react": "6.0.0",
     "@tabler/icons-react": "3.34.0",
     "@tanstack/react-query": "^5.85.6",

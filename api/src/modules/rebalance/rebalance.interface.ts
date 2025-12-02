@@ -13,17 +13,6 @@ export interface BalanceRecommendationFilter {
   sortDirection?: SortDirection;
 }
 
-export interface MarketRecommendationFilter {
-  symbol?: string;
-  startDate?: Date;
-  endDate?: Date;
-  createdAt?: {
-    gte?: Date;
-    lte?: Date;
-  };
-  sortDirection?: SortDirection;
-}
-
 export interface RecentBalanceRecommendationRequest {
   symbol: string;
   createdAt: Date;
@@ -34,27 +23,6 @@ export interface RecommendationItem {
   symbol: string;
   category: Category;
   hasStock: boolean;
-}
-
-export interface MarketRecommendation {
-  symbol: string;
-  reason: string;
-  confidence: number;
-  weight: number;
-}
-
-export interface MarketRecommendationResponse {
-  batchId: string;
-  recommendations: MarketRecommendation[];
-}
-
-export interface MarketRecommendationData {
-  id: string;
-  batchId: string;
-  symbol: string;
-  weight: number;
-  reason: string;
-  confidence: number;
 }
 
 export interface BalanceRecommendationData {

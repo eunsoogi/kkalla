@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 
@@ -7,20 +7,31 @@ import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { User } from '../user/entities/user.entity';
 import { GetTradeCursorDto } from './dto/get-trade-cursor.dto';
 import { GetTradeDto } from './dto/get-trade.dto';
-import { PostTradeDto } from './dto/post-trade.dto';
 import { Trade } from './entities/trade.entity';
 import { TradeService } from './trade.service';
 
+/**
+ * 거래 조회 전용 컨트롤러.
+ *
+ * - 거래 실행 기능은 Rebalance 및 Volatility 모듈로 이동됨
+ * - 거래 조회 기능만 제공
+ */
 @Controller('api/v1/trades')
 export class TradeController {
   constructor(private readonly tradeService: TradeService) {}
 
+  /**
+   * 거래 목록 페이지네이션 조회
+   */
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
   public async getTrades(@CurrentUser() user: User, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
     return this.tradeService.paginateTrades(user, request);
   }
 
+  /**
+   * 거래 목록 커서 기반 조회
+   */
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
   public async getCursorTrades(
@@ -49,11 +60,5 @@ export class TradeController {
     }
 
     return this.tradeService.cursorTrades(user, filters);
-  }
-
-  @Post()
-  @UseGuards(GoogleTokenAuthGuard)
-  async createTrade(@CurrentUser() user: User, @Body() body: PostTradeDto): Promise<Trade> {
-    return this.tradeService.createTradeFromUserRequest(user, body);
   }
 }
