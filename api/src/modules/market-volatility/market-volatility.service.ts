@@ -952,7 +952,8 @@ export class MarketVolatilityService implements OnModuleInit {
       .map((inference) => ({
         symbol: inference.symbol,
         // diff 계산: 목표 비율(rate/count)과 현재 비율의 차이
-        // 전체 포트폴리오 비율을 유지하기 위해 rate를 count로 나눔
+        // rate는 단일 코인 기준 집중투자 비율이지만, 전체 포트폴리오 비율을 유지하기 위해 count로 나눔
+        // 예: rate=0.5, count=5인 경우 → 목표 비율 0.1 (10%)
         // 양수면 매수 필요, 음수면 매도 필요
         diff: this.calculateDiff(balances, inference.symbol, inference.rate / count, inference.category),
         balances,
