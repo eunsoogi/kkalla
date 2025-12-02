@@ -372,4 +372,23 @@ export class UpbitService {
       throw error;
     }
   }
+
+  /**
+   * 특정 종목의 최근 1분봉 캔들을 가져옵니다.
+   * 변동성 계산용으로 기본 6개를 조회합니다.
+   */
+  public async getRecentMinuteCandles(symbol: string, limit = 6): Promise<any[]> {
+    const client = await this.getServerClient();
+
+    try {
+      const candles = await this.errorService.retryWithFallback(async () => {
+        return await client.fetchOHLCV(symbol, '1m', undefined, limit);
+      }, this.retryOptions);
+
+      return candles;
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.upbit.market.load_failed', { args: { symbol } }), error);
+      throw error;
+    }
+  }
 }
