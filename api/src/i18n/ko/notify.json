@@ -26,5 +26,8 @@
   "marketRecommendation": {
     "transaction": "> {symbol}, 이유: {reason}",
     "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}"
+  },
+  "volatility": {
+    "result": "*[시스템 알림]* 다음 종목에서 새로운 5%p 변동 구간에 진입했습니다.\n\n{symbols}"
   }
 }

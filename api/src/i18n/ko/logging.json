@@ -173,6 +173,16 @@
       "completed": "총 {successCount}개 종목 분석 완료 (전체 {totalCount}개 중)",
       "batch_completed": "Batch API를 통해 총 {count}개 종목 분석 완료",
       "llm_start": "시장 특성 분석을 위한 LLM 추론을 시작합니다..."
+    },
+    "volatility": {
+      "no_history": "모니터링할 히스토리 종목이 없습니다.",
+      "not_enough_candles": "{symbol}의 1분봉 캔들이 부족하여 변동성을 계산하지 않습니다.",
+      "bucket_increased": "{symbol} 변동 구간 상승: 이전 {prevPercent}% (버킷 {prevBucket}%), 현재 {currPercent}% (버킷 {currBucket}%)",
+      "check_failed": "{symbol} 변동성 계산 중 오류가 발생했습니다.",
+      "no_trigger": "이번 틱에서 새로운 변동 구간에 진입한 종목이 없습니다.",
+      "trigger_start": "{count}개 종목에 대해 변동성 기반 잔고 추천을 실행합니다.",
+      "no_users": "스케줄이 활성화된 사용자가 없습니다.",
+      "trade_failed": "사용자 {userId}의 변동성 기반 거래 실행 중 오류가 발생했습니다."
     }
   },
   "trade": {

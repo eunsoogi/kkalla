@@ -25,6 +25,7 @@ import { TradeModule } from './modules/trade/trade.module';
 import { TranslateModule } from './modules/translate/translate.module';
 import { UpbitModule } from './modules/upbit/upbit.module';
 import { UserModule } from './modules/user/user.module';
+import { MarketVolatilityModule } from './modules/volatility/volatility.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { UserModule } from './modules/user/user.module';
     ProfitModule,
     CategoryModule,
     FeatureModule,
+    MarketVolatilityModule,
   ],
 })
 export class AppModule {}

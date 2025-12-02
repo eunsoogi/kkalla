@@ -106,10 +106,23 @@ export class TradeService implements OnModuleInit {
     this.logger.log(this.i18n.t('logging.sqs.message.start', { args: { id: messageId } }));
 
     try {
-      const { user, inferences, buyAvailable } = JSON.parse(message.Body);
+      const messageBody = JSON.parse(message.Body);
+      const { type, user, inferences, buyAvailable } = messageBody;
 
-      // 포트폴리오 조정 실행
-      const trades = await this.processUserItems(user, inferences, buyAvailable);
+      // 메시지 타입에 따라 다른 처리 함수 호출
+      // type이 없으면 기존 메시지로 간주하여 'schedule' 타입으로 처리 (하위 호환성)
+      const messageType = type || 'schedule';
+
+      let trades: Trade[];
+
+      if (messageType === 'volatility') {
+        // 변동성 감지 메시지: 감지된 종목만 거래
+        trades = await this.processUserItemsForVolatility(user, inferences, buyAvailable ?? true);
+      } else {
+        // 스케줄 메시지: 기존 로직 (전체 포트폴리오 조정)
+        trades = await this.processUserItems(user, inferences, buyAvailable ?? true);
+      }
+
       this.logger.debug(trades);
 
       // 수익금 알림
@@ -161,7 +174,46 @@ export class TradeService implements OnModuleInit {
         (user) =>
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
-            MessageBody: JSON.stringify({ user, inferences, buyAvailable }),
+            MessageBody: JSON.stringify({ type: 'schedule', user, inferences, buyAvailable }),
+          }),
+      );
+
+      const results = await Promise.all(messages.map((message) => this.sqs.send(message)));
+      this.logger.debug(results);
+      this.logger.log(this.i18n.t('logging.sqs.producer.complete'));
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.sqs.producer.error', { args: { error } }));
+      throw error;
+    }
+  }
+
+  /**
+   * 변동성 감지 시 SQS를 통해 메시지 전송.
+   *
+   * - 기존 `produceMessage`와 달리 메시지 타입을 'volatility'로 설정
+   * - 같은 큐를 사용하지만 메시지 타입으로 구분하여 처리
+   *
+   * @param users 사용자 목록
+   * @param inferences 감지된 종목들의 추론 결과
+   * @param buyAvailable 매수 가능 여부
+   */
+  public async produceMessageForVolatility(
+    users: User[],
+    inferences: BalanceRecommendationData[],
+    buyAvailable: boolean = true,
+  ): Promise<void> {
+    this.logger.log(
+      this.i18n.t('logging.sqs.producer.start', {
+        args: { count: users.length },
+      }),
+    );
+
+    try {
+      const messages = users.map(
+        (user) =>
+          new SendMessageCommand({
+            QueueUrl: this.queueUrl,
+            MessageBody: JSON.stringify({ type: 'volatility', user, inferences, buyAvailable }),
           }),
       );
 
@@ -432,6 +484,111 @@ export class TradeService implements OnModuleInit {
     const allTrades: Trade[] = [...nonBalanceRecommendationTrades, ...excludedTrades, ...includedTrades].filter(
       (item) => item !== null,
     );
+
+    if (allTrades.length > 0) {
+      await this.notifyService.notify(
+        user,
+        this.i18n.t('notify.order.result', {
+          args: {
+            transactions: allTrades
+              .map((trade) =>
+                this.i18n.t('notify.order.transaction', {
+                  args: {
+                    symbol: trade.symbol,
+                    type: this.i18n.t(`label.order.type.${trade.type}`),
+                    amount: formatNumber(trade.amount),
+                    profit: formatNumber(trade.profit),
+                  },
+                }),
+              )
+              .join('\n'),
+          },
+        }),
+      );
+    }
+
+    // 클라이언트 초기화
+    this.clearClients();
+
+    return allTrades;
+  }
+
+  /**
+   * 변동성 감지 시 감지된 종목만 거래하는 함수.
+   *
+   * - `processUserItems`와 달리 기존 보유 종목을 매도하지 않음
+   * - 감지된 종목들에 대해서만 매수/매도 거래를 수행
+   * - 편입/편출 결정은 감지된 종목들에 대해서만 수행
+   *
+   * @param user 사용자
+   * @param inferences 감지된 종목들의 추론 결과
+   * @param buyAvailable 매수 가능 여부
+   * @returns 실행된 거래 목록
+   */
+  public async processUserItemsForVolatility(
+    user: User,
+    inferences: BalanceRecommendationData[],
+    buyAvailable: boolean = true,
+  ): Promise<Trade[]> {
+    // 권한이 있는 추론만 필터링
+    const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
+
+    if (authorizedBalanceRecommendations.length === 0) {
+      return [];
+    }
+
+    await this.notifyService.notify(
+      user,
+      this.i18n.t('notify.inference.result', {
+        args: {
+          transactions: authorizedBalanceRecommendations
+            .map((recommendation) =>
+              this.i18n.t('notify.inference.transaction', {
+                args: {
+                  symbol: recommendation.symbol,
+                  rate: Math.floor(recommendation.rate * 100),
+                },
+              }),
+            )
+            .join('\n'),
+        },
+      }),
+    );
+
+    // 유저 계좌 조회
+    const balances = await this.upbitService.getBalances(user);
+
+    if (!balances) return [];
+
+    // 감지된 종목들에 대해서만 거래 요청 생성
+    // 기존 보유 종목은 매도하지 않으므로 nonBalanceRecommendationTradeRequests와 excludedTradeRequests는 생성하지 않음
+    // 감지된 종목들 중에서 rate > 0인 것들만 필터링하고 정렬
+    const sortedRecommendations = this.sortBalanceRecommendations(
+      authorizedBalanceRecommendations.filter((item) => item.rate > this.MINIMUM_TRADE_RATE),
+    );
+
+    // 감지된 종목들에 대한 거래 요청 생성 (count 제한 없이 모든 감지된 종목 처리)
+    // rate는 단일 코인 기준 집중투자 비율이므로 그대로 사용
+    let includedTradeRequests: TradeRequest[] = sortedRecommendations
+      .map((inference) => ({
+        symbol: inference.symbol,
+        diff: this.calculateDiff(balances, inference.symbol, inference.rate, inference.category),
+        balances,
+        inference,
+      }))
+      .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬
+
+    if (!buyAvailable) {
+      includedTradeRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    }
+
+    // 편입 처리 (감지된 종목들에 대해서만)
+    const includedTrades: Trade[] = await Promise.all(
+      includedTradeRequests.map((request) => this.executeTrade(user, request)),
+    );
+
+    // 메시지 전송
+    const allTrades: Trade[] = includedTrades.filter((item) => item !== null);
 
     if (allTrades.length > 0) {
       await this.notifyService.notify(
