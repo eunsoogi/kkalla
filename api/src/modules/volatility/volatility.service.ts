@@ -4,12 +4,15 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { I18nService } from 'nestjs-i18n';
 
 import { HistoryService } from '@/modules/history/history.service';
-import { RecommendationItem } from '@/modules/inference/inference.interface';
+import { BalanceRecommendationData, RecommendationItem } from '@/modules/inference/inference.interface';
 import { InferenceService } from '@/modules/inference/inference.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
+import { User } from '@/modules/user/entities/user.entity';
 
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
+import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
+import { TradeService } from '../trade/trade.service';
 import { SymbolVolatility } from './volatility.interface';
 
 /**
@@ -44,6 +47,8 @@ export class MarketVolatilityService {
    * @param upbitService     Upbit 1분봉 캔들 조회
    * @param inferenceService 변동성 증가 종목에 대한 잔고 추천 추론 실행
    * @param slackService     변동성 트리거 발생 시 서버 Slack 채널로 알림 전송
+   * @param tradeService     변동성 감지 시 실제 거래 실행
+   * @param scheduleService  스케줄 활성화된 사용자 목록 조회
    * @param i18n             i18n 기반 로그/알림 메시지 포맷팅
    */
   constructor(
@@ -51,6 +56,8 @@ export class MarketVolatilityService {
     private readonly upbitService: UpbitService,
     private readonly inferenceService: InferenceService,
     private readonly slackService: SlackService,
+    private readonly tradeService: TradeService,
+    private readonly scheduleService: ScheduleService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -100,6 +107,8 @@ export class MarketVolatilityService {
    * BTC/KRW 변동성 감지 시 전체 재추론 트리거.
    *
    * - 1%p 단위 버킷 증가를 감지했을 때 history 전체에 대해 잔고 추천을 수행한다.
+   * - 추론 결과를 바탕으로 스케줄 활성화된 사용자들에 대해 실제 거래를 실행한다.
+   * - 기존 보유 종목은 매도하지 않고, 추론된 종목만 거래한다.
    * - 트리거 발생 여부를 boolean 으로 반환한다.
    */
   private async triggerBtcVolatility(historyItems: RecommendationItem[]): Promise<boolean> {
@@ -127,7 +136,17 @@ export class MarketVolatilityService {
     );
 
     // BTC/KRW 변동성 증가 시: history 아이템 전체 재추론
-    await this.inferenceService.balanceRecommendation(historyItems);
+    const inferences: BalanceRecommendationData[] = await this.inferenceService.balanceRecommendation(historyItems);
+
+    // 스케줄 활성화된 사용자 목록 조회
+    const users: User[] = await this.scheduleService.getUsers();
+
+    if (users.length === 0) {
+      this.logger.debug(this.i18n.t('logging.market.volatility.no_users'));
+    } else {
+      // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
+      await this.tradeService.produceMessageForVolatility(users, inferences, true);
+    }
 
     return true;
   }
@@ -260,7 +279,9 @@ export class MarketVolatilityService {
    *
    * - 변동성이 감지된 종목이 없으면 로그만 남기고 조용히 종료한다.
    * - 심볼 기준으로 중복을 제거한 뒤, 해당 심볼들에 대해
-   *   `InferenceService.balanceRecommendation` 을 호출한다.
+   *   `InferenceService.balanceRecommendation` 을 호출해 추론을 수행한다.
+   * - 추론 결과를 바탕으로 스케줄 활성화된 사용자들에 대해 실제 거래를 실행한다.
+   * - 기존 보유 종목은 매도하지 않고, 감지된 종목만 거래한다.
    * - 동시에 서버 Slack 채널로, 어떤 심볼들이 새로운 변동 구간에 진입했는지 알리는
    *   시스템 알림 메시지를 전송한다.
    *
@@ -288,7 +309,18 @@ export class MarketVolatilityService {
     );
 
     // 변동성이 감지된 종목들에 대해 잔고 추천 추론 실행
-    await this.inferenceService.balanceRecommendation(uniqueChangedItems);
+    const inferences: BalanceRecommendationData[] =
+      await this.inferenceService.balanceRecommendation(uniqueChangedItems);
+
+    // 스케줄 활성화된 사용자 목록 조회
+    const users: User[] = await this.scheduleService.getUsers();
+
+    if (users.length === 0) {
+      this.logger.debug(this.i18n.t('logging.market.volatility.no_users'));
+    } else {
+      // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
+      await this.tradeService.produceMessageForVolatility(users, inferences, true);
+    }
 
     // 변동성이 발생한 심볼 목록을 Slack 서버 채널로 알림 전송
     const symbolsText = uniqueChangedItems.map((item) => `> ${item.symbol}`).join('\n');
