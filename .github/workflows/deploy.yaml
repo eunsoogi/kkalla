@@ -79,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Helm
-        uses: azure/setup-helm@v4.2.0
+        uses: azure/setup-helm@v4
         with:
           version: latest
 
@@ -88,6 +88,10 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
+
+      - name: Setup host
+        run: |
+          echo "${{ secrets.KUBE_IP }} ${{ secrets.KUBE_HOST }}" | sudo tee -a /etc/hosts
 
       - name: Setup Helm secrets
         run: |
