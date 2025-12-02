@@ -68,21 +68,6 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
 - **추천 이유 (reason)**: 각 종목별 추천 핵심 근거를 1-2 문장으로 요약. (예: "RSI 과매도 구간 진입 및 MACD 골든크로스 발생")
 `;
 
-export const UPBIT_MARKET_DATA_LEGEND =
-  `범례: s=symbol, p=price, c24=change24h%, v24=volume24h(M), rsi=RSI14, ` +
-  `macd={m:macd,s:signal,h:histogram}, ma={20:SMA20,50:SMA50}, ` +
-  `bb={u:upper,l:lower,pb:percentB}, atr=normalizedATR, vol=volatility, liq=liquidityScore, pos=pricePosition`;
-
-export const MARKET_DATA_TEMPLATE = `[{{symbol}}] P: {{price}}, C: {{changePercent}}%, V: {{volumeM}}M, MCap: {{marketCapM}}M
-- RSI(14): {{rsi14}}, Stoch(K/D): {{stochK}}%/{{stochD}}%, Williams%R: {{williamsR}}%, MFI: {{mfi}}, CCI: {{cci}}
-- MACD(v/s/h): {{macdValue}}/{{macdSignal}}/{{macdHist}}
-- SMA(20/50/200): {{sma20}}/{{sma50}}/{{sma200}}
-- BB(u/m/l): {{bbUpper}}/{{bbMiddle}}/{{bbLower}}, %B: {{bbPercent}}%
-- ATR(14): {{atr14}}, Volatility: {{volatility}}%, VWAP: {{vwap}}
-- OBV(trend/sig): {{obvTrend}}/{{obvSignal}}
-- Support/Resistance: {{support1}}/{{resistance1}}
-- Trend(type/str): {{trendType}}/{{trendStrength}}, Divergence: {{divergence}}`;
-
 // GPT-5 모델 설정 - 상위 10개 종목 추천용
 export const UPBIT_MARKET_RECOMMENDATION_CONFIG = {
   model: 'gpt-5.1',

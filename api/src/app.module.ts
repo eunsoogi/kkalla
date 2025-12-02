@@ -9,13 +9,15 @@ import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { FeatureModule } from './modules/feature/feature.module';
 import { HealthModule } from './modules/health/health.module';
 import { HistoryModule } from './modules/history/history.module';
-import { InferenceModule } from './modules/inference/inference.module';
 import { IpModule } from './modules/ip/ip.module';
+import { MarketResearchModule } from './modules/market-research/market-research.module';
+import { MarketVolatilityModule } from './modules/market-volatility/market-volatility.module';
 import { NewsModule } from './modules/news/news.module';
 import { NotifyModule } from './modules/notify/notify.module';
 import { OpenaiModule } from './modules/openai/openai.module';
 import { PermissionModule } from './modules/permission/permission.module';
 import { ProfitModule } from './modules/profit/profit.module';
+import { RebalanceModule } from './modules/rebalance/rebalance.module';
 import { RedlockModule } from './modules/redlock/redlock.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
@@ -25,10 +27,11 @@ import { TradeModule } from './modules/trade/trade.module';
 import { TranslateModule } from './modules/translate/translate.module';
 import { UpbitModule } from './modules/upbit/upbit.module';
 import { UserModule } from './modules/user/user.module';
-import { MarketVolatilityModule } from './modules/volatility/volatility.module';
 
 @Module({
   imports: [
+    // Core modules
+    TypeOrmModule,
     RedlockModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || 'localhost',
@@ -36,31 +39,32 @@ import { MarketVolatilityModule } from './modules/volatility/volatility.module';
         password: process.env.REDIS_PASSWORD,
       },
     }),
-    ScheduleModule,
-    ErrorModule,
-    HealthModule,
     TranslateModule,
-    TypeOrmModule,
     SequenceModule,
+    // Feature modules (alphabetical order)
     AuthModule,
-    RoleModule,
-    PermissionModule,
-    UserModule,
-    IpModule,
-    OpenaiModule,
-    UpbitModule,
-    NewsModule,
-    FeargreedModule,
-    InferenceModule,
-    TradeModule,
-    HistoryModule,
     BlacklistModule,
-    SlackModule,
-    NotifyModule,
-    ProfitModule,
     CategoryModule,
+    ErrorModule,
+    FeargreedModule,
     FeatureModule,
+    HealthModule,
+    HistoryModule,
+    IpModule,
+    MarketResearchModule,
     MarketVolatilityModule,
+    NewsModule,
+    NotifyModule,
+    OpenaiModule,
+    PermissionModule,
+    ProfitModule,
+    RebalanceModule,
+    RoleModule,
+    ScheduleModule,
+    SlackModule,
+    TradeModule,
+    UpbitModule,
+    UserModule,
   ],
 })
 export class AppModule {}

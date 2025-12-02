@@ -17,6 +17,42 @@ export class OpenaiService {
     private readonly notifyService: NotifyService,
   ) {}
 
+  /**
+   * OpenAI 메시지 추가 헬퍼
+   *
+   * - ChatCompletionMessageParam 배열에 메시지를 추가합니다.
+   *
+   * @param messages 메시지 배열
+   * @param role 메시지 역할 (system, assistant, user)
+   * @param content 메시지 내용
+   */
+  public addMessage(
+    messages: ChatCompletionMessageParam[],
+    role: 'system' | 'assistant' | 'user',
+    content: string,
+  ): void {
+    messages.push({ role, content });
+  }
+
+  /**
+   * OpenAI 메시지 페어 추가 헬퍼 (i18n 지원)
+   *
+   * - i18n 키로 변환된 프롬프트와 데이터를 함께 추가합니다.
+   * - 프롬프트와 데이터를 각각 별도의 user 메시지로 추가합니다.
+   *
+   * @param messages 메시지 배열
+   * @param promptKey i18n 키
+   * @param data 데이터 객체 (JSON으로 변환됨)
+   * @param args i18n 인자 (선택적)
+   */
+  public addMessagePair(messages: ChatCompletionMessageParam[], promptKey: string, data: any, args?: any): void {
+    const content = String(this.i18n.t(promptKey, args));
+    const dataString = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+
+    this.addMessage(messages, 'user', content);
+    this.addMessage(messages, 'user', dataString);
+  }
+
   public async getServerClient() {
     const client = new OpenAI({
       project: process.env.OPENAI_PROJECT,

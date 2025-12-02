@@ -1,27 +1,12 @@
-import { Module } from '@nestjs/common';
-import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
+import { Module, forwardRef } from '@nestjs/common';
 
-import { BlacklistModule } from '../blacklist/blacklist.module';
-import { HistoryModule } from '../history/history.module';
-import { InferenceModule } from '../inference/inference.module';
-import { NotifyModule } from '../notify/notify.module';
-import { RedlockModule } from '../redlock/redlock.module';
-import { TradeModule } from '../trade/trade.module';
-import { UpbitModule } from '../upbit/upbit.module';
+import { MarketResearchModule } from '../market-research/market-research.module';
+import { RebalanceModule } from '../rebalance/rebalance.module';
 import { ScheduleController } from './schedule.controller';
 import { ScheduleService } from './schedule.service';
 
 @Module({
-  imports: [
-    NestScheduleModule.forRoot(),
-    RedlockModule,
-    NotifyModule,
-    TradeModule,
-    BlacklistModule,
-    HistoryModule,
-    InferenceModule,
-    UpbitModule,
-  ],
+  imports: [forwardRef(() => MarketResearchModule), forwardRef(() => RebalanceModule)],
   controllers: [ScheduleController],
   providers: [ScheduleService],
   exports: [ScheduleService],
