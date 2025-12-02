@@ -71,6 +71,11 @@ export class MarketVolatilityService {
   @Cron(CronExpression.EVERY_MINUTE)
   @WithRedlock({ duration: 30_000 })
   public async handleTick(): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(this.i18n.t('logging.schedule.skip'));
+      return;
+    }
+
     await this.checkMarketVolatility();
   }
 
@@ -87,7 +92,7 @@ export class MarketVolatilityService {
 
     if (!historyItems.length) {
       // 감시할 종목이 없으면 조용히 종료
-      this.logger.debug(this.i18n.t('logging.market.volatility.no_history'));
+      this.logger.log(this.i18n.t('logging.market.volatility.no_history'));
       return;
     }
 
@@ -155,7 +160,7 @@ export class MarketVolatilityService {
     const users: User[] = await this.scheduleService.getUsers();
 
     if (users.length === 0) {
-      this.logger.debug(this.i18n.t('logging.market.volatility.no_users'));
+      this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
     } else {
       // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
       await this.tradeService.produceMessageForVolatility(users, inferences, true);
@@ -259,7 +264,7 @@ export class MarketVolatilityService {
     const candles = await this.upbitService.getRecentMinuteCandles(symbol, 6);
 
     if (!candles || candles.length < 6) {
-      this.logger.debug(this.i18n.t('logging.market.volatility.not_enough_candles', { args: { symbol } }));
+      this.logger.log(this.i18n.t('logging.market.volatility.not_enough_candles', { args: { symbol } }));
       return null;
     }
 
@@ -310,7 +315,7 @@ export class MarketVolatilityService {
   private async triggerVolatility(volatileItems: RecommendationItem[]): Promise<boolean> {
     if (!volatileItems.length) {
       // 변동성이 감지된 종목이 없다면 아무 작업도 하지 않음
-      this.logger.debug(this.i18n.t('logging.market.volatility.no_trigger'));
+      this.logger.log(this.i18n.t('logging.market.volatility.no_trigger'));
       return false;
     }
 
@@ -336,7 +341,7 @@ export class MarketVolatilityService {
     const users: User[] = await this.scheduleService.getUsers();
 
     if (users.length === 0) {
-      this.logger.debug(this.i18n.t('logging.market.volatility.no_users'));
+      this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
     } else {
       // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
       await this.tradeService.produceMessageForVolatility(users, inferences, true);

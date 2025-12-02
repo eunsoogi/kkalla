@@ -116,4 +116,4 @@ export class NotifySeeder implements Seeder {
   }
 }
 
-export const seeders = [UserSeeder, TradeSeeder, NotifySeeder, BalanceRecommendationSeeder];
+export const seeders = [UserSeeder, BalanceRecommendationSeeder, TradeSeeder, NotifySeeder];
