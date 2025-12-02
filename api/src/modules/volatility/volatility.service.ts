@@ -110,9 +110,22 @@ export class MarketVolatilityService {
    * - 추론 결과를 바탕으로 스케줄 활성화된 사용자들에 대해 실제 거래를 실행한다.
    * - 기존 보유 종목은 매도하지 않고, 추론된 종목만 거래한다.
    * - 트리거 발생 여부를 boolean 으로 반환한다.
+   * - BTC 변동성 계산 실패 시 에러를 로그하고 false를 반환하여 개별 심볼 체크가 계속 진행되도록 한다.
    */
   private async triggerBtcVolatility(historyItems: RecommendationItem[]): Promise<boolean> {
-    const btcVolatility = await this.calculateSymbolVolatility(this.BTC_SYMBOL, this.BTC_VOLATILITY_BUCKET_STEP);
+    let btcVolatility: SymbolVolatility | null;
+
+    try {
+      btcVolatility = await this.calculateSymbolVolatility(this.BTC_SYMBOL, this.BTC_VOLATILITY_BUCKET_STEP);
+    } catch (error) {
+      // BTC 변동성 계산 오류는 전체 흐름을 깨지 않고 로그만 남김
+      // 개별 심볼 체크가 계속 진행될 수 있도록 false 반환
+      this.logger.error(
+        this.i18n.t('logging.market.volatility.check_failed', { args: { symbol: this.BTC_SYMBOL } }),
+        error,
+      );
+      return false;
+    }
 
     if (!btcVolatility?.triggered) {
       return false;
