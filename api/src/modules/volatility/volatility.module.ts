@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 
 import { HistoryModule } from '../history/history.module';
 import { InferenceModule } from '../inference/inference.module';
@@ -9,7 +10,15 @@ import { UpbitModule } from '../upbit/upbit.module';
 import { MarketVolatilityService } from './volatility.service';
 
 @Module({
-  imports: [HistoryModule, InferenceModule, UpbitModule, SlackModule, TradeModule, ScheduleModule],
+  imports: [
+    NestScheduleModule.forRoot(),
+    HistoryModule,
+    InferenceModule,
+    UpbitModule,
+    SlackModule,
+    TradeModule,
+    ScheduleModule,
+  ],
   providers: [MarketVolatilityService],
 })
 export class MarketVolatilityModule {}
