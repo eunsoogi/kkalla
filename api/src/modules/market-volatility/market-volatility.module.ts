@@ -10,6 +10,7 @@ import { NewsModule } from '../news/news.module';
 import { NotifyModule } from '../notify/notify.module';
 import { OpenaiModule } from '../openai/openai.module';
 import { ProfitModule } from '../profit/profit.module';
+import { RedlockModule } from '../redlock/redlock.module';
 import { ScheduleModule } from '../schedule/schedule.module';
 import { SlackModule } from '../slack/slack.module';
 import { UpbitModule } from '../upbit/upbit.module';
@@ -18,6 +19,7 @@ import { MarketVolatilityService } from './market-volatility.service';
 @Module({
   imports: [
     NestScheduleModule.forRoot(),
+    RedlockModule,
     HistoryModule,
     UpbitModule,
     SlackModule,
