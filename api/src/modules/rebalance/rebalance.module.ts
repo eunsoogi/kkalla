@@ -1,5 +1,4 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 
 import { BlacklistModule } from '../blacklist/blacklist.module';
 import { CategoryModule } from '../category/category.module';
@@ -20,7 +19,6 @@ import { RebalanceService } from './rebalance.service';
 
 @Module({
   imports: [
-    NestScheduleModule.forRoot(),
     RedlockModule,
     BlacklistModule,
     CategoryModule,

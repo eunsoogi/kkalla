@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 
 import { TypeOrmModule } from './databases/typeorm.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -32,6 +33,7 @@ import { UserModule } from './modules/user/user.module';
   imports: [
     // Core modules
     TypeOrmModule,
+    NestScheduleModule.forRoot(),
     RedlockModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || 'localhost',

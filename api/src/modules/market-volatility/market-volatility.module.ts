@@ -1,5 +1,4 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 
 import { CategoryModule } from '../category/category.module';
 import { ErrorModule } from '../error/error.module';
@@ -18,7 +17,6 @@ import { MarketVolatilityService } from './market-volatility.service';
 
 @Module({
   imports: [
-    NestScheduleModule.forRoot(),
     RedlockModule,
     HistoryModule,
     UpbitModule,
