@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 
 import { BlacklistModule } from '../blacklist/blacklist.module';
 import { ErrorModule } from '../error/error.module';
@@ -16,7 +15,6 @@ import { MarketResearchService } from './market-research.service';
 
 @Module({
   imports: [
-    NestScheduleModule.forRoot(),
     RedlockModule,
     NotifyModule,
     BlacklistModule,
