@@ -361,9 +361,13 @@ export class MarketVolatilityService implements OnModuleInit {
     }
 
     // BTC 변동성이 발생했음을 Slack 서버 채널로 알림 전송
+    const btcThreshold = (this.BTC_VOLATILITY_BUCKET_STEP * 100).toFixed(0);
     await this.slackService.sendServer({
       message: this.i18n.t('notify.volatility.result', {
-        args: { symbols: `> ${this.BTC_SYMBOL}` },
+        args: {
+          symbols: `> ${this.BTC_SYMBOL}`,
+          threshold: btcThreshold,
+        },
       }),
     });
 
@@ -395,7 +399,7 @@ export class MarketVolatilityService implements OnModuleInit {
           const { symbol } = item;
 
           try {
-            // 개별 종목에 대한 변동성 계산 (기본 5% step)
+            // 개별 종목에 대한 변동성 계산
             const volatility = await this.calculateSymbolVolatility(symbol);
             if (!volatility) {
               return null;
@@ -403,7 +407,7 @@ export class MarketVolatilityService implements OnModuleInit {
 
             const { triggered, prevPercent, currPercent, prevBucket, currBucket } = volatility;
 
-            // 버킷이 증가하지 않았다면(새로운 5%p 구간에 진입하지 않았다면) 스킵
+            // 버킷이 증가하지 않았다면(새로운 변동 구간에 진입하지 않았다면) 스킵
             if (!triggered) {
               return null;
             }
@@ -555,9 +559,14 @@ export class MarketVolatilityService implements OnModuleInit {
 
     // 변동성이 발생한 심볼 목록을 Slack 서버 채널로 알림 전송
     const symbolsText = uniqueChangedItems.map((item) => `> ${item.symbol}`).join('\n');
+    const threshold = (this.VOLATILITY_BUCKET_STEP * 100).toFixed(0);
+
     await this.slackService.sendServer({
       message: this.i18n.t('notify.volatility.result', {
-        args: { symbols: symbolsText },
+        args: {
+          symbols: symbolsText,
+          threshold,
+        },
       }),
     });
 

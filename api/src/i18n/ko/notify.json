@@ -28,6 +28,6 @@
     "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}"
   },
   "volatility": {
-    "result": "*[시스템 알림]* 다음 종목에서 새로운 5%p 변동 구간에 진입했습니다.\n\n{symbols}"
+    "result": "다음 종목에서 {threshold}%p 이상의 변동성이 발생했습니다.\n\n{symbols}"
   }
 }
