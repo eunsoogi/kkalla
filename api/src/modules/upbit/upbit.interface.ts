@@ -125,6 +125,26 @@ export interface MarketFeatures {
     strength: number; // 추세 강도 (0-100)
     divergence: 'bullish' | 'bearish' | 'none';
   };
+
+  // 예측 관련 지표들
+  prediction?: {
+    // 추세 지속성 점수 (0-100): 현재 추세가 지속될 가능성
+    trendPersistence: number;
+    // 가격 가속도: 가격 변화의 가속도 (양수=가속, 음수=감속)
+    priceAcceleration: number;
+    // 거래량 가속도: 거래량 변화의 가속도
+    volumeAcceleration: number;
+    // 예측 신뢰도 점수 (0-100): 여러 지표가 일치하는 정도
+    confidence: number;
+    // 가격 목표 레벨
+    priceTargets?: {
+      bullish: number; // 낙관적 목표가
+      bearish: number; // 비관적 목표가
+      neutral: number; // 중립 목표가
+    };
+    // 모멘텀 강도 (0-100): 현재 모멘텀의 강도
+    momentumStrength: number;
+  };
 }
 
 export interface KrwMarketData {

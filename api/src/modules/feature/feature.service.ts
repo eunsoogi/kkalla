@@ -117,6 +117,16 @@ export class FeatureService {
       // 패턴 분석
       const patterns = this.analyzePatterns(candles1d, prices1d);
 
+      // 예측 관련 지표 계산
+      const prediction = this.calculatePredictionIndicators(
+        candles1d,
+        prices1d,
+        volumes1d,
+        currentPrice,
+        patterns,
+        supportResistance,
+      );
+
       const features: MarketFeatures = {
         symbol,
         baseAsset,
@@ -172,6 +182,7 @@ export class FeatureService {
         volumeRatio,
         supportResistance,
         patterns,
+        prediction,
       };
 
       // 모든 숫자 값의 소수점 부분을 유효숫자 3자리로 포맷팅 (정수는 그대로 유지)
@@ -737,12 +748,332 @@ export class FeatureService {
   }
 
   /**
+   * 예측 관련 지표 계산
+   */
+  private calculatePredictionIndicators(
+    candles: any[],
+    prices: number[],
+    volumes: number[],
+    currentPrice: number,
+    patterns: { trend: string; strength: number; divergence: string },
+    supportResistance: { support1: number; support2: number; resistance1: number; resistance2: number },
+  ) {
+    if (prices.length < 10 || volumes.length < 10) {
+      return {
+        trendPersistence: 50,
+        priceAcceleration: 0,
+        volumeAcceleration: 0,
+        confidence: 50,
+        momentumStrength: 50,
+      };
+    }
+
+    // 1. 추세 지속성 점수 계산
+    const trendPersistence = this.calculateTrendPersistence(prices, patterns);
+
+    // 2. 가격 가속도 계산
+    const priceAcceleration = this.calculatePriceAcceleration(prices);
+
+    // 3. 거래량 가속도 계산
+    const volumeAcceleration = this.calculateVolumeAcceleration(volumes);
+
+    // 4. 모멘텀 강도 계산
+    const momentumStrength = this.calculateMomentumStrength(prices, volumes, patterns);
+
+    // 5. 예측 신뢰도 점수 계산
+    const confidence = this.calculatePredictionConfidence(prices, volumes, patterns, supportResistance, currentPrice);
+
+    // 6. 가격 목표 레벨 계산
+    const priceTargets = this.calculatePriceTargets(currentPrice, supportResistance, patterns, priceAcceleration);
+
+    return {
+      trendPersistence,
+      priceAcceleration,
+      volumeAcceleration,
+      confidence,
+      priceTargets,
+      momentumStrength,
+    };
+  }
+
+  /**
+   * 추세 지속성 점수 계산 (0-100)
+   */
+  private calculateTrendPersistence(
+    prices: number[],
+    patterns: { trend: string; strength: number; divergence: string },
+  ): number {
+    if (prices.length < 20) return 50;
+
+    // 최근 20일간의 가격 변화 방향 일치도 계산
+    const recentPrices = prices.slice(-20);
+    const priceChanges = [];
+    for (let i = 1; i < recentPrices.length; i++) {
+      priceChanges.push(recentPrices[i] - recentPrices[i - 1]);
+    }
+
+    // 추세 방향 일치도: 같은 방향으로 움직인 비율
+    const trend = patterns.trend;
+    let consistentMoves = 0;
+    if (trend === 'uptrend') {
+      consistentMoves = priceChanges.filter((change) => change > 0).length;
+    } else if (trend === 'downtrend') {
+      consistentMoves = priceChanges.filter((change) => change < 0).length;
+    } else {
+      // 횡보: 변화가 작은 비율
+      const avgChange = Math.abs(priceChanges.reduce((a, b) => a + b, 0) / priceChanges.length);
+      const smallChanges = priceChanges.filter((change) => Math.abs(change) < avgChange * 0.5).length;
+      consistentMoves = smallChanges;
+    }
+
+    const consistency = (consistentMoves / priceChanges.length) * 100;
+    const strengthFactor = patterns.strength / 100;
+
+    // 추세 지속성 = 일치도 * 추세 강도
+    return Math.min(consistency * strengthFactor, 100);
+  }
+
+  /**
+   * 가격 가속도 계산
+   */
+  private calculatePriceAcceleration(prices: number[]): number {
+    if (prices.length < 10) return 0;
+
+    const recentPrices = prices.slice(-10);
+    const velocities: number[] = [];
+    const accelerations: number[] = [];
+
+    // 속도 계산 (가격 변화율)
+    for (let i = 1; i < recentPrices.length; i++) {
+      const velocity = (recentPrices[i] - recentPrices[i - 1]) / recentPrices[i - 1];
+      velocities.push(velocity);
+    }
+
+    // 가속도 계산 (속도 변화율)
+    for (let i = 1; i < velocities.length; i++) {
+      const acceleration = velocities[i] - velocities[i - 1];
+      accelerations.push(acceleration);
+    }
+
+    // 평균 가속도 반환 (정규화)
+    const avgAcceleration = accelerations.reduce((a, b) => a + b, 0) / accelerations.length;
+    return avgAcceleration * 10000; // 10000배 스케일링
+  }
+
+  /**
+   * 거래량 가속도 계산
+   */
+  private calculateVolumeAcceleration(volumes: number[]): number {
+    if (volumes.length < 10) return 0;
+
+    const recentVolumes = volumes.slice(-10);
+    const volumeChanges: number[] = [];
+
+    // 거래량 변화율 계산
+    for (let i = 1; i < recentVolumes.length; i++) {
+      if (recentVolumes[i - 1] > 0) {
+        const change = (recentVolumes[i] - recentVolumes[i - 1]) / recentVolumes[i - 1];
+        volumeChanges.push(change);
+      }
+    }
+
+    if (volumeChanges.length < 2) return 0;
+
+    // 가속도 계산 (변화율의 변화)
+    const accelerations: number[] = [];
+    for (let i = 1; i < volumeChanges.length; i++) {
+      accelerations.push(volumeChanges[i] - volumeChanges[i - 1]);
+    }
+
+    // 평균 가속도 반환
+    return accelerations.reduce((a, b) => a + b, 0) / accelerations.length;
+  }
+
+  /**
+   * 모멘텀 강도 계산 (0-100)
+   */
+  private calculateMomentumStrength(
+    prices: number[],
+    volumes: number[],
+    patterns: { trend: string; strength: number; divergence: string },
+  ): number {
+    if (prices.length < 10) return 50;
+
+    // 가격 모멘텀
+    const recentPrices = prices.slice(-10);
+    const priceMomentum = (recentPrices[recentPrices.length - 1] - recentPrices[0]) / recentPrices[0];
+
+    // 거래량 모멘텀
+    const recentVolumes = volumes.slice(-10);
+    const avgVolume = recentVolumes.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+    const recentAvgVolume = recentVolumes.slice(-5).reduce((a, b) => a + b, 0) / 5;
+    const volumeMomentum = avgVolume > 0 ? (recentAvgVolume - avgVolume) / avgVolume : 0;
+
+    // 추세 강도
+    const trendStrength = patterns.strength;
+
+    // 모멘텀 강도 = (가격 모멘텀 + 거래량 모멘텀 + 추세 강도) / 3
+    const priceMomentumScore = Math.min(Math.abs(priceMomentum) * 1000, 100);
+    const volumeMomentumScore = Math.min(Math.abs(volumeMomentum) * 100, 100);
+
+    return priceMomentumScore * 0.4 + volumeMomentumScore * 0.3 + trendStrength * 0.3;
+  }
+
+  /**
+   * 예측 신뢰도 점수 계산 (0-100)
+   */
+  private calculatePredictionConfidence(
+    prices: number[],
+    volumes: number[],
+    patterns: { trend: string; strength: number; divergence: string },
+    supportResistance: { support1: number; support2: number; resistance1: number; resistance2: number },
+    currentPrice: number,
+  ): number {
+    let confidence = 50; // 기본값
+
+    // 1. 지표 일치도 (30%)
+    const indicatorAgreement = this.calculateIndicatorAgreement(prices, volumes, patterns);
+    confidence += indicatorAgreement * 0.3;
+
+    // 2. 지지/저항 근접도 (20%)
+    const supportResistanceProximity = this.calculateSupportResistanceProximity(currentPrice, supportResistance);
+    confidence += supportResistanceProximity * 0.2;
+
+    // 3. 거래량 확인 (25%)
+    const volumeConfirmation = this.calculateVolumeConfirmation(prices, volumes);
+    confidence += volumeConfirmation * 0.25;
+
+    // 4. 추세 강도 (25%)
+    confidence += (patterns.strength / 100) * 25;
+
+    return Math.min(Math.max(confidence, 0), 100);
+  }
+
+  /**
+   * 지표 일치도 계산
+   */
+  private calculateIndicatorAgreement(
+    prices: number[],
+    volumes: number[],
+    patterns: { trend: string; strength: number; divergence: string },
+  ): number {
+    if (prices.length < 20) return 50;
+
+    const recentPrices = prices.slice(-20);
+    const rsi = this.calculateRSI(recentPrices, 14);
+    const macd = this.calculateMACD(recentPrices, 12, 26, 9);
+
+    let agreement = 0;
+    let count = 0;
+
+    // RSI와 추세 일치도
+    if (patterns.trend === 'uptrend' && rsi > 50) {
+      agreement += 1;
+    } else if (patterns.trend === 'downtrend' && rsi < 50) {
+      agreement += 1;
+    }
+    count++;
+
+    // MACD와 추세 일치도
+    if (patterns.trend === 'uptrend' && macd.macd > macd.signal) {
+      agreement += 1;
+    } else if (patterns.trend === 'downtrend' && macd.macd < macd.signal) {
+      agreement += 1;
+    }
+    count++;
+
+    // 다이버전스 확인
+    if (patterns.divergence !== 'none') {
+      agreement += 0.5; // 다이버전스는 추가 신호
+    }
+    count += 0.5;
+
+    return (agreement / count) * 100;
+  }
+
+  /**
+   * 지지/저항 근접도 계산
+   */
+  private calculateSupportResistanceProximity(
+    currentPrice: number,
+    supportResistance: { support1: number; support2: number; resistance1: number; resistance2: number },
+  ): number {
+    // 현재 가격이 지지선이나 저항선에 가까울수록 신뢰도 높음
+    const distances = [
+      Math.abs(currentPrice - supportResistance.support1) / currentPrice,
+      Math.abs(currentPrice - supportResistance.support2) / currentPrice,
+      Math.abs(currentPrice - supportResistance.resistance1) / currentPrice,
+      Math.abs(currentPrice - supportResistance.resistance2) / currentPrice,
+    ];
+
+    const minDistance = Math.min(...distances);
+    // 5% 이내에 있으면 높은 신뢰도
+    if (minDistance < 0.05) return 100;
+    // 10% 이내에 있으면 중간 신뢰도
+    if (minDistance < 0.1) return 70;
+    // 그 외는 낮은 신뢰도
+    return 30;
+  }
+
+  /**
+   * 거래량 확인 계산
+   */
+  private calculateVolumeConfirmation(prices: number[], volumes: number[]): number {
+    if (prices.length < 10 || volumes.length < 10) return 50;
+
+    const recentPrices = prices.slice(-10);
+    const recentVolumes = volumes.slice(-10);
+
+    // 가격 상승 시 거래량 증가 확인
+    let confirmations = 0;
+    for (let i = 1; i < recentPrices.length; i++) {
+      const priceChange = recentPrices[i] - recentPrices[i - 1];
+      const volumeChange = recentVolumes[i] - recentVolumes[i - 1];
+
+      if ((priceChange > 0 && volumeChange > 0) || (priceChange < 0 && volumeChange < 0)) {
+        confirmations++;
+      }
+    }
+
+    return (confirmations / (recentPrices.length - 1)) * 100;
+  }
+
+  /**
+   * 가격 목표 레벨 계산
+   */
+  private calculatePriceTargets(
+    currentPrice: number,
+    supportResistance: { support1: number; support2: number; resistance1: number; resistance2: number },
+    patterns: { trend: string; strength: number; divergence: string },
+    priceAcceleration: number,
+  ): { bullish: number; bearish: number; neutral: number } {
+    // 기본 목표가: 지지/저항선 기반
+    let bullish = supportResistance.resistance1;
+    let bearish = supportResistance.support1;
+    let neutral = currentPrice;
+
+    // 추세와 가속도에 따라 조정
+    if (patterns.trend === 'uptrend' && priceAcceleration > 0) {
+      // 상승 추세 + 가속도 → 더 높은 목표가
+      bullish = supportResistance.resistance2 || supportResistance.resistance1 * 1.1;
+      neutral = (currentPrice + bullish) / 2;
+    } else if (patterns.trend === 'downtrend' && priceAcceleration < 0) {
+      // 하락 추세 + 감속 → 더 낮은 목표가
+      bearish = supportResistance.support2 || supportResistance.support1 * 0.9;
+      neutral = (currentPrice + bearish) / 2;
+    }
+
+    return { bullish, bearish, neutral };
+  }
+
+  /**
    * 마켓 데이터 범례 문자열
    */
   public readonly MARKET_DATA_LEGEND =
     `범례: s=symbol, p=price, c24=change24h%, v24=volume24h(M), rsi=RSI14, ` +
     `macd={m:macd,s:signal,h:histogram}, ma={20:SMA20,50:SMA50}, ` +
-    `bb={u:upper,l:lower,pb:percentB}, atr=normalizedATR, vol=volatility, liq=liquidityScore, pos=pricePosition`;
+    `bb={u:upper,l:lower,pb:percentB}, atr=normalizedATR, vol=volatility, liq=liquidityScore, pos=pricePosition, ` +
+    `pred={tp:trendPersistence,pa:priceAccel,va:volumeAccel,conf:confidence,ms:momentumStrength,targets={b:bullish,be:bearish,n:neutral}}`;
 
   /**
    * 마켓 데이터 템플릿
@@ -755,7 +1086,9 @@ export class FeatureService {
 - ATR(14): {{atr14}}, Volatility: {{volatility}}%, VWAP: {{vwap}}
 - OBV(trend/sig): {{obvTrend}}/{{obvSignal}}
 - Support/Resistance: {{support1}}/{{resistance1}}
-- Trend(type/str): {{trendType}}/{{trendStrength}}, Divergence: {{divergence}}`;
+- Trend(type/str): {{trendType}}/{{trendStrength}}, Divergence: {{divergence}}
+- Prediction: TP={{trendPersistence}}%, PA={{priceAccel}}, VA={{volumeAccel}}, Conf={{confidence}}%, MS={{momentumStrength}}%
+- Price Targets: Bullish={{targetBullish}}, Bearish={{targetBearish}}, Neutral={{targetNeutral}}`;
 
   /**
    * 마켓 특성 데이터를 압축 형태로 포맷팅
@@ -804,6 +1137,14 @@ export class FeatureService {
           trendType: feature.patterns?.trend || 'sideways',
           trendStrength: feature.patterns?.strength ?? 0,
           divergence: feature.patterns?.divergence || 'none',
+          trendPersistence: feature.prediction?.trendPersistence ?? 50,
+          priceAccel: feature.prediction?.priceAcceleration ?? 0,
+          volumeAccel: feature.prediction?.volumeAcceleration ?? 0,
+          confidence: feature.prediction?.confidence ?? 50,
+          momentumStrength: feature.prediction?.momentumStrength ?? 50,
+          targetBullish: feature.prediction?.priceTargets?.bullish ?? 0,
+          targetBearish: feature.prediction?.priceTargets?.bearish ?? 0,
+          targetNeutral: feature.prediction?.priceTargets?.neutral ?? 0,
         };
         return template(context);
       })
