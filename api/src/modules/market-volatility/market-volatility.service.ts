@@ -1187,14 +1187,9 @@ export class MarketVolatilityService implements OnModuleInit {
       this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
 
-    // 이전 추론 추가
-    const recentRecommendations = await this.fetchRecentRecommendations(symbol);
-    if (recentRecommendations.length > 0) {
-      this.openaiService.addMessagePair(messages, 'prompt.input.recent', recentRecommendations);
-    }
-
     // 개별 종목 feature 데이터 추가
     const marketFeatures = await this.featureService.extractMarketFeatures(symbol);
+
     const marketData = this.featureService.formatMarketData([marketFeatures]);
     this.openaiService.addMessage(messages, 'user', `${this.featureService.MARKET_DATA_LEGEND}\n\n${marketData}`);
 

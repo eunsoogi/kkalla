@@ -32,15 +32,42 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
   - **자유로운 소수점 사용**: 0.1, 0.3, 0.5 등 고정값이 아닌 정확한 분석에 기반한 세밀한 값 권장
   - **초기/기록 부재 시 기본값**: 이전 거래 기록이 제공되지 않는 경우 포지션 없음으로 간주하여 rate=0으로 표기 (보유 중인 경우 0은 즉시 전량 매도 의미)
 
-- **이전 거래 기록 연속성 규칙**:
-  - **변동성 임계값**: 새로운 분석 결과 rate와 이전 거래 기록의 rate 차이가 **5%p (0.05) 미만**인 경우
-  - **기존 포지션 유지**: 차이가 5%p 미만이면 **이전 거래 기록의 rate를 그대로 유지**
-  - **거래 비용 최적화**: 불필요한 소량 거래를 방지하여 수수료 손실 최소화
+- **이전 거래 기록 연속성 규칙 (수수료 최소화 핵심 규칙)**:
+  - **중요**: 이 규칙은 거래 수수료 절감을 위한 핵심 규칙입니다. 반드시 준수해야 합니다.
+  - **rate 변동성 지표 활용**: 입력 데이터에 제공되는 rate 변동성 지표를 반드시 확인하세요:
+    * latestRate: 최신 배치의 rate 값 (이전 rate)
+    * rateTrend: rate 변화 추세 ('increasing' | 'decreasing' | 'stable')
+    * rateVolatility: rate 변동 폭 (최대-최소 차이)
+    * rateChangeRate: 최근 rate 변화율
+    * rateStability: rate 안정성 점수 (0-100, 높을수록 안정적)
+    * batchCount: 분석에 사용된 배치 수
+  - **변동성 임계값**: 새로운 분석 결과 rate와 latestRate의 차이가 **5%p (0.05) 미만**인 경우
+  - **기존 포지션 유지**: 차이가 5%p 미만이면 **반드시 latestRate를 그대로 유지**해야 합니다
+  - **rate 변동성 지표 해석**:
+    * rateStability가 높고(70 이상) rateVolatility가 낮으면(0.05 미만) → 안정적이므로 이전 rate 유지 권장
+    * rateTrend가 'stable'이고 rateChangeRate가 작으면(0.05 미만) → 변화 없으므로 이전 rate 유지 권장
+    * rateVolatility가 높고(0.1 이상) rateChangeRate가 크면(0.05 이상) → 변동이 크므로 신중히 판단
+  - **현재 시장 feature 기반 판단 (핵심)**:
+    * **중요**: rate 변동성 지표와 함께 현재 시장 feature(가격, 거래량, 변동성, RSI, MACD, 볼린저 밴드 등)를 종합적으로 분석하여 rate 변화를 판단하세요.
+    * 현재 가격 변화율(priceChangePercent24h)이 작고(±2% 미만), 거래량이 안정적이며, 변동성이 낮으면 → 시장 상황 변화가 작으므로 이전 rate 유지 권장
+    * 현재 가격 변화율이 크고(±5% 이상), 거래량이 급증/급감했으며, 변동성이 높으면 → 시장 상황이 크게 변했으므로 rate 변경 고려
+    * RSI, MACD, 볼린저 밴드 등 기술적 지표가 중립적이고 안정적이면 → 시장 상황 변화가 작으므로 이전 rate 유지 권장
+    * 기술적 지표가 명확한 신호(과매수/과매도, 골든크로스/데드크로스 등)를 보이고 있고, 거래량도 이를 뒷받침하면 → rate 변경 고려
+    * 현재 시장 feature의 추세(trendType, trendStrength)가 이전과 유사하고 안정적이면 → 이전 rate 유지 권장
+    * 현재 시장 feature의 추세가 크게 변했고(상승→하락 또는 하락→상승), 모멘텀이 강하면 → rate 변경 고려
+  - **거래 비용 최적화**: 불필요한 소량 거래를 방지하여 수수료 손실 최소화가 최우선 목표입니다
   - **예시**:
-    * 이전 rate = 0.3, 새 분석 = 0.33 → 차이 3%p이므로 0.3 유지
-    * 이전 rate = 0.3, 새 분석 = 0.27 → 차이 3%p이므로 0.3 유지
-    * 이전 rate = 0.5, 새 분석 = 0.45 → 차이 5%p이므로 0.45 적용
-    * 이전 rate = 0.2, 새 분석 = 0.3 → 차이 10%p이므로 0.3 적용
+    * 이전 rate = 0.3, 새 분석 = 0.33, rateChangeRate = 0.03 → 차이 3%p이므로 0.3 유지 (거래 없음)
+    * 이전 rate = 0.3, 새 분석 = 0.27, rateChangeRate = -0.03 → 차이 3%p이므로 0.3 유지 (거래 없음)
+    * 이전 rate = 0.5, 새 분석 = 0.45, rateChangeRate = -0.05 → 차이 5%p이므로 0.45 적용 (거래 발생)
+    * 이전 rate = 0.2, 새 분석 = 0.3, rateChangeRate = 0.1 → 차이 10%p이므로 0.3 적용 (거래 발생)
+  - **주의사항**:
+    * rate 변동성 지표를 우선 확인하고, 현재 시장 feature(가격, 거래량, 변동성, RSI, MACD, 볼린저 밴드, 추세 등)를 종합적으로 분석할 것
+    * 작은 변동(5%p 미만)에 대해서는 과도하게 반응하지 말 것
+    * rateStability가 높고(70 이상) 현재 시장 feature가 안정적이면(가격 변화 작음, 기술적 지표 중립, 변동성 낮음) → 이전 rate 유지 권장 (수수료 절감)
+    * rateStability가 낮고(50 미만) 현재 시장 feature가 크게 변했으면(가격 변화 큼, 기술적 지표 명확한 신호, 변동성 높음) → rate 변경 고려
+    * rate 변동성 지표와 현재 시장 feature를 함께 고려하여 종합적으로 판단할 것
+    * 단, 명확한 신호(5%p 이상 차이 또는 현재 시장 feature가 크게 변했을 때)가 있을 때만 rate 변경을 제안해야 함
 
 - **적극적 거래 가이드라인** (기회 포착 우선):
   - 시장 기회를 놓치지 않기 위해 적극적이고 신속한 거래 판단 권장
@@ -198,8 +225,8 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 
 export const UPBIT_BALANCE_RECOMMENDATION_CONFIG = {
   model: 'gpt-5.1',
-  max_completion_tokens: 8196,
-  reasoning_effort: 'medium' as const,
+  max_completion_tokens: 16384,
+  reasoning_effort: 'high' as const,
   verbosity: 'low' as const,
   service_tier: 'flex' as const,
   message: {
