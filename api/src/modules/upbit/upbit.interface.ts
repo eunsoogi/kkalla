@@ -145,6 +145,22 @@ export interface MarketFeatures {
     // 모멘텀 강도 (0-100): 현재 모멘텀의 강도
     momentumStrength: number;
   };
+
+  // 이전 배치 rate 변동성 지표 (5%p 차이 감지를 위해)
+  rateVolatility?: {
+    // 최신 배치의 rate 값
+    latestRate: number;
+    // rate 변화 추세: 'increasing' | 'decreasing' | 'stable'
+    rateTrend: 'increasing' | 'decreasing' | 'stable';
+    // rate 변동 폭: 최근 배치들 중 최대 rate와 최소 rate의 차이
+    rateVolatility: number;
+    // 최근 rate 변화율: 최신 배치와 이전 배치 간 rate 차이
+    rateChangeRate: number;
+    // rate 안정성 점수 (0-100): 낮을수록 변동이 큼, 높을수록 안정적
+    rateStability: number;
+    // 최근 배치 수: 분석에 사용된 배치 수
+    batchCount: number;
+  };
 }
 
 export interface KrwMarketData {

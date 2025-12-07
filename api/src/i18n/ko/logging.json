@@ -18,7 +18,8 @@
       "failed_one": "{symbol} 종목의 특성 추출에 실패했습니다.",
       "market_data_failed": "{symbol}의 마켓 데이터 가져오기에 실패했습니다.",
       "extract_failed": "{symbol}의 특성 추출에 실패했습니다.",
-      "skipping": "오류로 인해 {symbol}을 건너뜁니다."
+      "skipping": "오류로 인해 {symbol}을 건너뜁니다.",
+      "recent_recommendations_failed": "{symbol}의 이전 추론 데이터 가져오기에 실패했습니다."
     }
   },
   "news": {

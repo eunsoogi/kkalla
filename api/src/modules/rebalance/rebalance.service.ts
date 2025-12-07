@@ -268,7 +268,7 @@ export class RebalanceService implements OnModuleInit {
   /**
    * 기존 보유 종목만 리밸런싱 스케줄
    *
-   * - 매일 0, 2, 4, 8, 10, 12, 14, 16, 18, 20, 22시 35분에 실행됩니다.
+   * - 매일 0, 4, 8, 12, 16, 20시 35분에 실행됩니다 (4시간 간격).
    * - 기존 보유 종목만 대상으로 리밸런싱을 수행합니다.
    * - 포트폴리오 비율을 재조정하여 최적의 배분을 유지합니다.
    */
@@ -1112,14 +1112,9 @@ export class RebalanceService implements OnModuleInit {
       this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
 
-    // 이전 추론 추가
-    const recentRecommendations = await this.fetchRecentRecommendations(symbol);
-    if (recentRecommendations.length > 0) {
-      this.openaiService.addMessagePair(messages, 'prompt.input.recent', recentRecommendations);
-    }
-
     // 개별 종목 feature 데이터 추가
     const marketFeatures = await this.featureService.extractMarketFeatures(symbol);
+
     const marketData = this.featureService.formatMarketData([marketFeatures]);
     this.openaiService.addMessage(messages, 'user', `${this.featureService.MARKET_DATA_LEGEND}\n\n${marketData}`);
 
