@@ -40,7 +40,7 @@ const Page: React.FC = () => {
         </div>
         <h1 className='col-span-12 text-xl text-black dark:text-white mt-6'>{t('title.coin')}</h1>
         <div className='lg:col-span-4 col-span-12'>
-          <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
+          <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words'>
             <h5 className='card-title text-dark dark:text-white mb-6'>{t('feargreed.title')}</h5>
             <div className='flex flex-col mt-2'>
               <FeargreedGauge />
