@@ -3,7 +3,7 @@
 import React from 'react';
 
 import { Icon } from '@iconify/react';
-import { Sidebar } from 'flowbite-react';
+import { Sidebar, SidebarItemGroup, SidebarItems } from 'flowbite-react';
 import SimpleBar from 'simplebar-react';
 
 import FullLogo from '../../shared/logo/FullLogo';
@@ -15,19 +15,19 @@ const SidebarLayout = () => {
   const sidebarContent = SidebarContent();
 
   return (
-    <div className='xl:block hidden'>
+    <div className='hidden xl:block'>
       <div className='flex'>
         <Sidebar
-          className='fixed menu-sidebar bg-white dark:bg-dark z-[10]'
+          className='fixed menu-sidebar bg-white dark:bg-dark z-10'
           aria-label='Sidebar with multi-level dropdown example'
         >
           <div className='px-6 py-3 brand-logo'>
             <FullLogo />
           </div>
 
-          <SimpleBar className='h-[calc(100vh_-_120px)]'>
-            <Sidebar.Items className='px-6 mb-12'>
-              <Sidebar.ItemGroup className='sidebar-nav'>
+          <SimpleBar className='h-[calc(100vh-120px)]'>
+            <SidebarItems className='px-6 mb-12'>
+              <SidebarItemGroup className='sidebar-nav'>
                 {sidebarContent.map((item, index) => (
                   <React.Fragment key={index}>
                     <h5 className='text-link dark:text-darklink text-xs caption'>
@@ -51,8 +51,8 @@ const SidebarLayout = () => {
                     ))}
                   </React.Fragment>
                 ))}
-              </Sidebar.ItemGroup>
-            </Sidebar.Items>
+              </SidebarItemGroup>
+            </SidebarItems>
           </SimpleBar>
         </Sidebar>
       </div>

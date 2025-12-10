@@ -7,10 +7,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Button } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
+import UpbitGuideImg from '@/../public/images/register/upbit-guide.png';
 import { ColoredBadge } from '@/components/common/ColoredBadge';
 
 import { getIpAction } from './action';
-import UpbitGuideImg from '/public/images/register/upbit-guide.png';
 
 const ipQueryKey = ['upbit', 'ip'];
 
@@ -84,9 +84,7 @@ const UpbitGuide: React.FC = () => {
       </div>
       <Image
         onClick={handleGuideClick}
-        src={UpbitGuideImg.src}
-        width={UpbitGuideImg.width}
-        height={UpbitGuideImg.height}
+        src={UpbitGuideImg}
         alt={t('upbit.guide')}
         className='rounded-xl w-full mt-6 cursor-pointer'
       />

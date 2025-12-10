@@ -18,7 +18,7 @@ const Page: React.FC = () => {
 
   return (
     <>
-      <div className='grid grid-cols-12 gap-4 lg:gap-30'>
+      <div className='grid grid-cols-12 gap-4 lg:gap-8'>
         <div className='lg:col-span-4 col-span-12'>
           <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words'>
             <h5 className='card-title text-dark dark:text-white'>{t('trade.profit')}</h5>
@@ -38,7 +38,7 @@ const Page: React.FC = () => {
             <TradeList />
           </div>
         </div>
-        <h1 className='col-span-12 text-xl text-black dark:text-white'>{t('title.coin')}</h1>
+        <h1 className='col-span-12 text-xl text-black dark:text-white mt-6'>{t('title.coin')}</h1>
         <div className='lg:col-span-4 col-span-12'>
           <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
             <h5 className='card-title text-dark dark:text-white mb-6'>{t('feargreed.title')}</h5>

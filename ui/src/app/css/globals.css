@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @import './layouts/sidebar.css';
 @import './layouts/header.css';
@@ -97,19 +95,18 @@
   }
 
   .select-option select {
-    @apply bg-muted border-0 text-darklink d py-2 ps-4 pe-9 w-auto focus:border-0 focus:ring-0 font-medium;
+    @apply bg-muted border-0 text-darklink py-2 ps-4 pe-9 w-auto focus:border-0 focus:ring-0 font-medium;
   }
 
   .select-md select {
-    @apply border-ld bg-transparent w-full text-sm rounded-md focus:border-primary focus:ring-0;
+    @apply border border-border bg-transparent w-full text-sm rounded-md focus:border-primary focus:ring-0;
   }
 
   .select-rounded select {
-    @apply border-ld bg-transparent w-full text-sm rounded-xl focus:border-primary focus:ring-0;
+    @apply border border-border bg-transparent w-full text-sm rounded-xl focus:border-primary focus:ring-0;
   }
 
   .checkbox {
     @apply h-[18px] w-[18px] border border-border bg-transparent focus:ring-0 focus:ring-offset-0
   }
 }
-

@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
-import { Table } from 'flowbite-react';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
@@ -43,39 +43,41 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('role.name')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>
-                {t('role.description')}
-              </Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('role.permissions')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
-            </Table.Head>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+            <TableHead className='dark:border-gray-800'>
+              <TableRow>
+                <TableHeadCell className='whitespace-nowrap'>{t('role.name')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap hidden lg:table-cell'>
+                  {t('role.description')}
+                </TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('role.permissions')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('updatedAt')}</TableHeadCell>
+              </TableRow>
+            </TableHead>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
               {items.items.map((role) => (
-                <Table.Row
+                <TableRow
                   key={role.id}
                   className='hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
                   onClick={() => router.push(`./roles/${role.id}`)}
                 >
-                  <Table.Cell className='whitespace-nowrap'>{role.name}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>{role.description}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>
+                  <TableCell className='whitespace-nowrap'>{role.name}</TableCell>
+                  <TableCell className='whitespace-nowrap hidden lg:table-cell'>{role.description}</TableCell>
+                  <TableCell className='whitespace-nowrap'>
                     <div className='flex flex-row flex-wrap gap-1 max-h-[48px] overflow-hidden relative'>
                       {role.permissions?.map((permission) => (
                         <ColoredBadge key={permission} text={permission} />
                       ))}
                       <div className='absolute bottom-0 right-0 left-0 h-6 bg-gradient-to-t from-white dark:from-gray-900'></div>
                     </div>
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap hidden lg:table-cell'>
                     {formatYearDate(new Date(role.createdAt))}
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(role.updatedAt))}</Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap'>{formatYearDate(new Date(role.updatedAt))}</TableCell>
+                </TableRow>
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>
@@ -119,11 +121,11 @@ const RoleTableSkeleton = () => {
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
-              <Table.Row>
-                <Table.Cell>{t('loading')}</Table.Cell>
-              </Table.Row>
-            </Table.Body>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
+              <TableRow>
+                <TableCell>{t('loading')}</TableCell>
+              </TableRow>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>

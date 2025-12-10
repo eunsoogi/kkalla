@@ -1,6 +1,6 @@
 const customTheme = {
   button: {
-    base: 'group relative flex items-stretch justify-center text-center p-0.5 text-center font-medium',
+    base: 'group relative flex items-center justify-center text-center p-0.5 text-center font-medium cursor-pointer',
     fullSized: 'w-full',
     color: {
       primary: 'bg-primary text-white hover:bg-primaryemphasis',
@@ -32,6 +32,25 @@ const customTheme = {
   drawer: {
     root: {
       base: 'fixed z-40 overflow-y-auto bg-white dark:bg-dark p-0 transition-transform',
+      backdrop: 'fixed inset-0 z-30 bg-gray-900/50 dark:bg-gray-900/80',
+      position: {
+        top: {
+          on: 'left-0 right-0 top-0 w-full transform-none',
+          off: 'left-0 right-0 top-0 w-full -translate-y-full',
+        },
+        right: {
+          on: 'right-0 top-0 h-screen w-80 transform-none',
+          off: 'right-0 top-0 h-screen w-80 translate-x-full',
+        },
+        bottom: {
+          on: 'bottom-0 left-0 right-0 w-full transform-none',
+          off: 'bottom-0 left-0 right-0 w-full translate-y-full',
+        },
+        left: {
+          on: 'left-0 top-0 h-screen w-80 transform-none',
+          off: 'left-0 top-0 h-screen w-80 -translate-x-full',
+        },
+      },
     },
     header: {
       inner: {

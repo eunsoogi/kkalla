@@ -3,7 +3,7 @@
 import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
-import { Table } from 'flowbite-react';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
@@ -24,13 +24,13 @@ export interface ProfitTableProps {
 
 const ProfitTableItem = ({ email, profit }: ProfitData) => {
   return (
-    <Table.Row>
-      <Table.Cell className='whitespace-nowrap'>{email}</Table.Cell>
-      <Table.Cell className={`whitespace-nowrap ${getDiffColor(profit)}`}>
+    <TableRow>
+      <TableCell className='whitespace-nowrap'>{email}</TableCell>
+      <TableCell className={`whitespace-nowrap ${getDiffColor(profit)}`}>
         {getDiffPrefix(profit)}
         {formatNumber(profit)}
-      </Table.Cell>
-    </Table.Row>
+      </TableCell>
+    </TableRow>
   );
 };
 
@@ -48,15 +48,17 @@ const ProfitTableBase = ({
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('user.email')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('trade.profit')}</Table.HeadCell>
-            </Table.Head>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+            <TableHead className='dark:border-gray-800'>
+              <TableRow>
+                <TableHeadCell className='whitespace-nowrap'>{t('user.email')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('trade.profit')}</TableHeadCell>
+              </TableRow>
+            </TableHead>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
               {items.items.map((profit) => (
                 <ProfitTableItem key={profit.email} {...profit} />
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>

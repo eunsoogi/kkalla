@@ -5,7 +5,7 @@ import { Button, Dropdown } from 'flowbite-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
-import DefaultUserImage from '/public/images/profile/user-1.jpg';
+import DefaultUserImage from '@/../public/images/profile/user-1.jpg';
 
 const Profile = () => {
   const t = useTranslations();

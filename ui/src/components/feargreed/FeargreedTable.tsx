@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Table } from 'flowbite-react';
+import { Table, TableBody, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
@@ -25,11 +25,11 @@ const FeargreedTableContent: React.FC = () => {
   }
 
   return (
-    <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+    <TableBody className='divide-y divide-border dark:divide-gray-800'>
       {data.data.map((item, index) => (
         <FeargreedTableItem key={`${item.timestamp}-${index}`} {...item} />
       ))}
-    </Table.Body>
+    </TableBody>
   );
 };
 
@@ -40,12 +40,14 @@ export const FeargreedTable = () => {
     <SimpleBar>
       <div className='overflow-x-auto'>
         <Table hoverable>
-          <Table.Head className='dark:border-gray-800'>
-            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.date')}</Table.HeadCell>
-            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.score')}</Table.HeadCell>
-            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.change')}</Table.HeadCell>
-            <Table.HeadCell className='whitespace-nowrap'>{t('feargreed.stage')}</Table.HeadCell>
-          </Table.Head>
+          <TableHead className='dark:border-gray-800'>
+            <TableRow>
+              <TableHeadCell className='whitespace-nowrap'>{t('feargreed.date')}</TableHeadCell>
+              <TableHeadCell className='whitespace-nowrap'>{t('feargreed.score')}</TableHeadCell>
+              <TableHeadCell className='whitespace-nowrap'>{t('feargreed.change')}</TableHeadCell>
+              <TableHeadCell className='whitespace-nowrap'>{t('feargreed.stage')}</TableHeadCell>
+            </TableRow>
+          </TableHead>
           <Suspense fallback={<FeargreedTableSkeleton />}>
             <FeargreedTableContent />
           </Suspense>

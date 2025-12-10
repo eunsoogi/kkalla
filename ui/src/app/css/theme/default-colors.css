@@ -27,3 +27,30 @@
   --color-feargreed-greed: #5DE841;
   --color-feargreed-extreme-greed: #41E884;
 }
+
+@theme {
+  --color-cyan-500: var(--color-primary);
+  --color-cyan-600: var(--color-primary);
+  --color-cyan-700: var(--color-primary);
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-primary-emphasis: var(--color-primary-emphasis);
+  --color-secondary-emphasis: var(--color-secondary-emphasis);
+  --color-lightprimary: var(--color-lightprimary);
+  --color-lightsecondary: var(--color-lightsecondary);
+  --color-info: var(--color-info);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-lightsuccess: var(--color-lightsuccess);
+  --color-lighterror: var(--color-lighterror);
+  --color-lightinfo: var(--color-lightinfo);
+  --color-lightwarning: var(--color-lightwarning);
+  --color-border: var(--color-border);
+  --color-bordergray: var(--color-bordergray);
+  --color-lightgray: var(--color-lightgray);
+  --color-muted: var(--color-muted);
+  --color-dark: var(--color-dark);
+  --color-link: var(--color-link);
+  --color-darklink: var(--color-darklink);
+}

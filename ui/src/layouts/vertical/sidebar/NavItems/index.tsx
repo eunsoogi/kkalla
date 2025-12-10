@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import React from 'react';
 
 import { Icon } from '@iconify/react';
-import { Sidebar } from 'flowbite-react';
+import { SidebarItem } from 'flowbite-react';
 
 import { ChildItem } from '../Sidebaritems';
 
@@ -16,7 +16,7 @@ const NavItems: React.FC<NavItemsProps> = ({ item }) => {
   const pathname = usePathname();
   return (
     <>
-      <Sidebar.Item
+      <SidebarItem
         href={item.url}
         as={Link}
         className={`${
@@ -37,7 +37,7 @@ const NavItems: React.FC<NavItemsProps> = ({ item }) => {
           )}
           <span className='max-w-36 overflow-hidden hide-menu'>{item.name}</span>
         </span>
-      </Sidebar.Item>
+      </SidebarItem>
     </>
   );
 };

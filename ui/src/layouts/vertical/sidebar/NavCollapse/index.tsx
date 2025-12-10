@@ -2,7 +2,7 @@ import { usePathname } from 'next/navigation';
 import React from 'react';
 
 import { Icon } from '@iconify/react';
-import { Sidebar } from 'flowbite-react';
+import { SidebarCollapse, SidebarItemGroup } from 'flowbite-react';
 import { twMerge } from 'tailwind-merge';
 
 import NavItems from '../NavItems';
@@ -18,7 +18,7 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
 
   return (
     <>
-      <Sidebar.Collapse
+      <SidebarCollapse
         label={item.name}
         open={activeDD ? true : false}
         icon={() => <Icon icon={item.icon} height={18} />}
@@ -34,7 +34,7 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
       >
         {/* Render child items */}
         {item.children && (
-          <Sidebar.ItemGroup className='sidebar-dropdown'>
+          <SidebarItemGroup className='sidebar-dropdown'>
             {item.children.map((child: any) => (
               <React.Fragment key={child.id}>
                 {/* Render NavItems for child items */}
@@ -45,9 +45,9 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
                 )}
               </React.Fragment>
             ))}
-          </Sidebar.ItemGroup>
+          </SidebarItemGroup>
         )}
-      </Sidebar.Collapse>
+      </SidebarCollapse>
     </>
   );
 };
