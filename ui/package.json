@@ -22,7 +22,7 @@
     "class-transformer": "^0.5.1",
     "eslint-config-prettier": "^10.1.8",
     "flowbite": "4.0.1",
-    "flowbite-react": "0.12.12",
+    "flowbite-react": "0.12.13",
     "lodash": "4.17.21",
     "moment": "2.30.1",
     "next": "16.0.8",
