@@ -18,7 +18,7 @@ const Page: React.FC = () => {
 
   return (
     <>
-      <div className='grid grid-cols-12 gap-4 lg:gap-8'>
+      <div className='grid grid-cols-12 gap-4 lg:gap-6'>
         <div className='lg:col-span-4 col-span-12'>
           <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full break-words'>
             <h5 className='card-title text-dark dark:text-white'>{t('trade.profit')}</h5>

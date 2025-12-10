@@ -197,6 +197,38 @@ const customTheme = {
       },
     },
   },
+
+  textInput: {
+    field: {
+      input: {
+        base: 'block w-full border focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50',
+        sizes: {
+          sm: 'p-2 sm:text-xs',
+          md: 'p-2.5 text-sm',
+          lg: 'p-4 sm:text-base',
+        },
+        colors: {
+          gray: 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-500 dark:focus:ring-primary-500',
+        },
+      },
+    },
+  },
+
+  select: {
+    field: {
+      select: {
+        base: 'block w-full appearance-none border bg-arrow-down-icon bg-[length:0.75em_0.75em] bg-[position:right_12px_center] bg-no-repeat pr-10 focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50',
+        sizes: {
+          sm: 'p-2 sm:text-xs',
+          md: 'p-2.5 text-sm',
+          lg: 'p-4 sm:text-base',
+        },
+        colors: {
+          gray: 'border-gray-300 bg-gray-50 text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-500 dark:focus:ring-primary-500',
+        },
+      },
+    },
+  },
 };
 
 export default customTheme;

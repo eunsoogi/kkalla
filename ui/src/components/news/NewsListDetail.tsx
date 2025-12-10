@@ -33,7 +33,7 @@ const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
 
   return (
     <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText={t('loading')}>
-      <div className='flex flex-col gap-4 lg:gap-30'>
+      <div className='flex flex-col gap-4 lg:gap-6'>
         {data?.pages.map((page, i) => (
           <Fragment key={i}>
             {page.items.map((item) => (
