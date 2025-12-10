@@ -9,3 +9,4 @@ export default withAuth({
 export const config = {
   matcher: ['/((?!health|signin|api/auth|_next/static|_next/image|favicon.ico|images).*)'],
 };
+
