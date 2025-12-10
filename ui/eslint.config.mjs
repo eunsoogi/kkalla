@@ -5,6 +5,7 @@ import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import nextPlugin from '@next/eslint-plugin-next';
 import globals from 'globals';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +18,10 @@ const compat = new FlatCompat({
   allConfig: js.configs.all,
 });
 
+const nextRecommended = { ...nextPlugin.configs.recommended };
+delete nextRecommended.name;
+delete nextRecommended.plugins;
+
 export default [
   ...fixupConfigRules(
     compat.extends(
@@ -24,15 +29,16 @@ export default [
       'plugin:@typescript-eslint/recommended',
       'plugin:react/recommended',
       'plugin:react-hooks/recommended',
-      'plugin:@next/next/recommended',
       'prettier',
     ),
   ),
+  ...fixupConfigRules(nextRecommended),
   {
     plugins: {
       '@typescript-eslint': fixupPluginRules(typescriptEslint),
       react: fixupPluginRules(react),
       'react-hooks': fixupPluginRules(reactHooks),
+      '@next/next': fixupPluginRules(nextPlugin),
     },
 
     languageOptions: {

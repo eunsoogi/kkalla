@@ -18,15 +18,15 @@ const Page: React.FC = () => {
 
   return (
     <>
-      <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-6 mb-4'>
+      <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-4 mb-4'>
         <div className='col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='symbol' value={t('symbol')} />
+          <Label htmlFor='symbol'>{t('symbol')}</Label>
           <TextInput id='symbol' value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder='BTC/KRW' />
         </div>
 
 
         <div className='col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='sortDirection' value={t('sort.label')} />
+          <Label htmlFor='sortDirection'>{t('sort.label')}</Label>
           <Select
             id='sortDirection'
             value={sortDirection}
@@ -38,7 +38,7 @@ const Page: React.FC = () => {
         </div>
 
         <div className='col-span-1 lg:col-span-3 xl:col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='startDate' value={t('date.start')} />
+          <Label htmlFor='startDate'>{t('date.start')}</Label>
           <Datepicker
             id='startDate'
             value={startDate}
@@ -51,7 +51,7 @@ const Page: React.FC = () => {
         </div>
 
         <div className='col-span-1 lg:col-span-3 xl:col-span-2 flex flex-col gap-2'>
-          <Label htmlFor='endDate' value={t('date.end')} />
+          <Label htmlFor='endDate'>{t('date.end')}</Label>
           <Datepicker
             id='endDate'
             value={endDate}

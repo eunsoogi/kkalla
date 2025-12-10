@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
-import { Table } from 'flowbite-react';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
@@ -43,35 +43,37 @@ const UserTableBase = ({ items }: UserTableProps) => {
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('user.email')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('user.role')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
-            </Table.Head>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+            <TableHead className='dark:border-gray-800'>
+              <TableRow>
+                <TableHeadCell className='whitespace-nowrap'>{t('user.email')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('user.role')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('updatedAt')}</TableHeadCell>
+              </TableRow>
+            </TableHead>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
               {items.items.map((user) => (
-                <Table.Row
+                <TableRow
                   key={user.id}
                   className='hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
                   onClick={() => router.push(`./users/${user.id}`)}
                 >
-                  <Table.Cell className='whitespace-nowrap'>{user.email}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>
+                  <TableCell className='whitespace-nowrap'>{user.email}</TableCell>
+                  <TableCell className='whitespace-nowrap'>
                     <div className='flex flex-row flex-wrap gap-1 max-h-[48px] overflow-hidden relative'>
                       {user.roles.map((role) => (
                         <ColoredBadge key={role.name} text={role.name} />
                       ))}
                       <div className='absolute bottom-0 right-0 left-0 h-6 bg-gradient-to-t from-white dark:from-gray-900'></div>
                     </div>
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap hidden lg:table-cell'>
                     {formatYearDate(new Date(user.createdAt))}
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(user.updatedAt))}</Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap'>{formatYearDate(new Date(user.updatedAt))}</TableCell>
+                </TableRow>
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>
@@ -116,11 +118,11 @@ const UserTableSkeleton = () => {
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
-              <Table.Row>
-                <Table.Cell>{t('loading')}</Table.Cell>
-              </Table.Row>
-            </Table.Body>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
+              <TableRow>
+                <TableCell>{t('loading')}</TableCell>
+              </TableRow>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>

@@ -5,7 +5,7 @@ import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Badge, Button, Dropdown } from 'flowbite-react';
+import { Badge, Button, Dropdown, DropdownItem } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { CursorItem } from '@/interfaces/item.interface';
@@ -55,7 +55,7 @@ const NotificationContent: React.FC = () => {
 
 const NotificationItem: React.FC<Notify> = (item: Notify) => {
   return (
-    <Dropdown.Item
+    <DropdownItem
       as={Link}
       href='#'
       className='group/link w-full px-3 py-3 gap-3 bg-hover text-dark hover:bg-gray-100'
@@ -73,7 +73,7 @@ const NotificationItem: React.FC<Notify> = (item: Notify) => {
           <p className='text-xs'>{formatDate(new Date(item.createdAt))}</p>
         </div>
       </div>
-    </Dropdown.Item>
+    </DropdownItem>
   );
 };
 
@@ -81,7 +81,7 @@ const NotificationSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return (
-    <Dropdown.Item
+    <DropdownItem
       as={Link}
       href='#'
       className='group/link w-full px-3 py-3 gap-3 bg-hover text-dark hover:bg-gray-100'
@@ -98,7 +98,7 @@ const NotificationSkeleton: React.FC = () => {
           <p className='text-sm font-semibold line-clamp-2'>{t('loading')}</p>
         </div>
       </div>
-    </Dropdown.Item>
+    </DropdownItem>
   );
 };
 

@@ -2,7 +2,7 @@ import flowbitePlugin from 'flowbite/plugin';
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  darkMode: 'media',
+  darkMode: 'class',
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     './node_modules/flowbite-react/**/*.{js,ts,jsx,tsx}',
@@ -37,32 +37,6 @@ const config: Config = {
       },
       margin: {
         '30': '30px',
-      },
-      colors: {
-        cyan: {
-          '500': 'var(--color-primary)',
-          '600': 'var(--color-primary)',
-          '700': 'var(--color-primary)',
-        },
-        primary: 'var(--color-primary)',
-        secondary: 'var(--color-secondary)',
-        info: 'var(--color-info)',
-        success: 'var(--color-success)',
-        warning: 'var(--color-warning)',
-        error: 'var(--color-error)',
-        lightprimary: 'var(--color-lightprimary)',
-        lightsecondary: 'var(--color-lightsecondary)',
-        lightsuccess: 'var(--color-lightsuccess)',
-        lighterror: 'var(--color-lighterror)',
-        lightinfo: 'var(--color-lightinfo)',
-        lightwarning: 'var(--color-lightwarning)',
-        border: 'var(--color-border)',
-        bordergray: 'var(--color-bordergray)',
-        lightgray: 'var(--color-lightgray)',
-        muted: 'var(--color-muted)',
-        dark: 'var(--color-dark)',
-        link: 'var(--color-link)',
-        darklink: 'var(--color-darklink)',
       },
     },
   },

@@ -62,12 +62,12 @@ const UpbitForm: React.FC = () => {
           </Suspense>
         </div>
         <div className='mt-6'>
-          <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
+          <div className='grid grid-cols-12 gap-y-6 lg:gap-x-6'>
             <div className='lg:col-span-6 col-span-12'>
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='upbitAccessKey' value='액세스 키' />
+                    <Label htmlFor='upbitAccessKey'>액세스 키</Label>
                   </div>
                   <TextInput
                     id='upbitAccessKey'
@@ -83,7 +83,7 @@ const UpbitForm: React.FC = () => {
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='upbitSecretKey' value='비밀 키' />
+                    <Label htmlFor='upbitSecretKey'>비밀 키</Label>
                   </div>
                   <TextInput
                     id='upbitSecretKey'

@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { Icon } from '@iconify/react';
-import { Navbar } from 'flowbite-react';
-import { Drawer } from 'flowbite-react';
+import { Navbar, Drawer, DrawerItems } from 'flowbite-react';
 
 import CopyTokenButton from '@/components/common/CopyTokenButton';
 
@@ -35,8 +34,8 @@ const Header = () => {
   const handleClose = () => setIsOpen(false);
   return (
     <>
-      <header className={`sticky top-0 z-[5] ${isSticky ? 'bg-white dark:bg-dark fixed w-full' : 'bg-white'}`}>
-        <Navbar fluid className='rounded-none bg-white dark:bg-dark py-4 sm:px-30 px-4'>
+      <header className={`sticky top-0 z-5 ${isSticky ? 'bg-white dark:bg-dark fixed w-full' : 'bg-white'}`}>
+        <Navbar fluid className='rounded-none bg-white dark:bg-dark py-4 sm:px-6 px-4'>
           <div className='flex gap-3 items-center justify-between w-full'>
             <div className='flex gap-2 items-center'>
               <span
@@ -57,10 +56,10 @@ const Header = () => {
       </header>
 
       {/* Mobile Sidebar */}
-      <Drawer open={isOpen} onClose={handleClose} className='w-130'>
-        <Drawer.Items>
+      <Drawer open={isOpen} onClose={handleClose} className='w-64'>
+        <DrawerItems>
           <MobileSidebar />
-        </Drawer.Items>
+        </DrawerItems>
       </Drawer>
     </>
   );

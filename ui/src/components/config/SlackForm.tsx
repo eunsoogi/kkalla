@@ -76,7 +76,7 @@ const FormGroup = memo(({ title, children }: { title: string; children: React.Re
     <div className='flex flex-col gap-4'>
       <div>
         <div className='mb-2 block'>
-          <Label value={title} />
+          <Label>{title}</Label>
         </div>
         {children}
       </div>
@@ -120,7 +120,7 @@ const SlackForm: React.FC = () => {
           </Suspense>
         </div>
         <div className='mt-6'>
-          <div className='grid grid-cols-12 gap-y-30 lg:gap-x-30'>
+          <div className='grid grid-cols-12 gap-y-6 lg:gap-x-6'>
             <Suspense fallback={<SlackFormItemSkeleton />}>
               <SlackFormItem />
             </Suspense>

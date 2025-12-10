@@ -48,7 +48,7 @@ const TradeDetailItem: React.FC<TradeDetailListContentProps> = (params) => {
 
   return (
     <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText={t('loading')}>
-      <div className='flex flex-col gap-x-4 gap-y-30 lg:gap-30 mt-30'>
+      <div className='flex flex-col gap-x-4 gap-y-6 lg:gap-6 mt-6'>
         {data?.pages.map((page, i) => (
           <Fragment key={i}>
             {page.items.map((item) => (

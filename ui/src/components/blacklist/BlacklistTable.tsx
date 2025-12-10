@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
-import { Table } from 'flowbite-react';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
@@ -31,30 +31,32 @@ const BlacklistTableSkeleton = () => {
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('symbol')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('category.label')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
-            </Table.Head>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+            <TableHead className='dark:border-gray-800'>
+              <TableRow>
+                <TableHeadCell className='whitespace-nowrap'>{t('symbol')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('category.label')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('updatedAt')}</TableHeadCell>
+              </TableRow>
+            </TableHead>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
               {[...Array(5)].map((_, index) => (
-                <Table.Row key={index} className='hover:bg-gray-50 dark:hover:bg-gray-700'>
-                  <Table.Cell className='whitespace-nowrap'>
+                <TableRow key={index} className='hover:bg-gray-50 dark:hover:bg-gray-700'>
+                  <TableCell className='whitespace-nowrap'>
                     <div className='h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap'>
                     <div className='h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap hidden lg:table-cell'>
                     <div className='h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap'>
                     <div className='h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-                  </Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                </TableRow>
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>
@@ -98,30 +100,32 @@ const BlacklistTableContent = () => {
       <SimpleBar>
         <div className='overflow-x-auto'>
           <Table hoverable>
-            <Table.Head className='dark:border-gray-800'>
-              <Table.HeadCell className='whitespace-nowrap'>{t('symbol')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('category.label')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</Table.HeadCell>
-              <Table.HeadCell className='whitespace-nowrap'>{t('updatedAt')}</Table.HeadCell>
-            </Table.Head>
-            <Table.Body className='divide-y divide-border dark:divide-gray-800'>
+            <TableHead className='dark:border-gray-800'>
+              <TableRow>
+                <TableHeadCell className='whitespace-nowrap'>{t('symbol')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('category.label')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap hidden lg:table-cell'>{t('createdAt')}</TableHeadCell>
+                <TableHeadCell className='whitespace-nowrap'>{t('updatedAt')}</TableHeadCell>
+              </TableRow>
+            </TableHead>
+            <TableBody className='divide-y divide-border dark:divide-gray-800'>
               {data.items.map((blacklist) => (
-                <Table.Row
+                <TableRow
                   key={blacklist.id}
                   className='hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
                   onClick={() => router.push(`./blacklists/${blacklist.id}`)}
                 >
-                  <Table.Cell className='whitespace-nowrap'>{blacklist.symbol}</Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>
+                  <TableCell className='whitespace-nowrap'>{blacklist.symbol}</TableCell>
+                  <TableCell className='whitespace-nowrap'>
                     <ColoredBadge text={getCategoryText(blacklist.category, t)} />
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap hidden lg:table-cell'>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap hidden lg:table-cell'>
                     {formatYearDate(new Date(blacklist.createdAt))}
-                  </Table.Cell>
-                  <Table.Cell className='whitespace-nowrap'>{formatYearDate(new Date(blacklist.updatedAt))}</Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                  <TableCell className='whitespace-nowrap'>{formatYearDate(new Date(blacklist.updatedAt))}</TableCell>
+                </TableRow>
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
         </div>
       </SimpleBar>

@@ -18,8 +18,12 @@ const ProfitPageContent = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    setSearchTerm(searchParams.get('email') ?? '');
-  }, [searchParams]);
+    const next = searchParams.get('email') ?? '';
+    if (next !== searchTerm) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchTerm(next);
+    }
+  }, [searchParams, searchTerm]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
