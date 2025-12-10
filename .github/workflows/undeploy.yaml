@@ -25,6 +25,10 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
+      - name: Setup host
+        run: |
+          echo "${{ secrets.KUBE_IP }} ${{ secrets.KUBE_HOST }}" | sudo tee -a /etc/hosts
+
       - name: Undeploy Helm chart
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
