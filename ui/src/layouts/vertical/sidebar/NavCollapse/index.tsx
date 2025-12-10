@@ -23,7 +23,7 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
         open={activeDD ? true : false}
         icon={() => <Icon icon={item.icon} height={18} />}
         className={`${activeDD ? '!text-primary bg-lightprimary ' : ''} collapse-menu`}
-        renderChevronIcon={(theme, open) => (
+        renderChevronIcon={(theme: any, open: boolean) => (
           <Icon
             icon='material-symbols:menu'
             className={`${twMerge(theme.label.icon.open[open ? 'on' : 'off'])} drop-icon`}

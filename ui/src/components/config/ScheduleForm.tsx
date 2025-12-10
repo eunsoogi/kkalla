@@ -32,13 +32,11 @@ const ScheduleToggleSwitch: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div style={{ minWidth: 'fit-content', display: 'flex', alignItems: 'center' }}>
+      <div className="flex items-center gap-4">
         <ToggleSwitch
           checked={false}
           onChange={() => null}
           label={t('activate')}
-          style={{ gap: '12px' }}
-          className="flex items-center gap-4"
           disabled
         />
       </div>
@@ -46,14 +44,12 @@ const ScheduleToggleSwitch: React.FC = () => {
   }
 
   return (
-    <div style={{ minWidth: 'fit-content', display: 'flex', alignItems: 'center' }}>
+    <div className="flex items-center gap-4">
       <ToggleSwitch
-        checked={data.enabled}
+        checked={data?.enabled ?? false}
         onChange={handleToggle}
         disabled={isPending}
         label={t('activate')}
-        style={{ gap: '12px' }}
-        className="flex items-center gap-4"
       />
     </div>
   );

@@ -18,7 +18,7 @@ export default function Layout({
         <div className='body-wrapper w-full'>
           <Header />
           {/* Body Content  */}
-          <div className='bg-lightgray dark:bg-gray-800 mr-3 rounded-[20px] min-h-[90vh]'>
+          <div className='bg-lightgray dark:bg-gray-800 xl:mr-3 rounded-[20px] min-h-[90vh]'>
             <div className='container p-4 lg:p-8'>{children}</div>
           </div>
         </div>

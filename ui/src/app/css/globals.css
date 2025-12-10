@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @import './layouts/sidebar.css';
 @import './layouts/header.css';
@@ -61,7 +61,6 @@
     @apply border-primary outline-none shadow-none ring-offset-0 ring-transparent;
   }
 
-
   .form-control input:focus {
     @apply border-primary outline-none shadow-none ring-offset-0 ring-transparent;
   }
@@ -83,15 +82,15 @@
   }
 
   .form-rounded input {
-    @apply rounded-full
+    @apply rounded-full;
   }
 
   .elipse {
-    @apply w-[18px] h-[10px]
+    @apply w-[18px] h-[10px];
   }
 
   input::placeholder {
-    @apply text-darklink
+    @apply text-darklink;
   }
 
   .select-option select {
@@ -107,6 +106,6 @@
   }
 
   .checkbox {
-    @apply h-[18px] w-[18px] border border-border bg-transparent focus:ring-0 focus:ring-offset-0
+    @apply h-[18px] w-[18px] border border-border bg-gray-100 dark:bg-gray-700 focus:ring-0 focus:ring-offset-0 accent-primary;
   }
 }

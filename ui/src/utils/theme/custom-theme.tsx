@@ -1,15 +1,18 @@
-const customTheme = {
+import { merge } from 'lodash';
+
+import { theme as flowbiteTheme } from 'flowbite-react/theme';
+
+const customTheme = merge({}, flowbiteTheme, {
   button: {
-    base: 'group relative flex items-center justify-center text-center p-0.5 text-center font-medium cursor-pointer',
-    fullSized: 'w-full',
+    base: 'group relative flex items-center justify-center text-center !px-4 !py-2 text-center font-medium cursor-pointer',
     color: {
       primary: 'bg-primary text-white hover:bg-primaryemphasis',
-      secondary: 'bg-secondary text-white ',
-      error: 'bg-error text-white ',
-      warning: 'bg-warning text-white ',
+      secondary: 'bg-secondary text-white',
+      error: 'bg-error text-white',
+      warning: 'bg-warning text-white',
       info: 'bg-info text-white hover:bg-primaryemphasis',
-      success: 'bg-success text-white ',
-      muted: 'bg-muted text-dark dark:text-white dark:bg-darkmuted ',
+      success: 'bg-success text-white',
+      muted: 'bg-muted text-dark dark:text-white dark:bg-darkmuted',
       lighterror: 'bg-lighterror dark:bg-darkerror text-error hover:bg-error hover:text-white',
       lightprimary: 'bg-lightprimary text-primary hover:bg-primary dark:hover:bg-primary hover:text-white',
       lightsecondary:
@@ -20,8 +23,8 @@ const customTheme = {
       lightwarning:
         'bg-lightwarning dark:bg-darkwarning text-warning hover:bg-warning dark:hover:bg-warning hover:text-white',
       outlineprimary:
-        'border border-primary bg-transparent text-primary hover:bg-primary dark:hover:bg-primary hover:text-white ',
-      outlinewhite: 'border border-white bg-transparent text-white hover:bg-white dark:hover:bg-white hover:text-dark ',
+        'border border-primary bg-transparent text-primary hover:bg-primary dark:hover:bg-primary hover:text-white',
+      outlinewhite: 'border border-white bg-transparent text-white hover:bg-white dark:hover:bg-white hover:text-dark',
       transparent: 'bg-transparent hover:bg-lightprimary dark:hover:bg-darkprimary hover:text-primary p-0',
     },
     inner: {
@@ -64,26 +67,22 @@ const customTheme = {
 
   table: {
     root: {
-      base: 'w-full text-left text-sm text-gray-500 dark:text-gray-400',
-      shadow: 'absolute left-0 top-0 -z-10 h-full w-full  bg-transparent drop-shadow-md ',
-      wrapper: 'relative',
+      shadow: 'absolute left-0 top-0 -z-10 h-full w-full bg-transparent drop-shadow-md',
     },
     head: {
       base: 'group/head text-sm font-medium capitalize text-dark dark:text-white border-b border-ld',
       cell: {
-        base: 'font-semibold px-4 py-4   dark:bg-transparent',
+        base: 'font-semibold px-4 py-4 dark:bg-transparent',
       },
     },
     body: {
-      base: 'group/body',
       cell: {
         base: 'px-4 py-3 dark:bg-transparent',
       },
     },
     row: {
-      base: 'group/row bg-transparent ',
       hovered: 'bg-hover dark:bg-transparent',
-      striped: 'odd:bg-transparent  even:bg-gray-50 odd:dark:bg-dark even:dark:bg-gray-700',
+      striped: 'odd:bg-transparent even:bg-gray-50 odd:dark:bg-dark even:dark:bg-gray-700',
     },
   },
 
@@ -92,11 +91,11 @@ const customTheme = {
       base: 'flex h-fit w-fit items-center font-medium text-xs',
       color: {
         primary: 'bg-primary text-white',
-        secondary: 'bg-secondary text-white ',
+        secondary: 'bg-secondary text-white',
         info: 'bg-info text-white',
         success: 'bg-success text-white',
-        warning: 'bg-warning text-white ',
-        error: 'bg-error text-white ',
+        warning: 'bg-warning text-white',
+        error: 'bg-error text-white',
         lightsuccess: 'bg-lightsuccess dark:bg-lightsuccess text-success',
         lightprimary: 'bg-lightprimary dark:bg-lightprimary text-primary',
         lightwarning: 'bg-lightwarning dark:bg-lightwarning text-warning',
@@ -107,31 +106,9 @@ const customTheme = {
         muted: 'bg-muted dark:bg-darkmuted text-dark dark:text-white',
       },
     },
-    icon: {
-      off: 'rounded-sm px-2.5 py-1',
-      on: 'rounded-full py-[5px] px-[10px]',
-      size: {
-        xs: 'h-3 w-3',
-        sm: 'h-3.5 w-3.5',
-      },
-    },
-  },
-
-  checkbox: {
-    root: {
-      base: 'rounded border-2 cursor-pointer ',
-      color: {
-        default: 'text-primary',
-        primary: 'text-primary',
-        secondary: 'text-secondary',
-        error: 'text-error',
-      },
-    },
   },
 
   progress: {
-    base: 'w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700',
-    label: 'mb-1 flex justify-between font-medium dark:text-white',
     bar: 'space-x-2 rounded-full text-center font-medium leading-none text-cyan-300 dark:text-cyan-100',
     color: {
       success: 'bg-success',
@@ -141,12 +118,6 @@ const customTheme = {
       info: 'bg-info',
       primary: 'bg-primary',
     },
-    size: {
-      sm: 'h-1',
-      md: 'h-1.5',
-      lg: 'h-4',
-      xl: 'h-6',
-    },
   },
 
   sidebar: {
@@ -154,7 +125,7 @@ const customTheme = {
       inner: 'bg-white dark:bg-dark rounded-none',
     },
     item: {
-      base: 'flex items-center justify-center rounded-md px-4 py-3 mb-1 gap-3  text-[15px] text-start  leading-[normal] font-normal text-link hover:text-primary dark:text-white  dark:hover:text-primary',
+      base: 'flex items-center justify-center rounded-md px-4 py-3 mb-1 gap-3 text-[15px] text-start leading-[normal] font-normal text-link hover:text-primary dark:text-white dark:hover:text-primary',
       content: {
         base: 'flex-1 whitespace-nowrap px-0',
       },
@@ -163,7 +134,7 @@ const customTheme = {
 
     collapse: {
       button:
-        'group flex gap-3 items-center  rounded-md px-4 py-3 mb-1 text-[15px] text-start truncate leading-[normal] font-normal text-link hover:bg-lightprimary hover:text-primary dark:text-white w-full dark:hover:text-primary',
+        'group flex gap-3 items-center rounded-md px-4 py-3 mb-1 text-[15px] text-start truncate leading-[normal] font-normal text-link hover:bg-lightprimary hover:text-primary dark:text-white w-full dark:hover:text-primary',
       icon: {
         base: 'h-6 w-6 text-link text-base',
       },
@@ -172,7 +143,7 @@ const customTheme = {
       },
     },
     itemGroup: {
-      base: 'mt-4 space-y-2 border-t border-ld pt-4 first:mt-0 first:border-t-0 first:pt-0 sidebar-nav ',
+      base: 'mt-4 space-y-2 border-t border-ld pt-4 first:mt-0 first:border-t-0 first:pt-0 sidebar-nav',
     },
   },
 
@@ -214,6 +185,17 @@ const customTheme = {
     },
   },
 
+  checkbox: {
+    base: 'h-4 w-4 rounded border-2 cursor-pointer bg-gray-100 dark:bg-gray-700 checked:bg-primary checked:border-primary',
+    color: {
+      default: 'border-gray-300 checked:bg-primary checked:border-primary',
+      primary: 'border-gray-300 checked:bg-primary checked:border-primary',
+      secondary: 'border-gray-300 checked:bg-secondary checked:border-secondary',
+      error: 'border-gray-300 checked:bg-error checked:border-error',
+    },
+    indeterminate: 'bg-primary border-primary',
+  },
+
   select: {
     field: {
       select: {
@@ -229,6 +211,33 @@ const customTheme = {
       },
     },
   },
-};
+
+  toggleSwitch: {
+    root: {
+      base: 'group relative flex items-center',
+      label: 'ml-3 text-sm font-medium text-gray-500 dark:text-gray-300',
+    },
+    toggle: {
+      base: 'relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 outline-none transition-colors after:absolute after:left-[2px] after:h-5 after:w-5 after:translate-x-0 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[""] peer-checked:!bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-gray-600 dark:peer-focus:ring-primary-800 dark:after:border-gray-600 dark:after:bg-gray-700',
+      checked: {
+        on: '!bg-primary after:translate-x-full after:border-white',
+        off: 'bg-gray-200 after:translate-x-0 dark:bg-gray-600',
+        color: {
+          default: 'peer-checked:!bg-primary',
+          primary: 'peer-checked:!bg-primary',
+          success: 'peer-checked:bg-green-600',
+          failure: 'peer-checked:bg-red-600',
+          warning: 'peer-checked:bg-yellow-400',
+          info: 'peer-checked:bg-cyan-600',
+        },
+      },
+      sizes: {
+        sm: 'h-4 w-7 after:h-3 after:w-3',
+        md: 'h-5 w-9',
+        lg: 'h-6 w-11 after:h-5 after:w-5',
+      },
+    },
+  },
+});
 
 export default customTheme;
