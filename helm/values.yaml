@@ -9,9 +9,9 @@ mariadb:
       type: ClusterIP
       ports:
         mysql: 3306
-    extraEnvVars:
-      - name: TZ
-        value: Asia/Seoul
+    configuration: |-
+      [mysqld]
+      default-time-zone='+09:00'
 
 api:
   db:
