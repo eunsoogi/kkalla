@@ -12,12 +12,14 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
     {
       "symbol": "BTC/KRW",
       "weight": 0.15,
-      "confidence": 0.85
+      "confidence": 0.85,
+      "reason": "RSI가 35로 과매도 구간에 진입하여 반등 가능성이 높습니다. MACD에서 골든크로스가 발생했으며, 거래량이 평균 대비 1.5배 증가하여 상승 모멘텀이 확인됩니다."
     },
     {
       "symbol": "ETH/KRW",
       "weight": 0.12,
-      "confidence": 0.78
+      "confidence": 0.78,
+      "reason": "볼린저 밴드 하단 근처에서 반등 신호가 나타났습니다. 이동평균선 20일선이 50일선을 상향 돌파하는 골든크로스 패턴이 확인되었으며, OBV 지표가 상승 추세를 보이고 있습니다."
     }
     // ... 총 10개 종목
   ]
@@ -65,12 +67,13 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
 - 모든 가중치 합계 = 1.0
 - 각 종목별 신뢰도 제시
 - 기술적 지표 기반 객관적 분석
-- **추천 이유 (reason)**: 각 종목별 추천 핵심 근거를 1-2 문장으로 요약. (예: "RSI 과매도 구간 진입 및 MACD 골든크로스 발생")
+- **추천 이유 (reason)**: 각 종목별 추천 핵심 근거를 2-3 문장으로 작성하여 기술적 지표와 시장 상황을 구체적으로 설명합니다.
+- JSON 스키마를 정확히 준수하며, 추가 필드나 불필요한 설명 없이 결과만 반환
 `;
 
-// GPT-5 모델 설정 - 상위 10개 종목 추천용
+// GPT-5.2 모델 설정 - 상위 10개 종목 추천용
 export const UPBIT_MARKET_RECOMMENDATION_CONFIG = {
-  model: 'gpt-5.1',
+  model: 'gpt-5.2',
   max_completion_tokens: 16384,
   reasoning_effort: 'high' as const,
   verbosity: 'low' as const,
