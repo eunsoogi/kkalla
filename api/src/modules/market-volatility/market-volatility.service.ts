@@ -574,10 +574,10 @@ export class MarketVolatilityService implements OnModuleInit {
   }
 
   /**
-   * 캔들 배열에서 최저가/최고가를 이용해 변동폭 비율((maxClose - minClose) / minClose)을 계산.
+   * 캔들 배열에서 최저가/최고가를 이용해 변동폭 비율((maxHigh - minLow) / minLow)을 계산.
    * candles: [timestamp, open, high, low, close, volume]
    *
-   * - 종가 기준으로만 변동폭을 계산한다.
+   * - 각 캔들의 high와 low 값을 사용하여 변동폭을 계산한다.
    * - 데이터가 부족하거나 0/NaN 등이 포함된 경우에는 `-1` 을 반환해
    *   상위 로직에서 해당 윈도우를 무시하도록 한다.
    */
@@ -587,22 +587,23 @@ export class MarketVolatilityService implements OnModuleInit {
       return -1;
     }
 
-    // 각 캔들의 종가만 추출 (캔들 배열: [timestamp, open, high, low, close, volume])
-    const closes = candles.map((candle) => candle[4]);
+    // 각 캔들의 최고가(high)와 최저가(low) 추출 (캔들 배열: [timestamp, open, high, low, close, volume])
+    const highs = candles.map((candle) => candle[2]);
+    const lows = candles.map((candle) => candle[3]);
 
-    // 10분 구간 내 최저/최고 종가 계산
-    const minClose = Math.min(...closes);
-    const maxClose = Math.max(...closes);
+    // 10분 구간 내 최저 low와 최고 high 계산
+    const minLow = Math.min(...lows);
+    const maxHigh = Math.max(...highs);
 
     // 0 또는 NaN 등이 섞여 있으면 계산 불가 처리
     // 유효하지 않은 값이 포함되면 -1 반환하여 상위 로직에서 무시하도록 함
-    if (!Number.isFinite(minClose) || !Number.isFinite(maxClose) || minClose <= 0) {
+    if (!Number.isFinite(minLow) || !Number.isFinite(maxHigh) || minLow <= 0) {
       return -1;
     }
 
     // 변동폭 비율 계산: (최고가 - 최저가) / 최저가
     // 예: 최저가 100, 최고가 105 → (105-100)/100 = 0.05 (5%)
-    return (maxClose - minClose) / minClose;
+    return (maxHigh - minLow) / minLow;
   }
 
   /**
