@@ -5,3 +5,8 @@ export interface HistoryItem {
   category: Category;
   index: number;
 }
+
+export interface HistoryRemoveItem {
+  symbol: string;
+  category: Category;
+}

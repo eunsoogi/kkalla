@@ -17,6 +17,7 @@ import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
 import { FeargreedService } from '@/modules/feargreed/feargreed.service';
 import { FeatureService } from '@/modules/feature/feature.service';
+import { HistoryRemoveItem } from '@/modules/history/history.interface';
 import { HistoryService } from '@/modules/history/history.service';
 import { NewsTypes } from '@/modules/news/news.enum';
 import { CompactNews } from '@/modules/news/news.interface';
@@ -38,6 +39,7 @@ import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '../trade/trade.interface';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { SymbolVolatility } from './market-volatility.interface';
 import {
   UPBIT_BALANCE_RECOMMENDATION_CONFIG,
@@ -88,7 +90,7 @@ export class MarketVolatilityService implements OnModuleInit {
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_VOLATILITY;
 
   /**
-   * @param historyService   잔고 추천 대상 종목 목록(히스토리)을 제공
+   * @param historyService   잔고 추천 대상 종목 목록(포트폴리오)을 제공
    * @param upbitService     Upbit 1분봉 캔들 조회
    * @param inferenceService 변동성 증가 종목에 대한 잔고 추천 추론 실행
    * @param slackService     변동성 트리거 발생 시 서버 Slack 채널로 알림 전송
@@ -211,6 +213,26 @@ export class MarketVolatilityService implements OnModuleInit {
 
       this.logger.debug(trades);
 
+      // 거래가 성공적으로 완료된 후, 전량 매도된 종목을 포트폴리오에서 제거
+      // 실제로 매도 거래가 성공한 종목 중 rate <= 0인 완전 매도 종목만 포트폴리오에서 삭제
+      // rate > 0인 부분 매도 조정은 포트폴리오에 남아있어야 함 (거래 실패 시 재시도 가능하도록)
+      const soldItems: HistoryRemoveItem[] = trades
+        .filter(
+          (trade) =>
+            trade &&
+            trade.type === OrderTypes.SELL &&
+            trade.inference &&
+            trade.inference.rate <= this.MINIMUM_TRADE_RATE,
+        )
+        .map((trade) => ({
+          symbol: trade.symbol,
+          category: trade.inference.category,
+        }));
+
+      if (soldItems.length > 0) {
+        await this.historyService.removeHistory(soldItems);
+      }
+
       // 수익금 조회 및 사용자에게 알림 전송
       const profitData = await this.profitService.getProfit(user);
 
@@ -268,13 +290,13 @@ export class MarketVolatilityService implements OnModuleInit {
   /**
    * 시장 변동성 체크 메인 함수
    *
-   * - 히스토리 종목 목록을 가져와 각 종목별 변동성을 계산합니다.
+   * - 포트폴리오 종목 목록을 가져와 각 종목별 변동성을 계산합니다.
    * - BTC/KRW 변동성을 먼저 확인하여 전체 재추론 여부를 판단합니다.
    * - BTC 변동성이 없으면 개별 종목 변동성을 확인합니다.
    * - 버킷이 증가한(새로운 변동 구간에 진입한) 종목만 수집하여 처리합니다.
    */
   private async checkMarketVolatility(): Promise<void> {
-    // 잔고 추천 대상(히스토리) 종목 목록을 조회
+    // 잔고 추천 대상(포트폴리오) 종목 목록을 조회
     const historyItems = await this.historyService.fetchHistory();
 
     if (!historyItems.length) {
@@ -304,7 +326,7 @@ export class MarketVolatilityService implements OnModuleInit {
    * - 기존 보유 종목은 매도하지 않고, 추론된 종목만 거래합니다.
    * - BTC 변동성이 감지되면 개별 종목 변동성 체크는 생략합니다.
    *
-   * @param historyItems 히스토리 종목 목록
+   * @param historyItems 포트폴리오 종목 목록
    * @returns 변동성이 감지되어 트리거가 발생했는지 여부
    */
   private async triggerBtcVolatility(historyItems: RecommendationItem[]): Promise<boolean> {
@@ -357,6 +379,7 @@ export class MarketVolatilityService implements OnModuleInit {
       this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
     } else {
       // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
+      // 포트폴리오 업데이트는 handleMessage에서 거래 완료 후 수행됨
       await this.publishVolatilityMessage(users, inferences, true);
     }
 
@@ -377,11 +400,11 @@ export class MarketVolatilityService implements OnModuleInit {
   /**
    * 개별 종목 변동성 기반 트리거
    *
-   * - 히스토리 종목 각각에 대해 5%p 단위 변동 버킷 증가 여부를 확인합니다.
+   * - 포트폴리오 종목 각각에 대해 5%p 단위 변동 버킷 증가 여부를 확인합니다.
    * - 각 종목의 변동성을 병렬로 계산하여 성능을 최적화합니다.
    * - 변동성이 감지된 종목들만 모아 `triggerVolatility`를 호출합니다.
    *
-   * @param historyItems 히스토리 종목 목록
+   * @param historyItems 포트폴리오 종목 목록
    * @returns 하나 이상의 종목에서 변동성이 감지되어 트리거가 발생했는지 여부
    */
   private async triggerPerSymbolVolatility(historyItems: RecommendationItem[]): Promise<boolean> {
@@ -554,6 +577,7 @@ export class MarketVolatilityService implements OnModuleInit {
       this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
     } else {
       // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
+      // 포트폴리오 업데이트는 handleMessage에서 거래 완료 후 수행됨
       await this.publishVolatilityMessage(users, inferences, true);
     }
 
