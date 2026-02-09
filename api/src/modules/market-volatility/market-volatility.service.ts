@@ -11,7 +11,7 @@ import {
 import { Balances } from 'ccxt';
 import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
-import { ChatCompletionMessageParam } from 'openai/resources/index.mjs';
+import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
 import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
@@ -1130,19 +1130,23 @@ export class MarketVolatilityService implements OnModuleInit {
 
           const requestConfig = {
             ...UPBIT_BALANCE_RECOMMENDATION_CONFIG,
-            response_format: {
-              type: 'json_schema' as const,
-              json_schema: {
+            text: {
+              format: {
+                type: 'json_schema' as const,
                 name: 'balance_recommendation',
                 strict: true,
-                schema: UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA,
+                schema: UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA as Record<string, unknown>,
               },
             },
           };
 
-          // 실시간 API 호출
-          const completion = await this.openaiService.createChatCompletion(messages, requestConfig);
-          const responseData = JSON.parse(completion.choices[0].message.content);
+          // 실시간 API 호출 (Responses API + web_search)
+          const response = await this.openaiService.createResponse(messages, requestConfig);
+          const outputText = this.openaiService.getResponseOutputText(response);
+          if (!outputText || outputText.trim() === '') {
+            return null;
+          }
+          const responseData = JSON.parse(outputText);
 
           // 추론 결과와 아이템 병합
           return {
@@ -1154,20 +1158,22 @@ export class MarketVolatilityService implements OnModuleInit {
       }),
     );
 
+    const validResults = inferenceResults.filter((r): r is NonNullable<typeof r> => r != null);
+
     // 추론 결과가 없으면 빈 배열 반환
-    if (inferenceResults.length === 0) {
+    if (validResults.length === 0) {
       this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
       return [];
     }
 
     // 결과 저장
     this.logger.log(
-      this.i18n.t('logging.inference.balanceRecommendation.presave', { args: { count: inferenceResults.length } }),
+      this.i18n.t('logging.inference.balanceRecommendation.presave', { args: { count: validResults.length } }),
     );
 
     const batchId = randomUUID();
     const recommendationResults = await Promise.all(
-      inferenceResults.map((recommendation) => this.saveBalanceRecommendation({ ...recommendation, batchId })),
+      validResults.map((recommendation) => this.saveBalanceRecommendation({ ...recommendation, batchId })),
     );
 
     this.logger.log(
@@ -1182,7 +1188,7 @@ export class MarketVolatilityService implements OnModuleInit {
       symbol: saved.symbol,
       category: saved.category,
       rate: saved.rate,
-      hasStock: inferenceResults[index].hasStock,
+      hasStock: validResults[index].hasStock,
     }));
   }
 
@@ -1194,8 +1200,8 @@ export class MarketVolatilityService implements OnModuleInit {
    * @param symbol 종목 심볼
    * @returns OpenAI API용 메시지 배열
    */
-  private async buildBalanceRecommendationMessages(symbol: string): Promise<ChatCompletionMessageParam[]> {
-    const messages: ChatCompletionMessageParam[] = [];
+  private async buildBalanceRecommendationMessages(symbol: string): Promise<EasyInputMessage[]> {
+    const messages: EasyInputMessage[] = [];
 
     // 시스템 프롬프트 추가
     this.openaiService.addMessage(messages, 'system', UPBIT_BALANCE_RECOMMENDATION_PROMPT);

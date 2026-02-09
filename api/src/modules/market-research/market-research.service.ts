@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { I18nService } from 'nestjs-i18n';
-import { ChatCompletionMessageParam } from 'openai/resources/index.mjs';
+import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
 import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
@@ -180,12 +180,12 @@ export class MarketResearchService {
     const inferenceResult = await this.errorService.retryWithFallback(async () => {
       const requestConfig = {
         ...UPBIT_MARKET_RECOMMENDATION_CONFIG,
-        response_format: {
-          type: 'json_schema' as const,
-          json_schema: {
+        text: {
+          format: {
+            type: 'json_schema' as const,
             name: 'market_recommendation',
             strict: true,
-            schema: UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
+            schema: UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA as Record<string, unknown>,
           },
         },
       };
@@ -250,8 +250,8 @@ export class MarketResearchService {
    * @param symbols 추천 대상 종목 목록 (선택적)
    * @returns OpenAI API용 메시지 배열
    */
-  private async buildMarketRecommendationMessages(symbols?: string[]): Promise<ChatCompletionMessageParam[]> {
-    const messages: ChatCompletionMessageParam[] = [];
+  private async buildMarketRecommendationMessages(symbols?: string[]): Promise<EasyInputMessage[]> {
+    const messages: EasyInputMessage[] = [];
 
     // 시스템 프롬프트 추가
     this.openaiService.addMessage(messages, 'system', UPBIT_MARKET_RECOMMENDATION_PROMPT);

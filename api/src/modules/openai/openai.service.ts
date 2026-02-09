@@ -2,10 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 import OpenAI from 'openai';
-import { ChatCompletionCreateParams, ChatCompletionMessageParam } from 'openai/resources/index.mjs';
+import type {
+  EasyInputMessage,
+  Response,
+  ResponseCreateParamsNonStreaming,
+  ResponseInput,
+  ResponseOutputText,
+} from 'openai/resources/responses/responses';
 
 import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
+import type { ResponseCreateConfig } from './openai.interface';
 
 @Injectable()
 export class OpenaiService {
@@ -18,34 +25,21 @@ export class OpenaiService {
   ) {}
 
   /**
-   * OpenAI 메시지 추가 헬퍼
-   *
-   * - ChatCompletionMessageParam 배열에 메시지를 추가합니다.
-   *
-   * @param messages 메시지 배열
-   * @param role 메시지 역할 (system, assistant, user)
-   * @param content 메시지 내용
+   * Responses API 입력용 메시지 추가 (SDK: EasyInputMessage)
    */
   public addMessage(
-    messages: ChatCompletionMessageParam[],
-    role: 'system' | 'assistant' | 'user',
+    messages: EasyInputMessage[],
+    role: 'user' | 'assistant' | 'system' | 'developer',
     content: string,
   ): void {
     messages.push({ role, content });
   }
 
   /**
-   * OpenAI 메시지 페어 추가 헬퍼 (i18n 지원)
-   *
-   * - i18n 키로 변환된 프롬프트와 데이터를 함께 추가합니다.
-   * - 프롬프트와 데이터를 각각 별도의 user 메시지로 추가합니다.
-   *
-   * @param messages 메시지 배열
-   * @param promptKey i18n 키
-   * @param data 데이터 객체 (JSON으로 변환됨)
-   * @param args i18n 인자 (선택적)
+   * 메시지 페어 추가 (i18n) — 프롬프트용 user 메시지 + 데이터용 user 메시지 두 개를 순서대로 추가.
+   * instructions는 첫 번째 system 하나만 쓰고, 나머지는 모두 input 배열로 전달됨.
    */
-  public addMessagePair(messages: ChatCompletionMessageParam[], promptKey: string, data: any, args?: any): void {
+  public addMessagePair(messages: EasyInputMessage[], promptKey: string, data: any, args?: any): void {
     const content = String(this.i18n.t(promptKey, args));
     const dataString = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 
@@ -65,56 +59,116 @@ export class OpenaiService {
   }
 
   /**
-   * 실시간 채팅 완성 API 호출
+   * Responses API 호출
+   * - 사용 도구(tools)는 config에서만 지정한다. 첫 번째 system 메시지는 instructions, 나머지는 input으로 전달.
    */
-  public async createChatCompletion(
-    messages: ChatCompletionMessageParam[],
-    config: Omit<ChatCompletionCreateParams, 'messages'>,
-  ) {
+  public async createResponse(messages: EasyInputMessage[], config: ResponseCreateConfig): Promise<Response> {
     const client = await this.getServerClient();
 
-    const params: ChatCompletionCreateParams = {
-      model: config.model,
-      max_completion_tokens: config.max_completion_tokens,
-      reasoning_effort: config.reasoning_effort,
-      verbosity: config.verbosity,
-      service_tier: config.service_tier,
-      response_format: config.response_format,
-      messages,
+    const { instructions, input } = this.messagesToResponseInput(messages);
+
+    const params: ResponseCreateParamsNonStreaming = {
+      model: config.model as ResponseCreateParamsNonStreaming['model'],
+      max_output_tokens: config.max_output_tokens,
+      reasoning: config.reasoning_effort ? { effort: config.reasoning_effort } : undefined,
+      service_tier: config.service_tier ?? undefined,
+      instructions: instructions ?? undefined,
+      input: input.length > 0 ? input : undefined,
       stream: false,
+      tools: config.tools?.length ? config.tools : undefined,
+      text: config.text
+        ? {
+            format: {
+              type: 'json_schema',
+              name: config.text.format.name,
+              strict: config.text.format.strict,
+              schema: config.text.format.schema as { [key: string]: unknown },
+            },
+          }
+        : undefined,
     };
 
-    this.logger.log(this.i18n.t('logging.openai.chat.completion_start'));
+    this.logger.log(this.i18n.t('logging.openai.response.start'));
 
-    const completion = await client.chat.completions.create(params);
+    const response = await client.responses.create(params);
 
-    this.logger.log(this.i18n.t('logging.openai.chat.completion_complete'));
+    this.logger.log(this.i18n.t('logging.openai.response.complete'));
 
-    return completion;
+    return response;
   }
 
   /**
-   * 배치 요청 생성
+   * Responses API 응답에서 최종 출력 텍스트 추출.
+   * output_text가 있으면 사용하고, 없거나 비어 있으면 output[].content[] (type === 'output_text')에서 추출.
+   * 출력이 없으면 빈 문자열을 반환하므로, 호출부에서는 파싱 전에 비어 있지 않은지 검사해야 한다.
    */
-  public createBatchRequest(
-    customId: string,
-    messages: ChatCompletionMessageParam[],
-    config: Omit<ChatCompletionCreateParams, 'messages'>,
-  ): string {
+  public getResponseOutputText(response: Response): string {
+    if (typeof response.output_text === 'string' && response.output_text.length > 0) {
+      return response.output_text;
+    }
+    const texts: string[] = [];
+    for (const item of response.output ?? []) {
+      if (item.type !== 'message' || !Array.isArray(item.content)) continue;
+      for (const content of item.content) {
+        if (content.type === 'output_text') {
+          texts.push((content as ResponseOutputText).text);
+        }
+      }
+    }
+    return texts.join('');
+  }
+
+  /**
+   * instructions는 단일 문자열만 허용되므로, 첫 번째 system 메시지만 instructions로 쓴다.
+   * 나머지(두 번째 system 포함, 모든 user 페어)는 input 배열에 순서대로 유지한다.
+   */
+  private messagesToResponseInput(messages: EasyInputMessage[]): {
+    instructions: string | null;
+    input: ResponseInput;
+  } {
+    const first = messages[0];
+    if (first && first.role === 'system' && typeof first.content === 'string') {
+      return {
+        instructions: first.content,
+        input: messages.slice(1) as ResponseInput,
+      };
+    }
+    return { instructions: null, input: messages as ResponseInput };
+  }
+
+  /**
+   * 배치 요청 생성 (Responses API, tools는 config에서 지정)
+   */
+  public createBatchRequest(customId: string, messages: EasyInputMessage[], config: ResponseCreateConfig): string {
+    const { instructions, input } = this.messagesToResponseInput(messages);
+
+    const body: Record<string, unknown> = {
+      model: config.model,
+      max_output_tokens: config.max_output_tokens,
+      reasoning: config.reasoning_effort ? { effort: config.reasoning_effort } : undefined,
+      service_tier: config.service_tier,
+      instructions: instructions ?? undefined,
+      input: input.length > 0 ? input : undefined,
+      stream: false,
+      tools: config.tools?.length ? config.tools : undefined,
+    };
+
+    if (config.text) {
+      body.text = {
+        format: {
+          type: 'json_schema',
+          name: config.text.format.name,
+          strict: config.text.format.strict,
+          schema: config.text.format.schema,
+        },
+      };
+    }
+
     const request = {
       custom_id: customId,
       method: 'POST',
-      url: '/v1/chat/completions',
-      body: {
-        model: config.model,
-        max_completion_tokens: config.max_completion_tokens,
-        reasoning_effort: config.reasoning_effort,
-        verbosity: config.verbosity,
-        service_tier: config.service_tier,
-        response_format: config.response_format,
-        messages,
-        stream: false,
-      },
+      url: '/v1/responses',
+      body,
     };
 
     return JSON.stringify(request);
@@ -136,10 +190,10 @@ export class OpenaiService {
 
     this.logger.log(this.i18n.t('logging.openai.batch.upload_complete', { args: { fileId: file.id } }));
 
-    // 배치 작업 생성
+    // 배치 작업 생성 (Responses API)
     const batch = await client.batches.create({
       input_file_id: file.id,
-      endpoint: '/v1/chat/completions',
+      endpoint: '/v1/responses',
       completion_window: '24h',
       metadata: {
         timestamp: new Date().toISOString(),
@@ -249,12 +303,33 @@ export class OpenaiService {
             }),
           );
           results.push({ custom_id: result.custom_id, error: result.error.message });
-        } else if (result.response?.body?.choices?.[0]?.message?.content) {
-          // 메시지가 있을 때
-          const content = JSON.parse(result.response.body.choices[0].message.content);
+        } else if (result.response?.body?.output_text) {
+          // Responses API: output_text가 있을 때
+          const content = JSON.parse(result.response.body.output_text);
           results.push({ custom_id: result.custom_id, data: content });
+        } else if (result.response?.body?.output) {
+          // Responses API: output 배열 전체를 순회해 모든 output_text를 합침 (getResponseOutputText와 동일)
+          const output = result.response.body.output as Array<{
+            type?: string;
+            content?: Array<{ type?: string; text?: string }>;
+          }>;
+          const texts: string[] = [];
+          for (const item of output) {
+            if (item.type !== 'message' || !Array.isArray(item.content)) continue;
+            for (const content of item.content) {
+              if (content.type === 'output_text' && content.text) {
+                texts.push(content.text);
+              }
+            }
+          }
+          const text = texts.join('');
+          if (text) {
+            const content = JSON.parse(text);
+            results.push({ custom_id: result.custom_id, data: content });
+          } else {
+            results.push({ custom_id: result.custom_id, error: 'No output_text in response' });
+          }
         } else {
-          // 메시지가 없을 때
           results.push({ custom_id: result.custom_id, error: 'No content in response' });
         }
       } catch (error) {
