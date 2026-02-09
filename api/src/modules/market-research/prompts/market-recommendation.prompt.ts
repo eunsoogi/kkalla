@@ -69,15 +69,16 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
 - 기술적 지표 기반 객관적 분석
 - **추천 이유 (reason)**: 각 종목별 추천 핵심 근거를 2-3 문장으로 작성하여 기술적 지표와 시장 상황을 구체적으로 설명합니다.
 - JSON 스키마를 정확히 준수하며, 추가 필드나 불필요한 설명 없이 결과만 반환
+- 결론과 근거는 웹 검색으로 교차검증한 뒤 제시한다.
 `;
 
 // GPT-5.2 모델 설정 - 상위 10개 종목 추천용
 export const UPBIT_MARKET_RECOMMENDATION_CONFIG = {
   model: 'gpt-5.2',
-  max_completion_tokens: 16384,
+  max_output_tokens: 16384,
   reasoning_effort: 'high' as const,
-  verbosity: 'low' as const,
   service_tier: 'auto' as const,
+  tools: [{ type: 'web_search' } as const],
 };
 
 export const UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA = {

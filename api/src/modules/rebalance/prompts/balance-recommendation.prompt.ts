@@ -221,14 +221,15 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 - 비관적 시나리오: 저항선 거부 후 -8% 하락 가능 (확률 20%, 신뢰도 높음)
 - 예측 기반 결정: 비관적 시나리오 확률이 낮지만 신뢰도가 높고, 기본 시나리오가 가장 높은 확률
   → 보수적 접근, rate = 0.3 (소량 보유로 기회 대기)
+- 결론과 근거는 웹 검색으로 교차검증한 뒤 제시한다.
 `;
 
 export const UPBIT_BALANCE_RECOMMENDATION_CONFIG = {
   model: 'gpt-5.2',
-  max_completion_tokens: 16384,
+  max_output_tokens: 16384,
   reasoning_effort: 'high' as const,
-  verbosity: 'low' as const,
   service_tier: 'flex' as const,
+  tools: [{ type: 'web_search' } as const],
   message: {
     news: 10,
     recent: 5,

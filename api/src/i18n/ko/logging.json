@@ -134,9 +134,9 @@
     }
   },
   "openai": {
-    "chat": {
-      "completion_start": "실시간 채팅 API 호출을 시작합니다...",
-      "completion_complete": "실시간 채팅 API 호출을 완료했습니다."
+    "response": {
+      "start": "Responses API 호출을 시작합니다...",
+      "complete": "Responses API 호출을 완료했습니다."
     },
     "batch": {
       "upload_start": "Batch 요청 파일을 업로드합니다...",
