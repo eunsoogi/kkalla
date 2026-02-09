@@ -308,14 +308,21 @@ export class OpenaiService {
           const content = JSON.parse(result.response.body.output_text);
           results.push({ custom_id: result.custom_id, data: content });
         } else if (result.response?.body?.output) {
-          // Responses API: output 배열에서 마지막 메시지 텍스트 추출
+          // Responses API: output 배열 전체를 순회해 모든 output_text를 합침 (getResponseOutputText와 동일)
           const output = result.response.body.output as Array<{
             type?: string;
             content?: Array<{ type?: string; text?: string }>;
           }>;
-          const messageItem = output.find((item) => item.type === 'message');
-          const textPart = messageItem?.content?.find((c) => c.type === 'output_text');
-          const text = textPart && 'text' in textPart ? textPart.text : null;
+          const texts: string[] = [];
+          for (const item of output) {
+            if (item.type !== 'message' || !Array.isArray(item.content)) continue;
+            for (const content of item.content) {
+              if (content.type === 'output_text' && content.text) {
+                texts.push(content.text);
+              }
+            }
+          }
+          const text = texts.join('');
           if (text) {
             const content = JSON.parse(text);
             results.push({ custom_id: result.custom_id, data: content });
