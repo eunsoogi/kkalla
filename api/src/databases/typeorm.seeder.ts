@@ -1,26 +1,38 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 
 import { DataSource } from 'typeorm';
 import { runSeeder } from 'typeorm-extension';
+
+import { RedlockService } from '@/modules/redlock/redlock.service';
 
 import { seeders as developmentSeeders } from './seeds/development.seed';
 import { seeders as productionSeeders } from './seeds/production.seed';
 import { RoleSeeder } from './seeds/role.seed';
 import { seeders as stagingSeeders } from './seeds/staging.seed';
 
+/** 시딩 락 유지 시간 (5분). 다중 파드에서 한 인스턴스만 시딩 수행. */
+const SEED_LOCK_DURATION_MS = 300_000;
+const SEED_LOCK_RESOURCE = 'db:seed';
+
 @Injectable()
-export class TypeOrmSeeder {
+export class TypeOrmSeeder implements OnModuleInit {
   private readonly logger = new Logger(TypeOrmSeeder.name);
 
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
-  ) {
-    this.seedAll();
+    private readonly redlockService: RedlockService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const ran = await this.redlockService.withLock(SEED_LOCK_RESOURCE, SEED_LOCK_DURATION_MS, () => this.seedAll());
+    if (ran === undefined) {
+      this.logger.log('Seeding skipped: another instance holds the seed lock');
+    }
   }
 
-  async seedAll() {
+  private async seedAll(): Promise<true> {
     const env = process.env.NODE_ENV || 'development';
     let seeders: any[] = [];
 
@@ -51,6 +63,7 @@ export class TypeOrmSeeder {
         this.logger.log(`Successfully ran seeder: ${seeder.name}`);
       }
       this.logger.log('Seeding completed successfully');
+      return true;
     } catch (error) {
       this.logger.error(error);
       throw error;
