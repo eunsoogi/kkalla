@@ -29,7 +29,7 @@ export const FeargreedTableItem: React.FC<Feargreed | null> = (item) => {
         {isNew && (
           <Icon
             icon='mdi:new-box'
-            className='shrink-0 text-red-500 dark:text-red-400'
+            className='shrink-0 text-red-800 dark:text-red-600'
             height={24}
             width={24}
           />

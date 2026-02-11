@@ -89,7 +89,7 @@ const NotificationItem: React.FC<Notify & { now: number }> = ({ now, ...item }) 
     >
       <span className='flex shrink-0 items-start pt-0.5 w-8 justify-center'>
         {isNew ? (
-          <Icon icon='mdi:new-box' className='text-red-500 dark:text-red-400' height={20} width={20} />
+          <Icon icon='mdi:new-box' className='text-red-800 dark:text-red-600' height={20} width={20} />
         ) : (
           <Icon
             icon='solar:notification-unread-lines-outline'
