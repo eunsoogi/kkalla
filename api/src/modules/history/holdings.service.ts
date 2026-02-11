@@ -29,9 +29,9 @@ export class HoldingsService {
         };
         if (item.symbol.endsWith('/KRW')) {
           try {
-            const currentPrice = await this.upbitService.getPrice(item.symbol);
-            dto.currentPrice = currentPrice;
             const marketData = await this.upbitService.getMarketData(item.symbol);
+            const currentPrice = marketData?.ticker?.last;
+            dto.currentPrice = currentPrice;
             const candles1d = marketData?.candles1d || [];
             if (candles1d.length >= 2 && currentPrice != null) {
               const prevClose = Number(candles1d[candles1d.length - 2][4]);

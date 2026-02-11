@@ -385,8 +385,8 @@ export class MarketResearchService {
         let priceChangePct: number | undefined;
 
         try {
-          currentPrice = await this.upbitService.getPrice(entity.symbol);
           const marketData = await this.upbitService.getMarketData(entity.symbol);
+          currentPrice = marketData?.ticker?.last;
           const candles1d = marketData?.candles1d || [];
 
           const recDateStr = new Date(entity.createdAt).toISOString().slice(0, 10);
