@@ -5,6 +5,7 @@ import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { GetCursorDto } from '../item/dto/get-cursor.dto';
 import { CursorItem, PaginatedItem } from '../item/item.interface';
 import { User } from '../user/entities/user.entity';
+import { GetNotifyLogDto } from './dto/get-notify-log.dto';
 import { GetNotifyDto } from './dto/get-notify.dto';
 import { NotifyResponse } from './dto/notify-response.dto';
 import { PostNotifyDto } from './dto/post-notify.dto';
@@ -37,10 +38,9 @@ export class NotifyController {
   @UseGuards(GoogleTokenAuthGuard)
   public async getLog(
     @CurrentUser() user: User,
-    @Query() params: GetNotifyDto,
+    @Query() params: GetNotifyLogDto,
   ): Promise<PaginatedItem<NotifyResponse>> {
-    const logParams = { ...params, perPage: params.perPage ?? 20 };
-    const result = await this.notifyService.paginate(user, logParams);
+    const result = await this.notifyService.paginate(user, params);
 
     return {
       ...result,
