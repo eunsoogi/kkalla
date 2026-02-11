@@ -20,7 +20,7 @@ const NotificationContent: React.FC = () => {
   const t = useTranslations();
   const [now] = React.useState(() => Date.now());
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Notify>>({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } = useInfiniteQuery<CursorItem<Notify>>({
     queryKey: ['notify', 'cursor'],
     queryFn: ({ pageParam = null }) => getNotifyCursorAction(pageParam as string),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -39,6 +39,21 @@ const NotificationContent: React.FC = () => {
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const isEmpty = items.length === 0 && !data?.pages.some((p) => p.items.length > 0);
+
+  if (isPending) {
+    return (
+      <div className='flex flex-col h-[min(70vh,420px)]'>
+        <div className='shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark px-4 py-3'>
+          <span className='text-sm font-semibold text-gray-800 dark:text-gray-200'>
+            {t('dashboard.notificationLog')}
+          </span>
+        </div>
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <NotificationSkeleton />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='flex flex-col h-[min(70vh,420px)]'>
