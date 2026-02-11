@@ -17,8 +17,16 @@ export const getTradeAction = async (params?: GetTradeParams): Promise<Paginated
   const client = await getClient();
   const t = await getTranslations();
 
+  // Only forward known API params (e.g. when used as queryFn reference, react-query passes QueryFunctionContext)
+  const queryParams: GetTradeParams = {};
+  if (params != null && typeof params === 'object') {
+    if (typeof params.page === 'number') queryParams.page = params.page;
+    if (typeof params.perPage === 'number') queryParams.perPage = params.perPage;
+    if (typeof params.lastHours === 'number') queryParams.lastHours = params.lastHours;
+  }
+
   try {
-    const { data } = await client.get('/api/v1/trades', { params: params ?? {} });
+    const { data } = await client.get('/api/v1/trades', { params: queryParams });
 
     return {
       success: true,
