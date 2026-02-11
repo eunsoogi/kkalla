@@ -1,4 +1,10 @@
 {
+  "cache": {
+    "get_failed": "캐시 조회 실패 (키: {key}). 캐시 없이 계속합니다.",
+    "set_failed": "캐시 저장 실패 (키: {key}). 무시하고 계속합니다.",
+    "del_failed": "캐시 삭제 실패 (키: {key}). 무시합니다.",
+    "quit_failed": "모듈 종료 시 Redis 클라이언트 종료에 실패했습니다."
+  },
   "upbit": {
     "apikey": {
       "server_expired": "서버 API 키가 만료되었거나 유효하지 않습니다.",

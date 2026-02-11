@@ -1,6 +1,7 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 
 import Redis from 'ioredis';
+import { I18nService } from 'nestjs-i18n';
 
 /**
  * 간단한 Redis 기반 캐시 서비스.
@@ -11,8 +12,9 @@ import Redis from 'ioredis';
 @Injectable()
 export class CacheService implements OnModuleDestroy {
   private readonly client: Redis;
+  private readonly logger = new Logger(CacheService.name);
 
-  constructor() {
+  constructor(private readonly i18n: I18nService) {
     this.client = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379', 10),
@@ -24,15 +26,16 @@ export class CacheService implements OnModuleDestroy {
    * 캐시에서 값 조회
    */
   public async get<T>(key: string): Promise<T | null> {
-    const raw = await this.client.get(key);
-    if (!raw) {
-      return null;
-    }
-
     try {
+      const raw = await this.client.get(key);
+      if (!raw) {
+        return null;
+      }
+
       return JSON.parse(raw) as T;
-    } catch {
-      // 파싱 실패 시 캐시 무시
+    } catch (error) {
+      // Redis 장애 및 JSON 파싱 실패 시 캐시를 무시하고 통과
+      this.logger.warn(this.i18n.t('logging.cache.get_failed', { args: { key } }), error as Error);
       return null;
     }
   }
@@ -41,11 +44,16 @@ export class CacheService implements OnModuleDestroy {
    * 캐시에 값 저장 (TTL 초 단위)
    */
   public async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
-    const payload = JSON.stringify(value);
-    if (ttlSeconds > 0) {
-      await this.client.set(key, payload, 'EX', ttlSeconds);
-    } else {
-      await this.client.set(key, payload);
+    try {
+      const payload = JSON.stringify(value);
+      if (ttlSeconds > 0) {
+        await this.client.set(key, payload, 'EX', ttlSeconds);
+      } else {
+        await this.client.set(key, payload);
+      }
+    } catch (error) {
+      // 캐시 저장 실패는 비치명적으로 처리 (원래 로직은 이미 실행 완료된 상태여야 함)
+      this.logger.warn(this.i18n.t('logging.cache.set_failed', { args: { key } }), error as Error);
     }
   }
 
@@ -53,10 +61,20 @@ export class CacheService implements OnModuleDestroy {
    * 캐시 키 삭제
    */
   public async del(key: string): Promise<void> {
-    await this.client.del(key);
+    try {
+      await this.client.del(key);
+    } catch (error) {
+      // 삭제 실패 역시 치명적이지 않으므로 무시
+      this.logger.warn(this.i18n.t('logging.cache.del_failed', { args: { key } }), error as Error);
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.client.quit();
+    try {
+      await this.client.quit();
+    } catch (error) {
+      // 종료 시점 에러도 무시
+      this.logger.warn(this.i18n.t('logging.cache.quit_failed'), error as Error);
+    }
   }
 }
