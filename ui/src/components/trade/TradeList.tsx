@@ -19,7 +19,7 @@ import { TRADE_STYLES } from './style';
 const TradeContent = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Trade>>({
     queryKey: ['trades'],
-    queryFn: getTradeAction,
+    queryFn: () => getTradeAction(),
     initialData: initialState,
     refetchOnMount: 'always',
   });
