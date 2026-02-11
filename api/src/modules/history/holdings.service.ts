@@ -33,8 +33,8 @@ export class HoldingsService {
             dto.currentPrice = currentPrice;
             const marketData = await this.upbitService.getMarketData(item.symbol);
             const candles1d = marketData?.candles1d || [];
-            if (candles1d.length >= 2) {
-              const prevClose = Number(candles1d[candles1d.length - 2][4]) || currentPrice;
+            if (candles1d.length >= 2 && currentPrice != null) {
+              const prevClose = Number(candles1d[candles1d.length - 2][4]);
               if (prevClose > 0) {
                 dto.dailyChangePct = Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2));
                 dto.dailyChangeAbs = Number((currentPrice - prevClose).toFixed(2));
