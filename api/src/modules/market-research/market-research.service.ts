@@ -376,7 +376,7 @@ export class MarketResearchService {
    */
   public async getLatestWithPriceChange(limit = 10): Promise<MarketRecommendationWithChangeDto[]> {
     const latest = await MarketRecommendation.getLatestRecommends();
-    const items = latest.slice(0, limit);
+    const items = [...latest].sort((a, b) => Number(b.confidence) - Number(a.confidence)).slice(0, limit);
 
     const result: MarketRecommendationWithChangeDto[] = await Promise.all(
       items.map(async (entity) => {
