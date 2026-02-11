@@ -3,7 +3,7 @@
 import React from 'react';
 
 import { Icon } from '@iconify/react';
-import { TableBody, TableCell, TableRow } from 'flowbite-react';
+import { TableCell, TableRow } from 'flowbite-react';
 import { useFormatter } from 'next-intl';
 
 import { Feargreed } from '@/interfaces/feargreed.interface';
@@ -45,17 +45,3 @@ export const FeargreedTableItem: React.FC<Feargreed | null> = (item) => {
     </TableRow>
   );
 };
-
-export const FeargreedTableSkeleton: React.FC = () => (
-  <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
-    {[1, 2, 3].map((i) => (
-      <TableRow key={i}>
-        <TableCell className='w-0 px-4 py-3' />
-        <TableCell className='px-4 py-3'><div className='h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-20' /></TableCell>
-        <TableCell className='px-4 py-3'><div className='h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-12' /></TableCell>
-        <TableCell className='px-4 py-3'><div className='h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-14' /></TableCell>
-        <TableCell className='px-4 py-3'><div className='h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24' /></TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-);
