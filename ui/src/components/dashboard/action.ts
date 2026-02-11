@@ -64,12 +64,11 @@ export const getNotifyLogAction = async (
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get<PaginatedItem<NotifyLogItem>>('/api/v1/notify/log', {
-      params: { page, perPage },
-    });
-    // Axios 응답의 data 자체가 PaginatedItem<NotifyLogItem> 형태이므로 그대로 반환
-    // (success 필드는 서버 응답에 이미 포함되어 있어 중복 지정하지 않는다)
-    return data;
+    const { data } = await client.get<Omit<PaginatedItem<NotifyLogItem>, 'success' | 'message'>>(
+      '/api/v1/notify/log',
+      { params: { page, perPage } },
+    );
+    return { success: true, ...data };
   } catch (error) {
     return {
       success: false,
