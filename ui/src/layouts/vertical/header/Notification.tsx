@@ -5,7 +5,7 @@ import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Badge, Button, Dropdown, DropdownItem } from 'flowbite-react';
+import { Badge, Dropdown } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { CursorItem } from '@/interfaces/item.interface';
@@ -14,100 +14,146 @@ import { formatDate } from '@/utils/date';
 
 import { getNotifyCursorAction } from './actions';
 
+const MS_1H = 60 * 60 * 1000;
+
 const NotificationContent: React.FC = () => {
   const t = useTranslations();
+  const [now] = React.useState(() => Date.now());
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Notify>>({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } = useInfiniteQuery<CursorItem<Notify>>({
     queryKey: ['notify', 'cursor'],
     queryFn: ({ pageParam = null }) => getNotifyCursorAction(pageParam as string),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
   });
 
-  const handleLoad = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  const handleLoad = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetchingNextPage],
+  );
+
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const isEmpty = items.length === 0 && !data?.pages.some((p) => p.items.length > 0);
+
+  if (isPending) {
+    return (
+      <div className='flex flex-col h-[min(70vh,420px)]'>
+        <div className='shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark px-4 py-3'>
+          <span className='text-sm font-semibold text-gray-800 dark:text-gray-200'>
+            {t('dashboard.notificationLog')}
+          </span>
+        </div>
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <NotificationSkeleton />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {data?.pages.map((page, i) => (
-        <Fragment key={i}>
-          {page.items.map((item) => (
-            <NotificationItem key={item.id} {...item} />
-          ))}
-        </Fragment>
+    <div className='flex flex-col h-[min(70vh,420px)]'>
+      <div className='shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark px-4 py-3'>
+        <span className='text-sm font-semibold text-gray-800 dark:text-gray-200'>
+          {t('dashboard.notificationLog')}
+        </span>
+      </div>
+      <div className='min-h-0 flex-1 overflow-y-auto'>
+        {isEmpty ? (
+          <div className='px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400'>
+            {t('dashboard.emptyNotificationLog')}
+          </div>
+        ) : (
+          data?.pages.map((page, i) => (
+            <Fragment key={i}>
+              {page.items.map((item) => (
+                <NotificationItem key={item.id} now={now} {...item} />
+              ))}
+            </Fragment>
+          ))
+        )}
+      </div>
+      {hasNextPage && (
+        <div className='shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-dark px-4 py-3'>
+          <button
+            type='button'
+            onClick={handleLoad}
+            disabled={isFetchingNextPage}
+            className='cursor-pointer w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50'
+          >
+            {isFetchingNextPage ? t('loading') : t('more')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const NotificationItem: React.FC<Notify & { now: number }> = ({ now, ...item }) => {
+  const createdAt = new Date(item.createdAt).getTime();
+  const isNew = now - createdAt <= MS_1H;
+
+  return (
+    <Link
+      href='#'
+      className='flex gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors'
+    >
+      <span className='flex shrink-0 items-start pt-0.5 w-8 justify-center'>
+        {isNew ? (
+          <Icon icon='mdi:new-box' className='text-red-800 dark:text-red-600' height={20} width={20} />
+        ) : (
+          <Icon
+            icon='solar:notification-unread-lines-outline'
+            className='text-gray-400 dark:text-gray-500'
+            height={20}
+            width={20}
+          />
+        )}
+      </span>
+      <div className='min-w-0 flex-1'>
+        <p className='text-sm text-gray-800 dark:text-gray-200 line-clamp-2 wrap-break-word'>{item.message}</p>
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>{formatDate(new Date(item.createdAt))}</p>
+      </div>
+    </Link>
+  );
+};
+
+const NotificationSkeleton: React.FC = () => (
+    <div className='space-y-0'>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className='flex gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700'>
+          <div className='h-5 w-5 shrink-0 rounded bg-gray-200 dark:bg-gray-700 animate-pulse' />
+          <div className='min-w-0 flex-1 space-y-2'>
+            <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-full' />
+            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-20' />
+          </div>
+        </div>
       ))}
-      <div className='flex flex-col p-3'>
-        <Button
-          onClick={handleLoad}
-          disabled={isFetchingNextPage}
-          size='sm'
-          className='rounded-sm border border-secondary dark:border-lightsecondary bg-transparent text-secondary hover:text-white dark:hover:text-black hover:bg-secondary dark:text-lightsecondary dark:hover:bg-lightsecondary'
-        >
-          {t('more')}
-        </Button>
-      </div>
-    </>
-  );
-};
+    </div>
+);
 
-const NotificationItem: React.FC<Notify> = (item: Notify) => {
-  return (
-    <DropdownItem
-      as={Link}
-      href='#'
-      className='group/link w-full px-3 py-3 gap-3 bg-hover text-dark hover:bg-gray-100'
-    >
-      <div className='flex items-center gap-5'>
-        <div>
-          <Icon
-            height={35}
-            icon='solar:notification-unread-lines-outline'
-            className='text-secondary dark:text-lightsecondary'
-          />
-        </div>
-        <div className='flex flex-col'>
-          <p className='text-sm font-semibold line-clamp-2 prose dark:prose-invert'>{item.message}</p>
-          <p className='text-xs'>{formatDate(new Date(item.createdAt))}</p>
-        </div>
-      </div>
-    </DropdownItem>
-  );
-};
-
-const NotificationSkeleton: React.FC = () => {
-  const t = useTranslations();
-
-  return (
-    <DropdownItem
-      as={Link}
-      href='#'
-      className='group/link w-full px-3 py-3 gap-3 bg-hover text-dark hover:bg-gray-100'
-    >
-      <div className='flex items-center gap-5'>
-        <div>
-          <Icon
-            height={35}
-            icon='solar:notification-unread-lines-outline'
-            className='text-secondary dark:text-lightsecondary'
-          />
-        </div>
-        <div className='flex flex-col'>
-          <p className='text-sm font-semibold line-clamp-2'>{t('loading')}</p>
-        </div>
-      </div>
-    </DropdownItem>
-  );
+const notificationDropdownTheme = {
+  floating: {
+    base: 'z-10 w-96 max-w-[80vw] overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg dark:shadow-dark-md divide-y-0 rounded-xl focus:outline-none',
+    style: {
+      auto:
+        'bg-white text-gray-900 dark:bg-dark dark:text-white dark:border-gray-700',
+    },
+  },
 };
 
 const Notification = () => {
+  const t = useTranslations();
+
   return (
     <div className='relative group/menu'>
       <Dropdown
         label=''
-        className='rounded-sm w-96 max-w-[80vw]'
+        theme={notificationDropdownTheme}
         placement='bottom-end'
         dismissOnClick={false}
         renderTrigger={() => (
@@ -120,11 +166,22 @@ const Notification = () => {
           </span>
         )}
       >
-        <div className='max-h-[80vh] overflow-y-auto transform-none'>
-          <Suspense fallback={<NotificationSkeleton />}>
-            <NotificationContent />
-          </Suspense>
-        </div>
+        <Suspense
+          fallback={
+            <div className='flex flex-col h-[min(70vh,420px)]'>
+              <div className='shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark px-4 py-3'>
+                <span className='text-sm font-semibold text-gray-800 dark:text-gray-200'>
+                  {t('dashboard.notificationLog')}
+                </span>
+              </div>
+              <div className='min-h-0 flex-1 overflow-y-auto'>
+                <NotificationSkeleton />
+              </div>
+            </div>
+          }
+        >
+          <NotificationContent />
+        </Suspense>
       </Dropdown>
     </div>
   );

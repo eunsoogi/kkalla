@@ -80,6 +80,39 @@
       "sell": "매도"
     }
   },
+  "dashboard": {
+    "marketReport": "최신 마켓 리포트",
+    "holdings": "보유 종목",
+    "trades24h": "최근 24시간 거래",
+    "notificationLog": "알림 로그",
+    "news": "뉴스",
+    "totalProfit": "총 수익금",
+    "todayProfit": "오늘 손익",
+    "currencyKrw": "KRW",
+    "viewAll": "전체 보기",
+    "emptyHoldings": "보유 종목이 없습니다.",
+    "emptyMarketReport": "최신 마켓 리포트가 없습니다.",
+    "emptyTrades24h": "최근 24시간 내 거래가 없습니다.",
+    "emptyNotificationLog": "알림 내역이 없습니다.",
+    "emptyNews": "표시할 뉴스가 없습니다.",
+    "columnSymbol": "종목",
+    "columnReason": "요약",
+    "columnRecommendationPrice": "추천 시점 가격",
+    "columnCurrentPrice": "현재가",
+    "columnChangePct": "변동률",
+    "columnDailyChange": "당일 변동",
+    "columnTime": "시각",
+    "columnMessage": "메시지",
+    "columnTitle": "제목"
+  },
+  "news": {
+    "importance": {
+      "0": "일반",
+      "1": "참고",
+      "2": "주의",
+      "3": "중요"
+    }
+  },
   "blacklist": {
     "create": "블랙리스트 추가",
     "update": "블랙리스트 수정",

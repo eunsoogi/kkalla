@@ -2,8 +2,6 @@
 
 import React from 'react';
 
-import { useTranslations } from 'next-intl';
-
 import { Feargreed } from '@/interfaces/feargreed.interface';
 import { getDiffColor, getDiffPrefix, getScoreColor } from '@/utils/color';
 
@@ -60,8 +58,10 @@ export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
   );
 };
 
-export const FeargreedGuageSkeleton: React.FC = () => {
-  const t = useTranslations();
-
-  return <div>{t('loading')}</div>;
-};
+export const FeargreedGuageSkeleton: React.FC = () => (
+  <div className='min-h-[120px] animate-pulse px-4 py-6 space-y-3' role='status' aria-label='loading'>
+    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
+    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2' />
+    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6' />
+  </div>
+);

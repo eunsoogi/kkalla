@@ -6,6 +6,7 @@ import { URL } from 'url';
 
 import { formatDate, parseTimestamp } from '@/utils/date';
 
+import { CacheService } from '../cache/cache.service';
 import { ErrorService } from '../error/error.service';
 import { API_URL } from './feargreed.config';
 import { CompactFeargreed, Feargreed, FeargreedApiResponse, FeargreedHistory } from './feargreed.interface';
@@ -15,9 +16,16 @@ export class FeargreedService {
   constructor(
     private readonly errorService: ErrorService,
     private readonly httpService: HttpService,
+    private readonly cacheService: CacheService,
   ) {}
 
   public async getFeargreed(): Promise<Feargreed> {
+    const cacheKey = 'feargreed:latest';
+    const cached = await this.cacheService.get<Feargreed>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const url = new URL(API_URL);
     url.searchParams.set('limit', '2');
 
@@ -25,10 +33,20 @@ export class FeargreedService {
       firstValueFrom(this.httpService.get<FeargreedApiResponse>(url.toString())),
     );
 
-    return this.toSingleFeargreed(data);
+    const item = this.toSingleFeargreed(data);
+    // 공포/탐욕 지수는 보통 1일 주기로 갱신되지만, 안전하게 짧게 캐시 (예: 5분)
+    await this.cacheService.set(cacheKey, item, 300);
+
+    return item;
   }
 
   public async getFeargreedHistory(limit: number = 30): Promise<FeargreedHistory> {
+    const cacheKey = `feargreed:history:${limit}`;
+    const cached = await this.cacheService.get<FeargreedHistory>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const url = new URL(API_URL);
     url.searchParams.set('limit', limit.toString());
     url.searchParams.set('date_format', 'kr');
@@ -37,7 +55,10 @@ export class FeargreedService {
       firstValueFrom(this.httpService.get<FeargreedApiResponse>(url.toString())),
     );
 
-    return this.toFeargreedHistory(data);
+    const history = this.toFeargreedHistory(data);
+    await this.cacheService.set(cacheKey, history, 300);
+
+    return history;
   }
 
   private toSingleFeargreed(response: FeargreedApiResponse): Feargreed {
@@ -87,6 +108,10 @@ export class FeargreedService {
     };
   }
 
+  /**
+   * full 캐시에만 의존하고 compact는 별도 캐시하지 않음.
+   * (compact를 따로 캐시하면 full 만료 후에도 compact가 남아 오래된 데이터를 반환할 수 있음)
+   */
   public async getCompactFeargreed(): Promise<CompactFeargreed> {
     const item = await this.getFeargreed();
     return this.toCompactFeargreed(item);

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Seeder } from 'typeorm-extension';
 
 import { Category } from '@/modules/category/category.enum';
+import { History } from '@/modules/history/entities/history.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
 import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
 import { Role } from '@/modules/role/entities/role.entity';
@@ -116,4 +117,19 @@ export class NotifySeeder implements Seeder {
   }
 }
 
-export const seeders = [UserSeeder, BalanceRecommendationSeeder, TradeSeeder, NotifySeeder];
+/**
+ * 보유 종목(History) 개발용 시드 - 대시보드 위젯에서 목록 표시용
+ */
+export class HistorySeeder implements Seeder {
+  async run(): Promise<void> {
+    await History.createQueryBuilder().delete().execute();
+
+    await History.save([
+      { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
+      { symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
+      { symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 2 },
+    ]);
+  }
+}
+
+export const seeders = [UserSeeder, BalanceRecommendationSeeder, TradeSeeder, NotifySeeder, HistorySeeder];

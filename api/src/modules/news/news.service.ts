@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { CursorItem } from '@/modules/item/item.interface';
 
+import { CacheService } from '../cache/cache.service';
 import { Category } from '../category/category.enum';
 import { RetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
@@ -20,9 +21,28 @@ export class NewsService {
     private readonly i18n: I18nService,
     private readonly errorService: ErrorService,
     private readonly httpService: HttpService,
+    private readonly cacheService: CacheService,
   ) {}
 
+  private buildCacheKey(request: NewsRequest): string {
+    const parts = [
+      `type:${request.type}`,
+      `cursor:${request.cursor ?? 'null'}`,
+      `limit:${request.limit ?? 'null'}`,
+      `importanceLower:${request.importanceLower ?? 'null'}`,
+      `skip:${request.skip ? '1' : '0'}`,
+    ];
+    return `news:${parts.join('|')}`;
+  }
+
   public async getNews(request: NewsRequest, retryOptions?: RetryOptions): Promise<News[]> {
+    // 외부 뉴스 API는 상대적으로 비싸므로 간단 캐시 (예: 60초)
+    const cacheKey = this.buildCacheKey(request);
+    const cached = await this.cacheService.get<News[]>(cacheKey);
+    if (cached !== null && Array.isArray(cached)) {
+      return cached;
+    }
+
     const { data } = await this.errorService.retry(
       async () =>
         firstValueFrom(
@@ -39,7 +59,10 @@ export class NewsService {
       retryOptions,
     );
 
-    return this.toNews(data);
+    const items = this.toNews(data);
+    await this.cacheService.set(cacheKey, items, 60);
+
+    return items;
   }
 
   private toNews(response: NewsApiResponse): News[] {
@@ -113,5 +136,18 @@ export class NewsService {
       nextCursor,
       total: items.length,
     };
+  }
+
+  /**
+   * 대시보드 위젯용: 최신 뉴스 정확히 10건 반환 (시간/중요도 필터 없음)
+   */
+  public async getNewsForDashboard(limit = 10): Promise<News[]> {
+    const request: NewsRequest = {
+      type: NewsTypes.COIN,
+      limit,
+      skip: true,
+    };
+    const items = await this.getNews(request);
+    return items.slice(0, limit);
   }
 }

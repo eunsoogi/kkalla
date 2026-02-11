@@ -7,12 +7,26 @@ import { getClient } from '@/utils/api';
 
 import { Trade, initialCursorState, initialState } from '../../interfaces/trade.interface';
 
-export const getTradeAction = async (): Promise<PaginatedItem<Trade>> => {
+export interface GetTradeParams {
+  page?: number;
+  perPage?: number;
+  lastHours?: number;
+}
+
+export const getTradeAction = async (params?: GetTradeParams): Promise<PaginatedItem<Trade>> => {
   const client = await getClient();
   const t = await getTranslations();
 
+  // Only forward known API params (e.g. when used as queryFn reference, react-query passes QueryFunctionContext)
+  const queryParams: GetTradeParams = {};
+  if (params != null && typeof params === 'object') {
+    if (typeof params.page === 'number') queryParams.page = params.page;
+    if (typeof params.perPage === 'number') queryParams.perPage = params.perPage;
+    if (typeof params.lastHours === 'number') queryParams.lastHours = params.lastHours;
+  }
+
   try {
-    const { data } = await client.get('/api/v1/trades');
+    const { data } = await client.get('/api/v1/trades', { params: queryParams });
 
     return {
       success: true,

@@ -8,6 +8,7 @@ import { User } from '../user/entities/user.entity';
 import { GetTradeCursorDto } from './dto/get-trade-cursor.dto';
 import { GetTradeDto } from './dto/get-trade.dto';
 import { Trade } from './entities/trade.entity';
+import { TradeFilter } from './trade.interface';
 import { TradeService } from './trade.service';
 
 /**
@@ -21,11 +22,23 @@ export class TradeController {
   constructor(private readonly tradeService: TradeService) {}
 
   /**
-   * 거래 목록 페이지네이션 조회
+   * 거래 목록 페이지네이션 조회 (lastHours 지정 시 최근 N시간 이내 거래만 조회)
    */
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
-  public async getTrades(@CurrentUser() user: User, @Query() request: GetTradeDto): Promise<PaginatedItem<Trade>> {
+  public async getTrades(@CurrentUser() user: User, @Query() params: GetTradeDto): Promise<PaginatedItem<Trade>> {
+    const request: GetTradeDto & TradeFilter = {
+      page: params.page,
+      perPage: params.perPage,
+      sortDirection: params.sortDirection,
+    };
+    if (params.lastHours != null && params.lastHours > 0) {
+      const now = new Date();
+      request.createdAt = {
+        gte: new Date(now.getTime() - params.lastHours * 3600000),
+        lte: now,
+      };
+    }
     return this.tradeService.paginateTrades(user, request);
   }
 

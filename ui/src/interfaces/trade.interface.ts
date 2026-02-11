@@ -18,6 +18,7 @@ export interface Trade {
 export interface ProfitResponse extends State {
   data?: {
     profit: number;
+    todayProfit?: number;
   };
 }
 
