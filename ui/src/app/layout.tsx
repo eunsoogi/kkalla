@@ -37,7 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialTheme = themeCookie === 'dark' ? 'dark' : '';
 
   return (
-    <html lang={locale} className={initialTheme}>
+    <html lang={locale} className={initialTheme} suppressHydrationWarning>
       <head>
         <link rel='icon' href='/favicon.svg' type='image/svg+xml' />
         <ThemeModeScript />

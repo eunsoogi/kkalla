@@ -22,6 +22,7 @@ import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { GetMarketRecommendationsCursorDto } from './dto/get-market-recommendations-cursor.dto';
 import { GetMarketRecommendationsPaginationDto } from './dto/get-market-recommendations-pagination.dto';
+import { MarketRecommendationWithChangeDto } from './dto/market-recommendation-with-change.dto';
 import { MarketRecommendationDto } from './dto/market-recommendation.dto';
 import { MarketRecommendation } from './entities/market-recommendation.entity';
 import { ScheduleExpression } from './market-research.enum';
@@ -368,5 +369,63 @@ export class MarketResearchService {
     const marketRecommendation = new MarketRecommendation();
     Object.assign(marketRecommendation, recommendation);
     return marketRecommendation.save();
+  }
+
+  /**
+   * 최신 마켓 추천 배치를 조회하고, 추천 시점 대비 현재가 변동률을 계산하여 반환 (메인 대시보드용)
+   */
+  public async getLatestWithPriceChange(limit = 10): Promise<MarketRecommendationWithChangeDto[]> {
+    const latest = await MarketRecommendation.getLatestRecommends();
+    const items = latest.slice(0, limit);
+
+    const result: MarketRecommendationWithChangeDto[] = await Promise.all(
+      items.map(async (entity) => {
+        let recommendationPrice: number | undefined;
+        let currentPrice: number | undefined;
+        let priceChangePct: number | undefined;
+
+        try {
+          currentPrice = await this.upbitService.getPrice(entity.symbol);
+          const marketData = await this.upbitService.getMarketData(entity.symbol);
+          const candles1d = marketData?.candles1d || [];
+
+          const recDateStr = new Date(entity.createdAt).toISOString().slice(0, 10);
+          const candleSameDay = candles1d.find(
+            (c: number[]) => new Date(c[0]).toISOString().slice(0, 10) === recDateStr,
+          );
+          if (candleSameDay && candleSameDay.length >= 5) {
+            recommendationPrice = Number(candleSameDay[4]);
+          } else if (candles1d.length > 0) {
+            const last = candles1d[candles1d.length - 1];
+            recommendationPrice = Number(last[4]);
+          } else {
+            recommendationPrice = currentPrice;
+          }
+
+          if (recommendationPrice != null && recommendationPrice > 0 && currentPrice != null) {
+            priceChangePct = Number((((currentPrice - recommendationPrice) / recommendationPrice) * 100).toFixed(2));
+          }
+        } catch {
+          // 가격 조회 실패 시 변동률만 비움
+        }
+
+        return {
+          id: entity.id,
+          seq: entity.seq,
+          symbol: entity.symbol,
+          weight: Number(entity.weight),
+          reason: entity.reason,
+          confidence: Number(entity.confidence),
+          batchId: entity.batchId,
+          createdAt: entity.createdAt,
+          updatedAt: entity.updatedAt,
+          recommendationPrice,
+          currentPrice,
+          priceChangePct,
+        };
+      }),
+    );
+
+    return result;
   }
 }

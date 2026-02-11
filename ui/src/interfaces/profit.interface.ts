@@ -3,6 +3,7 @@ import { PaginatedItem } from './item.interface';
 export interface ProfitData {
   email: string;
   profit: number;
+  todayProfit?: number;
 }
 
 export const initialPaginatedState: PaginatedItem<ProfitData> = {

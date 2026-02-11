@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { getStartOfTodayInOffset, parseTzOffsetHours } from '@/utils/date';
 
 import { Trade } from '../trade/entities/trade.entity';
 import { User } from '../user/entities/user.entity';
@@ -9,16 +10,29 @@ import { ProfitData, ProfitFilter } from './profit.interface';
 @Injectable()
 export class ProfitService {
   public async getProfit(user: User): Promise<ProfitData> {
-    const result = await Trade.createQueryBuilder()
+    // 전체 누적 수익
+    const totalResult = await Trade.createQueryBuilder()
       .select('SUM(profit)', 'sum')
       .where('user_id = :userId', { userId: user.id })
       .getRawOne();
 
-    const profit = result?.sum || 0;
+    const totalProfit = Number(totalResult?.sum) || 0;
+
+    // 오늘 기준 수익: 앱 기준 시간대(TZ_OFFSET)의 오늘 00:00 시각으로 비교 (DB UTC/로컬 구분 없이 동일 순간)
+    const startOfToday = getStartOfTodayInOffset(parseTzOffsetHours(process.env.TZ_OFFSET));
+
+    const todayResult = await Trade.createQueryBuilder()
+      .select('SUM(profit)', 'sum')
+      .where('user_id = :userId', { userId: user.id })
+      .andWhere('created_at >= :startOfToday', { startOfToday })
+      .getRawOne();
+
+    const todayProfit = Number(todayResult?.sum) || 0;
 
     return {
       email: user.email,
-      profit,
+      profit: totalProfit,
+      todayProfit,
     };
   }
 

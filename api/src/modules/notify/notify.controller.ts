@@ -30,6 +30,29 @@ export class NotifyController {
     };
   }
 
+  /**
+   * 알림 로그 테이블용 조회 (createdAt DESC, 메인 대시보드용)
+   */
+  @Get('log')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async getLog(
+    @CurrentUser() user: User,
+    @Query() params: GetNotifyDto,
+  ): Promise<PaginatedItem<NotifyResponse>> {
+    const logParams = { ...params, perPage: params.perPage ?? 20 };
+    const result = await this.notifyService.paginate(user, logParams);
+
+    return {
+      ...result,
+      items: result.items.map((item) => ({
+        id: item.id,
+        message: item?.message,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
+    };
+  }
+
   @Get('cursor')
   @UseGuards(GoogleTokenAuthGuard)
   public async cursor(

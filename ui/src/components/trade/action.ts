@@ -7,12 +7,18 @@ import { getClient } from '@/utils/api';
 
 import { Trade, initialCursorState, initialState } from '../../interfaces/trade.interface';
 
-export const getTradeAction = async (): Promise<PaginatedItem<Trade>> => {
+export interface GetTradeParams {
+  page?: number;
+  perPage?: number;
+  lastHours?: number;
+}
+
+export const getTradeAction = async (params?: GetTradeParams): Promise<PaginatedItem<Trade>> => {
   const client = await getClient();
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get('/api/v1/trades');
+    const { data } = await client.get('/api/v1/trades', { params: params ?? {} });
 
     return {
       success: true,

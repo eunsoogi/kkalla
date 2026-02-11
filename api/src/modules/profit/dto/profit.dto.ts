@@ -15,4 +15,12 @@ export class ProfitDto {
     example: 0,
   })
   profit: number = 0;
+
+  @Type(() => Number)
+  @ApiProperty({
+    required: false,
+    example: 0,
+    description: '오늘 기준 수익',
+  })
+  todayProfit?: number = 0;
 }

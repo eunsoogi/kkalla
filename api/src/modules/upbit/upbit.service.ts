@@ -4,6 +4,7 @@ import { AuthenticationError, Balances, Order, upbit } from 'ccxt';
 import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
+import { CacheService } from '../cache/cache.service';
 import { TwoPhaseRetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
@@ -37,6 +38,7 @@ export class UpbitService {
     private readonly i18n: I18nService,
     private readonly errorService: ErrorService,
     private readonly notifyService: NotifyService,
+    private readonly cacheService: CacheService,
   ) {}
 
   public async readConfig(user: User): Promise<UpbitConfig> {
@@ -217,13 +219,23 @@ export class UpbitService {
   }
 
   public async getPrice(symbol: string): Promise<number> {
+    const cacheKey = `upbit:price:${symbol}`;
+    const cached = await this.cacheService.get<number>(cacheKey);
+    if (cached != null) {
+      return cached;
+    }
+
     const client = await this.getServerClient();
 
     const info = await this.errorService.retryWithFallback(async () => {
       return await client.fetchTicker(symbol);
     }, this.retryOptions);
 
-    return info.last;
+    const last = info.last;
+    // 짧은 시간 동안만 캐시 (예: 10초)
+    await this.cacheService.set(cacheKey, last, 10);
+
+    return last;
   }
 
   public getVolume(balances: Balances, symbol: string): number {
@@ -334,6 +346,12 @@ export class UpbitService {
    * 특정 종목의 시장 데이터를 가져옵니다
    */
   public async getMarketData(symbol: string): Promise<KrwMarketData> {
+    const cacheKey = `upbit:market-data:${symbol}`;
+    const cached = await this.cacheService.get<KrwMarketData>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const client = await this.getServerClient();
 
     try {
@@ -359,7 +377,7 @@ export class UpbitService {
         }, this.retryOptions),
       ]);
 
-      return {
+      const data: KrwMarketData = {
         symbol,
         ticker,
         candles1d,
@@ -367,6 +385,11 @@ export class UpbitService {
         candles1h,
         candles4h,
       };
+
+      // 시장 데이터는 상대적으로 덜 자주 변하므로 조금 더 길게 캐시 (예: 60초)
+      await this.cacheService.set(cacheKey, data, 60);
+
+      return data;
     } catch (error) {
       this.logger.error(this.i18n.t('logging.upbit.market.load_failed', { args: { symbol } }), error);
       throw error;
