@@ -27,7 +27,7 @@ export function NotificationLogTable() {
   const [now] = React.useState(() => Date.now());
   const { data, isPending } = useQuery({
     queryKey: ['dashboard', 'notify-log'],
-    queryFn: () => getNotifyLogAction(1, 20),
+    queryFn: () => getNotifyLogAction(1, 10),
     refetchOnMount: 'always',
   });
 
@@ -64,14 +64,16 @@ export function NotificationLogTable() {
       </div>
       <SimpleBar className='min-h-0'>
         <div className='overflow-x-auto min-w-0'>
-          <Table hoverable className='w-full text-left min-w-[320px]'>
+          <Table hoverable className='w-full text-left table-fixed min-w-0'>
             <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700 sticky top-0'>
               <TableRow>
-                <TableHeadCell className='px-4 py-3 whitespace-nowrap w-0' />
-                <TableHeadCell className='px-4 py-3 whitespace-nowrap w-[160px]'>
+                <TableHeadCell className='px-2 sm:px-4 py-3 whitespace-nowrap w-0' />
+                <TableHeadCell className='px-2 sm:px-4 py-3 whitespace-nowrap w-[72px] sm:w-[120px]'>
                   {t('dashboard.columnTime')}
                 </TableHeadCell>
-                <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnMessage')}</TableHeadCell>
+                <TableHeadCell className='px-4 py-3 min-w-0'>
+                  {t('dashboard.columnMessage')}
+                </TableHeadCell>
               </TableRow>
             </TableHead>
             <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
@@ -83,7 +85,7 @@ export function NotificationLogTable() {
                     key={item.id}
                     className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   >
-                    <TableCell className='px-4 py-3 w-0 align-top'>
+                    <TableCell className='px-2 sm:px-4 py-3 w-0 align-top'>
                       {isNew && (
                         <Icon
                           icon='mdi:new-box'
@@ -93,10 +95,10 @@ export function NotificationLogTable() {
                         />
                       )}
                     </TableCell>
-                    <TableCell className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                    <TableCell className='px-2 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-[72px] sm:w-[120px]'>
                       {formatDate(new Date(item.createdAt))}
                     </TableCell>
-                    <TableCell className='px-4 py-3 text-sm text-dark dark:text-white break-words'>
+                    <TableCell className='px-4 py-3 text-sm text-dark dark:text-white break-words min-w-0'>
                       {item.message}
                     </TableCell>
                   </TableRow>
