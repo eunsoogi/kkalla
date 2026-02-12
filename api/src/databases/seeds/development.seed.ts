@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Seeder } from 'typeorm-extension';
 
 import { Category } from '@/modules/category/category.enum';
+import { UserCategory } from '@/modules/category/entities/user-category.entity';
 import { History } from '@/modules/history/entities/history.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
 import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
@@ -119,17 +120,70 @@ export class NotifySeeder implements Seeder {
 
 /**
  * 보유 종목(History) 개발용 시드 - 대시보드 위젯에서 목록 표시용
+ * 카테고리별 다양한 종목으로 매매 카테고리 필터 테스트 가능
  */
 export class HistorySeeder implements Seeder {
   async run(): Promise<void> {
     await History.createQueryBuilder().delete().execute();
 
     await History.save([
+      // 메이저 코인
       { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
       { symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
-      { symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 2 },
+      { symbol: 'SOL/KRW', category: Category.COIN_MAJOR, index: 2 },
+      // 마이너 코인
+      { symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 3 },
+      { symbol: 'ADA/KRW', category: Category.COIN_MINOR, index: 4 },
+      { symbol: 'DOGE/KRW', category: Category.COIN_MINOR, index: 5 },
+      // 나스닥
+      { symbol: 'AAPL', category: Category.NASDAQ, index: 6 },
+      { symbol: 'MSFT', category: Category.NASDAQ, index: 7 },
+      { symbol: 'NVDA', category: Category.NASDAQ, index: 8 },
     ]);
   }
 }
 
-export const seeders = [UserSeeder, BalanceRecommendationSeeder, TradeSeeder, NotifySeeder, HistorySeeder];
+/**
+ * 개발용 매매 카테고리 시드 - 보유 종목 위젯 필터 테스트용
+ * 관리자 계정은 메이저/마이너 코인만 활성화, 나스닥 비활성화로 넣어서
+ * 설정 화면에서 나스닥을 켜면 보유 종목에 AAPL 등이 보이는지 확인 가능
+ */
+export class UserCategorySeeder implements Seeder {
+  async run(): Promise<void> {
+    const email = process.env.ADMIN_EMAIL;
+    if (!email) return;
+
+    const user = await User.findOneBy({ email });
+    if (!user) return;
+
+    const categories = await UserCategory.find({ where: { user: { id: user.id } } });
+    const existingCategories = new Set(categories.map((c) => c.category));
+
+    const targetStates: { category: Category; enabled: boolean }[] = [
+      { category: Category.COIN_MAJOR, enabled: true },
+      { category: Category.COIN_MINOR, enabled: true },
+      { category: Category.NASDAQ, enabled: false },
+    ];
+
+    for (const { category, enabled } of targetStates) {
+      if (existingCategories.has(category)) {
+        const uc = categories.find((c) => c.category === category);
+        if (uc && uc.enabled !== enabled) {
+          uc.enabled = enabled;
+          await uc.save();
+        }
+      } else {
+        await UserCategory.create({ user, category, enabled }).save();
+      }
+    }
+  }
+}
+
+export const seeders = [
+  UserSeeder,
+  UserCategorySeeder,
+  BalanceRecommendationSeeder,
+  TradeSeeder,
+  NotifySeeder,
+  HistorySeeder,
+];
