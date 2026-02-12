@@ -46,7 +46,7 @@ const MarketReportRow = ({ item, t }: { item: MarketReportWithChange; t: (k: str
               {confidencePct}%
             </span>
           </span>
-          <span className='line-clamp-2 break-words'>{item.reason}</span>
+          <span className='break-words'>{item.reason}</span>
         </span>
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
