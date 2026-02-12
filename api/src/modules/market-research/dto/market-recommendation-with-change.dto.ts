@@ -31,7 +31,7 @@ export class MarketRecommendationWithChangeDto {
   @ApiProperty()
   updatedAt: Date;
 
-  /** 추천 시점 기준 가격 (해당일 종가) */
+  /** 추천 시점 기준 가격 (분봉 해당 분 시가 우선, 없으면 해당일 종가) */
   @ApiProperty({ required: false })
   recommendationPrice?: number;
 

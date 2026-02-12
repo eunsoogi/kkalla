@@ -414,4 +414,29 @@ export class UpbitService {
       throw error;
     }
   }
+
+  /**
+   * 특정 시각이 포함된 1분봉의 시가(open)를 반환합니다.
+   * 추천 시점 가격 등 "해당 시각 기준 가격" 계산용. 호출당 1건 조회로 비용 최소.
+   * @param symbol 종목
+   * @param time 기준 시각
+   * @returns 해당 분봉 시가, 없거나 실패 시 undefined
+   */
+  public async getMinuteCandleAt(symbol: string, time: Date): Promise<number | undefined> {
+    const client = await this.getServerClient();
+    const minuteStartMs = Math.floor(new Date(time).getTime() / 60_000) * 60_000;
+
+    try {
+      const candles = await this.errorService.retryWithFallback(async () => {
+        return await client.fetchOHLCV(symbol, '1m', minuteStartMs, 1);
+      }, this.retryOptions);
+
+      const candle = candles?.[0];
+      if (!candle || candle.length < 5) return undefined;
+      const open = Number(candle[1]);
+      return Number.isFinite(open) && open > 0 ? open : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 }
