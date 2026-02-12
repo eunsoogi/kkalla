@@ -387,19 +387,23 @@ export class MarketResearchService {
         try {
           const marketData = await this.upbitService.getMarketData(entity.symbol);
           currentPrice = marketData?.ticker?.last;
-          const candles1d = marketData?.candles1d || [];
 
-          const recDateStr = new Date(entity.createdAt).toISOString().slice(0, 10);
-          const candleSameDay = candles1d.find(
-            (c: number[]) => new Date(c[0]).toISOString().slice(0, 10) === recDateStr,
-          );
-          if (candleSameDay && candleSameDay.length >= 5) {
-            recommendationPrice = Number(candleSameDay[4]);
-          } else if (candles1d.length > 0) {
-            const last = candles1d[candles1d.length - 1];
-            recommendationPrice = Number(last[4]);
-          } else {
-            recommendationPrice = currentPrice;
+          // 추천 시점 가격: 분봉(해당 분 시가) 우선, 없으면 해당일 종가로 fallback
+          recommendationPrice = await this.upbitService.getMinuteCandleAt(entity.symbol, entity.createdAt);
+          if (recommendationPrice == null) {
+            const candles1d = marketData?.candles1d || [];
+            const recDateStr = new Date(entity.createdAt).toISOString().slice(0, 10);
+            const candleSameDay = candles1d.find(
+              (c: number[]) => new Date(c[0]).toISOString().slice(0, 10) === recDateStr,
+            );
+            if (candleSameDay && candleSameDay.length >= 5) {
+              recommendationPrice = Number(candleSameDay[4]);
+            } else if (candles1d.length > 0) {
+              const last = candles1d[candles1d.length - 1];
+              recommendationPrice = Number(last[4]);
+            } else {
+              recommendationPrice = currentPrice;
+            }
           }
 
           if (recommendationPrice != null && recommendationPrice > 0 && currentPrice != null) {
