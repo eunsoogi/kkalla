@@ -1,28 +1,40 @@
 import { Injectable } from '@nestjs/common';
 
+import { CategoryService } from '@/modules/category/category.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
+import { User } from '@/modules/user/entities/user.entity';
 
 import { HoldingDto } from './dto/holding.dto';
 import { HistoryService } from './history.service';
 
 /**
  * History 테이블 기반 보유 종목 목록 + 표시용 시세/변동률 제공
+ * 사용자가 매매 카테고리에서 활성화한 카테고리의 종목만 반환
  */
 @Injectable()
 export class HoldingsService {
   constructor(
     private readonly historyService: HistoryService,
     private readonly upbitService: UpbitService,
+    private readonly categoryService: CategoryService,
   ) {}
 
   /**
    * History(히스토리 테이블)에서 보유 종목 목록을 가져와
+   * 사용자가 활성화한 카테고리만 필터링한 뒤
    * KRW 마켓에 대해 현재가·당일 변동률을 붙여 반환
    */
-  async getHoldings(): Promise<HoldingDto[]> {
-    const items = await this.historyService.fetchHistory();
+  async getHoldings(user: User): Promise<HoldingDto[]> {
+    const [items, enabledCategories] = await Promise.all([
+      this.historyService.fetchHistory(),
+      this.categoryService.findEnabledByUser(user),
+    ]);
+
+    const enabledSet = new Set(enabledCategories.map((uc) => uc.category));
+    const filtered = items.filter((item) => enabledSet.has(item.category));
+
     const result: HoldingDto[] = await Promise.all(
-      items.map(async (item) => {
+      filtered.map(async (item) => {
         const dto: HoldingDto = {
           symbol: item.symbol,
           category: item.category,
