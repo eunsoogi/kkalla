@@ -67,7 +67,6 @@ export function NotificationLogTable() {
           <Table hoverable className='w-full text-left table-fixed min-w-0'>
             <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700 sticky top-0'>
               <TableRow>
-                <TableHeadCell className='px-2 sm:px-4 py-3 whitespace-nowrap w-0' />
                 <TableHeadCell className='px-2 sm:px-4 py-3 whitespace-nowrap w-[72px] sm:w-[120px]'>
                   {t('dashboard.columnTime')}
                 </TableHeadCell>
@@ -85,18 +84,18 @@ export function NotificationLogTable() {
                     key={item.id}
                     className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   >
-                    <TableCell className='px-2 sm:px-4 py-3 w-0 align-top'>
-                      {isNew && (
-                        <Icon
-                          icon='mdi:new-box'
-                          className='shrink-0 text-red-800 dark:text-red-600'
-                          height={24}
-                          width={24}
-                        />
-                      )}
-                    </TableCell>
                     <TableCell className='px-2 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-[72px] sm:w-[120px]'>
-                      {formatDate(new Date(item.createdAt))}
+                      <div className='flex items-center gap-1'>
+                        {isNew && (
+                          <Icon
+                            icon='mdi:new-box'
+                            className='shrink-0 text-red-800 dark:text-red-600'
+                            height={24}
+                            width={24}
+                          />
+                        )}
+                        <span>{formatDate(new Date(item.createdAt))}</span>
+                      </div>
                     </TableCell>
                     <TableCell className='px-4 py-3 text-sm text-dark dark:text-white break-words min-w-0'>
                       {item.message}
