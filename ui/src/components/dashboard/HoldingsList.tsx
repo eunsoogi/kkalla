@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
-import { formatNumber } from '@/utils/number';
+import { formatPrice } from '@/utils/number';
 
 import type { HoldingWithDailyChange } from '@/interfaces/dashboard.interface';
 
@@ -18,7 +18,7 @@ const HoldingRow = ({ item }: { item: HoldingWithDailyChange }) => (
   <TableRow className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
     <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>{item.symbol}</TableCell>
     <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
-      {item.currentPrice != null ? formatNumber(item.currentPrice) : '-'}
+      {item.currentPrice != null ? formatPrice(item.currentPrice) : '-'}
     </TableCell>
     <TableCell className='px-4 py-3 whitespace-nowrap'>
       {item.dailyChangePct != null ? (

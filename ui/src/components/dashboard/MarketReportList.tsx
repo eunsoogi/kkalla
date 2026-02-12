@@ -9,7 +9,7 @@ import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
-import { formatPriceForReport } from '@/utils/number';
+import { formatPrice } from '@/utils/number';
 
 import type { MarketReportWithChange } from '@/interfaces/dashboard.interface';
 
@@ -50,10 +50,10 @@ const MarketReportRow = ({ item, t }: { item: MarketReportWithChange; t: (k: str
         </span>
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
-        {item.recommendationPrice != null ? formatPriceForReport(item.recommendationPrice) : '-'}
+        {item.recommendationPrice != null ? formatPrice(item.recommendationPrice) : '-'}
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
-        {item.currentPrice != null ? formatPriceForReport(item.currentPrice) : '-'}
+        {item.currentPrice != null ? formatPrice(item.currentPrice) : '-'}
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap'>
         {item.priceChangePct != null ? (
