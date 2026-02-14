@@ -65,12 +65,16 @@ export function NotificationLogTable() {
       <SimpleBar className='min-h-0'>
         <div className='overflow-x-auto min-w-0'>
           <Table hoverable className='w-full text-left table-fixed min-w-0'>
+            <colgroup>
+              <col style={{ width: 112 }} />
+              <col />
+            </colgroup>
             <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700 sticky top-0'>
               <TableRow>
-                <TableHeadCell className='px-2 sm:px-4 py-3 whitespace-nowrap w-[72px] sm:w-[120px]'>
+                <TableHeadCell className='px-2 sm:px-4 py-3 whitespace-nowrap'>
                   {t('dashboard.columnTime')}
                 </TableHeadCell>
-                <TableHeadCell className='px-4 py-3 min-w-0'>
+                <TableHeadCell className='min-w-0 px-4 py-3'>
                   {t('dashboard.columnMessage')}
                 </TableHeadCell>
               </TableRow>
@@ -84,7 +88,7 @@ export function NotificationLogTable() {
                     key={item.id}
                     className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   >
-                    <TableCell className='px-2 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-[72px] sm:w-[120px]'>
+                    <TableCell className='px-2 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                       <div className='flex items-center gap-1'>
                         {isNew && (
                           <Icon
@@ -97,7 +101,7 @@ export function NotificationLogTable() {
                         <span>{formatDate(new Date(item.createdAt))}</span>
                       </div>
                     </TableCell>
-                    <TableCell className='px-4 py-3 text-sm text-dark dark:text-white break-words min-w-0'>
+                    <TableCell className='min-w-0 px-4 py-3 text-sm text-dark dark:text-white break-words'>
                       {item.message}
                     </TableCell>
                   </TableRow>
