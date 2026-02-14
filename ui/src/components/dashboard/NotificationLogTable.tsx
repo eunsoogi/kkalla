@@ -10,6 +10,7 @@ import SimpleBar from 'simplebar-react';
 
 import { formatDate } from '@/utils/date';
 
+import { ContentModal } from './ContentModal';
 import { getNotifyLogAction } from './action';
 
 const MS_1H = 60 * 60 * 1000;
@@ -25,6 +26,7 @@ export const NotificationLogTableSkeleton = () => (
 export function NotificationLogTable() {
   const t = useTranslations();
   const [now] = React.useState(() => Date.now());
+  const [openId, setOpenId] = React.useState<string | null>(null);
   const { data, isPending } = useQuery({
     queryKey: ['dashboard', 'notify-log'],
     queryFn: () => getNotifyLogAction(1, 10),
@@ -86,7 +88,11 @@ export function NotificationLogTable() {
                 return (
                   <TableRow
                     key={item.id}
-                    className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    role='button'
+                    tabIndex={0}
+                    className='cursor-pointer border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    onClick={() => setOpenId(item.id)}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setOpenId(item.id)}
                   >
                     <TableCell className='px-2 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                       <div className='flex items-center gap-1'>
@@ -101,8 +107,18 @@ export function NotificationLogTable() {
                         <span>{formatDate(new Date(item.createdAt))}</span>
                       </div>
                     </TableCell>
-                    <TableCell className='min-w-0 px-4 py-3 text-sm text-dark dark:text-white break-words'>
-                      {item.message}
+                    <TableCell className='min-w-0 px-4 py-3 text-sm text-dark dark:text-white'>
+                      <span
+                        className='block wrap-break-word text-dark dark:text-white'
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {item.message}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );
@@ -111,6 +127,16 @@ export function NotificationLogTable() {
           </Table>
         </div>
       </SimpleBar>
+      {items.map((item) => (
+        <ContentModal
+          key={item.id}
+          show={openId === item.id}
+          onClose={() => setOpenId(null)}
+          title={t('dashboard.columnMessage')}
+        >
+          {item.message}
+        </ContentModal>
+      ))}
     </div>
   );
 }

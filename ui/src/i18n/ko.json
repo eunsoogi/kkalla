@@ -103,7 +103,8 @@
     "columnDailyChange": "당일 변동",
     "columnTime": "시각",
     "columnMessage": "메시지",
-    "columnTitle": "제목"
+    "columnTitle": "제목",
+    "openArticle": "기사 보기"
   },
   "news": {
     "importance": {
@@ -198,6 +199,7 @@
   "channel": "채널",
   "profile": "프로필",
   "more": "더 보기",
+  "close": "닫기",
   "schedule": {
     "management": {
       "title": "스케줄 관리",
