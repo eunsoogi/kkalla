@@ -15,21 +15,36 @@ import type { MarketReportWithChange } from '@/interfaces/dashboard.interface';
 
 import { getConfidenceColor, getWeightColor } from '@/components/inference/style';
 
+import { ContentModal } from './ContentModal';
 import { getLatestMarketReportsAction } from './action';
 
-const MarketReportRow = ({ item, t }: { item: MarketReportWithChange; t: (k: string) => string }) => {
+const MarketReportRow = ({
+  item,
+  t,
+  onRowClick,
+}: {
+  item: MarketReportWithChange;
+  t: (k: string) => string;
+  onRowClick: (id: string) => void;
+}) => {
   const weightPct = Math.floor((item.weight ?? 0) * 100);
   const confidencePct = Math.floor((item.confidence ?? 0) * 100);
   const weightStyle = getWeightColor(item.weight ?? 0);
   const confidenceStyle = getConfidenceColor(item.confidence ?? 0);
   return (
-    <TableRow className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
+    <TableRow
+      role='button'
+      tabIndex={0}
+      className='cursor-pointer border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+      onClick={() => onRowClick(item.id)}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onRowClick(item.id)}
+    >
       <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>{item.symbol}</TableCell>
       <TableCell className='px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[320px] min-w-0'>
-        <span className='inline-flex flex-wrap items-center gap-y-1'>
-          <span
+        <div className='flex flex-col gap-y-2'>
+          <div
             className='inline-flex shrink-0 items-center'
-            style={{ gap: '0.375rem', marginRight: '0.75rem' }}
+            style={{ gap: '0.375rem' }}
           >
             <span
               className='rounded px-1.5 py-0.5 text-xs font-medium'
@@ -45,9 +60,19 @@ const MarketReportRow = ({ item, t }: { item: MarketReportWithChange; t: (k: str
             >
               {confidencePct}%
             </span>
+          </div>
+          <span
+            className='block wrap-break-word text-gray-600 dark:text-gray-400'
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {item.reason}
           </span>
-          <span className='break-words'>{item.reason}</span>
-        </span>
+        </div>
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
         {item.recommendationPrice != null ? formatPrice(item.recommendationPrice) : '-'}
@@ -80,6 +105,7 @@ export const MarketReportListSkeleton = () => (
 export function MarketReportList() {
   const t = useTranslations();
   const router = useRouter();
+  const [openId, setOpenId] = React.useState<string | null>(null);
   const { data, isPending } = useQuery({
     queryKey: ['dashboard', 'market-reports'],
     queryFn: () => getLatestMarketReportsAction(10),
@@ -139,13 +165,28 @@ export function MarketReportList() {
               </TableHead>
               <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
                 {items.map((item) => (
-                  <MarketReportRow key={item.id} item={item} t={t} />
+                  <MarketReportRow
+                    key={item.id}
+                    item={item}
+                    t={t}
+                    onRowClick={(id) => setOpenId(id || null)}
+                  />
                 ))}
               </TableBody>
             </Table>
           </div>
         </SimpleBar>
       )}
+      {items.map((item) => (
+        <ContentModal
+          key={item.id}
+          show={openId === item.id}
+          onClose={() => setOpenId(null)}
+          title={t('dashboard.columnReason')}
+        >
+          {item.reason}
+        </ContentModal>
+      ))}
     </div>
   );
 }

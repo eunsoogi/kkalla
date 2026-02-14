@@ -12,8 +12,10 @@ import SimpleBar from 'simplebar-react';
 import { News } from '@/interfaces/news.interface';
 import { formatDate } from '@/utils/date';
 
-import { getDashboardNewsAction } from './action';
 import { NEWS_STYLES } from '@/components/news/style';
+
+import { ContentModal } from './ContentModal';
+import { getDashboardNewsAction } from './action';
 
 const MS_1H = 60 * 60 * 1000;
 
@@ -29,6 +31,7 @@ export function NewsWidget() {
   const t = useTranslations();
   const router = useRouter();
   const [now] = React.useState(() => Date.now());
+  const [openId, setOpenId] = React.useState<string | null>(null);
   const { data, isPending } = useQuery({
     queryKey: ['dashboard', 'news'],
     queryFn: () => getDashboardNewsAction(10),
@@ -90,8 +93,11 @@ export function NewsWidget() {
                   return (
                     <TableRow
                       key={item.id}
+                      role='button'
+                      tabIndex={0}
                       className={`cursor-pointer border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${style.bgStyle}`}
-                      onClick={() => window.open(item.link, '_blank')}
+                      onClick={() => setOpenId(item.id)}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setOpenId(item.id)}
                     >
                       <TableCell className='px-4 py-3 w-0 align-top'>
                         <div className='flex items-center gap-1'>
@@ -106,7 +112,17 @@ export function NewsWidget() {
                         </div>
                       </TableCell>
                       <TableCell className='px-4 py-3 text-sm min-w-0'>
-                        <p className={`font-medium line-clamp-2 break-words ${style.textStyle}`}>{item.title}</p>
+                        <p
+                          className={`font-medium wrap-break-word ${style.textStyle}`}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {item.title}
+                        </p>
                         <p className={`mt-0.5 text-xs ${style.textStyle} opacity-80`}>{item.source}</p>
                       </TableCell>
                       <TableCell className='px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap'>
@@ -120,6 +136,17 @@ export function NewsWidget() {
           </div>
         </SimpleBar>
       )}
+      {items.map((item) => (
+        <ContentModal
+          key={item.id}
+          show={openId === item.id}
+          onClose={() => setOpenId(null)}
+          title={t('dashboard.columnTitle')}
+          actionLink={item.link}
+        >
+          {item.title}
+        </ContentModal>
+      ))}
     </div>
   );
 }
