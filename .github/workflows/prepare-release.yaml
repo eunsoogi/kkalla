@@ -32,3 +32,4 @@ jobs:
           commit-message: "chore: release v${{ github.event.inputs.version }}"
           title: "Release v${{ github.event.inputs.version }}"
           body: "Bump appVersion to ${{ github.event.inputs.version }}. Merge to trigger bake and release."
+          labels: release
