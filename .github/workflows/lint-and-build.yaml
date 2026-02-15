@@ -1,5 +1,5 @@
 ---
-name: lint-and-build
+name: Lint and Build
 
 on:
   push:
