@@ -3,73 +3,17 @@ name: Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "App version to deploy (required when Run workflow from a branch. e.g. 1.0.0)"
+        required: false
+        type: string
   push:
-    branches:
-      - main
-    paths:
-      - version
+    tags:
+      - "v*.*.*"
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup docker buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Versioning
-        id: version
-        run: |
-          echo "version=$(cat version)" >> $GITHUB_OUTPUT
-
-      - name: Build production stage
-        uses: docker/bake-action@v5
-        env:
-          ENV: production
-          IMAGE_REGISTRY: ghcr.io/eunsoogi
-          IMAGE_NAME_PREFIX: kkalla
-          IMAGE_TAG: ${{ steps.version.outputs.version }}
-        with:
-          push: true
-          set: |
-            *.platform=linux/arm64
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Versioning
-        id: version
-        run: |
-          echo "version=$(cat version)" >> $GITHUB_OUTPUT
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Release v${{ steps.version.outputs.version }}
-          tag_name: v${{ steps.version.outputs.version }}
-          target_commitish: ${{ github.sha }}
-          generate_release_notes: true
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -77,6 +21,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Get version from ref or input
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "::error::Could not determine version"
+            exit 1
+          fi
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
@@ -145,11 +100,12 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           EC2_HOST: ${{ vars.EC2_HOST }}
           EC2_USER: ${{ vars.EC2_USER }}
+          SET_IMAGE_TAG: ${{ env.VERSION }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          make install ENV=production
+          make install ENV=production SET_IMAGE_TAG="$SET_IMAGE_TAG"
 
       - name: Cleanup unused images
         if: always()

@@ -1,0 +1,137 @@
+---
+name: Bake and Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - helm/Chart.yaml
+      - api/helm/Chart.yaml
+      - ui/helm/Chart.yaml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_needed: ${{ steps.check.outputs.release_needed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if release needed
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          app_version_root=$(sed -n 's/^appVersion: *"\(.*\)".*/\1/p' helm/Chart.yaml)
+          app_version_api=$(sed -n 's/^appVersion: *"\(.*\)".*/\1/p' api/helm/Chart.yaml)
+          app_version_ui=$(sed -n 's/^appVersion: *"\(.*\)".*/\1/p' ui/helm/Chart.yaml)
+          if [ -z "$app_version_root" ] || [ -z "$app_version_api" ] || [ -z "$app_version_ui" ]; then
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          if [ "$app_version_root" != "$app_version_api" ] || [ "$app_version_root" != "$app_version_ui" ]; then
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          app_version="$app_version_root"
+          latest_tag=$(git tag -l 'v*.*.*' | sort -V | tail -1)
+          if [ -z "$latest_tag" ]; then
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          tag_version=${latest_tag#v}
+          if [ "$app_version" = "$tag_version" ]; then
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+          fi
+
+  bake:
+    needs: check
+    if: needs.check.outputs.release_needed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Versioning
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            v_root=$(sed -n 's/^appVersion: *"\(.*\)".*/\1/p' helm/Chart.yaml)
+            v_api=$(sed -n 's/^appVersion: *"\(.*\)".*/\1/p' api/helm/Chart.yaml)
+            v_ui=$(sed -n 's/^appVersion: *"\(.*\)".*/\1/p' ui/helm/Chart.yaml)
+            if [ -z "$v_root" ] || [ "$v_root" != "$v_api" ] || [ "$v_root" != "$v_ui" ]; then
+              echo "::error::Could not determine version or Chart appVersions differ (helm, api, ui must match)"
+              exit 1
+            fi
+            echo "version=$v_root" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Bake and push production images
+        uses: docker/bake-action@v5
+        env:
+          ENV: production
+          IMAGE_REGISTRY: ghcr.io/eunsoogi
+          IMAGE_NAME_PREFIX: kkalla
+          IMAGE_TAG: ${{ steps.version.outputs.version }}
+        with:
+          push: true
+          set: |
+            *.platform=linux/arm64
+
+  release:
+    needs: [check, bake]
+    if: needs.check.outputs.release_needed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if release exists
+        id: check_release
+        run: |
+          if gh release view "v${{ needs.bake.outputs.version }}" 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Release
+        if: steps.check_release.outputs.exists != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release v${{ needs.bake.outputs.version }}
+          tag_name: v${{ needs.bake.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
