@@ -6,20 +6,22 @@ CLUSTER_NAME := kkalla
 HELM_RELEASE := kkalla
 HELM_NAMESPACE := default
 
+# sed inplace: macOS (BSD) needs -i '', GNU sed needs -i only
+ifeq ($(shell uname),Darwin)
+  SED_INPLACE := sed -i ''
+else
+  SED_INPLACE := sed -i
+endif
+
 .PHONY: clean
 clean:
 	@docker system prune -a -f
 
-version-helm:
-	@sed -i '' "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./api/helm/Chart.yaml
-	@sed -i '' "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./ui/helm/Chart.yaml
-	@sed -i '' "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./helm/Chart.yaml
-
-version-release:
-	@echo $(VERSION) > ./version
-
 .PHONY: version
-version: version-helm version-release
+version:
+	@$(SED_INPLACE) "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./api/helm/Chart.yaml
+	@$(SED_INPLACE) "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./ui/helm/Chart.yaml
+	@$(SED_INPLACE) "s/^appVersion:.*$$/appVersion: \"$(VERSION)\"/" ./helm/Chart.yaml
 
 make-cache-dir:
 	@mkdir -p api/.cache
@@ -60,6 +62,9 @@ deps:
 	@helm dep up ./ui/helm
 	@helm dep up ./helm
 
+# Optional: set SET_IMAGE_TAG to pin image tag at install (e.g. CI); otherwise Chart appVersion is used
+INSTALL_SET_IMAGE_TAG := $(if $(SET_IMAGE_TAG),--set api.image.tag=$(SET_IMAGE_TAG) --set ui.image.tag=$(SET_IMAGE_TAG),)
+
 .PHONY: install
 install: deps
 	@helm upgrade $(HELM_RELEASE) ./helm \
@@ -67,7 +72,8 @@ install: deps
 		--create-namespace \
 		-n $(HELM_NAMESPACE) \
 		-f ./helm/values/$(ENV).yaml \
-		-f ./secrets.yaml
+		-f ./secrets.yaml \
+		$(INSTALL_SET_IMAGE_TAG)
 
 .PHONY: uninstall
 uninstall:
