@@ -1,0 +1,51 @@
+---
+name: Open Pull Request for new branch
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create Pull Request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const head = context.ref.replace(/^refs\/heads\//, '');
+            const base = context.payload.repository.default_branch;
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${head}`,
+              base,
+              per_page: 1,
+            });
+            if (pulls.length > 0) {
+              console.log(`Pull request already exists for ${head} -> ${base}`);
+              return;
+            }
+            const issueRefs = [...head.matchAll(/issue[-_]?(\d+)/gi)]
+              .map(m => `#${m[1]}`)
+              .filter((v, i, a) => a.indexOf(v) === i);
+            const issueLine = issueRefs.length > 0
+              ? `\n\nFixes ${issueRefs.join(', ')}.`
+              : '';
+            const commitMessage = context.payload.head_commit?.message || '';
+            const title = (commitMessage.split('\n')[0] || head).trim() || head;
+            const body = `Auto-created pull request from branch \`${head}\` to \`${base}\`.${issueLine}`;
+            const { data: pullRequest } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              head,
+              base,
+              body,
+            });
+            console.log('Created pull request:', pullRequest.html_url);
