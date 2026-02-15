@@ -4,23 +4,83 @@ name: Lint and Build
 on:
   push:
     branches:
-      - develop
       - main
+    paths:
+      - 'api/**'
+      - '!api/helm/**'
+      - 'ui/**'
+      - '!ui/helm/**'
+      - '.github/workflows/lint-and-build.yaml'
   pull_request:
     branches:
-      - develop
       - main
+    paths:
+      - 'api/**'
+      - '!api/helm/**'
+      - 'ui/**'
+      - '!ui/helm/**'
+      - '.github/workflows/lint-and-build.yaml'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_projects: ${{ steps.set-matrix.outputs.has_projects }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed projects
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - '!api/helm/**'
+            ui:
+              - 'ui/**'
+              - '!ui/helm/**'
+            workflow:
+              - '.github/workflows/lint-and-build.yaml'
+
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          api="${{ steps.filter.outputs.api }}"
+          ui="${{ steps.filter.outputs.ui }}"
+          workflow="${{ steps.filter.outputs.workflow }}"
+          if [ "$workflow" = "true" ]; then
+            echo 'matrix={"project":["api","ui"]}' >> $GITHUB_OUTPUT
+            echo 'has_projects=true' >> $GITHUB_OUTPUT
+          elif [ "$api" = "true" ] && [ "$ui" = "true" ]; then
+            echo 'matrix={"project":["api","ui"]}' >> $GITHUB_OUTPUT
+            echo 'has_projects=true' >> $GITHUB_OUTPUT
+          elif [ "$api" = "true" ]; then
+            echo 'matrix={"project":["api"]}' >> $GITHUB_OUTPUT
+            echo 'has_projects=true' >> $GITHUB_OUTPUT
+          elif [ "$ui" = "true" ]; then
+            echo 'matrix={"project":["ui"]}' >> $GITHUB_OUTPUT
+            echo 'has_projects=true' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"project":[]}' >> $GITHUB_OUTPUT
+            echo 'has_projects=false' >> $GITHUB_OUTPUT
+          fi
+
   lint-and-build:
+    needs: changes
+    if: needs.changes.outputs.has_projects == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     strategy:
       matrix:
-        project:
-          - api
-          - ui
+        project: ${{ fromJson(needs.changes.outputs.matrix).project }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
