@@ -98,4 +98,29 @@ describe('UpbitService', () => {
     expect(request.type).toBe(OrderTypes.BUY);
     expect(request.amount).toBeCloseTo(199_900, 6);
   });
+
+  it('should skip non-orderable symbols when calculating tradable market value with filter set', async () => {
+    const balances: any = {
+      info: [
+        {
+          currency: 'KRW',
+          unit_currency: 'KRW',
+          balance: '10000',
+        },
+        {
+          currency: 'SGB',
+          unit_currency: 'KRW',
+          balance: '50',
+          avg_buy_price: '100',
+        },
+      ],
+    };
+
+    const getPriceSpy = jest.spyOn(service, 'getPrice').mockResolvedValue(1_000);
+
+    const marketValue = await service.calculateTradableMarketValue(balances, new Set(['BTC/KRW']));
+
+    expect(getPriceSpy).not.toHaveBeenCalled();
+    expect(marketValue).toBe(10_000);
+  });
 });
