@@ -135,3 +135,27 @@ jobs:
           tag_name: v${{ needs.bake.outputs.version }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
+
+  dispatch-deploy:
+    needs: [check, bake, release]
+    if: needs.check.outputs.release_needed == 'true' && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Trigger deploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = "${{ needs.bake.outputs.version }}";
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: "release-version",
+              client_payload: {
+                version,
+                ref: `v${version}`,
+                source_workflow: "bake-release",
+              },
+            });
+            core.info(`Triggered deploy workflow for v${version}`);
