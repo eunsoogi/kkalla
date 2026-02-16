@@ -40,6 +40,7 @@ import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '../trade/trade.interface';
+import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { SymbolVolatility } from './market-volatility.interface';
 import {
@@ -76,8 +77,16 @@ export class MarketVolatilityService implements OnModuleInit {
   private readonly BTC_SYMBOL = 'BTC/KRW';
   private readonly MINIMUM_TRADE_RATE = 0;
   private readonly MAX_POSITION_WEIGHT = 0.2;
-  private readonly RATE_ENTRY_THRESHOLD = 0.35;
-  private readonly RATE_CURVE_EXPONENT = 1.3;
+  private readonly TARGET_WEIGHT_MIN_RATIO = 0.85;
+  private readonly TARGET_WEIGHT_MAX_RATIO = 1.05;
+  private readonly RECOMMEND_WEIGHT_BASE = 0.1;
+  private readonly RECOMMEND_WEIGHT_SPAN = 0.05;
+  private readonly RECOMMEND_CONFIDENCE_BASE = 0.7;
+  private readonly RECOMMEND_CONFIDENCE_SPAN = 0.2;
+  private readonly RECOMMEND_WEIGHT_IMPACT = 0.06;
+  private readonly RECOMMEND_CONFIDENCE_IMPACT = 0.04;
+  private readonly RECOMMEND_MULTIPLIER_MIN = 0.9;
+  private readonly RECOMMEND_MULTIPLIER_MAX = 1.1;
   private readonly MIN_REBALANCE_BAND = 0.01;
   private readonly REBALANCE_BAND_RATIO = 0.1;
   private readonly ESTIMATED_FEE_RATE = 0.0005;
@@ -762,6 +771,11 @@ export class MarketVolatilityService implements OnModuleInit {
     const regimeMultiplier = await this.getMarketRegimeMultiplier();
     // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
     const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice);
+    const orderableSymbols = await this.buildOrderableSymbolSet([
+      ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
+      ...balances.info.map((item) => `${item.currency}/${item.unit_currency}`),
+    ]);
+    const tradableMarketValueMap = await this.buildTradableMarketValueMap(balances);
 
     // 편입/편출 결정 분리
     // 1. 편출 대상 종목 매도 요청 (rate <= 0인 종목들만 전량 매도)
@@ -770,6 +784,8 @@ export class MarketVolatilityService implements OnModuleInit {
       authorizedBalanceRecommendations,
       count,
       marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
     );
 
     // 2. 편입 대상 종목 매수/매도 요청 (rate > 0인 종목들의 목표 비율 조정)
@@ -780,6 +796,8 @@ export class MarketVolatilityService implements OnModuleInit {
       regimeMultiplier,
       currentWeights,
       marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
     );
 
     // 매수 불가능한 경우 매도만 수행 (diff < 0인 것만 필터링)
@@ -953,31 +971,42 @@ export class MarketVolatilityService implements OnModuleInit {
     return Math.min(max, Math.max(min, value));
   }
 
-  private toEffectiveSignal(rate: number): number {
-    const clampedRate = this.clamp(rate, 0, 1);
-    if (clampedRate <= this.RATE_ENTRY_THRESHOLD) {
+  private normalizeAroundBase(value: number | undefined, base: number, span: number): number {
+    if (value == null || !Number.isFinite(value)) {
       return 0;
     }
 
-    const normalized = (clampedRate - this.RATE_ENTRY_THRESHOLD) / (1 - this.RATE_ENTRY_THRESHOLD);
-    return this.clamp(Math.pow(normalized, this.RATE_CURVE_EXPONENT), 0, 1);
+    return this.clamp((value - base) / span, -1, 1);
   }
 
   private getRecommendationMultiplier(inference: Pick<BalanceRecommendationData, 'weight' | 'confidence'>): number {
-    if (inference.weight == null && inference.confidence == null) {
-      return 1;
-    }
-
-    const weightFactor = inference.weight != null ? this.clamp(inference.weight / 0.1, 0.7, 1.3) : 1;
-    const confidenceFactor = inference.confidence != null ? this.clamp(inference.confidence, 0.7, 1.1) : 1;
-    return this.clamp((weightFactor + confidenceFactor) / 2, 0.7, 1.3);
+    const weightScore = this.normalizeAroundBase(
+      inference.weight,
+      this.RECOMMEND_WEIGHT_BASE,
+      this.RECOMMEND_WEIGHT_SPAN,
+    );
+    const confidenceScore = this.normalizeAroundBase(
+      inference.confidence,
+      this.RECOMMEND_CONFIDENCE_BASE,
+      this.RECOMMEND_CONFIDENCE_SPAN,
+    );
+    const multiplier = 1 + weightScore * this.RECOMMEND_WEIGHT_IMPACT + confidenceScore * this.RECOMMEND_CONFIDENCE_IMPACT;
+    return this.clamp(multiplier, this.RECOMMEND_MULTIPLIER_MIN, this.RECOMMEND_MULTIPLIER_MAX);
   }
 
   private calculateTargetWeight(inference: BalanceRecommendationData, regimeMultiplier: number): number {
-    const effectiveSignal = this.toEffectiveSignal(inference.rate);
+    const clampedRate = Number.isFinite(inference.rate) ? this.clamp(inference.rate, 0, 1) : 0;
+    const baseWeight = clampedRate * this.MAX_POSITION_WEIGHT;
+    if (baseWeight <= 0) {
+      return 0;
+    }
+
     const recommendationMultiplier = this.getRecommendationMultiplier(inference);
-    const target = this.MAX_POSITION_WEIGHT * effectiveSignal * recommendationMultiplier * regimeMultiplier;
-    return this.clamp(target, 0, this.MAX_POSITION_WEIGHT);
+    const adjustedTarget = baseWeight * recommendationMultiplier * regimeMultiplier;
+    const lowerBound = baseWeight * this.TARGET_WEIGHT_MIN_RATIO;
+    const upperBound = Math.min(this.MAX_POSITION_WEIGHT, baseWeight * this.TARGET_WEIGHT_MAX_RATIO);
+
+    return this.clamp(adjustedTarget, lowerBound, upperBound);
   }
 
   private getRebalanceBand(targetWeight: number): number {
@@ -1006,10 +1035,10 @@ export class MarketVolatilityService implements OnModuleInit {
         return 1;
       }
 
-      if (value <= 20) return 0.4;
-      if (value <= 35) return 0.6;
-      if (value >= 80) return 0.8;
-      if (value >= 65) return 0.9;
+      if (value <= 20) return 0.95;
+      if (value <= 35) return 0.97;
+      if (value >= 80) return 0.97;
+      if (value >= 65) return 0.99;
 
       return 1;
     } catch {
@@ -1061,6 +1090,108 @@ export class MarketVolatilityService implements OnModuleInit {
     }
 
     return weightMap;
+  }
+
+  private isKrwSymbol(symbol: string): boolean {
+    return symbol.endsWith('/KRW');
+  }
+
+  private isOrderableSymbol(symbol: string, orderableSymbols?: Set<string>): boolean {
+    if (!this.isKrwSymbol(symbol)) {
+      return false;
+    }
+
+    if (!orderableSymbols) {
+      return true;
+    }
+
+    return orderableSymbols.has(symbol);
+  }
+
+  private isSellAmountSufficient(symbol: string, diff: number, tradableMarketValueMap?: Map<string, number>): boolean {
+    if (!tradableMarketValueMap) {
+      return true;
+    }
+
+    const tradableMarketValue = tradableMarketValueMap.get(symbol);
+    if (tradableMarketValue == null) {
+      return true;
+    }
+
+    if (!Number.isFinite(tradableMarketValue) || tradableMarketValue <= 0) {
+      return false;
+    }
+
+    return tradableMarketValue * Math.abs(diff) >= UPBIT_MINIMUM_TRADE_PRICE;
+  }
+
+  private async buildOrderableSymbolSet(symbols: string[]): Promise<Set<string> | undefined> {
+    const targets = Array.from(new Set(symbols.filter((symbol) => this.isKrwSymbol(symbol))));
+    if (targets.length < 1) {
+      return new Set();
+    }
+
+    const checks = await Promise.all(
+      targets.map(async (symbol) => {
+        try {
+          return {
+            symbol,
+            checked: true,
+            exists: await this.upbitService.isSymbolExist(symbol),
+          };
+        } catch {
+          return { symbol, checked: false, exists: false };
+        }
+      }),
+    );
+
+    const checkedCount = checks.filter((check) => check.checked).length;
+    if (checkedCount < 1) {
+      this.logger.warn('Failed to validate orderable symbols; fallback to KRW-only symbol filtering');
+      return undefined;
+    }
+
+    if (checkedCount < checks.length) {
+      this.logger.warn('Partially failed to validate orderable symbols; include unchecked symbols for safety');
+    }
+
+    return new Set(checks.filter((check) => !check.checked || check.exists).map((check) => check.symbol));
+  }
+
+  private async buildTradableMarketValueMap(balances: Balances): Promise<Map<string, number>> {
+    const marketValueMap = new Map<string, number>();
+
+    const values = await Promise.all(
+      balances.info
+        .filter((item) => item.currency !== item.unit_currency)
+        .map(async (item) => {
+          const symbol = `${item.currency}/${item.unit_currency}`;
+          const tradableBalance = parseFloat(item.balance || 0);
+          if (!Number.isFinite(tradableBalance) || tradableBalance <= 0) {
+            return { symbol, marketValue: 0 };
+          }
+
+          try {
+            const currPrice = await this.upbitService.getPrice(symbol);
+            return { symbol, marketValue: tradableBalance * currPrice };
+          } catch {
+            const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
+            if (!Number.isFinite(avgBuyPrice) || avgBuyPrice <= 0) {
+              return { symbol, marketValue: 0 };
+            }
+
+            return { symbol, marketValue: tradableBalance * avgBuyPrice };
+          }
+        }),
+    );
+
+    for (const { symbol, marketValue } of values) {
+      if (marketValue > 0) {
+        marketValueMap.set(symbol, marketValue);
+      }
+    }
+
+    return marketValueMap;
   }
 
   private getSymbolCooldownKey(symbol: string): string {
@@ -1186,6 +1317,8 @@ export class MarketVolatilityService implements OnModuleInit {
     regimeMultiplier: number,
     currentWeights: Map<string, number>,
     marketPrice: number,
+    orderableSymbols?: Set<string>,
+    tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
     // 편입 대상 종목 선정 (rate > 0인 종목들)
     const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences);
@@ -1194,6 +1327,10 @@ export class MarketVolatilityService implements OnModuleInit {
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
       .slice(0, count)
       .map((inference) => {
+        if (!this.isOrderableSymbol(inference.symbol, orderableSymbols)) {
+          return null;
+        }
+
         const targetWeight = this.calculateTargetWeight(inference, regimeMultiplier);
         const currentWeight = currentWeights.get(inference.symbol) ?? 0;
         const deltaWeight = targetWeight - currentWeight;
@@ -1210,6 +1347,10 @@ export class MarketVolatilityService implements OnModuleInit {
 
         const diff = this.calculateRelativeDiff(targetWeight, currentWeight);
         if (!Number.isFinite(diff) || Math.abs(diff) < Number.EPSILON) {
+          return null;
+        }
+
+        if (diff < 0 && !this.isSellAmountSufficient(inference.symbol, diff, tradableMarketValueMap)) {
           return null;
         }
 
@@ -1245,6 +1386,8 @@ export class MarketVolatilityService implements OnModuleInit {
     inferences: BalanceRecommendationData[],
     count: number,
     marketPrice: number,
+    orderableSymbols?: Set<string>,
+    tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
@@ -1255,13 +1398,19 @@ export class MarketVolatilityService implements OnModuleInit {
     ];
 
     // 편출 거래 요청 생성: 모두 완전 매도(diff: -1)
-    const tradeRequests: TradeRequest[] = filteredBalanceRecommendations.map((inference) => ({
-      symbol: inference.symbol,
-      diff: -1, // -1은 완전 매도를 의미
-      balances,
-      marketPrice,
-      inference,
-    }));
+    const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
+      .filter(
+        (inference) =>
+          this.isOrderableSymbol(inference.symbol, orderableSymbols) &&
+          this.isSellAmountSufficient(inference.symbol, -1, tradableMarketValueMap),
+      )
+      .map((inference) => ({
+        symbol: inference.symbol,
+        diff: -1, // -1은 완전 매도를 의미
+        balances,
+        marketPrice,
+        inference,
+      }));
 
     return tradeRequests;
   }

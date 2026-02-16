@@ -58,6 +58,7 @@ describe('MarketVolatilityService', () => {
             getBalances: jest.fn().mockResolvedValue({ info: [] }),
             calculateTradableMarketValue: jest.fn().mockResolvedValue(0),
             getPrice: jest.fn().mockResolvedValue(0),
+            isSymbolExist: jest.fn().mockResolvedValue(true),
             clearClients: jest.fn(),
           },
         },
@@ -317,6 +318,86 @@ describe('MarketVolatilityService', () => {
       symbol: 'CCC/KRW',
       diff: -1,
     });
+  });
+
+  it('should keep volatility target weight close to linear base and clamp correction range', () => {
+    const targetWeight = (service as any).calculateTargetWeight(
+      {
+        symbol: 'SUI/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.65,
+        hasStock: true,
+        weight: 0.15,
+        confidence: 0.9,
+      },
+      0.95,
+    );
+
+    const baseWeight = 0.65 * 0.2; // 13%
+    expect(targetWeight).toBeGreaterThanOrEqual(baseWeight * 0.85 - 1e-12);
+    expect(targetWeight).toBeLessThanOrEqual(baseWeight * 1.05 + 1e-12);
+  });
+
+  it('should skip excluded liquidation when symbol is not orderable or below minimum trade amount', () => {
+    const balances: any = { info: [] };
+    const inferences = [
+      {
+        symbol: 'AAA/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.9,
+        hasStock: true,
+      },
+      {
+        symbol: 'BBB/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.8,
+        hasStock: true,
+      },
+      {
+        symbol: 'CCC/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.7,
+        hasStock: true,
+      },
+    ];
+
+    const orderableSymbols = new Set<string>(['BBB/KRW', 'CCC/KRW']);
+    const tradableMarketValueMap = new Map<string, number>([
+      ['BBB/KRW', 2_000], // 최소 주문 금액 미달
+      ['CCC/KRW', 10_000],
+    ]);
+
+    const excludedRequests = (service as any).generateExcludedTradeRequests(
+      balances,
+      inferences,
+      2,
+      1_000_000,
+      orderableSymbols,
+      tradableMarketValueMap,
+    );
+
+    expect(excludedRequests).toHaveLength(1);
+    expect(excludedRequests[0]).toMatchObject({
+      symbol: 'CCC/KRW',
+      diff: -1,
+    });
+  });
+
+  it('should keep unchecked symbols when orderable validation partially fails', async () => {
+    upbitService.isSymbolExist
+      .mockResolvedValueOnce(true) // AAA/KRW
+      .mockRejectedValueOnce(new Error('temporary failure')); // BBB/KRW
+
+    const result = await (service as any).buildOrderableSymbolSet(['AAA/KRW', 'BBB/KRW']);
+
+    expect(result).toBeInstanceOf(Set);
+    expect(result.has('AAA/KRW')).toBe(true);
+    expect(result.has('BBB/KRW')).toBe(true);
+  });
+
+  it('should allow sell when tradable market value is unknown', () => {
+    const isSufficient = (service as any).isSellAmountSufficient('AAA/KRW', -1, new Map<string, number>());
+    expect(isSufficient).toBe(true);
   });
 
   it('should remove history on full liquidation even when inference rate is positive', async () => {
