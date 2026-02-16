@@ -1,0 +1,1 @@
+export const UPBIT_MINIMUM_TRADE_PRICE = 5000;

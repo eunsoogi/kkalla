@@ -10,6 +10,7 @@ import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
 import { Schedule } from '../schedule/entities/schedule.entity';
 import { User } from '../user/entities/user.entity';
+import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { OrderTypes } from './upbit.enum';
 import { AdjustOrderRequest, KrwMarketData, OrderRequest, UpbitConfigData } from './upbit.interface';
@@ -19,7 +20,6 @@ export class UpbitService {
   private readonly logger = new Logger(UpbitService.name);
   private serverClient: upbit;
   private client: upbit[] = [];
-  private readonly MINIMUM_TRADE_PRICE = 5000;
   private readonly MAX_PRECISION = 8;
 
   // API 호출에 대한 2단계 재시도 옵션
@@ -376,7 +376,7 @@ export class UpbitService {
       const tradeVolume = symbolTradableVolume * Math.abs(diff);
 
       // 매수해야 할 경우
-      if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {
+      if (diff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
         return await this.order(user, {
           symbol,
           type: OrderTypes.BUY,
@@ -384,7 +384,7 @@ export class UpbitService {
         });
       }
       // 매도해야 할 경우
-      else if (diff < 0 && tradeVolume * currPrice > this.MINIMUM_TRADE_PRICE) {
+      else if (diff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
         return await this.order(user, {
           symbol,
           type: OrderTypes.SELL,
