@@ -1,19 +1,101 @@
-import { Test, TestingModule } from '@nestjs/testing';
-
+import { OrderTypes } from './upbit.enum';
 import { UpbitService } from './upbit.service';
 
 describe('UpbitService', () => {
   let service: UpbitService;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [UpbitService],
-    }).compile();
+  beforeEach(() => {
+    service = new UpbitService(
+      {
+        t: jest.fn((key: string) => key),
+      } as any,
+      {
+        retry: jest.fn(),
+        retryWithFallback: jest.fn((fn: () => Promise<unknown>) => fn()),
+      } as any,
+      {
+        notify: jest.fn().mockResolvedValue(undefined),
+        notifyServer: jest.fn().mockResolvedValue(undefined),
+      } as any,
+      {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+      } as any,
+    );
+  });
 
-    service = module.get<UpbitService>(UpbitService);
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should use precomputed marketPrice when it is provided', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [
+        {
+          currency: 'KRW',
+          unit_currency: 'KRW',
+          balance: '1000000',
+        },
+      ],
+      KRW: { free: 1_000_000 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    const calculateTotalPriceSpy = jest.spyOn(service, 'calculateTotalPrice');
+    const orderSpy = jest.spyOn(service, 'order').mockResolvedValue({ side: OrderTypes.BUY } as any);
+
+    await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      diff: 0.1,
+      balances,
+      marketPrice: 1_000_000,
+    });
+
+    expect(calculateTotalPriceSpy).not.toHaveBeenCalled();
+    expect(orderSpy).toHaveBeenCalledTimes(1);
+
+    const [, request] = orderSpy.mock.calls[0];
+    expect(request.symbol).toBe('BTC/KRW');
+    expect(request.type).toBe(OrderTypes.BUY);
+    expect(request.amount).toBeCloseTo(99_950, 6);
+  });
+
+  it('should fallback to calculateTotalPrice when marketPrice is missing', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [
+        {
+          currency: 'KRW',
+          unit_currency: 'KRW',
+          balance: '2000000',
+        },
+      ],
+      KRW: { free: 2_000_000 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    const calculateTotalPriceSpy = jest.spyOn(service, 'calculateTotalPrice').mockReturnValue(2_000_000);
+    const orderSpy = jest.spyOn(service, 'order').mockResolvedValue({ side: OrderTypes.BUY } as any);
+
+    await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      diff: 0.1,
+      balances,
+    });
+
+    expect(calculateTotalPriceSpy).toHaveBeenCalledWith(balances);
+    expect(orderSpy).toHaveBeenCalledTimes(1);
+
+    const [, request] = orderSpy.mock.calls[0];
+    expect(request.symbol).toBe('BTC/KRW');
+    expect(request.type).toBe(OrderTypes.BUY);
+    expect(request.amount).toBeCloseTo(199_900, 6);
   });
 });
