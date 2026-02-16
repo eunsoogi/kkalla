@@ -18,6 +18,7 @@ export interface TradeRequest {
   symbol: string;
   diff: number;
   balances: Balances;
+  marketPrice?: number;
   inference?: BalanceRecommendationData;
 }
 

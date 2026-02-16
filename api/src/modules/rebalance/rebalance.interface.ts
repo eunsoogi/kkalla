@@ -23,6 +23,8 @@ export interface RecommendationItem {
   symbol: string;
   category: Category;
   hasStock: boolean;
+  weight?: number;
+  confidence?: number;
 }
 
 export interface BalanceRecommendationData {
@@ -32,4 +34,6 @@ export interface BalanceRecommendationData {
   category: Category;
   rate: number;
   hasStock: boolean;
+  weight?: number;
+  confidence?: number;
 }

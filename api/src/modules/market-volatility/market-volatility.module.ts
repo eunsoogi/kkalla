@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 
+import { CacheModule } from '../cache/cache.module';
 import { CategoryModule } from '../category/category.module';
 import { ErrorModule } from '../error/error.module';
 import { FeargreedModule } from '../feargreed/feargreed.module';
@@ -18,6 +19,7 @@ import { MarketVolatilityService } from './market-volatility.service';
 @Module({
   imports: [
     RedlockModule,
+    CacheModule,
     HistoryModule,
     UpbitModule,
     SlackModule,

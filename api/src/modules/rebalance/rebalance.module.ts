@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 
 import { BlacklistModule } from '../blacklist/blacklist.module';
+import { CacheModule } from '../cache/cache.module';
 import { CategoryModule } from '../category/category.module';
 import { ErrorModule } from '../error/error.module';
 import { FeargreedModule } from '../feargreed/feargreed.module';
@@ -20,6 +21,7 @@ import { RebalanceService } from './rebalance.service';
 @Module({
   imports: [
     RedlockModule,
+    CacheModule,
     BlacklistModule,
     CategoryModule,
     HistoryModule,
