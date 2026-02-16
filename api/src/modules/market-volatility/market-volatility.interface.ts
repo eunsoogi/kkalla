@@ -23,4 +23,10 @@ export interface SymbolVolatility {
    * 현재 10분 변동 버킷 기준값 비율 (0, 0.05, 0.10, ...)
    */
   currBucket: number;
+
+  /**
+   * 슬라이딩 윈도우 전체 구간(이전 윈도우 첫 종가 -> 현재 윈도우 마지막 종가) 변화율.
+   * (+) 상승, (-) 하락, 0 근처는 방향성 약함.
+   */
+  netDirection: number;
 }

@@ -17,6 +17,7 @@ export interface AdjustOrderRequest {
   symbol: string;
   diff: number;
   balances: Balances;
+  marketPrice?: number;
 }
 
 export interface MarketFeatures {

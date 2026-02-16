@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
+import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
 import { FeargreedService } from '@/modules/feargreed/feargreed.service';
@@ -74,6 +75,17 @@ export class MarketVolatilityService implements OnModuleInit {
   private readonly BTC_VOLATILITY_BUCKET_STEP = 0.01;
   private readonly BTC_SYMBOL = 'BTC/KRW';
   private readonly MINIMUM_TRADE_RATE = 0;
+  private readonly MAX_POSITION_WEIGHT = 0.2;
+  private readonly RATE_ENTRY_THRESHOLD = 0.35;
+  private readonly RATE_CURVE_EXPONENT = 1.3;
+  private readonly MIN_REBALANCE_BAND = 0.01;
+  private readonly REBALANCE_BAND_RATIO = 0.1;
+  private readonly ESTIMATED_FEE_RATE = 0.0005;
+  private readonly ESTIMATED_SLIPPAGE_RATE = 0.001;
+  private readonly COST_GUARD_MULTIPLIER = 2;
+  private readonly VOLATILITY_DIRECTION_THRESHOLD = 0.01;
+  private readonly VOLATILITY_SYMBOL_COOLDOWN_SECONDS = 1_800;
+  private readonly BTC_VOLATILITY_COOLDOWN_SECONDS = 3_600;
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
@@ -104,6 +116,7 @@ export class MarketVolatilityService implements OnModuleInit {
     private readonly historyService: HistoryService,
     private readonly upbitService: UpbitService,
     private readonly slackService: SlackService,
+    private readonly cacheService: CacheService,
     private readonly scheduleService: ScheduleService,
     private readonly categoryService: CategoryService,
     private readonly notifyService: NotifyService,
@@ -212,26 +225,6 @@ export class MarketVolatilityService implements OnModuleInit {
       const trades = await this.executeVolatilityTradesForUser(user, inferences, buyAvailable ?? true);
 
       this.logger.debug(trades);
-
-      // 거래가 성공적으로 완료된 후, 전량 매도된 종목을 포트폴리오에서 제거
-      // 실제로 매도 거래가 성공한 종목 중 rate <= 0인 완전 매도 종목만 포트폴리오에서 삭제
-      // rate > 0인 부분 매도 조정은 포트폴리오에 남아있어야 함 (거래 실패 시 재시도 가능하도록)
-      const soldItems: HistoryRemoveItem[] = trades
-        .filter(
-          (trade) =>
-            trade &&
-            trade.type === OrderTypes.SELL &&
-            trade.inference &&
-            trade.inference.rate <= this.MINIMUM_TRADE_RATE,
-        )
-        .map((trade) => ({
-          symbol: trade.symbol,
-          category: trade.inference.category,
-        }));
-
-      if (soldItems.length > 0) {
-        await this.historyService.removeHistory(soldItems);
-      }
 
       // 수익금 조회 및 사용자에게 알림 전송
       const profitData = await this.profitService.getProfit(user);
@@ -350,6 +343,12 @@ export class MarketVolatilityService implements OnModuleInit {
       return false;
     }
 
+    // BTC는 시장 전체 트리거이므로 쿨다운을 길게 적용해 과도한 재추론 방지
+    if (await this.isSymbolOnCooldown(this.BTC_SYMBOL)) {
+      // 글로벌 BTC 트리거는 건너뛰고, 개별 종목 변동성 체크는 계속 진행한다.
+      return false;
+    }
+
     // 변동성 정보를 퍼센트 문자열로 변환 (로그용)
     const prevPercentText = ((btcVolatility.prevPercent ?? 0) * 100).toFixed(2);
     const currPercentText = ((btcVolatility.currPercent ?? 0) * 100).toFixed(2);
@@ -382,6 +381,8 @@ export class MarketVolatilityService implements OnModuleInit {
       // 포트폴리오 업데이트는 handleMessage에서 거래 완료 후 수행됨
       await this.publishVolatilityMessage(users, inferences, true);
     }
+
+    await this.markSymbolOnCooldown(this.BTC_SYMBOL, this.BTC_VOLATILITY_COOLDOWN_SECONDS);
 
     // BTC 변동성이 발생했음을 Slack 서버 채널로 알림 전송
     const btcThreshold = (this.BTC_VOLATILITY_BUCKET_STEP * 100).toFixed(0);
@@ -428,10 +429,20 @@ export class MarketVolatilityService implements OnModuleInit {
               return null;
             }
 
-            const { triggered, prevPercent, currPercent, prevBucket, currBucket } = volatility;
+            const { triggered, prevPercent, currPercent, prevBucket, currBucket, netDirection } = volatility;
 
             // 버킷이 증가하지 않았다면(새로운 변동 구간에 진입하지 않았다면) 스킵
             if (!triggered) {
+              return null;
+            }
+
+            // 버킷 증가만으로는 노이즈가 많아, 순방향 가격 변화가 작은 경우 스킵
+            if (Math.abs(netDirection) < this.VOLATILITY_DIRECTION_THRESHOLD) {
+              return null;
+            }
+
+            // 최근 트리거된 종목은 쿨다운 동안 재진입 방지
+            if (await this.isSymbolOnCooldown(symbol)) {
               return null;
             }
 
@@ -522,6 +533,11 @@ export class MarketVolatilityService implements OnModuleInit {
     // 버킷의 실제 비율 값 계산 (로그용)
     const prevBucket = prevBucketIndex * stepPercent;
     const currBucket = currBucketIndex * stepPercent;
+    // 슬라이딩 윈도우가 1분씩 겹치므로, 마지막 종가끼리 비교하면 사실상 1분 변화율이 된다.
+    // 방향성은 윈도우 전체(첫 종가 -> 마지막 종가) 기준으로 계산해 노이즈 필터 기준과 맞춘다.
+    const startClose = Number(prevWindow[0]?.[4] || 0);
+    const endClose = Number(nextWindow[nextWindow.length - 1]?.[4] || 0);
+    const netDirection = startClose > 0 ? (endClose - startClose) / startClose : 0;
 
     // 변동성 정보 반환 (버킷 증가 여부 + 상세 값)
     return {
@@ -530,6 +546,7 @@ export class MarketVolatilityService implements OnModuleInit {
       currPercent,
       prevBucket,
       currBucket,
+      netDirection,
     };
   }
 
@@ -580,6 +597,9 @@ export class MarketVolatilityService implements OnModuleInit {
       // 포트폴리오 업데이트는 handleMessage에서 거래 완료 후 수행됨
       await this.publishVolatilityMessage(users, inferences, true);
     }
+
+    // 과매매 방지를 위해 트리거된 심볼에 쿨다운 부여
+    await this.markSymbolsOnCooldown(uniqueChangedItems.map((item) => item.symbol));
 
     // 변동성이 발생한 심볼 목록을 Slack 서버 채널로 알림 전송
     const symbolsText = uniqueChangedItems.map((item) => `> ${item.symbol}`).join('\n');
@@ -682,7 +702,7 @@ export class MarketVolatilityService implements OnModuleInit {
    *   1. 권한이 없는 종목 필터링
    *   2. rate > 0인 종목(매수/비율 조정) 또는 rate <= 0 && hasStock인 종목(전량 매도) 선정
    *   3. 감지된 종목들에 대한 매수/매도 거래 실행
-   * - rate <= 0인 경우 전량 매도 신호로 처리됩니다.
+   * - rate <= 0 또는 편입 상한을 초과한 종목은 전량 매도 대상으로 처리됩니다.
    * - 거래 완료 후 사용자에게 알림을 전송합니다.
    *
    * @param user 거래를 실행할 사용자
@@ -736,11 +756,20 @@ export class MarketVolatilityService implements OnModuleInit {
       return [];
     }
 
+    // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
+    const marketPrice = await this.upbitService.calculateTradableMarketValue(balances);
+    // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
+    const regimeMultiplier = await this.getMarketRegimeMultiplier();
+    // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
+    const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice);
+
     // 편입/편출 결정 분리
     // 1. 편출 대상 종목 매도 요청 (rate <= 0인 종목들만 전량 매도)
     const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
+      count,
+      marketPrice,
     );
 
     // 2. 편입 대상 종목 매수/매도 요청 (rate > 0인 종목들의 목표 비율 조정)
@@ -748,6 +777,9 @@ export class MarketVolatilityService implements OnModuleInit {
       balances,
       authorizedBalanceRecommendations,
       count,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
     );
 
     // 매수 불가능한 경우 매도만 수행 (diff < 0인 것만 필터링)
@@ -764,6 +796,17 @@ export class MarketVolatilityService implements OnModuleInit {
     const includedTrades: Trade[] = await Promise.all(
       includedTradeRequests.map((request) => this.executeTrade(user, request)),
     );
+
+    const liquidatedItems = this.collectLiquidatedHistoryItems(
+      excludedTradeRequests,
+      excludedTrades,
+      includedTradeRequests,
+      includedTrades,
+    );
+
+    if (liquidatedItems.length > 0) {
+      await this.historyService.removeHistory(liquidatedItems);
+    }
 
     // 실행된 거래 중 null 제거 (주문이 생성되지 않은 경우)
     const allTrades: Trade[] = [...excludedTrades, ...includedTrades].filter((item) => item !== null);
@@ -795,6 +838,40 @@ export class MarketVolatilityService implements OnModuleInit {
     this.clearClients();
 
     return allTrades;
+  }
+
+  private collectLiquidatedHistoryItems(
+    excludedRequests: TradeRequest[],
+    excludedTrades: Trade[],
+    includedRequests: TradeRequest[],
+    includedTrades: Trade[],
+  ): HistoryRemoveItem[] {
+    const removedMap = new Map<string, HistoryRemoveItem>();
+
+    const collect = (requests: TradeRequest[], trades: Trade[]) => {
+      trades.forEach((trade, index) => {
+        const request = requests[index];
+        if (!trade || !request?.inference || trade.type !== OrderTypes.SELL) {
+          return;
+        }
+
+        // diff = -1 인 경우를 "전량 매도"로 간주해 포트폴리오 히스토리에서 제거한다.
+        if (request.diff > -1 + Number.EPSILON) {
+          return;
+        }
+
+        const key = `${request.symbol}:${request.inference.category}`;
+        removedMap.set(key, {
+          symbol: request.symbol,
+          category: request.inference.category,
+        });
+      });
+    };
+
+    collect(excludedRequests, excludedTrades);
+    collect(includedRequests, includedTrades);
+
+    return Array.from(removedMap.values());
   }
 
   /**
@@ -852,9 +929,13 @@ export class MarketVolatilityService implements OnModuleInit {
       // 둘 다 보유 종목이 아니면 rate 비교
       const rateDiff = b.rate - a.rate;
 
-      // 부동소수점 오차 고려: 거의 같으면 0 반환
+      // rate가 유사하면 추천 weight/confidence로 추가 정렬
       if (Math.abs(rateDiff) < Number.EPSILON) {
-        return 0;
+        const scoreDiff = this.getRecommendationScore(b) - this.getRecommendationScore(a);
+        if (Math.abs(scoreDiff) < Number.EPSILON) {
+          return 0;
+        }
+        return scoreDiff;
       }
 
       // rate 내림차순 정렬
@@ -862,26 +943,151 @@ export class MarketVolatilityService implements OnModuleInit {
     });
   }
 
-  /**
-   * 목표 비율과 현재 비율의 차이 계산
-   *
-   * - 목표 비율(rate)과 현재 보유 비율의 차이를 계산합니다.
-   * - 양수: 매수가 필요, 음수: 매도가 필요
-   *
-   * @param balances 사용자 계좌 잔고
-   * @param symbol 종목 심볼
-   * @param rate 목표 비율
-   * @param category 카테고리
-   * @returns 목표 비율과 현재 비율의 차이 (양수: 매수 필요, 음수: 매도 필요)
-   */
-  private calculateDiff(balances: Balances, symbol: string, rate: number, category: Category): number {
-    switch (category) {
-      case Category.COIN_MAJOR:
-      case Category.COIN_MINOR:
-        return this.upbitService.calculateDiff(balances, symbol, rate);
+  private getRecommendationScore(item: Pick<BalanceRecommendationData, 'weight' | 'confidence'>): number {
+    const weight = item.weight ?? 0.1;
+    const confidence = item.confidence ?? 0.7;
+    return weight * 0.6 + confidence * 0.4;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private toEffectiveSignal(rate: number): number {
+    const clampedRate = this.clamp(rate, 0, 1);
+    if (clampedRate <= this.RATE_ENTRY_THRESHOLD) {
+      return 0;
     }
 
-    return 0;
+    const normalized = (clampedRate - this.RATE_ENTRY_THRESHOLD) / (1 - this.RATE_ENTRY_THRESHOLD);
+    return this.clamp(Math.pow(normalized, this.RATE_CURVE_EXPONENT), 0, 1);
+  }
+
+  private getRecommendationMultiplier(inference: Pick<BalanceRecommendationData, 'weight' | 'confidence'>): number {
+    if (inference.weight == null && inference.confidence == null) {
+      return 1;
+    }
+
+    const weightFactor = inference.weight != null ? this.clamp(inference.weight / 0.1, 0.7, 1.3) : 1;
+    const confidenceFactor = inference.confidence != null ? this.clamp(inference.confidence, 0.7, 1.1) : 1;
+    return this.clamp((weightFactor + confidenceFactor) / 2, 0.7, 1.3);
+  }
+
+  private calculateTargetWeight(inference: BalanceRecommendationData, regimeMultiplier: number): number {
+    const effectiveSignal = this.toEffectiveSignal(inference.rate);
+    const recommendationMultiplier = this.getRecommendationMultiplier(inference);
+    const target = this.MAX_POSITION_WEIGHT * effectiveSignal * recommendationMultiplier * regimeMultiplier;
+    return this.clamp(target, 0, this.MAX_POSITION_WEIGHT);
+  }
+
+  private getRebalanceBand(targetWeight: number): number {
+    return Math.max(this.MIN_REBALANCE_BAND, targetWeight * this.REBALANCE_BAND_RATIO);
+  }
+
+  private shouldRebalance(targetWeight: number, deltaWeight: number): boolean {
+    return Math.abs(deltaWeight) >= this.getRebalanceBand(targetWeight);
+  }
+
+  private passesCostGate(deltaWeight: number): boolean {
+    const minEdge = (this.ESTIMATED_FEE_RATE + this.ESTIMATED_SLIPPAGE_RATE) * this.COST_GUARD_MULTIPLIER;
+    return Math.abs(deltaWeight) >= minEdge;
+  }
+
+  private calculateRelativeDiff(targetWeight: number, currentWeight: number): number {
+    return (targetWeight - currentWeight) / (currentWeight || 1);
+  }
+
+  private async getMarketRegimeMultiplier(): Promise<number> {
+    try {
+      const feargreed = await this.errorService.retryWithFallback(() => this.feargreedService.getCompactFeargreed());
+      const value = Number(feargreed?.value);
+
+      if (!Number.isFinite(value)) {
+        return 1;
+      }
+
+      if (value <= 20) return 0.4;
+      if (value <= 35) return 0.6;
+      if (value >= 80) return 0.8;
+      if (value >= 65) return 0.9;
+
+      return 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  private async buildCurrentWeightMap(balances: Balances, totalMarketValue: number): Promise<Map<string, number>> {
+    const weightMap = new Map<string, number>();
+
+    if (!Number.isFinite(totalMarketValue) || totalMarketValue <= 0) {
+      return weightMap;
+    }
+
+    const weights = await Promise.all(
+      balances.info
+        .filter((item) => item.currency !== item.unit_currency)
+        .map(async (item) => {
+          const symbol = `${item.currency}/${item.unit_currency}`;
+          const tradableBalance = parseFloat(item.balance || 0);
+
+          if (!Number.isFinite(tradableBalance) || tradableBalance <= 0) {
+            return { symbol, weight: 0 };
+          }
+
+          try {
+            const currPrice = await this.upbitService.getPrice(symbol);
+            return { symbol, weight: (tradableBalance * currPrice) / totalMarketValue };
+          } catch {
+            const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
+            if (!Number.isFinite(avgBuyPrice) || avgBuyPrice <= 0) {
+              return null;
+            }
+
+            return { symbol, weight: (tradableBalance * avgBuyPrice) / totalMarketValue };
+          }
+        }),
+    );
+
+    for (const item of weights) {
+      if (!item) {
+        continue;
+      }
+
+      const { symbol, weight } = item;
+      if (weight > 0) {
+        weightMap.set(symbol, weight);
+      }
+    }
+
+    return weightMap;
+  }
+
+  private getSymbolCooldownKey(symbol: string): string {
+    return `market-volatility:cooldown:${symbol}`;
+  }
+
+  private async isSymbolOnCooldown(symbol: string): Promise<boolean> {
+    try {
+      return Boolean(await this.cacheService.get(this.getSymbolCooldownKey(symbol)));
+    } catch (error) {
+      this.logger.warn(`Failed to read cooldown cache for ${symbol}; treat as not on cooldown`, error);
+      return false;
+    }
+  }
+
+  private async markSymbolsOnCooldown(symbols: string[]): Promise<void> {
+    await Promise.all(
+      symbols.map((symbol) => this.markSymbolOnCooldown(symbol, this.VOLATILITY_SYMBOL_COOLDOWN_SECONDS)),
+    );
+  }
+
+  private async markSymbolOnCooldown(symbol: string, ttlSeconds: number): Promise<void> {
+    try {
+      await this.cacheService.set(this.getSymbolCooldownKey(symbol), true, ttlSeconds);
+    } catch (error) {
+      this.logger.warn(`Failed to write cooldown cache for ${symbol}; continue without cooldown`, error);
+    }
   }
 
   /**
@@ -977,22 +1183,47 @@ export class MarketVolatilityService implements OnModuleInit {
     balances: Balances,
     inferences: BalanceRecommendationData[],
     count: number,
+    regimeMultiplier: number,
+    currentWeights: Map<string, number>,
+    marketPrice: number,
   ): TradeRequest[] {
     // 편입 대상 종목 선정 (rate > 0인 종목들)
     const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences);
 
     // 편입 거래 요청 생성
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
-      .map((inference) => ({
-        symbol: inference.symbol,
-        // diff 계산: 목표 비율(rate/count)과 현재 비율의 차이
-        // rate는 단일 코인 기준 집중투자 비율이지만, 전체 포트폴리오 비율을 유지하기 위해 count로 나눔
-        // 예: rate=0.5, count=5인 경우 → 목표 비율 0.1 (10%)
-        // 양수면 매수 필요, 음수면 매도 필요
-        diff: this.calculateDiff(balances, inference.symbol, inference.rate / count, inference.category),
-        balances,
-        inference,
-      }))
+      .slice(0, count)
+      .map((inference) => {
+        const targetWeight = this.calculateTargetWeight(inference, regimeMultiplier);
+        const currentWeight = currentWeights.get(inference.symbol) ?? 0;
+        const deltaWeight = targetWeight - currentWeight;
+
+        // 목표와 현재 비중 차이가 작으면 불필요한 재조정을 생략
+        if (!this.shouldRebalance(targetWeight, deltaWeight)) {
+          return null;
+        }
+
+        // 예상 거래비용(수수료+슬리피지)보다 작은 조정은 생략
+        if (!this.passesCostGate(deltaWeight)) {
+          return null;
+        }
+
+        const diff = this.calculateRelativeDiff(targetWeight, currentWeight);
+        if (!Number.isFinite(diff) || Math.abs(diff) < Number.EPSILON) {
+          return null;
+        }
+
+        const tradeRequest: TradeRequest = {
+          symbol: inference.symbol,
+          diff,
+          balances,
+          marketPrice,
+          inference,
+        };
+
+        return tradeRequest;
+      })
+      .filter((item): item is TradeRequest => item !== null)
       .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬 (차이가 작은 것부터 처리)
 
     return tradeRequests;
@@ -1002,21 +1233,33 @@ export class MarketVolatilityService implements OnModuleInit {
    * 편출 거래 요청 생성
    *
    * - 편출 대상 종목들에 대한 매도 거래 요청을 생성합니다.
-   * - rate <= 0인 종목들만 전량 매도합니다.
+   * - 편입 상한(count)을 초과한 종목과 rate <= 0 종목을 전량 매도 대상으로 처리합니다.
    *
    * @param balances 사용자 계좌 잔고
    * @param inferences 추론 결과 목록
+   * @param count 편입할 최대 종목 수
    * @returns 편출 거래 요청 목록
    */
-  private generateExcludedTradeRequests(balances: Balances, inferences: BalanceRecommendationData[]): TradeRequest[] {
-    // 편출 대상 종목 선정 (rate <= 0 && hasStock인 종목들)
-    const filteredBalanceRecommendations = this.filterExcludedBalanceRecommendations(inferences);
+  private generateExcludedTradeRequests(
+    balances: Balances,
+    inferences: BalanceRecommendationData[],
+    count: number,
+    marketPrice: number,
+  ): TradeRequest[] {
+    // 편출 대상 종목 선정:
+    // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
+    // 2. rate <= 0 && hasStock인 종목들
+    const filteredBalanceRecommendations = [
+      ...this.filterIncludedBalanceRecommendations(inferences).slice(count),
+      ...this.filterExcludedBalanceRecommendations(inferences),
+    ];
 
     // 편출 거래 요청 생성: 모두 완전 매도(diff: -1)
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations.map((inference) => ({
       symbol: inference.symbol,
       diff: -1, // -1은 완전 매도를 의미
       balances,
+      marketPrice,
       inference,
     }));
 
@@ -1153,6 +1396,8 @@ export class MarketVolatilityService implements OnModuleInit {
             ...responseData,
             category: item?.category,
             hasStock: item?.hasStock || false,
+            weight: item?.weight,
+            confidence: item?.confidence,
           };
         });
       }),
@@ -1189,6 +1434,8 @@ export class MarketVolatilityService implements OnModuleInit {
       category: saved.category,
       rate: saved.rate,
       hasStock: validResults[index].hasStock,
+      weight: validResults[index].weight,
+      confidence: validResults[index].confidence,
     }));
   }
 

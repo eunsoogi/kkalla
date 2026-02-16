@@ -2,12 +2,22 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { I18nService } from 'nestjs-i18n';
 
+import { CacheService } from '../cache/cache.service';
 import { Category } from '../category/category.enum';
+import { CategoryService } from '../category/category.service';
+import { ErrorService } from '../error/error.service';
+import { FeargreedService } from '../feargreed/feargreed.service';
+import { FeatureService } from '../feature/feature.service';
 import { HistoryService } from '../history/history.service';
+import { NewsService } from '../news/news.service';
+import { NotifyService } from '../notify/notify.service';
+import { OpenaiService } from '../openai/openai.service';
+import { ProfitService } from '../profit/profit.service';
 import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { RedlockService } from '../redlock/redlock.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
 import { MarketVolatilityService } from './market-volatility.service';
 
@@ -15,6 +25,20 @@ describe('MarketVolatilityService', () => {
   let service: MarketVolatilityService;
   let historyService: jest.Mocked<HistoryService>;
   let upbitService: jest.Mocked<UpbitService>;
+  const originalQueueUrl = process.env.AWS_SQS_QUEUE_URL_VOLATILITY;
+
+  beforeAll(() => {
+    process.env.AWS_SQS_QUEUE_URL_VOLATILITY = 'https://example.com/test-volatility-queue';
+  });
+
+  afterAll(() => {
+    if (originalQueueUrl == null) {
+      delete process.env.AWS_SQS_QUEUE_URL_VOLATILITY;
+      return;
+    }
+
+    process.env.AWS_SQS_QUEUE_URL_VOLATILITY = originalQueueUrl;
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -24,12 +48,17 @@ describe('MarketVolatilityService', () => {
           provide: HistoryService,
           useValue: {
             fetchHistory: jest.fn(),
+            removeHistory: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
           provide: UpbitService,
           useValue: {
             getRecentMinuteCandles: jest.fn(),
+            getBalances: jest.fn().mockResolvedValue({ info: [] }),
+            calculateTradableMarketValue: jest.fn().mockResolvedValue(0),
+            getPrice: jest.fn().mockResolvedValue(0),
+            clearClients: jest.fn(),
           },
         },
         {
@@ -47,6 +76,33 @@ describe('MarketVolatilityService', () => {
           },
         },
         {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: CategoryService,
+          useValue: {
+            checkCategoryPermission: jest.fn().mockReturnValue(true),
+            findEnabledByUser: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: NotifyService,
+          useValue: {
+            notify: jest.fn().mockResolvedValue(undefined),
+            clearClients: jest.fn(),
+          },
+        },
+        {
+          provide: ProfitService,
+          useValue: {
+            getProfit: jest.fn().mockResolvedValue({ profit: 0 }),
+          },
+        },
+        {
           provide: I18nService,
           useValue: {
             t: jest.fn((key: string) => key),
@@ -56,6 +112,41 @@ describe('MarketVolatilityService', () => {
           provide: ScheduleService,
           useValue: {
             getUsers: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: NewsService,
+          useValue: {
+            getCompactNews: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: FeargreedService,
+          useValue: {
+            getCompactFeargreed: jest.fn().mockResolvedValue(null),
+          },
+        },
+        {
+          provide: OpenaiService,
+          useValue: {
+            createResponse: jest.fn(),
+            getResponseOutputText: jest.fn(),
+            addMessage: jest.fn(),
+            addMessagePair: jest.fn(),
+          },
+        },
+        {
+          provide: FeatureService,
+          useValue: {
+            MARKET_DATA_LEGEND: 'legend',
+            extractMarketFeatures: jest.fn(),
+            formatMarketData: jest.fn(),
+          },
+        },
+        {
+          provide: ErrorService,
+          useValue: {
+            retryWithFallback: jest.fn((fn: () => Promise<unknown>) => fn()),
           },
         },
       ],
@@ -77,6 +168,34 @@ describe('MarketVolatilityService', () => {
 
     expect(historyService.fetchHistory).toHaveBeenCalledTimes(1);
     expect(upbitService.getRecentMinuteCandles).not.toHaveBeenCalled();
+  });
+
+  it('should continue per-symbol checks when BTC trigger is on cooldown', async () => {
+    const items: RecommendationItem[] = [
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ];
+
+    historyService.fetchHistory.mockResolvedValue(items);
+
+    jest.spyOn(service as any, 'calculateSymbolVolatility').mockResolvedValue({
+      triggered: true,
+      prevPercent: 0.01,
+      currPercent: 0.02,
+      prevBucket: 0.01,
+      currBucket: 0.02,
+      netDirection: 0.02,
+    });
+    const cooldownSpy = jest.spyOn(service as any, 'isSymbolOnCooldown').mockResolvedValue(true);
+    const perSymbolSpy = jest.spyOn(service as any, 'triggerPerSymbolVolatility').mockResolvedValue(false);
+
+    await (service as any).checkMarketVolatility();
+
+    expect(cooldownSpy).toHaveBeenCalledWith('BTC/KRW');
+    expect(perSymbolSpy).toHaveBeenCalledWith(items);
   });
 
   it('should use 1m candles window (5 + 5) and trigger inference only when volatility bucket increases', async () => {
@@ -142,5 +261,110 @@ describe('MarketVolatilityService', () => {
 
     // 변동성 트리거가 발생했는지 확인
     expect(upbitService.getRecentMinuteCandles).toHaveBeenCalled();
+  });
+
+  it('should calculate netDirection over the full window horizon, not a 1m delta', async () => {
+    (upbitService.getRecentMinuteCandles as jest.Mock).mockResolvedValueOnce([
+      // [timestamp, open, high, low, close, volume]
+      [0, 0, 100, 100, 100, 0],
+      [1, 0, 100, 100, 100, 0],
+      [2, 0, 100, 100, 100, 0],
+      [3, 0, 100, 100, 100, 0],
+      [4, 0, 100, 100, 100, 0],
+      [5, 0, 100, 100, 100, 0],
+      [6, 0, 100, 100, 100, 0],
+      [7, 0, 100, 100, 100, 0],
+      [8, 0, 100, 100, 100, 0],
+      [9, 0, 104, 100, 104, 0], // prevWindow maxHigh=104 -> 4%
+      [10, 0, 105, 100, 105, 0], // nextWindow maxHigh=105 -> 5%
+    ]);
+
+    const result = await (service as any).calculateSymbolVolatility('ETH/KRW');
+
+    expect(result).not.toBeNull();
+    expect(result.triggered).toBe(true);
+    expect(result.netDirection).toBeCloseTo(0.05, 6);
+    expect(result.netDirection).toBeGreaterThan(0.01);
+  });
+
+  it('should generate explicit exclusions for included symbols beyond count', () => {
+    const balances: any = { info: [] };
+    const inferences = [
+      {
+        symbol: 'AAA/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.9,
+        hasStock: true,
+      },
+      {
+        symbol: 'BBB/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.8,
+        hasStock: true,
+      },
+      {
+        symbol: 'CCC/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.7,
+        hasStock: true,
+      },
+    ];
+
+    const excludedRequests = (service as any).generateExcludedTradeRequests(balances, inferences, 2, 1_000_000);
+
+    expect(excludedRequests).toHaveLength(1);
+    expect(excludedRequests[0]).toMatchObject({
+      symbol: 'CCC/KRW',
+      diff: -1,
+    });
+  });
+
+  it('should remove history on full liquidation even when inference rate is positive', async () => {
+    const balances: any = { info: [] };
+    const user: any = { id: 'user-1' };
+    const inferences = [
+      {
+        id: 'inference-1',
+        batchId: 'batch-1',
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+        rate: 0.2,
+        hasStock: true,
+      },
+    ];
+
+    upbitService.getBalances.mockResolvedValue(balances);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
+    jest.spyOn(service as any, 'getItemCount').mockResolvedValue(1);
+    jest.spyOn(service as any, 'getMarketRegimeMultiplier').mockResolvedValue(1);
+    jest.spyOn(service as any, 'buildCurrentWeightMap').mockResolvedValue(new Map());
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([
+      {
+        symbol: 'ETH/KRW',
+        diff: -1,
+        balances,
+        marketPrice: 1_000_000,
+        inference: inferences[0],
+      },
+    ]);
+    jest.spyOn(service as any, 'executeTrade').mockResolvedValue({
+      symbol: 'ETH/KRW',
+      type: OrderTypes.SELL,
+      amount: 10_000,
+      profit: 0,
+      inference: inferences[0],
+    });
+
+    await service.executeVolatilityTradesForUser(user, inferences, true);
+
+    expect(historyService.removeHistory).toHaveBeenCalledWith([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+      },
+    ]);
   });
 });

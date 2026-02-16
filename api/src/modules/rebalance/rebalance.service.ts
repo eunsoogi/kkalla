@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
+import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
 import { FeargreedService } from '@/modules/feargreed/feargreed.service';
@@ -29,6 +30,11 @@ import { Category } from '../category/category.enum';
 import { CategoryService } from '../category/category.service';
 import { HistoryService } from '../history/history.service';
 import { MarketRecommendation } from '../market-research/entities/market-recommendation.entity';
+import {
+  MARKET_RECOMMENDATION_STATE_CACHE_KEY,
+  MARKET_RECOMMENDATION_STATE_MAX_AGE_MS,
+  MarketRecommendationState,
+} from '../market-research/market-research.interface';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
@@ -62,6 +68,16 @@ export class RebalanceService implements OnModuleInit {
   private readonly logger = new Logger(RebalanceService.name);
 
   private readonly MINIMUM_TRADE_RATE = 0;
+  private readonly MAX_POSITION_WEIGHT = 0.2;
+  private readonly RATE_ENTRY_THRESHOLD = 0.35;
+  private readonly RATE_CURVE_EXPONENT = 1.3;
+  private readonly MIN_REBALANCE_BAND = 0.01;
+  private readonly REBALANCE_BAND_RATIO = 0.1;
+  private readonly ESTIMATED_FEE_RATE = 0.0005;
+  private readonly ESTIMATED_SLIPPAGE_RATE = 0.001;
+  private readonly COST_GUARD_MULTIPLIER = 2;
+  private readonly MIN_RECOMMEND_WEIGHT = 0.05;
+  private readonly MIN_RECOMMEND_CONFIDENCE = 0.55;
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
@@ -83,6 +99,7 @@ export class RebalanceService implements OnModuleInit {
     private readonly blacklistService: BlacklistService,
     private readonly historyService: HistoryService,
     private readonly upbitService: UpbitService,
+    private readonly cacheService: CacheService,
     private readonly scheduleService: ScheduleService,
     private readonly categoryService: CategoryService,
     private readonly notifyService: NotifyService,
@@ -428,11 +445,19 @@ export class RebalanceService implements OnModuleInit {
     // 계좌 정보가 없으면 거래 불가
     if (!balances) return [];
 
+    // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
+    const marketPrice = await this.upbitService.calculateTradableMarketValue(balances);
+    // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
+    const regimeMultiplier = await this.getMarketRegimeMultiplier();
+    // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
+    const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice);
+
     // 편입/편출 결정 분리
     // 1. 추론에 없는 기존 보유 종목 매도 요청 (완전 매도)
     const nonBalanceRecommendationTradeRequests: TradeRequest[] = this.generateNonBalanceRecommendationTradeRequests(
       balances,
       authorizedBalanceRecommendations,
+      marketPrice,
     );
 
     // 2. 편출 대상 종목 매도 요청 (추론에서 제외된 종목)
@@ -440,6 +465,7 @@ export class RebalanceService implements OnModuleInit {
       balances,
       authorizedBalanceRecommendations,
       count,
+      marketPrice,
     );
 
     // 3. 편입 대상 종목 매수/매도 요청 (목표 비율 조정)
@@ -447,6 +473,9 @@ export class RebalanceService implements OnModuleInit {
       balances,
       authorizedBalanceRecommendations,
       count,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
     );
 
     // 매수 불가능한 경우 매도만 수행 (diff < 0인 것만 필터링)
@@ -670,9 +699,13 @@ export class RebalanceService implements OnModuleInit {
       // 둘 다 보유 종목이 아니면 rate 비교
       const rateDiff = b.rate - a.rate;
 
-      // 부동소수점 오차 고려: 거의 같으면 0 반환
+      // rate가 유사하면 추천 weight/confidence로 추가 정렬
       if (Math.abs(rateDiff) < Number.EPSILON) {
-        return 0;
+        const scoreDiff = this.getRecommendationScore(b) - this.getRecommendationScore(a);
+        if (Math.abs(scoreDiff) < Number.EPSILON) {
+          return 0;
+        }
+        return scoreDiff;
       }
 
       // rate 내림차순 정렬
@@ -705,6 +738,7 @@ export class RebalanceService implements OnModuleInit {
   private generateNonBalanceRecommendationTradeRequests(
     balances: Balances,
     inferences: BalanceRecommendationData[],
+    marketPrice: number,
   ): TradeRequest[] {
     // 추론에 없는 기존 보유 종목 매도 요청 생성
     const tradeRequests: TradeRequest[] = balances.info
@@ -719,6 +753,7 @@ export class RebalanceService implements OnModuleInit {
         symbol: `${item.currency}/${item.unit_currency}`,
         diff: -1, // -1은 완전 매도를 의미
         balances,
+        marketPrice,
       }));
 
     return tradeRequests;
@@ -740,20 +775,46 @@ export class RebalanceService implements OnModuleInit {
     balances: Balances,
     inferences: BalanceRecommendationData[],
     count: number,
+    regimeMultiplier: number,
+    currentWeights: Map<string, number>,
+    marketPrice: number,
   ): TradeRequest[] {
     // 편입 대상 종목 선정 (최대 count개)
     const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).slice(0, count);
 
     // 편입 거래 요청 생성
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
-      .map((inference) => ({
-        symbol: inference.symbol,
-        // diff 계산: 목표 비율(rate/count)과 현재 비율의 차이
-        // 양수면 매수 필요, 음수면 매도 필요
-        diff: this.calculateDiff(balances, inference.symbol, inference.rate / count, inference.category),
-        balances,
-        inference,
-      }))
+      .map((inference) => {
+        const targetWeight = this.calculateTargetWeight(inference, regimeMultiplier);
+        const currentWeight = currentWeights.get(inference.symbol) ?? 0;
+        const deltaWeight = targetWeight - currentWeight;
+
+        // 목표와 현재 비중 차이가 작으면 불필요한 재조정을 생략
+        if (!this.shouldRebalance(targetWeight, deltaWeight)) {
+          return null;
+        }
+
+        // 예상 거래비용(수수료+슬리피지)보다 작은 조정은 생략
+        if (!this.passesCostGate(deltaWeight)) {
+          return null;
+        }
+
+        const diff = this.calculateRelativeDiff(targetWeight, currentWeight);
+        if (!Number.isFinite(diff) || Math.abs(diff) < Number.EPSILON) {
+          return null;
+        }
+
+        const tradeRequest: TradeRequest = {
+          symbol: inference.symbol,
+          diff,
+          balances,
+          marketPrice,
+          inference,
+        };
+
+        return tradeRequest;
+      })
+      .filter((item): item is TradeRequest => item !== null)
       .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬 (차이가 작은 것부터 처리)
 
     return tradeRequests;
@@ -774,6 +835,7 @@ export class RebalanceService implements OnModuleInit {
     balances: Balances,
     inferences: BalanceRecommendationData[],
     count: number,
+    marketPrice: number,
   ): TradeRequest[] {
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
@@ -788,32 +850,131 @@ export class RebalanceService implements OnModuleInit {
       symbol: inference.symbol,
       diff: -1, // -1은 완전 매도를 의미
       balances,
+      marketPrice,
       inference,
     }));
 
     return tradeRequests;
   }
 
-  /**
-   * 목표 비율과 현재 비율의 차이 계산
-   *
-   * - 목표 비율(rate)과 현재 보유 비율의 차이를 계산합니다.
-   * - 양수: 매수가 필요, 음수: 매도가 필요
-   *
-   * @param balances 사용자 계좌 잔고
-   * @param symbol 종목 심볼
-   * @param rate 목표 비율
-   * @param category 카테고리
-   * @returns 목표 비율과 현재 비율의 차이 (양수: 매수 필요, 음수: 매도 필요)
-   */
-  private calculateDiff(balances: Balances, symbol: string, rate: number, category: Category): number {
-    switch (category) {
-      case Category.COIN_MAJOR:
-      case Category.COIN_MINOR:
-        return this.upbitService.calculateDiff(balances, symbol, rate);
+  private getRecommendationScore(item: Pick<BalanceRecommendationData, 'weight' | 'confidence'>): number {
+    const weight = item.weight ?? 0.1;
+    const confidence = item.confidence ?? 0.7;
+    return weight * 0.6 + confidence * 0.4;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private toEffectiveSignal(rate: number): number {
+    const clampedRate = this.clamp(rate, 0, 1);
+    if (clampedRate <= this.RATE_ENTRY_THRESHOLD) {
+      return 0;
     }
 
-    return 0;
+    const normalized = (clampedRate - this.RATE_ENTRY_THRESHOLD) / (1 - this.RATE_ENTRY_THRESHOLD);
+    return this.clamp(Math.pow(normalized, this.RATE_CURVE_EXPONENT), 0, 1);
+  }
+
+  private getRecommendationMultiplier(inference: Pick<BalanceRecommendationData, 'weight' | 'confidence'>): number {
+    if (inference.weight == null && inference.confidence == null) {
+      return 1;
+    }
+
+    const weightFactor = inference.weight != null ? this.clamp(inference.weight / 0.1, 0.7, 1.3) : 1;
+    const confidenceFactor = inference.confidence != null ? this.clamp(inference.confidence, 0.7, 1.1) : 1;
+    return this.clamp((weightFactor + confidenceFactor) / 2, 0.7, 1.3);
+  }
+
+  private calculateTargetWeight(inference: BalanceRecommendationData, regimeMultiplier: number): number {
+    const effectiveSignal = this.toEffectiveSignal(inference.rate);
+    const recommendationMultiplier = this.getRecommendationMultiplier(inference);
+    const target = this.MAX_POSITION_WEIGHT * effectiveSignal * recommendationMultiplier * regimeMultiplier;
+    return this.clamp(target, 0, this.MAX_POSITION_WEIGHT);
+  }
+
+  private getRebalanceBand(targetWeight: number): number {
+    return Math.max(this.MIN_REBALANCE_BAND, targetWeight * this.REBALANCE_BAND_RATIO);
+  }
+
+  private shouldRebalance(targetWeight: number, deltaWeight: number): boolean {
+    return Math.abs(deltaWeight) >= this.getRebalanceBand(targetWeight);
+  }
+
+  private passesCostGate(deltaWeight: number): boolean {
+    const minEdge = (this.ESTIMATED_FEE_RATE + this.ESTIMATED_SLIPPAGE_RATE) * this.COST_GUARD_MULTIPLIER;
+    return Math.abs(deltaWeight) >= minEdge;
+  }
+
+  private calculateRelativeDiff(targetWeight: number, currentWeight: number): number {
+    return (targetWeight - currentWeight) / (currentWeight || 1);
+  }
+
+  private async getMarketRegimeMultiplier(): Promise<number> {
+    try {
+      const feargreed = await this.errorService.retryWithFallback(() => this.feargreedService.getCompactFeargreed());
+      const value = Number(feargreed?.value);
+
+      if (!Number.isFinite(value)) {
+        return 1;
+      }
+
+      if (value <= 20) return 0.4;
+      if (value <= 35) return 0.6;
+      if (value >= 80) return 0.8;
+      if (value >= 65) return 0.9;
+
+      return 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  private async buildCurrentWeightMap(balances: Balances, totalMarketValue: number): Promise<Map<string, number>> {
+    const weightMap = new Map<string, number>();
+
+    if (!Number.isFinite(totalMarketValue) || totalMarketValue <= 0) {
+      return weightMap;
+    }
+
+    const weights = await Promise.all(
+      balances.info
+        .filter((item) => item.currency !== item.unit_currency)
+        .map(async (item) => {
+          const symbol = `${item.currency}/${item.unit_currency}`;
+          const tradableBalance = parseFloat(item.balance || 0);
+
+          if (!Number.isFinite(tradableBalance) || tradableBalance <= 0) {
+            return { symbol, weight: 0 };
+          }
+
+          try {
+            const currPrice = await this.upbitService.getPrice(symbol);
+            return { symbol, weight: (tradableBalance * currPrice) / totalMarketValue };
+          } catch {
+            const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
+            if (!Number.isFinite(avgBuyPrice) || avgBuyPrice <= 0) {
+              return null;
+            }
+
+            return { symbol, weight: (tradableBalance * avgBuyPrice) / totalMarketValue };
+          }
+        }),
+    );
+
+    for (const item of weights) {
+      if (!item) {
+        continue;
+      }
+
+      const { symbol, weight } = item;
+      if (weight > 0) {
+        weightMap.set(symbol, weight);
+      }
+    }
+
+    return weightMap;
   }
 
   /**
@@ -975,14 +1136,92 @@ export class RebalanceService implements OnModuleInit {
    *
    * @returns 시장 추천 기반 추론 항목 목록
    */
-  private async fetchRecommendItems(): Promise<RecommendationItem[]> {
-    const recommendations = await MarketRecommendation.getLatestRecommends();
+  private isLatestRecommendationStateFresh(state: MarketRecommendationState | null): boolean {
+    if (!state) {
+      return false;
+    }
 
-    return recommendations.map((recommendation) => ({
-      symbol: recommendation.symbol,
-      category: Category.COIN_MINOR,
-      hasStock: false,
-    }));
+    if (!Number.isFinite(state.updatedAt)) {
+      return false;
+    }
+
+    return Date.now() - state.updatedAt <= MARKET_RECOMMENDATION_STATE_MAX_AGE_MS;
+  }
+
+  private hasRecommendationsNewerThanState(
+    recommendations: MarketRecommendation[],
+    state: MarketRecommendationState,
+  ): boolean {
+    return recommendations.some((recommendation) => {
+      const createdAt =
+        recommendation.createdAt instanceof Date
+          ? recommendation.createdAt.getTime()
+          : new Date(recommendation.createdAt).getTime();
+
+      return Number.isFinite(createdAt) && createdAt > state.updatedAt;
+    });
+  }
+
+  private hasDifferentRecommendationBatch(
+    recommendations: MarketRecommendation[],
+    state: MarketRecommendationState,
+  ): boolean {
+    if (recommendations.length < 1) {
+      return false;
+    }
+
+    return recommendations[0].batchId !== state.batchId;
+  }
+
+  private async fetchRecommendItems(): Promise<RecommendationItem[]> {
+    let latestState: MarketRecommendationState | null = null;
+
+    try {
+      latestState = await this.cacheService.get<MarketRecommendationState>(MARKET_RECOMMENDATION_STATE_CACHE_KEY);
+    } catch (error) {
+      this.logger.warn('Failed to read market recommendation state cache; fallback to latest recommendations', error);
+    }
+
+    let recommendations: MarketRecommendation[];
+
+    if (!latestState?.batchId || !this.isLatestRecommendationStateFresh(latestState)) {
+      this.logger.warn('Latest market recommendation state is missing or stale; fallback to latest recommendations');
+      recommendations = await MarketRecommendation.getLatestRecommends();
+    } else if (!latestState.hasRecommendations) {
+      const latestRecommendations = await MarketRecommendation.getLatestRecommends();
+      if (!this.hasRecommendationsNewerThanState(latestRecommendations, latestState)) {
+        return [];
+      }
+
+      recommendations = latestRecommendations;
+    } else {
+      recommendations = await MarketRecommendation.find({
+        where: { batchId: latestState.batchId },
+      });
+
+      const latestRecommendations = await MarketRecommendation.getLatestRecommends();
+      const hasNewerRecommendations = this.hasRecommendationsNewerThanState(latestRecommendations, latestState);
+      const hasDifferentBatch = this.hasDifferentRecommendationBatch(latestRecommendations, latestState);
+
+      if (recommendations.length < 1 || hasNewerRecommendations || hasDifferentBatch) {
+        recommendations = latestRecommendations;
+      }
+    }
+
+    return recommendations
+      .filter(
+        (recommendation) =>
+          Number(recommendation.weight) >= this.MIN_RECOMMEND_WEIGHT &&
+          Number(recommendation.confidence) >= this.MIN_RECOMMEND_CONFIDENCE,
+      )
+      .sort((a, b) => Number(b.weight) * Number(b.confidence) - Number(a.weight) * Number(a.confidence))
+      .map((recommendation) => ({
+        symbol: recommendation.symbol,
+        category: Category.COIN_MINOR,
+        hasStock: false,
+        weight: Number(recommendation.weight),
+        confidence: Number(recommendation.confidence),
+      }));
   }
 
   /**
@@ -1053,6 +1292,8 @@ export class RebalanceService implements OnModuleInit {
             ...responseData,
             category: item?.category,
             hasStock: item?.hasStock || false,
+            weight: item?.weight,
+            confidence: item?.confidence,
           };
         });
       }),
@@ -1089,6 +1330,8 @@ export class RebalanceService implements OnModuleInit {
       category: saved.category,
       rate: saved.rate,
       hasStock: validResults[index].hasStock,
+      weight: validResults[index].weight,
+      confidence: validResults[index].confidence,
     }));
   }
 

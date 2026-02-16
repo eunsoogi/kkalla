@@ -169,6 +169,81 @@ export class UpbitService {
     }, 0);
   }
 
+  private getTotalBalanceAmount(item: any): number {
+    const balance = parseFloat(item?.balance || 0);
+    const locked = parseFloat(item?.locked || 0);
+    return balance + locked;
+  }
+
+  private getTradableBalanceAmount(item: any): number {
+    return parseFloat(item?.balance || 0);
+  }
+
+  /**
+   * 평균매수가가 아닌 현재가 기준으로 계좌 총 평가금액을 계산합니다.
+   * - `balance + locked` 기준으로 전체 익스포저를 계산
+   * - KRW는 잔고 자체를 사용
+   * - 코인은 최신 시세(last) * 수량을 사용
+   */
+  public async calculateTotalMarketValue(balances: Balances): Promise<number> {
+    const values = await Promise.all(
+      balances.info.map(async (item) => {
+        const totalBalance = this.getTotalBalanceAmount(item);
+        if (totalBalance <= 0) {
+          return 0;
+        }
+
+        if (item.currency === item.unit_currency) {
+          return totalBalance;
+        }
+
+        const symbol = `${item.currency}/${item.unit_currency}`;
+
+        try {
+          const currPrice = await this.getPrice(symbol);
+          return totalBalance * currPrice;
+        } catch {
+          const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
+          return totalBalance * avgBuyPrice;
+        }
+      }),
+    );
+
+    return values.reduce((acc, value) => acc + value, 0);
+  }
+
+  /**
+   * 거래 가능한 잔고(`balance`)만 기준으로 계좌 총 평가금액을 계산합니다.
+   * - KRW는 잔고 자체를 사용
+   * - 코인은 최신 시세(last) * 수량을 사용
+   */
+  public async calculateTradableMarketValue(balances: Balances): Promise<number> {
+    const values = await Promise.all(
+      balances.info.map(async (item) => {
+        const tradableBalance = this.getTradableBalanceAmount(item);
+        if (tradableBalance <= 0) {
+          return 0;
+        }
+
+        if (item.currency === item.unit_currency) {
+          return tradableBalance;
+        }
+
+        const symbol = `${item.currency}/${item.unit_currency}`;
+
+        try {
+          const currPrice = await this.getPrice(symbol);
+          return tradableBalance * currPrice;
+        } catch {
+          const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
+          return tradableBalance * avgBuyPrice;
+        }
+      }),
+    );
+
+    return values.reduce((acc, value) => acc + value, 0);
+  }
+
   public getOrderType(order: Order): OrderTypes {
     return order.side as OrderTypes;
   }
@@ -280,7 +355,7 @@ export class UpbitService {
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<Order | null> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
-    const { symbol, diff, balances } = request;
+    const { symbol, diff, balances, marketPrice: precomputedMarketPrice } = request;
     const [baseAsset] = symbol.split('/');
     const symbolExist = await this.isSymbolExist(symbol);
 
@@ -290,11 +365,15 @@ export class UpbitService {
 
     try {
       const currPrice = await this.getPrice(symbol);
-      const symbolPrice = this.calculatePrice(balances, symbol);
-      const symbolVolume = this.getVolume(balances, baseAsset);
-      const marketPrice = this.calculateTotalPrice(balances);
-      const tradePrice = (symbolPrice || marketPrice) * Math.abs(diff) * 0.9995;
-      const tradeVolume = symbolVolume * Math.abs(diff);
+      const symbolTradableVolume = this.getVolume(balances, baseAsset);
+      const symbolMarketPrice = symbolTradableVolume * currPrice;
+      const marketPriceCandidate = precomputedMarketPrice ?? 0;
+      const marketPrice =
+        Number.isFinite(marketPriceCandidate) && marketPriceCandidate > 0
+          ? marketPriceCandidate
+          : this.calculateTotalPrice(balances);
+      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(diff) * 0.9995;
+      const tradeVolume = symbolTradableVolume * Math.abs(diff);
 
       // 매수해야 할 경우
       if (diff > 0 && tradePrice > this.MINIMUM_TRADE_PRICE) {

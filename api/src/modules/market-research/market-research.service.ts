@@ -4,6 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { I18nService } from 'nestjs-i18n';
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
+import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
 import { FeargreedService } from '@/modules/feargreed/feargreed.service';
@@ -26,7 +27,12 @@ import { MarketRecommendationWithChangeDto } from './dto/market-recommendation-w
 import { MarketRecommendationDto } from './dto/market-recommendation.dto';
 import { MarketRecommendation } from './entities/market-recommendation.entity';
 import { ScheduleExpression } from './market-research.enum';
-import { MarketRecommendationData } from './market-research.interface';
+import {
+  MARKET_RECOMMENDATION_STATE_CACHE_KEY,
+  MARKET_RECOMMENDATION_STATE_CACHE_TTL_SECONDS,
+  MarketRecommendationData,
+  MarketRecommendationState,
+} from './market-research.interface';
 import {
   UPBIT_MARKET_RECOMMENDATION_CONFIG,
   UPBIT_MARKET_RECOMMENDATION_PROMPT,
@@ -48,6 +54,7 @@ export class MarketResearchService {
     private readonly notifyService: NotifyService,
     private readonly blacklistService: BlacklistService,
     private readonly upbitService: UpbitService,
+    private readonly cacheService: CacheService,
     private readonly newsService: NewsService,
     private readonly feargreedService: FeargreedService,
     private readonly openaiService: OpenaiService,
@@ -208,8 +215,12 @@ export class MarketResearchService {
 
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
 
+    const hasRecommendations =
+      Array.isArray(inferenceResult.recommendations) && inferenceResult.recommendations.length > 0;
+
     // 추론 결과가 없으면 빈 배열 반환
-    if (!inferenceResult.recommendations?.length) {
+    if (!hasRecommendations) {
+      await this.cacheLatestRecommendationState(inferenceResult.batchId, false);
       this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
       return [];
     }
@@ -232,6 +243,7 @@ export class MarketResearchService {
     );
 
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
+    await this.cacheLatestRecommendationState(inferenceResult.batchId, true);
 
     return recommendationResults.map((saved) => ({
       id: saved.id,
@@ -241,6 +253,29 @@ export class MarketResearchService {
       reason: saved.reason,
       confidence: saved.confidence,
     }));
+  }
+
+  private async cacheLatestRecommendationState(batchId: string, hasRecommendations: boolean): Promise<void> {
+    const state: MarketRecommendationState = {
+      batchId,
+      hasRecommendations,
+      updatedAt: Date.now(),
+    };
+
+    try {
+      await this.cacheService.set(
+        MARKET_RECOMMENDATION_STATE_CACHE_KEY,
+        state,
+        MARKET_RECOMMENDATION_STATE_CACHE_TTL_SECONDS,
+      );
+    } catch (error) {
+      this.logger.warn(
+        this.i18n.t('logging.cache.save_failed', {
+          args: { key: MARKET_RECOMMENDATION_STATE_CACHE_KEY },
+        }),
+        error,
+      );
+    }
   }
 
   /**

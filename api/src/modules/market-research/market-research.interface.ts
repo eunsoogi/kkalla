@@ -31,3 +31,13 @@ export interface MarketRecommendationData {
   reason: string;
   confidence: number;
 }
+
+export const MARKET_RECOMMENDATION_STATE_CACHE_KEY = 'market-research:latest-state';
+export const MARKET_RECOMMENDATION_STATE_CACHE_TTL_SECONDS = 60 * 60 * 48; // 48h
+export const MARKET_RECOMMENDATION_STATE_MAX_AGE_MS = MARKET_RECOMMENDATION_STATE_CACHE_TTL_SECONDS * 1000;
+
+export interface MarketRecommendationState {
+  batchId: string;
+  hasRecommendations: boolean;
+  updatedAt: number;
+}
