@@ -185,7 +185,7 @@ export class UpbitService {
    * - KRW는 잔고 자체를 사용
    * - 코인은 최신 시세(last) * 수량을 사용
    */
-  public async calculateTotalMarketValue(balances: Balances): Promise<number> {
+  public async calculateTotalMarketValue(balances: Balances, orderableSymbols?: Set<string>): Promise<number> {
     const values = await Promise.all(
       balances.info.map(async (item) => {
         const totalBalance = this.getTotalBalanceAmount(item);
@@ -198,8 +198,14 @@ export class UpbitService {
         }
 
         const symbol = `${item.currency}/${item.unit_currency}`;
+        if (orderableSymbols && !orderableSymbols.has(symbol)) {
+          return 0;
+        }
 
         try {
+          if (!(await this.isSymbolExist(symbol))) {
+            return 0;
+          }
           const currPrice = await this.getPrice(symbol);
           return totalBalance * currPrice;
         } catch {
@@ -217,7 +223,7 @@ export class UpbitService {
    * - KRW는 잔고 자체를 사용
    * - 코인은 최신 시세(last) * 수량을 사용
    */
-  public async calculateTradableMarketValue(balances: Balances): Promise<number> {
+  public async calculateTradableMarketValue(balances: Balances, orderableSymbols?: Set<string>): Promise<number> {
     const values = await Promise.all(
       balances.info.map(async (item) => {
         const tradableBalance = this.getTradableBalanceAmount(item);
@@ -230,8 +236,14 @@ export class UpbitService {
         }
 
         const symbol = `${item.currency}/${item.unit_currency}`;
+        if (orderableSymbols && !orderableSymbols.has(symbol)) {
+          return 0;
+        }
 
         try {
+          if (!(await this.isSymbolExist(symbol))) {
+            return 0;
+          }
           const currPrice = await this.getPrice(symbol);
           return tradableBalance * currPrice;
         } catch {

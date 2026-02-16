@@ -765,17 +765,17 @@ export class MarketVolatilityService implements OnModuleInit {
       return [];
     }
 
-    // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
-    const marketPrice = await this.upbitService.calculateTradableMarketValue(balances);
-    // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
-    const regimeMultiplier = await this.getMarketRegimeMultiplier();
-    // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
-    const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice);
     const orderableSymbols = await this.buildOrderableSymbolSet([
       ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
       ...balances.info.map((item) => `${item.currency}/${item.unit_currency}`),
     ]);
-    const tradableMarketValueMap = await this.buildTradableMarketValueMap(balances);
+    // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
+    const marketPrice = await this.upbitService.calculateTradableMarketValue(balances, orderableSymbols);
+    // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
+    const regimeMultiplier = await this.getMarketRegimeMultiplier();
+    // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
+    const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice, orderableSymbols);
+    const tradableMarketValueMap = await this.buildTradableMarketValueMap(balances, orderableSymbols);
 
     // 편입/편출 결정 분리
     // 1. 편출 대상 종목 매도 요청 (rate <= 0인 종목들만 전량 매도)
@@ -1046,7 +1046,11 @@ export class MarketVolatilityService implements OnModuleInit {
     }
   }
 
-  private async buildCurrentWeightMap(balances: Balances, totalMarketValue: number): Promise<Map<string, number>> {
+  private async buildCurrentWeightMap(
+    balances: Balances,
+    totalMarketValue: number,
+    orderableSymbols?: Set<string>,
+  ): Promise<Map<string, number>> {
     const weightMap = new Map<string, number>();
 
     if (!Number.isFinite(totalMarketValue) || totalMarketValue <= 0) {
@@ -1061,6 +1065,9 @@ export class MarketVolatilityService implements OnModuleInit {
           const tradableBalance = parseFloat(item.balance || 0);
 
           if (!Number.isFinite(tradableBalance) || tradableBalance <= 0) {
+            return { symbol, weight: 0 };
+          }
+          if (!this.isOrderableSymbol(symbol, orderableSymbols)) {
             return { symbol, weight: 0 };
           }
 
@@ -1158,7 +1165,10 @@ export class MarketVolatilityService implements OnModuleInit {
     return new Set(checks.filter((check) => !check.checked || check.exists).map((check) => check.symbol));
   }
 
-  private async buildTradableMarketValueMap(balances: Balances): Promise<Map<string, number>> {
+  private async buildTradableMarketValueMap(
+    balances: Balances,
+    orderableSymbols?: Set<string>,
+  ): Promise<Map<string, number>> {
     const marketValueMap = new Map<string, number>();
 
     const values = await Promise.all(
@@ -1168,6 +1178,9 @@ export class MarketVolatilityService implements OnModuleInit {
           const symbol = `${item.currency}/${item.unit_currency}`;
           const tradableBalance = parseFloat(item.balance || 0);
           if (!Number.isFinite(tradableBalance) || tradableBalance <= 0) {
+            return { symbol, marketValue: 0 };
+          }
+          if (!this.isOrderableSymbol(symbol, orderableSymbols)) {
             return { symbol, marketValue: 0 };
           }
 
