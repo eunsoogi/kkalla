@@ -12,8 +12,6 @@ on:
       - '!ui/helm/**'
       - '.github/workflows/lint-and-build.yaml'
   pull_request:
-    branches:
-      - main
     paths:
       - 'api/**'
       - '!api/helm/**'
