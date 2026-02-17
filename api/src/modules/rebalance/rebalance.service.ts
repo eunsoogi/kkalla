@@ -436,7 +436,8 @@ export class RebalanceService implements OnModuleInit {
               this.i18n.t('notify.inference.transaction', {
                 args: {
                   symbol: recommendation.symbol,
-                  rate: Math.floor(recommendation.rate * 100),
+                  prevRate: this.toRatePercent(recommendation.prevRate),
+                  rate: this.toRatePercent(recommendation.rate),
                 },
               }),
             )
@@ -936,7 +937,8 @@ export class RebalanceService implements OnModuleInit {
       this.RECOMMEND_CONFIDENCE_BASE,
       this.RECOMMEND_CONFIDENCE_SPAN,
     );
-    const multiplier = 1 + weightScore * this.RECOMMEND_WEIGHT_IMPACT + confidenceScore * this.RECOMMEND_CONFIDENCE_IMPACT;
+    const multiplier =
+      1 + weightScore * this.RECOMMEND_WEIGHT_IMPACT + confidenceScore * this.RECOMMEND_CONFIDENCE_IMPACT;
     return this.clamp(multiplier, this.RECOMMEND_MULTIPLIER_MIN, this.RECOMMEND_MULTIPLIER_MAX);
   }
 
@@ -1214,6 +1216,14 @@ export class RebalanceService implements OnModuleInit {
     this.notifyService.clearClients();
   }
 
+  private toRatePercent(rate: number | null | undefined): string {
+    if (rate == null || !Number.isFinite(rate)) {
+      return '-';
+    }
+
+    return `${Math.floor(rate * 100)}%`;
+  }
+
   /**
    * 개별 거래 실행
    *
@@ -1443,6 +1453,7 @@ export class RebalanceService implements OnModuleInit {
    */
   public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
+    const previousRates = await this.buildPreviousRateMap(items);
 
     // 각 종목에 대한 실시간 API 호출을 병렬로 처리
     const inferenceResults = await Promise.all(
@@ -1475,6 +1486,7 @@ export class RebalanceService implements OnModuleInit {
             ...responseData,
             category: item?.category,
             hasStock: item?.hasStock || false,
+            prevRate: previousRates.get(item.symbol) ?? null,
             weight: item?.weight,
             confidence: item?.confidence,
           };
@@ -1512,6 +1524,7 @@ export class RebalanceService implements OnModuleInit {
       symbol: saved.symbol,
       category: saved.category,
       rate: saved.rate,
+      prevRate: saved.prevRate != null ? Number(saved.prevRate) : null,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
@@ -1596,19 +1609,19 @@ export class RebalanceService implements OnModuleInit {
   }
 
   /**
-   * 이전 추론 데이터 가져오기
+   * 최신 이전 추론 데이터 가져오기
    *
-   * - 최근 7일 이내의 추론 결과를 조회합니다.
+   * - 기간 제한 없이 가장 최근 추론 1건을 조회합니다.
    *
    * @param symbol 종목 심볼
-   * @returns 이전 추론 결과 배열
+   * @returns 이전 추론 결과 배열 (최대 1건)
    */
   private async fetchRecentRecommendations(symbol: string): Promise<BalanceRecommendation[]> {
     const operation = () =>
-      BalanceRecommendation.getRecent({
-        symbol,
-        createdAt: new Date(Date.now() - UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recentDateLimit),
-        count: UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recent,
+      BalanceRecommendation.find({
+        where: { symbol },
+        order: { createdAt: 'DESC' },
+        take: 1,
       });
 
     try {
@@ -1617,6 +1630,24 @@ export class RebalanceService implements OnModuleInit {
       this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
       return [];
     }
+  }
+
+  private async buildPreviousRateMap(items: RecommendationItem[]): Promise<Map<string, number | null>> {
+    const symbols = Array.from(new Set(items.map((item) => item.symbol)));
+    const previousRates = await Promise.all(
+      symbols.map(async (symbol) => {
+        const recentRecommendations = await this.fetchRecentRecommendations(symbol);
+        const latestRate = recentRecommendations[0]?.rate;
+
+        if (latestRate == null || !Number.isFinite(latestRate)) {
+          return [symbol, null] as const;
+        }
+
+        return [symbol, Number(latestRate)] as const;
+      }),
+    );
+
+    return new Map(previousRates);
   }
 
   /**
@@ -1635,6 +1666,7 @@ export class RebalanceService implements OnModuleInit {
       symbol: entity.symbol,
       category: entity.category,
       rate: entity.rate,
+      prevRate: entity.prevRate != null ? Number(entity.prevRate) : null,
       reason: entity.reason,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -1662,6 +1694,7 @@ export class RebalanceService implements OnModuleInit {
       symbol: entity.symbol,
       category: entity.category,
       rate: entity.rate,
+      prevRate: entity.prevRate != null ? Number(entity.prevRate) : null,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     }));

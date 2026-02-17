@@ -28,6 +28,14 @@ interface InferenceDetailListContentProps {
   endDate?: Date;
 }
 
+const formatRatePercent = (rate?: number | null): string => {
+  if (rate == null || !Number.isFinite(rate)) {
+    return '-';
+  }
+
+  return `${Math.floor(rate * 100)}%`;
+};
+
 const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
   const t = useTranslations();
 
@@ -72,7 +80,9 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                       {type === 'balance' ? (
                         <div className='flex items-center gap-2'>
                           <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
-                          <Badge style={getRateColor((item as BalanceRecommendation).rate)}>{`${Math.floor((item as BalanceRecommendation).rate * 100)}%`}</Badge>
+                          <Badge style={getRateColor((item as BalanceRecommendation).rate)}>
+                            {`${formatRatePercent((item as BalanceRecommendation).prevRate)} -> ${formatRatePercent((item as BalanceRecommendation).rate)}`}
+                          </Badge>
                         </div>
                       ) : (
                         <div className='flex items-center gap-4'>
