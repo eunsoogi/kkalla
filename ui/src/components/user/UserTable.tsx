@@ -78,7 +78,7 @@ const UserTableBase = ({ items }: UserTableProps) => {
         </div>
       </SimpleBar>
 
-      <div className='mt-4 flex items-center justify-between px-6 pb-6'>
+      <div className='mt-4 flex flex-col gap-3 px-6 pb-6 sm:flex-row sm:items-center sm:justify-between'>
         <div className='text-sm text-gray-700 dark:text-gray-300'>
           {t('pagination', {
             start: (items.page - 1) * (items.perPage ?? 1) + 1,
@@ -86,21 +86,23 @@ const UserTableBase = ({ items }: UserTableProps) => {
             total: items.total,
           })}
         </div>
-        <div className='flex space-x-2'>
-          {Array.from({ length: items.totalPages }, (_, i) => (
-            <button
-              key={i + 1}
-              className={`px-3 py-1 text-sm rounded ${
-                items.page === i + 1
-                  ? 'bg-blue-600 text-white dark:bg-blue-500'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:bg-dark dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
-              }`}
-              disabled={items.page === i + 1}
-              onClick={() => handlePageChange(i + 1)}
-            >
-              {i + 1}
-            </button>
-          ))}
+        <div className='w-full overflow-x-auto sm:w-auto'>
+          <div className='flex w-max gap-2 sm:justify-end'>
+            {Array.from({ length: items.totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 text-sm rounded ${
+                  items.page === i + 1
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:bg-dark dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
+                }`}
+                disabled={items.page === i + 1}
+                onClick={() => handlePageChange(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

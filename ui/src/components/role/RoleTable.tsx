@@ -82,7 +82,7 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
         </div>
       </SimpleBar>
 
-      <div className='flex items-center justify-between mt-4 px-6 pb-6'>
+      <div className='mt-4 flex flex-col gap-3 px-6 pb-6 sm:flex-row sm:items-center sm:justify-between'>
         <div className='text-sm text-gray-700 dark:text-gray-300'>
           {t('pagination', {
             start: (items.page - 1) * (items.perPage ?? 1) + 1,
@@ -90,20 +90,22 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
             total: items.total,
           })}
         </div>
-        <div className='flex space-x-2'>
-          {Array.from({ length: items.totalPages }, (_, i) => (
-            <button
-              key={i + 1}
-              className={`px-3 py-1 text-sm rounded ${
-                items.page === i + 1
-                  ? 'bg-blue-600 text-white dark:bg-blue-500'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-              onClick={() => handlePageChange(i + 1)}
-            >
-              {i + 1}
-            </button>
-          ))}
+        <div className='w-full overflow-x-auto sm:w-auto'>
+          <div className='flex w-max gap-2 sm:justify-end'>
+            {Array.from({ length: items.totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 text-sm rounded ${
+                  items.page === i + 1
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                }`}
+                onClick={() => handlePageChange(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
