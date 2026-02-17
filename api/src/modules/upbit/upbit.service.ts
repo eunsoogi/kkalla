@@ -140,11 +140,11 @@ export class UpbitService {
     return null;
   }
 
-  public calculateDiff(balances: Balances, symbol: string, rate: number): number {
+  public calculateDiff(balances: Balances, symbol: string, targetWeight: number): number {
     const symbolPrice = this.calculatePrice(balances, symbol);
     const marketPrice = this.calculateTotalPrice(balances);
-    const symbolRate = symbolPrice / marketPrice;
-    const diff = (rate - symbolRate) / (symbolRate || 1);
+    const currentWeight = symbolPrice / marketPrice;
+    const diff = (targetWeight - currentWeight) / (currentWeight || 1);
 
     return diff;
   }
@@ -286,8 +286,8 @@ export class UpbitService {
     const currPrice = await this.getPrice(order.symbol);
     const { avg_buy_price = 0 } = this.getBalance(balances, order.symbol);
     const avgBuyPrice = parseFloat(avg_buy_price) || 1;
-    const rate = currPrice / avgBuyPrice;
-    const profit = amount - amount / rate;
+    const priceRatio = currPrice / avgBuyPrice;
+    const profit = amount - amount / priceRatio;
 
     return profit;
   }

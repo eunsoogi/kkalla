@@ -16,7 +16,11 @@ import { Category } from '@/modules/category/category.enum';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 
-import { BalanceRecommendationFilter, RecentBalanceRecommendationRequest } from '../rebalance.interface';
+import {
+  BalanceRecommendationAction,
+  BalanceRecommendationFilter,
+  RecentBalanceRecommendationRequest,
+} from '../rebalance.interface';
 
 @Entity()
 @Index('idx_balance_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })
@@ -56,17 +60,49 @@ export class BalanceRecommendation extends BaseEntity {
   category: Category;
 
   @Column({
+    name: 'intensity',
     type: 'double',
     default: 0,
     nullable: false,
   })
-  rate: number;
+  intensity: number;
 
   @Column({
+    name: 'prev_intensity',
     type: 'double',
     nullable: true,
   })
-  prevRate: number | null;
+  prevIntensity: number | null;
+
+  @Column({
+    type: 'double',
+    default: 0,
+    nullable: false,
+  })
+  buyScore: number;
+
+  @Column({
+    type: 'double',
+    default: 0,
+    nullable: false,
+  })
+  sellScore: number;
+
+  @Column({
+    name: 'model_target_weight',
+    type: 'double',
+    default: 0,
+    nullable: false,
+  })
+  modelTargetWeight: number;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    default: 'hold',
+    nullable: false,
+  })
+  action: BalanceRecommendationAction;
 
   @Column({
     type: 'text',

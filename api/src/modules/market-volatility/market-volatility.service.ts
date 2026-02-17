@@ -33,8 +33,11 @@ import { CategoryService } from '../category/category.service';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
 import { BalanceRecommendation } from '../rebalance/entities/balance-recommendation.entity';
-import { RecommendationItem } from '../rebalance/rebalance.interface';
-import { BalanceRecommendationData } from '../rebalance/rebalance.interface';
+import {
+  BalanceRecommendationAction,
+  BalanceRecommendationData,
+  RecommendationItem,
+} from '../rebalance/rebalance.interface';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
@@ -42,6 +45,7 @@ import { Trade } from '../trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '../trade/trade.interface';
 import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
 import { OrderTypes } from '../upbit/upbit.enum';
+import { MarketFeatures } from '../upbit/upbit.interface';
 import { SymbolVolatility } from './market-volatility.interface';
 import {
   UPBIT_BALANCE_RECOMMENDATION_CONFIG,
@@ -75,18 +79,16 @@ export class MarketVolatilityService implements OnModuleInit {
    */
   private readonly BTC_VOLATILITY_BUCKET_STEP = 0.01;
   private readonly BTC_SYMBOL = 'BTC/KRW';
-  private readonly MINIMUM_TRADE_RATE = 0;
-  private readonly MAX_POSITION_WEIGHT = 0.2;
-  private readonly TARGET_WEIGHT_MIN_RATIO = 0.85;
-  private readonly TARGET_WEIGHT_MAX_RATIO = 1.05;
-  private readonly RECOMMEND_WEIGHT_BASE = 0.1;
-  private readonly RECOMMEND_WEIGHT_SPAN = 0.05;
-  private readonly RECOMMEND_CONFIDENCE_BASE = 0.7;
-  private readonly RECOMMEND_CONFIDENCE_SPAN = 0.2;
-  private readonly RECOMMEND_WEIGHT_IMPACT = 0.06;
-  private readonly RECOMMEND_CONFIDENCE_IMPACT = 0.04;
-  private readonly RECOMMEND_MULTIPLIER_MIN = 0.9;
-  private readonly RECOMMEND_MULTIPLIER_MAX = 1.1;
+  private readonly MINIMUM_TRADE_INTENSITY = 0;
+  private readonly AI_SIGNAL_WEIGHT = 0.7;
+  private readonly FEATURE_SIGNAL_WEIGHT = 0.3;
+  private readonly FEATURE_CONFIDENCE_WEIGHT = 0.3;
+  private readonly FEATURE_MOMENTUM_WEIGHT = 0.25;
+  private readonly FEATURE_LIQUIDITY_WEIGHT = 0.2;
+  private readonly FEATURE_VOLATILITY_WEIGHT = 0.15;
+  private readonly FEATURE_STABILITY_WEIGHT = 0.1;
+  private readonly VOLATILITY_REFERENCE = 0.12;
+  private readonly SELL_SCORE_THRESHOLD = 0.6;
   private readonly MIN_REBALANCE_BAND = 0.01;
   private readonly REBALANCE_BAND_RATIO = 0.1;
   private readonly ESTIMATED_FEE_RATE = 0.0005;
@@ -98,6 +100,9 @@ export class MarketVolatilityService implements OnModuleInit {
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
+  private readonly COIN_MAJOR_EXPOSURE = 0.4;
+  private readonly COIN_MINOR_EXPOSURE = 1;
+  private readonly NASDAQ_EXPOSURE = 0;
 
   // Amazon SQS
   private readonly sqs = new SQSClient({
@@ -709,9 +714,9 @@ export class MarketVolatilityService implements OnModuleInit {
    * - SQS consumer에서 호출되는 메인 거래 실행 함수입니다.
    * - 변동성이 감지된 종목들에 대해서만 거래를 수행합니다:
    *   1. 권한이 없는 종목 필터링
-   *   2. rate > 0인 종목(매수/비율 조정) 또는 rate <= 0 && hasStock인 종목(전량 매도) 선정
+   *   2. intensity > 0인 종목(매수/비율 조정) 또는 intensity <= 0 && hasStock인 종목(전량 매도) 선정
    *   3. 감지된 종목들에 대한 매수/매도 거래 실행
-   * - rate <= 0 또는 편입 상한을 초과한 종목은 전량 매도 대상으로 처리됩니다.
+   * - intensity <= 0 또는 편입 상한을 초과한 종목은 전량 매도 대상으로 처리됩니다.
    * - 거래 완료 후 사용자에게 알림을 전송합니다.
    *
    * @param user 거래를 실행할 사용자
@@ -742,8 +747,8 @@ export class MarketVolatilityService implements OnModuleInit {
               this.i18n.t('notify.inference.transaction', {
                 args: {
                   symbol: recommendation.symbol,
-                  prevRate: this.toRatePercent(recommendation.prevRate),
-                  rate: this.toRatePercent(recommendation.rate),
+                  prevModelTargetWeight: this.toPercent(recommendation.prevModelTargetWeight),
+                  modelTargetWeight: this.toPercent(recommendation.modelTargetWeight),
                 },
               }),
             )
@@ -779,7 +784,7 @@ export class MarketVolatilityService implements OnModuleInit {
     const tradableMarketValueMap = await this.buildTradableMarketValueMap(balances, orderableSymbols);
 
     // 편입/편출 결정 분리
-    // 1. 편출 대상 종목 매도 요청 (rate <= 0인 종목들만 전량 매도)
+    // 1. 편출 대상 종목 매도 요청 (intensity <= 0인 종목들만 전량 매도)
     const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
@@ -789,7 +794,7 @@ export class MarketVolatilityService implements OnModuleInit {
       tradableMarketValueMap,
     );
 
-    // 2. 편입 대상 종목 매수/매도 요청 (rate > 0인 종목들의 목표 비율 조정)
+    // 2. 편입 대상 종목 매수/매도 요청 (intensity > 0인 종목들의 목표 비율 조정)
     let includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
@@ -923,8 +928,8 @@ export class MarketVolatilityService implements OnModuleInit {
   /**
    * 추론 결과 정렬
    *
-   * - 우선순위: 기존 보유 종목 > rate 높은 순
-   * - 기존 보유 종목(hasStock=true)을 우선 정렬하고, 그 다음 rate 내림차순으로 정렬합니다.
+   * - 우선순위: 기존 보유 종목 > buyScore 높은 순
+   * - 기존 보유 종목(hasStock=true)을 우선 정렬하고, 그 다음 buyScore 내림차순으로 정렬합니다.
    *
    * @param inferences 추론 결과 목록
    * @returns 정렬된 추론 결과 목록
@@ -932,7 +937,7 @@ export class MarketVolatilityService implements OnModuleInit {
   private sortBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
     // 정렬 우선순위:
     // 1. 기존 보유 종목(hasStock=true) 우선
-    // 2. 둘 다 보유 종목이거나 둘 다 아닌 경우: rate 내림차순
+    // 2. 둘 다 보유 종목이거나 둘 다 아닌 경우: buyScore 내림차순
     return inferences.sort((a, b) => {
       // 둘 다 보유 종목이면 순서 유지
       if (a.hasStock && b.hasStock) {
@@ -945,11 +950,16 @@ export class MarketVolatilityService implements OnModuleInit {
         return 1;
       }
 
-      // 둘 다 보유 종목이 아니면 rate 비교
-      const rateDiff = b.rate - a.rate;
+      // 둘 다 보유 종목이 아니면 buyScore 비교
+      const buyScoreDiff = this.getBuyPriorityScore(b) - this.getBuyPriorityScore(a);
 
-      // rate가 유사하면 추천 weight/confidence로 추가 정렬
-      if (Math.abs(rateDiff) < Number.EPSILON) {
+      // buyScore가 유사하면 intensity, 추천 weight/confidence 순으로 정렬
+      if (Math.abs(buyScoreDiff) < Number.EPSILON) {
+        const intensityDiff = b.intensity - a.intensity;
+        if (Math.abs(intensityDiff) >= Number.EPSILON) {
+          return intensityDiff;
+        }
+
         const scoreDiff = this.getRecommendationScore(b) - this.getRecommendationScore(a);
         if (Math.abs(scoreDiff) < Number.EPSILON) {
           return 0;
@@ -957,8 +967,8 @@ export class MarketVolatilityService implements OnModuleInit {
         return scoreDiff;
       }
 
-      // rate 내림차순 정렬
-      return rateDiff;
+      // buyScore 내림차순 정렬
+      return buyScoreDiff;
     });
   }
 
@@ -968,47 +978,146 @@ export class MarketVolatilityService implements OnModuleInit {
     return weight * 0.6 + confidence * 0.4;
   }
 
+  private getBuyPriorityScore(item: Pick<BalanceRecommendationData, 'buyScore' | 'intensity'>): number {
+    if (item.buyScore != null && Number.isFinite(item.buyScore)) {
+      return this.clamp01(item.buyScore);
+    }
+
+    return this.clamp01(item.intensity);
+  }
+
   private clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
   }
 
-  private normalizeAroundBase(value: number | undefined, base: number, span: number): number {
-    if (value == null || !Number.isFinite(value)) {
+  private clamp01(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return this.clamp(value, 0, 1);
+  }
+
+  private isIncludedRecommendation(inference: BalanceRecommendationData): boolean {
+    if (inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)) {
+      return this.clamp01(inference.modelTargetWeight) > 0;
+    }
+
+    return inference.intensity > this.MINIMUM_TRADE_INTENSITY;
+  }
+
+  private getCategoryExposureByCategory(category: Category): number {
+    switch (category) {
+      case Category.COIN_MAJOR:
+        return this.COIN_MAJOR_EXPOSURE;
+
+      case Category.COIN_MINOR:
+        return this.COIN_MINOR_EXPOSURE;
+
+      case Category.NASDAQ:
+        return this.NASDAQ_EXPOSURE;
+    }
+
+    return 0;
+  }
+
+  private calculateFeatureScore(marketFeatures: MarketFeatures | null): number {
+    // feature 추출이 실패한 경우, 보수적으로 0점 처리하여 매수 편향을 방지합니다.
+    if (!marketFeatures) {
       return 0;
     }
 
-    return this.clamp((value - base) / span, -1, 1);
+    const confidence = this.clamp01((marketFeatures.prediction?.confidence ?? 0) / 100);
+    const momentumStrength = this.clamp01((marketFeatures.prediction?.momentumStrength ?? 0) / 100);
+    const liquidityScore = this.clamp01((marketFeatures.liquidityScore ?? 0) / 10);
+    const volatility = Number.isFinite(marketFeatures.volatility)
+      ? (marketFeatures.volatility as number)
+      : this.VOLATILITY_REFERENCE;
+    const volatilityRatio = this.clamp01(volatility / this.VOLATILITY_REFERENCE);
+    const volatilityScore = this.clamp01(1 - volatilityRatio);
+    const intensityStability = this.clamp01((marketFeatures.intensityVolatility?.intensityStability ?? 0) / 100);
+
+    return this.clamp01(
+      this.FEATURE_CONFIDENCE_WEIGHT * confidence +
+        this.FEATURE_MOMENTUM_WEIGHT * momentumStrength +
+        this.FEATURE_LIQUIDITY_WEIGHT * liquidityScore +
+        this.FEATURE_VOLATILITY_WEIGHT * volatilityScore +
+        this.FEATURE_STABILITY_WEIGHT * intensityStability,
+    );
   }
 
-  private getRecommendationMultiplier(inference: Pick<BalanceRecommendationData, 'weight' | 'confidence'>): number {
-    const weightScore = this.normalizeAroundBase(
-      inference.weight,
-      this.RECOMMEND_WEIGHT_BASE,
-      this.RECOMMEND_WEIGHT_SPAN,
+  private resolveAction(intensity: number, sellScore: number, modelTargetWeight: number): BalanceRecommendationAction {
+    if (modelTargetWeight <= 0) {
+      if (intensity <= this.MINIMUM_TRADE_INTENSITY || sellScore >= this.SELL_SCORE_THRESHOLD) {
+        return 'sell';
+      }
+      return 'hold';
+    }
+
+    return 'buy';
+  }
+
+  private calculateModelSignals(intensity: number, category: Category, marketFeatures: MarketFeatures | null) {
+    const aiBuy = this.clamp01(intensity);
+    const aiSell = this.clamp01(-intensity);
+    const featureScore = this.calculateFeatureScore(marketFeatures);
+
+    const buyScore = this.clamp01(this.AI_SIGNAL_WEIGHT * aiBuy + this.FEATURE_SIGNAL_WEIGHT * featureScore);
+    const sellScore = this.clamp01(this.AI_SIGNAL_WEIGHT * aiSell + this.FEATURE_SIGNAL_WEIGHT * (1 - featureScore));
+
+    const itemCount = Math.max(1, this.getItemCountByCategory(category));
+    const exposure = this.clamp01(this.getCategoryExposureByCategory(category));
+
+    let modelTargetWeight = this.clamp01((exposure * buyScore) / itemCount);
+    if (intensity <= this.MINIMUM_TRADE_INTENSITY || sellScore >= this.SELL_SCORE_THRESHOLD) {
+      modelTargetWeight = 0;
+    }
+
+    const action = this.resolveAction(intensity, sellScore, modelTargetWeight);
+    this.logger.log(
+      this.i18n.t('logging.inference.balanceRecommendation.model_signal', {
+        args: {
+          intensity,
+          category,
+          featureScore,
+          buyScore,
+          sellScore,
+          modelTargetWeight,
+          action,
+        },
+      }),
     );
-    const confidenceScore = this.normalizeAroundBase(
-      inference.confidence,
-      this.RECOMMEND_CONFIDENCE_BASE,
-      this.RECOMMEND_CONFIDENCE_SPAN,
-    );
-    const multiplier =
-      1 + weightScore * this.RECOMMEND_WEIGHT_IMPACT + confidenceScore * this.RECOMMEND_CONFIDENCE_IMPACT;
-    return this.clamp(multiplier, this.RECOMMEND_MULTIPLIER_MIN, this.RECOMMEND_MULTIPLIER_MAX);
+
+    return {
+      buyScore,
+      sellScore,
+      modelTargetWeight,
+      action,
+    };
   }
 
   private calculateTargetWeight(inference: BalanceRecommendationData, regimeMultiplier: number): number {
-    const clampedRate = Number.isFinite(inference.rate) ? this.clamp(inference.rate, 0, 1) : 0;
-    const baseWeight = clampedRate * this.MAX_POSITION_WEIGHT;
-    if (baseWeight <= 0) {
+    const baseTargetWeight =
+      inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
+        ? this.clamp01(inference.modelTargetWeight)
+        : this.calculateModelSignals(inference.intensity, inference.category, null).modelTargetWeight;
+
+    if (baseTargetWeight <= 0) {
       return 0;
     }
 
-    const recommendationMultiplier = this.getRecommendationMultiplier(inference);
-    const adjustedTarget = baseWeight * recommendationMultiplier * regimeMultiplier;
-    const lowerBound = baseWeight * this.TARGET_WEIGHT_MIN_RATIO;
-    const upperBound = Math.min(this.MAX_POSITION_WEIGHT, baseWeight * this.TARGET_WEIGHT_MAX_RATIO);
-
-    return this.clamp(adjustedTarget, lowerBound, upperBound);
+    const adjustedTargetWeight = baseTargetWeight * (Number.isFinite(regimeMultiplier) ? regimeMultiplier : 1);
+    const modelTargetWeight = this.clamp01(adjustedTargetWeight);
+    this.logger.log(
+      this.i18n.t('logging.inference.balanceRecommendation.target_weight', {
+        args: {
+          symbol: inference.symbol,
+          baseTargetWeight,
+          regimeMultiplier,
+          modelTargetWeight,
+        },
+      }),
+    );
+    return modelTargetWeight;
   }
 
   private getRebalanceBand(targetWeight: number): number {
@@ -1290,26 +1399,26 @@ export class MarketVolatilityService implements OnModuleInit {
   /**
    * 편입 대상 추론 필터링
    *
-   * - rate > 0인 종목만 필터링합니다 (매수/비율 조정 대상).
+   * - modelTargetWeight > 0인 종목만 필터링합니다 (매수/비율 조정 대상).
    *
    * @param inferences 추론 결과 목록
    * @returns 편입 대상 추론 결과
    */
   private filterIncludedBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
-    return this.sortBalanceRecommendations(inferences.filter((item) => item.rate > this.MINIMUM_TRADE_RATE));
+    return this.sortBalanceRecommendations(inferences.filter((item) => this.isIncludedRecommendation(item)));
   }
 
   /**
    * 편출 대상 추론 필터링
    *
-   * - rate <= 0인 종목만 필터링합니다 (전량 매도 대상).
+   * - modelTargetWeight = 0 또는 매도 신호인 종목만 필터링합니다 (전량 매도 대상).
    *
    * @param inferences 추론 결과 목록
    * @returns 편출 대상 추론 결과
    */
   private filterExcludedBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
     return this.sortBalanceRecommendations(
-      inferences.filter((item) => item.rate <= this.MINIMUM_TRADE_RATE && item.hasStock),
+      inferences.filter((item) => !this.isIncludedRecommendation(item) && item.hasStock),
     );
   }
 
@@ -1335,7 +1444,7 @@ export class MarketVolatilityService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
-    // 편입 대상 종목 선정 (rate > 0인 종목들)
+    // 편입 대상 종목 선정 (intensity > 0인 종목들)
     const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences);
 
     // 편입 거래 요청 생성
@@ -1352,11 +1461,31 @@ export class MarketVolatilityService implements OnModuleInit {
 
         // 목표와 현재 비중 차이가 작으면 불필요한 재조정을 생략
         if (!this.shouldRebalance(targetWeight, deltaWeight)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.skip_rebalance_band', {
+              args: {
+                symbol: inference.symbol,
+                targetWeight,
+                currentWeight,
+                deltaWeight,
+                requiredBand: this.getRebalanceBand(targetWeight),
+              },
+            }),
+          );
           return null;
         }
 
         // 예상 거래비용(수수료+슬리피지)보다 작은 조정은 생략
         if (!this.passesCostGate(deltaWeight)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.skip_cost_gate', {
+              args: {
+                symbol: inference.symbol,
+                deltaWeight,
+                minEdge: (this.ESTIMATED_FEE_RATE + this.ESTIMATED_SLIPPAGE_RATE) * this.COST_GUARD_MULTIPLIER,
+              },
+            }),
+          );
           return null;
         }
 
@@ -1364,6 +1493,18 @@ export class MarketVolatilityService implements OnModuleInit {
         if (!Number.isFinite(diff) || Math.abs(diff) < Number.EPSILON) {
           return null;
         }
+
+        this.logger.log(
+          this.i18n.t('logging.inference.balanceRecommendation.trade_delta', {
+            args: {
+              symbol: inference.symbol,
+              targetWeight,
+              currentWeight,
+              deltaWeight,
+              diff,
+            },
+          }),
+        );
 
         if (diff < 0 && !this.isSellAmountSufficient(inference.symbol, diff, tradableMarketValueMap)) {
           return null;
@@ -1389,7 +1530,7 @@ export class MarketVolatilityService implements OnModuleInit {
    * 편출 거래 요청 생성
    *
    * - 편출 대상 종목들에 대한 매도 거래 요청을 생성합니다.
-   * - 편입 상한(count)을 초과한 종목과 rate <= 0 종목을 전량 매도 대상으로 처리합니다.
+   * - 편입 상한(count)을 초과한 종목과 intensity <= 0 종목을 전량 매도 대상으로 처리합니다.
    *
    * @param balances 사용자 계좌 잔고
    * @param inferences 추론 결과 목록
@@ -1406,7 +1547,7 @@ export class MarketVolatilityService implements OnModuleInit {
   ): TradeRequest[] {
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
-    // 2. rate <= 0 && hasStock인 종목들
+    // 2. intensity <= 0 && hasStock인 종목들
     const filteredBalanceRecommendations = [
       ...this.filterIncludedBalanceRecommendations(inferences).slice(count),
       ...this.filterExcludedBalanceRecommendations(inferences),
@@ -1441,12 +1582,12 @@ export class MarketVolatilityService implements OnModuleInit {
     this.notifyService.clearClients();
   }
 
-  private toRatePercent(rate: number | null | undefined): string {
-    if (rate == null || !Number.isFinite(rate)) {
+  private toPercent(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) {
       return '-';
     }
 
-    return `${Math.floor(rate * 100)}%`;
+    return `${Math.floor(value * 100)}%`;
   }
 
   /**
@@ -1536,13 +1677,13 @@ export class MarketVolatilityService implements OnModuleInit {
    */
   public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
-    const previousRates = await this.buildPreviousRateMap(items);
+    const previousMetrics = await this.buildPreviousMetricsMap(items);
 
     // 각 종목에 대한 실시간 API 호출을 병렬로 처리
     const inferenceResults = await Promise.all(
       items.map((item) => {
         return this.errorService.retryWithFallback(async () => {
-          const messages = await this.buildBalanceRecommendationMessages(item.symbol);
+          const { messages, marketFeatures } = await this.buildBalanceRecommendationMessages(item.symbol);
 
           const requestConfig = {
             ...UPBIT_BALANCE_RECOMMENDATION_CONFIG,
@@ -1563,15 +1704,25 @@ export class MarketVolatilityService implements OnModuleInit {
             return null;
           }
           const responseData = JSON.parse(outputText);
+          const intensity = Number(responseData?.intensity);
+          const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
+          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures);
+          const previousMetricsBySymbol = previousMetrics.get(item.symbol);
 
           // 추론 결과와 아이템 병합
           return {
             ...responseData,
+            intensity: safeIntensity,
             category: item?.category,
             hasStock: item?.hasStock || false,
-            prevRate: previousRates.get(item.symbol) ?? null,
+            prevIntensity: previousMetricsBySymbol?.intensity ?? null,
+            prevModelTargetWeight: previousMetricsBySymbol?.modelTargetWeight ?? null,
             weight: item?.weight,
             confidence: item?.confidence,
+            buyScore: modelSignals.buyScore,
+            sellScore: modelSignals.sellScore,
+            modelTargetWeight: modelSignals.modelTargetWeight,
+            action: modelSignals.action,
           };
         });
       }),
@@ -1606,8 +1757,13 @@ export class MarketVolatilityService implements OnModuleInit {
       batchId: saved.batchId,
       symbol: saved.symbol,
       category: saved.category,
-      rate: saved.rate,
-      prevRate: saved.prevRate != null ? Number(saved.prevRate) : null,
+      intensity: saved.intensity,
+      prevIntensity: saved.prevIntensity != null ? Number(saved.prevIntensity) : null,
+      prevModelTargetWeight: validResults[index].prevModelTargetWeight ?? null,
+      buyScore: saved.buyScore,
+      sellScore: saved.sellScore,
+      modelTargetWeight: saved.modelTargetWeight,
+      action: saved.action,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
@@ -1620,9 +1776,11 @@ export class MarketVolatilityService implements OnModuleInit {
    * - 뉴스, 공포탐욕지수, 이전 추론, 개별 종목 특성 데이터를 포함한 프롬프트를 구성합니다.
    *
    * @param symbol 종목 심볼
-   * @returns OpenAI API용 메시지 배열
+   * @returns OpenAI API용 메시지 배열과 score 계산용 feature
    */
-  private async buildBalanceRecommendationMessages(symbol: string): Promise<EasyInputMessage[]> {
+  private async buildBalanceRecommendationMessages(
+    symbol: string,
+  ): Promise<{ messages: EasyInputMessage[]; marketFeatures: MarketFeatures | null }> {
     const messages: EasyInputMessage[] = [];
 
     // 시스템 프롬프트 추가
@@ -1646,7 +1804,7 @@ export class MarketVolatilityService implements OnModuleInit {
     const marketData = this.featureService.formatMarketData([marketFeatures]);
     this.openaiService.addMessage(messages, 'user', `${this.featureService.MARKET_DATA_LEGEND}\n\n${marketData}`);
 
-    return messages;
+    return { messages, marketFeatures };
   }
 
   /**
@@ -1715,22 +1873,34 @@ export class MarketVolatilityService implements OnModuleInit {
     }
   }
 
-  private async buildPreviousRateMap(items: RecommendationItem[]): Promise<Map<string, number | null>> {
+  private async buildPreviousMetricsMap(
+    items: RecommendationItem[],
+  ): Promise<Map<string, { intensity: number | null; modelTargetWeight: number | null }>> {
     const symbols = Array.from(new Set(items.map((item) => item.symbol)));
-    const previousRates = await Promise.all(
+    const previousMetrics = await Promise.all(
       symbols.map(async (symbol) => {
         const recentRecommendations = await this.fetchRecentRecommendations(symbol);
-        const latestRate = recentRecommendations[0]?.rate;
+        const latestRecommendation = recentRecommendations[0];
+        const latestIntensity =
+          latestRecommendation?.intensity != null && Number.isFinite(latestRecommendation.intensity)
+            ? Number(latestRecommendation.intensity)
+            : null;
+        const latestModelTargetWeight =
+          latestRecommendation?.modelTargetWeight != null && Number.isFinite(latestRecommendation.modelTargetWeight)
+            ? Number(latestRecommendation.modelTargetWeight)
+            : null;
 
-        if (latestRate == null || !Number.isFinite(latestRate)) {
-          return [symbol, null] as const;
-        }
-
-        return [symbol, Number(latestRate)] as const;
+        return [
+          symbol,
+          {
+            intensity: latestIntensity,
+            modelTargetWeight: latestModelTargetWeight,
+          },
+        ] as const;
       }),
     );
 
-    return new Map(previousRates);
+    return new Map(previousMetrics);
   }
 
   /**

@@ -64,7 +64,12 @@
       "batch_complete": "배치 요청 처리를 완료했습니다.",
       "complete": "포트폴리오 추천 분석을 완료했습니다.",
       "presave": "포트폴리오 추천 데이터 {count}개를 저장합니다...",
-      "save": "포트폴리오 추천 데이터 {count}개를 저장했습니다."
+      "save": "포트폴리오 추천 데이터 {count}개를 저장했습니다.",
+      "model_signal": "[모델 시그널] category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
+      "target_weight": "[최종 비중] symbol={symbol}, baseTargetWeight={baseTargetWeight}, regimeMultiplier={regimeMultiplier}, modelTargetWeight={modelTargetWeight}",
+      "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
+      "skip_rebalance_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
+      "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}"
     }
   },
   "blacklist": {

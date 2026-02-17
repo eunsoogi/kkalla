@@ -219,20 +219,28 @@ describe('RebalanceService', () => {
         batchId: 'batch-1',
         symbol: 'ETH/KRW',
         category: Category.COIN_MINOR,
-        rate: 0.8,
+        intensity: 0.8,
         hasStock: false,
         weight: 0.1,
         confidence: 0.8,
+        modelTargetWeight: 0.15,
+        buyScore: 0.75,
+        sellScore: 0.2,
+        action: 'buy',
       },
       {
         id: '2',
         batchId: 'batch-1',
         symbol: 'XRP/KRW',
         category: Category.COIN_MINOR,
-        rate: 0.01,
+        intensity: 0.01,
         hasStock: false,
         weight: 0.1,
         confidence: 0.8,
+        modelTargetWeight: 0,
+        buyScore: 0.2,
+        sellScore: 0.65,
+        action: 'sell',
       },
     ];
 
@@ -255,22 +263,49 @@ describe('RebalanceService', () => {
     expect(requests[0].inference.symbol).toBe('ETH/KRW');
   });
 
-  it('should keep target weight close to linear base and clamp correction range', () => {
+  it('should calculate model signals in 0~1 range and apply regime multiplier to target weight', () => {
+    const signals = (service as any).calculateModelSignals(0.65, Category.COIN_MINOR, null);
+
+    expect(signals.buyScore).toBeGreaterThanOrEqual(0);
+    expect(signals.buyScore).toBeLessThanOrEqual(1);
+    expect(signals.sellScore).toBeGreaterThanOrEqual(0);
+    expect(signals.sellScore).toBeLessThanOrEqual(1);
+    expect(signals.modelTargetWeight).toBeGreaterThanOrEqual(0);
+    expect(signals.modelTargetWeight).toBeLessThanOrEqual(1);
+
     const targetWeight = (service as any).calculateTargetWeight(
       {
         symbol: 'SUI/KRW',
         category: Category.COIN_MINOR,
-        rate: 0.65,
+        intensity: 0.65,
         hasStock: true,
-        weight: 0.15,
-        confidence: 0.9,
+        modelTargetWeight: signals.modelTargetWeight,
       },
       0.95,
     );
 
-    const baseWeight = 0.65 * 0.2; // 13%
-    expect(targetWeight).toBeGreaterThanOrEqual(baseWeight * 0.85 - 1e-12);
-    expect(targetWeight).toBeLessThanOrEqual(baseWeight * 1.05 + 1e-12);
+    expect(targetWeight).toBeCloseTo(signals.modelTargetWeight * 0.95, 10);
+  });
+
+  it('should not create a bullish feature bias when market features are missing', () => {
+    const weakSignals = (service as any).calculateModelSignals(0.05, Category.COIN_MINOR, null);
+    const neutralSignals = (service as any).calculateModelSignals(0, Category.COIN_MINOR, null);
+
+    expect(weakSignals.buyScore).toBeLessThan(0.1);
+    expect(weakSignals.modelTargetWeight).toBeLessThan(0.01);
+    expect(neutralSignals.buyScore).toBe(0);
+  });
+
+  it('should keep weak positive intensity as buy and treat negative intensity as sell', () => {
+    const weakBullishSignals = (service as any).calculateModelSignals(0.1, Category.COIN_MINOR, null);
+    const bearishSignals = (service as any).calculateModelSignals(-0.1, Category.COIN_MINOR, null);
+
+    expect(weakBullishSignals.sellScore).toBeLessThan(0.6);
+    expect(weakBullishSignals.modelTargetWeight).toBeGreaterThan(0);
+    expect(weakBullishSignals.action).toBe('buy');
+
+    expect(bearishSignals.modelTargetWeight).toBe(0);
+    expect(bearishSignals.action).toBe('sell');
   });
 
   it('should filter out non-orderable symbols from fetched recommendations', async () => {
@@ -400,7 +435,7 @@ describe('RebalanceService', () => {
       {
         symbol: 'AAA/KRW',
         category: Category.COIN_MINOR,
-        rate: 0,
+        intensity: 0,
         hasStock: true,
       },
     ];

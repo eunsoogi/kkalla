@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { Category } from '@/modules/category/category.enum';
 
+import { BalanceRecommendationAction } from '../rebalance.interface';
+
 export class BalanceRecommendationDto {
   @ApiProperty()
   id: string;
@@ -18,10 +20,30 @@ export class BalanceRecommendationDto {
   category: Category;
 
   @ApiProperty()
-  rate: number;
+  intensity: number;
 
   @ApiProperty({ required: false, nullable: true })
-  prevRate?: number | null;
+  prevIntensity?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  prevModelTargetWeight?: number | null;
+
+  @ApiProperty()
+  buyScore: number;
+
+  @ApiProperty()
+  sellScore: number;
+
+  @ApiProperty()
+  modelTargetWeight: number;
+
+  @ApiProperty({
+    enum: ['buy', 'sell', 'hold'],
+  })
+  action: BalanceRecommendationAction;
+
+  @ApiProperty({ required: false, nullable: true })
+  reason?: string | null;
 
   @ApiProperty()
   createdAt: Date;

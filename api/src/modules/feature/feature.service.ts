@@ -190,15 +190,15 @@ export class FeatureService {
       // 모든 숫자 값의 소수점 부분을 유효숫자 3자리로 포맷팅 (정수는 그대로 유지)
       const formattedFeatures = formatObjectNumbers(features, 3) as MarketFeatures;
 
-      // 이전 배치들의 rate 변동성 계산 및 추가
+      // 이전 배치들의 intensity 변동성 계산 및 추가
       const recentRecommendations = await this.fetchRecentRecommendations(symbol);
       if (recentRecommendations.length > 0) {
-        const previousRates = recentRecommendations.map((rec) => rec.rate);
+        const previousIntensities = recentRecommendations.map((rec) => rec.intensity);
 
-        // rate 변동성 계산
-        const rateVolatility = await this.calculateRateVolatility(previousRates);
-        if (rateVolatility) {
-          formattedFeatures.rateVolatility = rateVolatility;
+        // intensity 변동성 계산
+        const intensityVolatility = await this.calculateIntensityVolatility(previousIntensities);
+        if (intensityVolatility) {
+          formattedFeatures.intensityVolatility = intensityVolatility;
         }
       }
 
@@ -1081,71 +1081,73 @@ export class FeatureService {
   }
 
   /**
-   * 이전 배치들의 rate 변동성 및 시장 feature 변화 계산
+   * 이전 배치들의 intensity 변동성 및 시장 feature 변화 계산
    *
-   * - 이전 배치들의 rate 데이터를 기반으로 변동성 지표를 계산합니다.
+   * - 이전 배치들의 intensity 데이터를 기반으로 변동성 지표를 계산합니다.
    * - 이전 배치 시점의 시장 feature와 현재 시장 feature를 비교하여 변화를 계산합니다.
    * - 5%p 차이 감지를 위해 사용됩니다.
    *
-   * @param previousRates 이전 배치들의 rate 배열 (최신순)
+   * @param previousIntensities 이전 배치들의 intensity 배열 (최신순)
    * @param previousBatchTime 이전 배치 시점 (밀리초 타임스탬프, 선택적)
    * @param currentFeatures 현재 시장 feature (선택적)
    * @param symbol 종목 심볼 (선택적)
-   * @returns rate 변동성 지표 및 시장 feature 변화
+   * @returns intensity 변동성 지표 및 시장 feature 변화
    */
-  public async calculateRateVolatility(previousRates: number[]): Promise<MarketFeatures['rateVolatility'] | null> {
-    if (!previousRates || previousRates.length === 0) {
+  public async calculateIntensityVolatility(
+    previousIntensities: number[],
+  ): Promise<MarketFeatures['intensityVolatility'] | null> {
+    if (!previousIntensities || previousIntensities.length === 0) {
       return null;
     }
 
-    const rates = previousRates.filter((rate) => rate !== null && rate !== undefined);
-    if (rates.length === 0) {
+    const intensities = previousIntensities.filter((intensity) => intensity !== null && intensity !== undefined);
+    if (intensities.length === 0) {
       return null;
     }
 
-    const latestRate = rates[0];
-    const maxRate = Math.max(...rates);
-    const minRate = Math.min(...rates);
-    const rateVolatility = maxRate - minRate;
+    const latestIntensity = intensities[0];
+    const maxIntensity = Math.max(...intensities);
+    const minIntensity = Math.min(...intensities);
+    const intensityVolatility = maxIntensity - minIntensity;
 
-    // rate 변화 추세 계산
-    let rateTrend: 'increasing' | 'decreasing' | 'stable' = 'stable';
-    if (rates.length >= 2) {
-      const recentChange = rates[0] - rates[1];
+    // intensity 변화 추세 계산
+    let intensityTrend: 'increasing' | 'decreasing' | 'stable' = 'stable';
+    if (intensities.length >= 2) {
+      const recentChange = intensities[0] - intensities[1];
       const threshold = 0.05; // 5%p
       if (recentChange >= threshold) {
-        rateTrend = 'increasing';
+        intensityTrend = 'increasing';
       } else if (recentChange <= -threshold) {
-        rateTrend = 'decreasing';
+        intensityTrend = 'decreasing';
       } else {
         // 최근 3개 배치의 추세 확인
-        if (rates.length >= 3) {
-          const avgChange = (rates[0] - rates[2]) / 2;
+        if (intensities.length >= 3) {
+          const avgChange = (intensities[0] - intensities[2]) / 2;
           if (avgChange >= threshold) {
-            rateTrend = 'increasing';
+            intensityTrend = 'increasing';
           } else if (avgChange <= -threshold) {
-            rateTrend = 'decreasing';
+            intensityTrend = 'decreasing';
           }
         }
       }
     }
 
-    // 최근 rate 변화율 계산
-    const rateChangeRate = rates.length >= 2 ? rates[0] - rates[1] : 0;
+    // 최근 intensity 변화율 계산
+    const intensityChangeRate = intensities.length >= 2 ? intensities[0] - intensities[1] : 0;
 
-    // rate 안정성 점수 계산 (0-100, 낮을수록 변동이 큼)
+    // intensity 안정성 점수 계산 (0-100, 낮을수록 변동이 큼)
     // 변동성이 작을수록 높은 점수
-    const volatilityScore = Math.max(0, 100 - rateVolatility * 100); // 변동성 0.1당 10점 감소
-    const changeScore = Math.max(0, 100 - Math.abs(rateChangeRate) * 100); // 변화율 0.1당 10점 감소
-    const rateStability = (volatilityScore + changeScore) / 2;
+    const volatilityScore = Math.max(0, 100 - intensityVolatility * 100); // 변동성 0.1당 10점 감소
+    const changeScore = Math.max(0, 100 - Math.abs(intensityChangeRate) * 100); // 변화율 0.1당 10점 감소
+    const intensityStability = (volatilityScore + changeScore) / 2;
 
     return {
-      latestRate,
-      rateTrend,
-      rateVolatility,
-      rateChangeRate,
-      rateStability: Math.round(rateStability * 100) / 100,
-      batchCount: rates.length,
+      latestIntensity,
+      intensityTrend,
+      intensityVolatility,
+      intensityChangeRate,
+      intensityStability: Math.round(intensityStability * 100) / 100,
+      batchCount: intensities.length,
     };
   }
 
@@ -1181,7 +1183,7 @@ export class FeatureService {
     `macd={m:macd,s:signal,h:histogram}, ma={20:SMA20,50:SMA50}, ` +
     `bb={u:upper,l:lower,pb:percentB}, atr=normalizedATR, vol=volatility, liq=liquidityScore, pos=pricePosition, ` +
     `pred={tp:trendPersistence,pa:priceAccel,va:volumeAccel,conf:confidence,ms:momentumStrength,targets={b:bullish,be:bearish,n:neutral}}, ` +
-    `rateVol={lr:latestRate,rt:rateTrend,rv:rateVolatility,rcr:rateChangeRate,rs:rateStability,bc:batchCount}`;
+    `intensityVol={li:latestIntensity,it:intensityTrend,iv:intensityVolatility,icr:intensityChangeRate,is:intensityStability,bc:batchCount}`;
 
   /**
    * 마켓 데이터 템플릿
@@ -1197,8 +1199,8 @@ export class FeatureService {
 - Trend(type/str): {{trendType}}/{{trendStrength}}, Divergence: {{divergence}}
 - Prediction: TP={{trendPersistence}}%, PA={{priceAccel}}, VA={{volumeAccel}}, Conf={{confidence}}%, MS={{momentumStrength}}%
 - Price Targets: Bullish={{targetBullish}}, Bearish={{targetBearish}}, Neutral={{targetNeutral}}
-{{#if rateVolatility}}
-- Rate Volatility: LR={{latestRate}}, RT={{rateTrend}}, RV={{rateVolatilityValue}}, RCR={{rateChangeRate}}, RS={{rateStability}}%, BC={{batchCount}}
+{{#if intensityVolatility}}
+- Intensity Volatility: LI={{latestIntensity}}, IT={{intensityTrend}}, IV={{intensityVolatilityValue}}, ICR={{intensityChangeRate}}, IS={{intensityStability}}%, BC={{batchCount}}
 {{/if}}`;
 
   /**
@@ -1256,13 +1258,13 @@ export class FeatureService {
           targetBullish: feature.prediction?.priceTargets?.bullish ?? 0,
           targetBearish: feature.prediction?.priceTargets?.bearish ?? 0,
           targetNeutral: feature.prediction?.priceTargets?.neutral ?? 0,
-          rateVolatility: feature.rateVolatility || null,
-          latestRate: feature.rateVolatility?.latestRate ?? 0,
-          rateTrend: feature.rateVolatility?.rateTrend || 'stable',
-          rateVolatilityValue: feature.rateVolatility?.rateVolatility ?? 0,
-          rateChangeRate: feature.rateVolatility?.rateChangeRate ?? 0,
-          rateStability: feature.rateVolatility?.rateStability ?? 100,
-          batchCount: feature.rateVolatility?.batchCount ?? 0,
+          intensityVolatility: feature.intensityVolatility || null,
+          latestIntensity: feature.intensityVolatility?.latestIntensity ?? 0,
+          intensityTrend: feature.intensityVolatility?.intensityTrend || 'stable',
+          intensityVolatilityValue: feature.intensityVolatility?.intensityVolatility ?? 0,
+          intensityChangeRate: feature.intensityVolatility?.intensityChangeRate ?? 0,
+          intensityStability: feature.intensityVolatility?.intensityStability ?? 100,
+          batchCount: feature.intensityVolatility?.batchCount ?? 0,
         };
         return template(context);
       })
