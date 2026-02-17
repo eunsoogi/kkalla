@@ -37,16 +37,17 @@ export class BalanceRecommendationSeeder implements Seeder {
 
     for (let i = 0; i < 11; i++) {
       const batchId = randomUUID();
-      const majorPrevRate = i < 6 ? 0.7 + (i % 3) * 0.05 : null;
-      const minorPrevRate = i < 4 ? -0.3 + (i % 2) * 0.1 : null;
+      const majorPrevIntensity = i < 6 ? 0.7 + (i % 3) * 0.05 : null;
+      const minorPrevIntensity = i < 4 ? -0.3 + (i % 2) * 0.1 : null;
 
       await BalanceRecommendation.save([
         {
           batchId,
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MAJOR,
-          rate: 0.8,
-          ...(majorPrevRate !== null ? { prevRate: majorPrevRate } : {}),
+          intensity: 0.8,
+          ...(majorPrevIntensity !== null ? { prevIntensity: majorPrevIntensity } : {}),
+          modelTargetWeight: 0.18,
           reason: `${i + 1}) 메이저 코인 추론 내용입니다.`,
           symbol: 'BTC/KRW',
         },
@@ -54,8 +55,9 @@ export class BalanceRecommendationSeeder implements Seeder {
           batchId,
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MINOR,
-          rate: -0.5,
-          ...(minorPrevRate !== null ? { prevRate: minorPrevRate } : {}),
+          intensity: -0.5,
+          ...(minorPrevIntensity !== null ? { prevIntensity: minorPrevIntensity } : {}),
+          modelTargetWeight: 0,
           reason: `${i + 1}) 마이너 코인 추론 내용입니다.`,
           symbol: 'XRP/KRW',
         },
@@ -63,7 +65,8 @@ export class BalanceRecommendationSeeder implements Seeder {
           batchId,
           seq: (await new Sequence().save()).value,
           category: Category.NASDAQ,
-          rate: 0,
+          intensity: 0,
+          modelTargetWeight: 0,
           reason: `${i + 1}) 나스닥 종목 추론 내용입니다.`,
           symbol: 'AAPL',
         },

@@ -9,7 +9,7 @@
     "fail": "계좌 조회에 실패했습니다."
   },
   "inference": {
-    "transaction": "> {symbol} ({prevRate} -> {rate})",
+    "transaction": "> {symbol} ({prevModelTargetWeight} -> {modelTargetWeight})",
     "result": "포트폴리오 리포트가 발행되었습니다.\n\n{transactions}"
   },
   "order": {

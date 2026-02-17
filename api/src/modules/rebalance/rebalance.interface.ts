@@ -27,13 +27,20 @@ export interface RecommendationItem {
   confidence?: number;
 }
 
+export type BalanceRecommendationAction = 'buy' | 'sell' | 'hold';
+
 export interface BalanceRecommendationData {
   id: string;
   batchId: string;
   symbol: string;
   category: Category;
-  rate: number;
-  prevRate?: number | null;
+  intensity: number;
+  prevIntensity?: number | null;
+  prevModelTargetWeight?: number | null;
+  buyScore?: number;
+  sellScore?: number;
+  modelTargetWeight?: number;
+  action?: BalanceRecommendationAction;
   hasStock: boolean;
   weight?: number;
   confidence?: number;
