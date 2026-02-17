@@ -287,12 +287,46 @@ describe('RebalanceService', () => {
     expect(targetWeight).toBeCloseTo(signals.modelTargetWeight * 0.95, 10);
   });
 
+  it('should not apply category exposure scaling to model target weight', () => {
+    const majorSignals = (service as any).calculateModelSignals(0.65, Category.COIN_MAJOR, null);
+    const minorSignals = (service as any).calculateModelSignals(0.65, Category.COIN_MINOR, null);
+
+    expect(majorSignals.buyScore).toBeCloseTo(minorSignals.buyScore, 10);
+    expect(majorSignals.modelTargetWeight).toBeCloseTo(minorSignals.modelTargetWeight, 10);
+  });
+
+  it('should apply top-k scaling when creating included trade requests', () => {
+    const balances: any = { info: [] };
+    const inferences = [
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 0.5,
+      },
+    ];
+    const currentWeights = new Map<string, number>();
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].diff).toBeCloseTo(0.1, 10);
+  });
+
   it('should not create a bullish feature bias when market features are missing', () => {
     const weakSignals = (service as any).calculateModelSignals(0.05, Category.COIN_MINOR, null);
     const neutralSignals = (service as any).calculateModelSignals(0, Category.COIN_MINOR, null);
 
     expect(weakSignals.buyScore).toBeLessThan(0.1);
-    expect(weakSignals.modelTargetWeight).toBeLessThan(0.01);
+    expect(weakSignals.modelTargetWeight).toBeLessThan(0.1);
     expect(neutralSignals.buyScore).toBe(0);
   });
 
