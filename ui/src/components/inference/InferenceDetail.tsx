@@ -15,7 +15,7 @@ import { formatDate } from '@/utils/date';
 
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { getBalanceRecommendationsCursorAction, getMarketRecommendationsCursorAction } from './action';
-import { getConfidenceColor, getRateColor, getWeightColor } from './style';
+import { getConfidenceColor, getWeightColor } from './style';
 
 type Recommendation = MarketRecommendation | BalanceRecommendation;
 
@@ -34,6 +34,18 @@ const formatRatePercent = (rate?: number | null): string => {
   }
 
   return `${Math.floor(rate * 100)}%`;
+};
+
+const resolveCurrentRatio = (item: BalanceRecommendation): number | null => {
+  return Number.isFinite(item.modelTargetWeight) ? item.modelTargetWeight : null;
+};
+
+const resolvePrevRatio = (item: BalanceRecommendation): number | null => {
+  if (item.prevModelTargetWeight != null && Number.isFinite(item.prevModelTargetWeight)) {
+    return item.prevModelTargetWeight;
+  }
+
+  return null;
 };
 
 const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
@@ -79,10 +91,19 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                       <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
                       {type === 'balance' ? (
                         <div className='flex items-center gap-2'>
-                          <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
-                          <Badge style={getRateColor((item as BalanceRecommendation).rate)}>
-                            {`${formatRatePercent((item as BalanceRecommendation).prevRate)} -> ${formatRatePercent((item as BalanceRecommendation).rate)}`}
-                          </Badge>
+                          {(() => {
+                            const balanceItem = item as BalanceRecommendation;
+                            const currentRatio = resolveCurrentRatio(balanceItem);
+                            const prevRatio = resolvePrevRatio(balanceItem);
+                            return (
+                              <>
+                                <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
+                                <Badge style={getWeightColor(currentRatio ?? 0)}>
+                                  {`${formatRatePercent(prevRatio)} -> ${formatRatePercent(currentRatio)}`}
+                                </Badge>
+                              </>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <div className='flex items-center gap-4'>
