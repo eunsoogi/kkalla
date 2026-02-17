@@ -12,14 +12,14 @@ export default function Layout({
 }>) {
   return (
     <div className='flex w-full min-h-screen bg-white dark:bg-dark'>
-      <div className='page-wrapper flex w-full'>
+      <div className='page-wrapper flex w-full min-w-0'>
         {/* Header/sidebar */}
         <Sidebar />
-        <div className='body-wrapper w-full'>
+        <div className='body-wrapper w-full min-w-0'>
           <Header />
           {/* Body Content  */}
-          <div className='bg-lightgray dark:bg-gray-800 xl:mr-3 rounded-[20px] min-h-[90vh] w-full'>
-            <div className='w-full max-w-[100%] p-4 lg:p-8'>{children}</div>
+          <div className='bg-lightgray dark:bg-gray-800 xl:mr-3 rounded-[20px] min-h-[90vh] w-full min-w-0'>
+            <div className='w-full max-w-[100%] min-w-0 p-4 lg:p-8'>{children}</div>
           </div>
         </div>
       </div>
