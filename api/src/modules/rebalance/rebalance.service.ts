@@ -88,9 +88,6 @@ export class RebalanceService implements OnModuleInit {
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
-  private readonly COIN_MAJOR_EXPOSURE = 0.4;
-  private readonly COIN_MINOR_EXPOSURE = 1;
-  private readonly NASDAQ_EXPOSURE = 0;
   private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
 
   // Amazon SQS
@@ -822,6 +819,7 @@ export class RebalanceService implements OnModuleInit {
   ): TradeRequest[] {
     // 편입 대상 종목 선정 (최대 count개)
     const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).slice(0, count);
+    const topK = Math.max(1, count);
 
     // 편입 거래 요청 생성
     const tradeRequests: TradeRequest[] = filteredBalanceRecommendations
@@ -830,7 +828,8 @@ export class RebalanceService implements OnModuleInit {
           return null;
         }
 
-        const targetWeight = this.calculateTargetWeight(inference, regimeMultiplier);
+        const baseTargetWeight = this.calculateTargetWeight(inference, regimeMultiplier);
+        const targetWeight = this.clamp01(baseTargetWeight / topK);
         const currentWeight = currentWeights.get(inference.symbol) ?? 0;
         const deltaWeight = targetWeight - currentWeight;
 
@@ -979,21 +978,6 @@ export class RebalanceService implements OnModuleInit {
     return inference.intensity > this.MINIMUM_TRADE_INTENSITY;
   }
 
-  private getCategoryExposureByCategory(category: Category): number {
-    switch (category) {
-      case Category.COIN_MAJOR:
-        return this.COIN_MAJOR_EXPOSURE;
-
-      case Category.COIN_MINOR:
-        return this.COIN_MINOR_EXPOSURE;
-
-      case Category.NASDAQ:
-        return this.NASDAQ_EXPOSURE;
-    }
-
-    return 0;
-  }
-
   private calculateFeatureScore(marketFeatures: MarketFeatures | null): number {
     // feature 추출이 실패한 경우, 보수적으로 0점 처리하여 매수 편향을 방지합니다.
     if (!marketFeatures) {
@@ -1038,10 +1022,7 @@ export class RebalanceService implements OnModuleInit {
     const buyScore = this.clamp01(this.AI_SIGNAL_WEIGHT * aiBuy + this.FEATURE_SIGNAL_WEIGHT * featureScore);
     const sellScore = this.clamp01(this.AI_SIGNAL_WEIGHT * aiSell + this.FEATURE_SIGNAL_WEIGHT * (1 - featureScore));
 
-    const itemCount = Math.max(1, this.getItemCountByCategory(category));
-    const exposure = this.clamp01(this.getCategoryExposureByCategory(category));
-
-    let modelTargetWeight = this.clamp01((exposure * buyScore) / itemCount);
+    let modelTargetWeight = this.clamp01(buyScore);
     if (intensity <= this.MINIMUM_TRADE_INTENSITY || sellScore >= this.SELL_SCORE_THRESHOLD) {
       modelTargetWeight = 0;
     }
