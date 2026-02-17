@@ -1609,19 +1609,19 @@ export class RebalanceService implements OnModuleInit {
   }
 
   /**
-   * 이전 추론 데이터 가져오기
+   * 최신 이전 추론 데이터 가져오기
    *
-   * - 최근 7일 이내의 추론 결과를 조회합니다.
+   * - 기간 제한 없이 가장 최근 추론 1건을 조회합니다.
    *
    * @param symbol 종목 심볼
-   * @returns 이전 추론 결과 배열
+   * @returns 이전 추론 결과 배열 (최대 1건)
    */
   private async fetchRecentRecommendations(symbol: string): Promise<BalanceRecommendation[]> {
     const operation = () =>
-      BalanceRecommendation.getRecent({
-        symbol,
-        createdAt: new Date(Date.now() - UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recentDateLimit),
-        count: UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recent,
+      BalanceRecommendation.find({
+        where: { symbol },
+        order: { createdAt: 'DESC' },
+        take: 1,
       });
 
     try {
