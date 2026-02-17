@@ -1826,21 +1826,24 @@ export class RebalanceService implements OnModuleInit {
     params: GetBalanceRecommendationsPaginationDto,
   ): Promise<PaginatedItem<BalanceRecommendationDto>> {
     const paginatedResult = await BalanceRecommendation.paginate(params);
-    const items = paginatedResult.items.map((entity) => ({
-      id: entity.id,
-      seq: entity.seq,
-      symbol: entity.symbol,
-      category: entity.category,
-      intensity: entity.intensity,
-      prevIntensity: entity.prevIntensity != null ? Number(entity.prevIntensity) : null,
-      buyScore: entity.buyScore,
-      sellScore: entity.sellScore,
-      modelTargetWeight: entity.modelTargetWeight,
-      action: entity.action,
-      reason: entity.reason,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    }));
+    const items = await Promise.all(
+      paginatedResult.items.map(async (entity) => ({
+        id: entity.id,
+        seq: entity.seq,
+        symbol: entity.symbol,
+        category: entity.category,
+        intensity: entity.intensity,
+        prevIntensity: entity.prevIntensity != null ? Number(entity.prevIntensity) : null,
+        prevModelTargetWeight: await this.findPreviousModelTargetWeight(entity),
+        buyScore: entity.buyScore,
+        sellScore: entity.sellScore,
+        modelTargetWeight: entity.modelTargetWeight,
+        action: entity.action,
+        reason: entity.reason,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+      })),
+    );
 
     return {
       ...paginatedResult,
@@ -1858,21 +1861,24 @@ export class RebalanceService implements OnModuleInit {
     params: GetBalanceRecommendationsCursorDto,
   ): Promise<CursorItem<BalanceRecommendationDto, string>> {
     const cursorResult = await BalanceRecommendation.cursor(params);
-    const items = cursorResult.items.map((entity) => ({
-      id: entity.id,
-      seq: entity.seq,
-      symbol: entity.symbol,
-      category: entity.category,
-      intensity: entity.intensity,
-      prevIntensity: entity.prevIntensity != null ? Number(entity.prevIntensity) : null,
-      buyScore: entity.buyScore,
-      sellScore: entity.sellScore,
-      modelTargetWeight: entity.modelTargetWeight,
-      action: entity.action,
-      reason: entity.reason,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    }));
+    const items = await Promise.all(
+      cursorResult.items.map(async (entity) => ({
+        id: entity.id,
+        seq: entity.seq,
+        symbol: entity.symbol,
+        category: entity.category,
+        intensity: entity.intensity,
+        prevIntensity: entity.prevIntensity != null ? Number(entity.prevIntensity) : null,
+        prevModelTargetWeight: await this.findPreviousModelTargetWeight(entity),
+        buyScore: entity.buyScore,
+        sellScore: entity.sellScore,
+        modelTargetWeight: entity.modelTargetWeight,
+        action: entity.action,
+        reason: entity.reason,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+      })),
+    );
 
     return {
       ...cursorResult,
@@ -1890,5 +1896,30 @@ export class RebalanceService implements OnModuleInit {
     const balanceRecommendation = new BalanceRecommendation();
     Object.assign(balanceRecommendation, recommendation);
     return balanceRecommendation.save();
+  }
+
+  private async findPreviousModelTargetWeight(entity: BalanceRecommendation): Promise<number | null> {
+    try {
+      const previous = await BalanceRecommendation.createQueryBuilder('recommendation')
+        .select(['recommendation.modelTargetWeight'])
+        .where('recommendation.symbol = :symbol', { symbol: entity.symbol })
+        .andWhere('recommendation.category = :category', { category: entity.category })
+        .andWhere('recommendation.seq < :seq', { seq: entity.seq })
+        .orderBy('recommendation.seq', 'DESC')
+        .getOne();
+
+      if (previous?.modelTargetWeight != null && Number.isFinite(previous.modelTargetWeight)) {
+        return Number(previous.modelTargetWeight);
+      }
+    } catch (error) {
+      this.logger.warn(
+        this.i18n.t('logging.inference.balanceRecommendation.prev_target_weight_failed', {
+          args: { symbol: entity.symbol, seq: entity.seq },
+        }),
+        error,
+      );
+    }
+
+    return null;
   }
 }

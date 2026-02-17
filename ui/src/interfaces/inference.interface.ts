@@ -7,8 +7,10 @@ export interface BalanceRecommendation {
   batchId: string;
   seq: number;
   symbol: string;
-  rate: number;
-  prevRate?: number | null;
+  modelTargetWeight: number;
+  prevModelTargetWeight?: number | null;
+  intensity?: number;
+  prevIntensity?: number | null;
   category: Category;
   reason: string;
   createdAt?: string;

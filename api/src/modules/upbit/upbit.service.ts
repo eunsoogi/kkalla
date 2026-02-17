@@ -10,8 +10,8 @@ import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
 import { Schedule } from '../schedule/entities/schedule.entity';
 import { User } from '../user/entities/user.entity';
-import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
 import { UpbitConfig } from './entities/upbit-config.entity';
+import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
 import { OrderTypes } from './upbit.enum';
 import { AdjustOrderRequest, KrwMarketData, OrderRequest, UpbitConfigData } from './upbit.interface';
 
