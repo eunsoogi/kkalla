@@ -33,6 +33,7 @@ export interface BalanceRecommendationData {
   symbol: string;
   category: Category;
   rate: number;
+  prevRate?: number | null;
   hasStock: boolean;
   weight?: number;
   confidence?: number;

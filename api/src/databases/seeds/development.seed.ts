@@ -37,12 +37,16 @@ export class BalanceRecommendationSeeder implements Seeder {
 
     for (let i = 0; i < 11; i++) {
       const batchId = randomUUID();
+      const majorPrevRate = i < 6 ? 0.7 + (i % 3) * 0.05 : null;
+      const minorPrevRate = i < 4 ? -0.3 + (i % 2) * 0.1 : null;
+
       await BalanceRecommendation.save([
         {
           batchId,
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MAJOR,
           rate: 0.8,
+          ...(majorPrevRate !== null ? { prevRate: majorPrevRate } : {}),
           reason: `${i + 1}) 메이저 코인 추론 내용입니다.`,
           symbol: 'BTC/KRW',
         },
@@ -51,6 +55,7 @@ export class BalanceRecommendationSeeder implements Seeder {
           seq: (await new Sequence().save()).value,
           category: Category.COIN_MINOR,
           rate: -0.5,
+          ...(minorPrevRate !== null ? { prevRate: minorPrevRate } : {}),
           reason: `${i + 1}) 마이너 코인 추론 내용입니다.`,
           symbol: 'XRP/KRW',
         },

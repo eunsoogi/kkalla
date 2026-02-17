@@ -742,7 +742,8 @@ export class MarketVolatilityService implements OnModuleInit {
               this.i18n.t('notify.inference.transaction', {
                 args: {
                   symbol: recommendation.symbol,
-                  rate: Math.floor(recommendation.rate * 100),
+                  prevRate: this.toRatePercent(recommendation.prevRate),
+                  rate: this.toRatePercent(recommendation.rate),
                 },
               }),
             )
@@ -990,7 +991,8 @@ export class MarketVolatilityService implements OnModuleInit {
       this.RECOMMEND_CONFIDENCE_BASE,
       this.RECOMMEND_CONFIDENCE_SPAN,
     );
-    const multiplier = 1 + weightScore * this.RECOMMEND_WEIGHT_IMPACT + confidenceScore * this.RECOMMEND_CONFIDENCE_IMPACT;
+    const multiplier =
+      1 + weightScore * this.RECOMMEND_WEIGHT_IMPACT + confidenceScore * this.RECOMMEND_CONFIDENCE_IMPACT;
     return this.clamp(multiplier, this.RECOMMEND_MULTIPLIER_MIN, this.RECOMMEND_MULTIPLIER_MAX);
   }
 
@@ -1439,6 +1441,14 @@ export class MarketVolatilityService implements OnModuleInit {
     this.notifyService.clearClients();
   }
 
+  private toRatePercent(rate: number | null | undefined): string {
+    if (rate == null || !Number.isFinite(rate)) {
+      return '-';
+    }
+
+    return `${Math.floor(rate * 100)}%`;
+  }
+
   /**
    * 개별 거래 실행
    *
@@ -1526,6 +1536,7 @@ export class MarketVolatilityService implements OnModuleInit {
    */
   public async balanceRecommendation(items: RecommendationItem[]): Promise<BalanceRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.start', { args: { count: items.length } }));
+    const previousRates = await this.buildPreviousRateMap(items);
 
     // 각 종목에 대한 실시간 API 호출을 병렬로 처리
     const inferenceResults = await Promise.all(
@@ -1558,6 +1569,7 @@ export class MarketVolatilityService implements OnModuleInit {
             ...responseData,
             category: item?.category,
             hasStock: item?.hasStock || false,
+            prevRate: previousRates.get(item.symbol) ?? null,
             weight: item?.weight,
             confidence: item?.confidence,
           };
@@ -1595,6 +1607,7 @@ export class MarketVolatilityService implements OnModuleInit {
       symbol: saved.symbol,
       category: saved.category,
       rate: saved.rate,
+      prevRate: saved.prevRate != null ? Number(saved.prevRate) : null,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
@@ -1700,6 +1713,24 @@ export class MarketVolatilityService implements OnModuleInit {
       this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
       return [];
     }
+  }
+
+  private async buildPreviousRateMap(items: RecommendationItem[]): Promise<Map<string, number | null>> {
+    const symbols = Array.from(new Set(items.map((item) => item.symbol)));
+    const previousRates = await Promise.all(
+      symbols.map(async (symbol) => {
+        const recentRecommendations = await this.fetchRecentRecommendations(symbol);
+        const latestRate = recentRecommendations[0]?.rate;
+
+        if (latestRate == null || !Number.isFinite(latestRate)) {
+          return [symbol, null] as const;
+        }
+
+        return [symbol, Number(latestRate)] as const;
+      }),
+    );
+
+    return new Map(previousRates);
   }
 
   /**

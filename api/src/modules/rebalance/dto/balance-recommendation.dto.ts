@@ -20,6 +20,9 @@ export class BalanceRecommendationDto {
   @ApiProperty()
   rate: number;
 
+  @ApiProperty({ required: false, nullable: true })
+  prevRate?: number | null;
+
   @ApiProperty()
   createdAt: Date;
 

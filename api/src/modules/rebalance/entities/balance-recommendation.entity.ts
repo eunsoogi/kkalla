@@ -63,6 +63,12 @@ export class BalanceRecommendation extends BaseEntity {
   rate: number;
 
   @Column({
+    type: 'double',
+    nullable: true,
+  })
+  prevRate: number | null;
+
+  @Column({
     type: 'text',
     nullable: true,
   })

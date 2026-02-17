@@ -8,6 +8,7 @@ export interface BalanceRecommendation {
   seq: number;
   symbol: string;
   rate: number;
+  prevRate?: number | null;
   category: Category;
   reason: string;
   createdAt?: string;
