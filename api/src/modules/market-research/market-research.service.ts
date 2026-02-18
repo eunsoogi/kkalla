@@ -80,6 +80,10 @@ export class MarketResearchService {
       return;
     }
 
+    await this.executeMarketRecommendationTask();
+  }
+
+  public async executeMarketRecommendationTask(): Promise<void> {
     this.logger.log(this.i18n.t('logging.schedule.marketRecommendation.start'));
 
     try {

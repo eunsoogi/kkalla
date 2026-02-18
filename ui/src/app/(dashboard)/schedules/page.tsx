@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useState, useTransition } from 'react';
 
-import { Alert } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { ForbiddenError } from '@/components/error/403';
 import { Permission } from '@/interfaces/permission.interface';
+import { ScheduleExecutionPlanResponse, ScheduleExecutionTask } from '@/interfaces/schedule-execution.interface';
 import {
+  getScheduleExecutionPlansAction,
+  ScheduleActionState,
   executeMarketRecommendationAction,
   executeBalanceRecommendationWithExistingItemsAction,
   executebalanceRecommendationNewItemsAction
@@ -16,45 +18,173 @@ import {
 import ScheduleExecuteButton from '@/components/schedule/ScheduleExecuteButton';
 import ScheduleWarning from '@/components/schedule/ScheduleWarning';
 
+interface NextRunHighlight {
+  task: ScheduleExecutionTask;
+  time: string;
+  timezone: string;
+  minutesUntil: number;
+}
+
+const parseRunAtToMinutes = (runAt: string): number | null => {
+  const [hourRaw, minuteRaw] = runAt.split(':');
+  if (!hourRaw || !minuteRaw) {
+    return null;
+  }
+
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+};
+
+const getCurrentMinutesForTimezone = (timezone: string): number | null => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const parts = formatter.formatToParts(new Date());
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+    const minute = Number(parts.find((part) => part.type === 'minute')?.value);
+
+    if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
+      return null;
+    }
+
+    return hour * 60 + minute;
+  } catch {
+    return null;
+  }
+};
+
+const findNearestNextRun = (plans: ScheduleExecutionPlanResponse[]): NextRunHighlight | null => {
+  let nearest: NextRunHighlight | null = null;
+
+  for (const plan of plans) {
+    const currentMinutes = getCurrentMinutesForTimezone(plan.timezone);
+    if (currentMinutes == null) {
+      continue;
+    }
+
+    for (const runAt of plan.runAt) {
+      const targetMinutes = parseRunAtToMinutes(runAt);
+      if (targetMinutes == null) {
+        continue;
+      }
+
+      const minutesUntil = targetMinutes >= currentMinutes ? targetMinutes - currentMinutes : 1440 - currentMinutes + targetMinutes;
+      if (!nearest || minutesUntil < nearest.minutesUntil) {
+        nearest = {
+          task: plan.task,
+          time: runAt,
+          timezone: plan.timezone,
+          minutesUntil,
+        };
+      }
+    }
+  }
+
+  return nearest;
+};
+
+const formatRemainingTime = (minutesUntil: number, t: ReturnType<typeof useTranslations>) => {
+  if (minutesUntil <= 0) {
+    return t('schedule.execute.auto.remainingSoon');
+  }
+
+  if (minutesUntil < 60) {
+    return t('schedule.execute.auto.remainingMinutes', { minutes: minutesUntil });
+  }
+
+  const hours = Math.floor(minutesUntil / 60);
+  const minutes = minutesUntil % 60;
+
+  if (minutes === 0) {
+    return t('schedule.execute.auto.remainingHours', { hours });
+  }
+
+  return t('schedule.execute.auto.remainingHoursMinutes', { hours, minutes });
+};
+
 const Page: React.FC = () => {
   const t = useTranslations();
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [recentResults, setRecentResults] = useState<Partial<Record<ScheduleExecutionTask, ScheduleActionState>>>({});
+  const [executionPlans, setExecutionPlans] = useState<Partial<Record<ScheduleExecutionTask, ScheduleExecutionPlanResponse>>>({});
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+
+  const taskTitle = (task: ScheduleExecutionTask) => {
+    switch (task) {
+      case 'marketRecommendation':
+        return t('schedule.execute.marketRecommendation.title');
+      case 'balanceRecommendationExisting':
+        return t('schedule.execute.balanceRecommendationExisting.title');
+      default:
+        return t('schedule.execute.balanceRecommendationNew.title');
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadExecutionPlans = async () => {
+      const plans = await getScheduleExecutionPlansAction();
+      if (!mounted) {
+        return;
+      }
+
+      const plansByTask = plans.reduce<Partial<Record<ScheduleExecutionTask, ScheduleExecutionPlanResponse>>>(
+        (acc, plan) => {
+          acc[plan.task] = plan;
+          return acc;
+        },
+        {},
+      );
+
+      setExecutionPlans(plansByTask);
+      setIsPlanLoading(false);
+    };
+
+    void loadExecutionPlans();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const nextRunHighlight = useMemo(() => {
+    const plans = Object.values(executionPlans).filter((plan): plan is ScheduleExecutionPlanResponse => !!plan);
+    return findNearestNextRun(plans);
+  }, [executionPlans]);
+
+  const nextRunRemainingText = nextRunHighlight ? formatRemainingTime(nextRunHighlight.minutesUntil, t) : undefined;
+
+  const execute = (executor: () => Promise<ScheduleActionState>) => {
+    startTransition(async () => {
+      const result = await executor();
+      setRecentResults((prev) => ({
+        ...prev,
+        [result.task]: result,
+      }));
+    });
+  };
 
   const handleExecuteMarketRecommendation = () => {
-    startTransition(async () => {
-      setMessage(null);
-      const result = await executeMarketRecommendationAction();
-
-      setMessage({
-        type: result.success ? 'success' : 'error',
-        text: result.message || '',
-      });
-    });
+    execute(executeMarketRecommendationAction);
   };
 
   const handleExecuteExistItems = () => {
-    startTransition(async () => {
-      setMessage(null);
-      const result = await executeBalanceRecommendationWithExistingItemsAction();
-
-      setMessage({
-        type: result.success ? 'success' : 'error',
-        text: result.message || '',
-      });
-    });
+    execute(executeBalanceRecommendationWithExistingItemsAction);
   };
 
   const handleExecuteNewItems = () => {
-    startTransition(async () => {
-      setMessage(null);
-      const result = await executebalanceRecommendationNewItemsAction();
-
-      setMessage({
-        type: result.success ? 'success' : 'error',
-        text: result.message || '',
-      });
-    });
+    execute(executebalanceRecommendationNewItemsAction);
   };
 
   return (
@@ -67,7 +197,7 @@ const Page: React.FC = () => {
       fallback={<ForbiddenError />}
     >
       <div className='space-y-6'>
-        <div className='bg-white dark:bg-dark rounded-lg shadow-md dark:shadow-dark-md p-6'>
+        <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6'>
           <h1 className='text-2xl font-bold text-gray-900 dark:text-white mb-4'>
             {t('schedule.management.title')}
           </h1>
@@ -75,33 +205,73 @@ const Page: React.FC = () => {
             {t('schedule.management.description')}
           </p>
 
-          {message && (
-            <Alert color={message.type === 'success' ? 'success' : 'failure'} className='mb-4'>
-              {message.text}
-            </Alert>
-          )}
-
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-            <ScheduleExecuteButton
-              type='marketRecommendation'
-              isPending={isPending}
-              onExecute={handleExecuteMarketRecommendation}
-            />
-
-            <ScheduleExecuteButton
-              type='existItems'
-              isPending={isPending}
-              onExecute={handleExecuteExistItems}
-            />
-
-            <ScheduleExecuteButton
-              type='newItems'
-              isPending={isPending}
-              onExecute={handleExecuteNewItems}
-            />
+          <div className='mb-4'>
+            <ScheduleWarning />
           </div>
 
-          <ScheduleWarning />
+          <div className='mb-4 rounded-lg border border-primary/30 bg-lightprimary/30 px-4 py-3 dark:bg-darkprimary/30'>
+            {nextRunHighlight ? (
+              <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                {t('schedule.execute.auto.nextRunSummary', {
+                  task: taskTitle(nextRunHighlight.task),
+                  time: nextRunHighlight.time,
+                  timezone: nextRunHighlight.timezone,
+                  remaining: formatRemainingTime(nextRunHighlight.minutesUntil, t),
+                })}
+              </p>
+            ) : (
+              <p className='text-sm text-gray-500 dark:text-gray-400'>
+                {isPlanLoading ? t('schedule.execute.auto.loading') : t('schedule.execute.auto.nextRunUnavailable')}
+              </p>
+            )}
+          </div>
+
+          <div className='mt-3 border-y border-gray-200 dark:border-gray-700'>
+            <div className='hidden lg:grid grid-cols-12 gap-3 bg-gray-50 px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800/40 dark:text-gray-400'>
+              <div className='col-span-5'>{t('schedule.execute.column.task')}</div>
+              <div className='col-span-4'>{t('schedule.execute.column.auto')}</div>
+              <div className='col-span-3'>
+                <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-3'>
+                  <span className='text-right'>{t('schedule.execute.column.status')}</span>
+                  <span className='text-right'>{t('schedule.execute.column.action')}</span>
+                </div>
+              </div>
+            </div>
+            <div className='divide-y divide-gray-200 dark:divide-gray-700'>
+              <ScheduleExecuteButton
+                type='marketRecommendation'
+                isPending={isPending}
+                onExecute={handleExecuteMarketRecommendation}
+                result={recentResults.marketRecommendation}
+                plan={executionPlans.marketRecommendation}
+                isPlanLoading={isPlanLoading}
+                highlightRunAt={nextRunHighlight?.task === 'marketRecommendation' ? nextRunHighlight.time : undefined}
+                highlightRemainingText={nextRunHighlight?.task === 'marketRecommendation' ? nextRunRemainingText : undefined}
+              />
+
+              <ScheduleExecuteButton
+                type='existItems'
+                isPending={isPending}
+                onExecute={handleExecuteExistItems}
+                result={recentResults.balanceRecommendationExisting}
+                plan={executionPlans.balanceRecommendationExisting}
+                isPlanLoading={isPlanLoading}
+                highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunHighlight.time : undefined}
+                highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunRemainingText : undefined}
+              />
+
+              <ScheduleExecuteButton
+                type='newItems'
+                isPending={isPending}
+                onExecute={handleExecuteNewItems}
+                result={recentResults.balanceRecommendationNew}
+                plan={executionPlans.balanceRecommendationNew}
+                isPlanLoading={isPlanLoading}
+                highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunHighlight.time : undefined}
+                highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunRemainingText : undefined}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </PermissionGuard>

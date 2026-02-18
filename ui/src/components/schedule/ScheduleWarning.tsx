@@ -6,7 +6,7 @@ const ScheduleWarning: React.FC = () => {
   const t = useTranslations();
 
   return (
-    <div className='mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800'>
+    <div className='h-full rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20'>
       <div className='flex'>
         <div className='flex-shrink-0'>
           <svg className='h-5 w-5 text-yellow-400' viewBox='0 0 20 20' fill='currentColor'>

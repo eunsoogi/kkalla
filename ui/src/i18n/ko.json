@@ -207,30 +207,65 @@
     },
     "execute": {
       "executing": "실행 중...",
+      "label": "수동 실행",
+      "column": {
+        "task": "작업",
+        "auto": "자동 실행(서버)",
+        "status": "최근 수동 실행",
+        "action": "실행"
+      },
+      "auto": {
+        "label": "자동 실행 시각",
+        "loading": "스케줄 정보를 불러오는 중...",
+        "unavailable": "스케줄 정보를 가져오지 못했습니다.",
+        "timezone": "기준 시간대: {timezone}",
+        "nextRunBadge": "다음",
+        "nextRunIn": "다음 실행까지 {remaining}",
+        "nextRunSummary": "가장 가까운 자동 실행: {task} · {time} ({timezone}) · {remaining}",
+        "nextRunUnavailable": "다음 자동 실행 정보를 계산할 수 없습니다.",
+        "remainingSoon": "곧 실행",
+        "remainingMinutes": "{minutes}분 후",
+        "remainingHours": "{hours}시간 후",
+        "remainingHoursMinutes": "{hours}시간 {minutes}분 후"
+      },
+      "status": {
+        "label": "최근 수동 실행",
+        "started": "실행이 시작되었습니다.",
+        "skippedLock": "이미 동일 작업이 실행 중이라 시작되지 않았습니다.",
+        "skippedDevelopment": "개발 환경에서는 실행되지 않습니다.",
+        "failed": "실행 요청에 실패했습니다."
+      },
+      "statusLabel": {
+        "started": "시작됨",
+        "skippedLock": "락 충돌",
+        "skippedDevelopment": "개발 환경",
+        "failed": "요청 실패",
+        "idle": "미실행"
+      },
       "marketRecommendation": {
         "title": "마켓 리포트 생성",
         "description": "상위 10개 종목 추천 분석을 실행하여 마켓 리포트를 생성합니다.",
-        "button": "마켓 리포트 생성",
-        "success": "마켓 리포트가 성공적으로 생성되었습니다.",
-        "error": "마켓 리포트 생성에 실패했습니다."
+        "button": "실행"
       },
       "balanceRecommendationExisting": {
         "title": "기존 종목 포트폴리오 분석",
         "description": "기존에 보유한 종목들에 대한 AI 추론을 실행합니다.",
-        "button": "기존 종목 포트폴리오 분석",
-        "success": "기존 종목 포트폴리오 분석이 성공적으로 실행되었습니다.",
-        "error": "기존 종목 포트폴리오 분석 실행에 실패했습니다."
+        "button": "실행"
       },
       "balanceRecommendationNew": {
         "title": "신규 종목 포트폴리오 분석",
         "description": "신규 종목들을 포함한 전체 AI 추론을 실행합니다.",
-        "button": "신규 종목 포트폴리오 분석",
-        "success": "신규 종목 포트폴리오 분석이 성공적으로 실행되었습니다.",
-        "error": "신규 종목 포트폴리오 분석 실행에 실패했습니다."
+        "button": "실행"
+      },
+      "recent": {
+        "title": "최근 실행 결과",
+        "description": "현재 페이지 세션에서 요청한 마지막 실행 상태입니다.",
+        "empty": "아직 실행 이력이 없습니다.",
+        "lastRunAt": "요청 시각: {at}"
       },
       "warning": {
         "title": "주의사항",
-        "description": "스케줄 실행은 시간이 오래 걸릴 수 있으며, 실행 중에는 다른 작업을 수행하지 마세요. 또한 개발 환경에서는 실행되지 않습니다."
+        "description": "수동 실행은 시작 여부만 즉시 확인됩니다. 실제 완료/실패는 서버 로그와 알림에서 확인하세요."
       }
     }
   }
