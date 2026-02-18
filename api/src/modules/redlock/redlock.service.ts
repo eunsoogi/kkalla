@@ -68,6 +68,35 @@ export class RedlockService implements OnModuleDestroy {
     }
   }
 
+  public async startWithLock(resourceName: string, duration: number, callback: () => Promise<void>): Promise<boolean> {
+    const lockKey = this.getLockKey(resourceName);
+    const lock = await this.acquireLock(lockKey, duration);
+
+    if (!lock) {
+      this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
+      return false;
+    }
+
+    this.logger.debug(this.i18n.t('logging.redlock.lock.acquired', { args: { resourceName } }));
+
+    void (async () => {
+      try {
+        await callback();
+      } catch (error) {
+        this.logger.error(`Error while executing background task for ${resourceName}`, error);
+      } finally {
+        try {
+          await lock.release();
+          this.logger.debug(this.i18n.t('logging.redlock.lock.released', { args: { resourceName } }));
+        } catch (error) {
+          this.logger.error(this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName } }), error);
+        }
+      }
+    })();
+
+    return true;
+  }
+
   private getLockKey(resource: string): string {
     const namespace = process.env.NODE_ENV || 'development';
     return `lock:${namespace}:${resource}`;

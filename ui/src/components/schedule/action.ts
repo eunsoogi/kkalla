@@ -2,66 +2,94 @@
 
 import { getTranslations } from 'next-intl/server';
 
+import {
+  ScheduleExecutionPlanResponse,
+  ScheduleExecutionResponse,
+  ScheduleExecutionStatus,
+  ScheduleExecutionTask,
+} from '@/interfaces/schedule-execution.interface';
 import { getClient } from '@/utils/api';
 
+type ScheduleActionStatus = ScheduleExecutionStatus | 'failed';
+
 export interface ScheduleActionState {
-  success: boolean;
-  message?: string;
+  task: ScheduleExecutionTask;
+  status: ScheduleActionStatus;
+  requestedAt: string;
+  message: string;
 }
 
-export const executeMarketRecommendationAction = async (): Promise<ScheduleActionState> => {
+const isScheduleExecutionStatus = (status: string): status is ScheduleExecutionStatus => {
+  return ['started', 'skipped_lock', 'skipped_development'].includes(status);
+};
+
+const getStatusMessage = (t: Awaited<ReturnType<typeof getTranslations>>, status: ScheduleActionStatus): string => {
+  switch (status) {
+    case 'started':
+      return t('schedule.execute.status.started');
+    case 'skipped_lock':
+      return t('schedule.execute.status.skippedLock');
+    case 'skipped_development':
+      return t('schedule.execute.status.skippedDevelopment');
+    default:
+      return t('schedule.execute.status.failed');
+  }
+};
+
+const executeScheduleAction = async (
+  path: string,
+  task: ScheduleExecutionTask,
+): Promise<ScheduleActionState> => {
   const client = await getClient();
   const t = await getTranslations();
 
   try {
-    await client.post('/api/v1/schedules/execute/market-recommendation');
+    const { data } = await client.post<ScheduleExecutionResponse>(path);
+
+    if (!data || !isScheduleExecutionStatus(data.status)) {
+      return {
+        task,
+        status: 'failed',
+        requestedAt: new Date().toISOString(),
+        message: getStatusMessage(t, 'failed'),
+      };
+    }
 
     return {
-      success: true,
-      message: t('schedule.execute.marketRecommendation.success'),
+      task: data.task ?? task,
+      status: data.status,
+      requestedAt: data.requestedAt ?? new Date().toISOString(),
+      message: getStatusMessage(t, data.status),
     };
   } catch {
     return {
-      success: false,
-      message: t('schedule.execute.marketRecommendation.error'),
+      task,
+      status: 'failed',
+      requestedAt: new Date().toISOString(),
+      message: getStatusMessage(t, 'failed'),
     };
   }
+};
+
+export const executeMarketRecommendationAction = async (): Promise<ScheduleActionState> => {
+  return executeScheduleAction('/api/v1/schedules/execute/market-recommendation', 'marketRecommendation');
 };
 
 export const executeBalanceRecommendationWithExistingItemsAction = async (): Promise<ScheduleActionState> => {
-  const client = await getClient();
-  const t = await getTranslations();
-
-  try {
-    await client.post('/api/v1/schedules/execute/balance-recommendation/existing');
-
-    return {
-      success: true,
-      message: t('schedule.execute.balanceRecommendationExisting.success'),
-    };
-  } catch {
-    return {
-      success: false,
-      message: t('schedule.execute.balanceRecommendationExisting.error'),
-    };
-  }
+  return executeScheduleAction('/api/v1/schedules/execute/balance-recommendation/existing', 'balanceRecommendationExisting');
 };
 
 export const executebalanceRecommendationNewItemsAction = async (): Promise<ScheduleActionState> => {
+  return executeScheduleAction('/api/v1/schedules/execute/balance-recommendation/new', 'balanceRecommendationNew');
+};
+
+export const getScheduleExecutionPlansAction = async (): Promise<ScheduleExecutionPlanResponse[]> => {
   const client = await getClient();
-  const t = await getTranslations();
 
   try {
-    await client.post('/api/v1/schedules/execute/balance-recommendation/new');
-
-    return {
-      success: true,
-      message: t('schedule.execute.balanceRecommendationNew.success'),
-    };
+    const { data } = await client.get<ScheduleExecutionPlanResponse[]>('/api/v1/schedules/execution-plans');
+    return Array.isArray(data) ? data : [];
   } catch {
-    return {
-      success: false,
-      message: t('schedule.execute.balanceRecommendationNew.error'),
-    };
+    return [];
   }
 };

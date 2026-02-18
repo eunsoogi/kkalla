@@ -265,6 +265,10 @@ export class RebalanceService implements OnModuleInit {
       return;
     }
 
+    await this.executeBalanceRecommendationNewTask();
+  }
+
+  public async executeBalanceRecommendationNewTask(): Promise<void> {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     // 스케줄 활성화된 사용자 목록 조회
@@ -305,6 +309,10 @@ export class RebalanceService implements OnModuleInit {
       return;
     }
 
+    await this.executeBalanceRecommendationExistingTask();
+  }
+
+  public async executeBalanceRecommendationExistingTask(): Promise<void> {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
     // 스케줄 활성화된 사용자 목록 조회
