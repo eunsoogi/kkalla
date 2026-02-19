@@ -2,6 +2,13 @@ import { Category } from '@/enums/category.enum';
 
 import { CursorItem, PaginatedItem } from './item.interface';
 
+export interface ReportValidationBadge {
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  overallScore?: number | null;
+  verdict?: 'good' | 'mixed' | 'bad' | 'invalid' | null;
+  evaluatedAt?: string | Date | null;
+}
+
 export interface BalanceRecommendation {
   id: string;
   batchId: string;
@@ -15,6 +22,8 @@ export interface BalanceRecommendation {
   reason: string;
   createdAt?: string;
   updatedAt?: string;
+  validation24h?: ReportValidationBadge;
+  validation72h?: ReportValidationBadge;
 }
 
 export interface MarketRecommendation {
@@ -27,6 +36,8 @@ export interface MarketRecommendation {
   confidence: number;
   createdAt?: string;
   updatedAt?: string;
+  validation24h?: ReportValidationBadge;
+  validation72h?: ReportValidationBadge;
 }
 
 export const initialPaginatedState: PaginatedItem<any> = {

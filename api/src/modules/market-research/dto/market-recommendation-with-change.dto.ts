@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { ReportValidationBadgeDto } from '@/modules/report-validation/dto/report-validation-badge.dto';
+
 /**
  * 추천 시점 대비 현재가 변동률이 포함된 마켓 추천 DTO (메인 대시보드용)
  */
@@ -42,4 +44,10 @@ export class MarketRecommendationWithChangeDto {
   /** 추천 시점 대비 변동률 (%) */
   @ApiProperty({ required: false })
   priceChangePct?: number;
+
+  @ApiProperty({ required: false, type: () => ReportValidationBadgeDto })
+  validation24h?: ReportValidationBadgeDto;
+
+  @ApiProperty({ required: false, type: () => ReportValidationBadgeDto })
+  validation72h?: ReportValidationBadgeDto;
 }

@@ -9,13 +9,13 @@ import { useTranslations } from 'next-intl';
 
 import { Category } from '@/enums/category.enum';
 import { SortDirection } from '@/enums/sort.enum';
-import { BalanceRecommendation, MarketRecommendation } from '@/interfaces/inference.interface';
+import { BalanceRecommendation, MarketRecommendation, ReportValidationBadge } from '@/interfaces/inference.interface';
 import { CursorItem } from '@/interfaces/item.interface';
 import { formatDate } from '@/utils/date';
 
 import { InfinityScroll } from '../infinityscroll/InfinityScroll';
 import { getBalanceRecommendationsCursorAction, getMarketRecommendationsCursorAction } from './action';
-import { getConfidenceColor, getWeightColor } from './style';
+import { getConfidenceColor, getValidationColor, getWeightColor } from './style';
 
 type Recommendation = MarketRecommendation | BalanceRecommendation;
 
@@ -46,6 +46,17 @@ const resolvePrevRatio = (item: BalanceRecommendation): number | null => {
   }
 
   return null;
+};
+
+const getValidationLabel = (t: (key: string) => string, badge: ReportValidationBadge): string => {
+  if (badge.status === 'pending') return t('inference.validationPending');
+  if (badge.status === 'running') return t('inference.validationRunning');
+  if (badge.status === 'failed') return t('inference.validationFailed');
+  if (badge.verdict === 'invalid') return t('inference.validationInvalid');
+  if (badge.verdict === 'good') return 'Good';
+  if (badge.verdict === 'mixed') return 'Mixed';
+  if (badge.verdict === 'bad') return 'Bad';
+  return t('inference.validationCompleted');
 };
 
 const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
@@ -83,8 +94,7 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                   relative w-full break-words
                 `}
               >
-                <div className='relative'>
-                </div>
+                <div className='relative'></div>
                 <div className='p-6'>
                   <div className='flex flex-row justify-between items-start'>
                     <div className='flex flex-col gap-3'>
@@ -101,6 +111,44 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                                 <Badge style={getWeightColor(currentRatio ?? 0)}>
                                   {`${formatRatePercent(prevRatio)} -> ${formatRatePercent(currentRatio)}`}
                                 </Badge>
+                                {(balanceItem.validation24h ?? null) && (
+                                  <div className='flex items-center gap-2'>
+                                    <span className='text-xs text-gray-600 dark:text-gray-400'>
+                                      {t('inference.validation24h')}:
+                                    </span>
+                                    <Badge
+                                      style={getValidationColor(
+                                        balanceItem.validation24h!.status,
+                                        balanceItem.validation24h!.verdict,
+                                      )}
+                                    >
+                                      {`${getValidationLabel(t, balanceItem.validation24h!)}${
+                                        typeof balanceItem.validation24h?.overallScore === 'number'
+                                          ? ` ${(balanceItem.validation24h.overallScore * 100).toFixed(0)}%`
+                                          : ''
+                                      }`}
+                                    </Badge>
+                                  </div>
+                                )}
+                                {(balanceItem.validation72h ?? null) && (
+                                  <div className='flex items-center gap-2'>
+                                    <span className='text-xs text-gray-600 dark:text-gray-400'>
+                                      {t('inference.validation72h')}:
+                                    </span>
+                                    <Badge
+                                      style={getValidationColor(
+                                        balanceItem.validation72h!.status,
+                                        balanceItem.validation72h!.verdict,
+                                      )}
+                                    >
+                                      {`${getValidationLabel(t, balanceItem.validation72h!)}${
+                                        typeof balanceItem.validation72h?.overallScore === 'number'
+                                          ? ` ${(balanceItem.validation72h.overallScore * 100).toFixed(0)}%`
+                                          : ''
+                                      }`}
+                                    </Badge>
+                                  </div>
+                                )}
                               </>
                             );
                           })()}
@@ -109,19 +157,61 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                         <div className='flex items-center gap-4'>
                           <div className='flex items-center gap-2'>
                             <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.weight')}:</span>
-                            <Badge style={getWeightColor((item as MarketRecommendation).weight)}>{`${Math.floor((item as MarketRecommendation).weight * 100)}%`}</Badge>
+                            <Badge
+                              style={getWeightColor((item as MarketRecommendation).weight)}
+                            >{`${Math.floor((item as MarketRecommendation).weight * 100)}%`}</Badge>
                           </div>
                           <div className='flex items-center gap-2'>
-                            <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.confidence')}:</span>
-                            <Badge style={getConfidenceColor((item as MarketRecommendation).confidence)}>{`${Math.floor((item as MarketRecommendation).confidence * 100)}%`}</Badge>
+                            <span className='text-xs text-gray-600 dark:text-gray-400'>
+                              {t('inference.confidence')}:
+                            </span>
+                            <Badge
+                              style={getConfidenceColor((item as MarketRecommendation).confidence)}
+                            >{`${Math.floor((item as MarketRecommendation).confidence * 100)}%`}</Badge>
                           </div>
+                          {(item as MarketRecommendation).validation24h && (
+                            <div className='flex items-center gap-2'>
+                              <span className='text-xs text-gray-600 dark:text-gray-400'>
+                                {t('inference.validation24h')}:
+                              </span>
+                              <Badge
+                                style={getValidationColor(
+                                  (item as MarketRecommendation).validation24h!.status,
+                                  (item as MarketRecommendation).validation24h!.verdict,
+                                )}
+                              >
+                                {`${getValidationLabel(t, (item as MarketRecommendation).validation24h!)}${
+                                  typeof (item as MarketRecommendation).validation24h?.overallScore === 'number'
+                                    ? ` ${((item as MarketRecommendation).validation24h!.overallScore! * 100).toFixed(0)}%`
+                                    : ''
+                                }`}
+                              </Badge>
+                            </div>
+                          )}
+                          {(item as MarketRecommendation).validation72h && (
+                            <div className='flex items-center gap-2'>
+                              <span className='text-xs text-gray-600 dark:text-gray-400'>
+                                {t('inference.validation72h')}:
+                              </span>
+                              <Badge
+                                style={getValidationColor(
+                                  (item as MarketRecommendation).validation72h!.status,
+                                  (item as MarketRecommendation).validation72h!.verdict,
+                                )}
+                              >
+                                {`${getValidationLabel(t, (item as MarketRecommendation).validation72h!)}${
+                                  typeof (item as MarketRecommendation).validation72h?.overallScore === 'number'
+                                    ? ` ${((item as MarketRecommendation).validation72h!.overallScore! * 100).toFixed(0)}%`
+                                    : ''
+                                }`}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
-                  {item.reason && (
-                    <p className='text-gray-600 dark:text-gray-400 mt-4'>{item.reason}</p>
-                  )}
+                  {item.reason && <p className='text-gray-600 dark:text-gray-400 mt-4'>{item.reason}</p>}
                   <div className='flex mt-3'>
                     <div className='flex gap-1 items-center ms-auto'>
                       <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />

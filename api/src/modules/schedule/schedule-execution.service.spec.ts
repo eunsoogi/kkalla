@@ -1,6 +1,7 @@
 import { MarketResearchService } from '../market-research/market-research.service';
 import { RebalanceService } from '../rebalance/rebalance.service';
 import { RedlockService } from '../redlock/redlock.service';
+import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleExecutionService } from './schedule-execution.service';
 
 describe('ScheduleExecutionService', () => {
@@ -11,6 +12,9 @@ describe('ScheduleExecutionService', () => {
   let rebalanceService: {
     executeBalanceRecommendationExistingTask: jest.Mock;
     executeBalanceRecommendationNewTask: jest.Mock;
+  };
+  let reportValidationService: {
+    executeDueValidationsTask: jest.Mock;
   };
   let redlockService: {
     startWithLock: jest.Mock;
@@ -25,6 +29,9 @@ describe('ScheduleExecutionService', () => {
       executeBalanceRecommendationExistingTask: jest.fn().mockResolvedValue(undefined),
       executeBalanceRecommendationNewTask: jest.fn().mockResolvedValue(undefined),
     };
+    reportValidationService = {
+      executeDueValidationsTask: jest.fn().mockResolvedValue(undefined),
+    };
     redlockService = {
       startWithLock: jest.fn().mockResolvedValue(true),
     };
@@ -33,6 +40,7 @@ describe('ScheduleExecutionService', () => {
     service = new ScheduleExecutionService(
       marketResearchService as unknown as MarketResearchService,
       rebalanceService as unknown as RebalanceService,
+      reportValidationService as unknown as ReportValidationService,
       redlockService as unknown as RedlockService,
     );
   });
@@ -42,14 +50,18 @@ describe('ScheduleExecutionService', () => {
     jest.restoreAllMocks();
   });
 
-  it('should return skipped_development without acquiring lock in development mode', async () => {
+  it('should still attempt lock acquisition in development mode for manual execution', async () => {
     process.env.NODE_ENV = 'development';
 
     const result = await service.executeMarketRecommendation();
 
-    expect(redlockService.startWithLock).not.toHaveBeenCalled();
+    expect(redlockService.startWithLock).toHaveBeenCalledWith(
+      'MarketResearchService:executeMarketRecommendation',
+      88_200_000,
+      expect.any(Function),
+    );
     expect(result.task).toBe('marketRecommendation');
-    expect(result.status).toBe('skipped_development');
+    expect(result.status).toBe('started');
   });
 
   it('should return configured execution plans with cron and run times', () => {
@@ -73,6 +85,37 @@ describe('ScheduleExecutionService', () => {
         cronExpression: '0 35 6 * * *',
         timezone: 'Asia/Seoul',
         runAt: ['06:35'],
+      },
+      {
+        task: 'reportValidation',
+        cronExpression: '0 15 * * * *',
+        timezone: 'Asia/Seoul',
+        runAt: [
+          '00:15',
+          '01:15',
+          '02:15',
+          '03:15',
+          '04:15',
+          '05:15',
+          '06:15',
+          '07:15',
+          '08:15',
+          '09:15',
+          '10:15',
+          '11:15',
+          '12:15',
+          '13:15',
+          '14:15',
+          '15:15',
+          '16:15',
+          '17:15',
+          '18:15',
+          '19:15',
+          '20:15',
+          '21:15',
+          '22:15',
+          '23:15',
+        ],
       },
     ]);
   });
@@ -120,5 +163,19 @@ describe('ScheduleExecutionService', () => {
     redlockService.startWithLock.mockRejectedValue(new Error('boom'));
 
     await expect(service.executeBalanceRecommendationNew()).rejects.toThrow('boom');
+  });
+
+  it('should execute report validation task with lock', async () => {
+    redlockService.startWithLock.mockImplementation(
+      async (_resourceName: string, _duration: number, callback: () => Promise<void>) => {
+        await callback();
+        return true;
+      },
+    );
+
+    const result = await service.executeReportValidation();
+
+    expect(result.status).toBe('started');
+    expect(reportValidationService.executeDueValidationsTask).toHaveBeenCalledTimes(1);
   });
 });

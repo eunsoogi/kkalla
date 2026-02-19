@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Category } from '@/modules/category/category.enum';
+import { ReportValidationBadgeDto } from '@/modules/report-validation/dto/report-validation-badge.dto';
 
 import { BalanceRecommendationAction } from '../rebalance.interface';
 
@@ -50,4 +51,10 @@ export class BalanceRecommendationDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiProperty({ required: false, type: () => ReportValidationBadgeDto })
+  validation24h?: ReportValidationBadgeDto;
+
+  @ApiProperty({ required: false, type: () => ReportValidationBadgeDto })
+  validation72h?: ReportValidationBadgeDto;
 }

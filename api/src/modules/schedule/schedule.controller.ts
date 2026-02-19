@@ -57,4 +57,11 @@ export class ScheduleController {
   public async executebalanceRecommendationNewItems(): Promise<ScheduleExecutionResponse> {
     return this.scheduleExecutionService.executeBalanceRecommendationNew();
   }
+
+  @Post('execute/report-validation')
+  @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
+  @RequirePermissions(Permission.EXEC_SCHEDULE_REPORT_VALIDATION)
+  public async executeReportValidation(): Promise<ScheduleExecutionResponse> {
+    return this.scheduleExecutionService.executeReportValidation();
+  }
 }

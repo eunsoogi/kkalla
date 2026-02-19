@@ -1,6 +1,10 @@
-export type ScheduleExecutionTask = 'marketRecommendation' | 'balanceRecommendationExisting' | 'balanceRecommendationNew';
+export type ScheduleExecutionTask =
+  | 'marketRecommendation'
+  | 'balanceRecommendationExisting'
+  | 'balanceRecommendationNew'
+  | 'reportValidation';
 
-export type ScheduleExecutionStatus = 'started' | 'skipped_lock' | 'skipped_development';
+export type ScheduleExecutionStatus = 'started' | 'skipped_lock';
 
 export interface ScheduleExecutionResponse {
   task: ScheduleExecutionTask;

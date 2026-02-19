@@ -29,6 +29,7 @@ describe('ScheduleController', () => {
             executeMarketRecommendation: jest.fn(),
             executeBalanceRecommendationExisting: jest.fn(),
             executeBalanceRecommendationNew: jest.fn(),
+            executeReportValidation: jest.fn(),
           },
         },
       ],
@@ -118,13 +119,27 @@ describe('ScheduleController', () => {
   it('should execute new-item rebalance and return execution status', async () => {
     scheduleExecutionService.executeBalanceRecommendationNew.mockResolvedValue({
       task: 'balanceRecommendationNew',
-      status: 'skipped_development',
+      status: 'started',
       requestedAt: '2026-01-01T00:00:00.000Z',
     });
 
     const result = await controller.executebalanceRecommendationNewItems();
 
     expect(scheduleExecutionService.executeBalanceRecommendationNew).toHaveBeenCalledTimes(1);
-    expect(result.status).toBe('skipped_development');
+    expect(result.status).toBe('started');
+  });
+
+  it('should execute report validation and return execution status', async () => {
+    scheduleExecutionService.executeReportValidation.mockResolvedValue({
+      task: 'reportValidation',
+      status: 'started',
+      requestedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const result = await controller.executeReportValidation();
+
+    expect(scheduleExecutionService.executeReportValidation).toHaveBeenCalledTimes(1);
+    expect(result.task).toBe('reportValidation');
+    expect(result.status).toBe('started');
   });
 });

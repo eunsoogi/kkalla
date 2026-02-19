@@ -1,0 +1,1134 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+
+import { I18nService } from 'nestjs-i18n';
+import type { EasyInputMessage } from 'openai/resources/responses/responses';
+import { In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+
+import { ErrorService } from '@/modules/error/error.service';
+import { MarketRecommendation } from '@/modules/market-research/entities/market-recommendation.entity';
+import { NotifyService } from '@/modules/notify/notify.service';
+import { OpenaiService } from '@/modules/openai/openai.service';
+import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
+import { WithRedlock } from '@/modules/redlock/decorators/redlock.decorator';
+import { Trade } from '@/modules/trade/entities/trade.entity';
+import { UpbitService } from '@/modules/upbit/upbit.service';
+
+import { ReportValidationItem } from './entities/report-validation-item.entity';
+import { ReportValidationRun } from './entities/report-validation-run.entity';
+import {
+  REPORT_VALIDATION_EVALUATOR_CONFIG,
+  REPORT_VALIDATION_EVALUATOR_PROMPT,
+  REPORT_VALIDATION_EVALUATOR_RESPONSE_SCHEMA,
+} from './prompts/report-validation.prompt';
+import { REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK, ScheduleExpression } from './report-validation.enum';
+import {
+  MarketValidationBadges,
+  PortfolioValidationBadges,
+  ReportType,
+  ReportValidationBadge,
+  ReportValidationRunItemListItem,
+  ReportValidationRunListItem,
+  ReportValidationStatus,
+  ReportValidationVerdict,
+} from './report-validation.interface';
+
+interface DeterministicEvaluation {
+  evaluatedPrice: number | null;
+  recommendationPrice: number | null;
+  returnPct: number | null;
+  directionHit: boolean | null;
+  deterministicScore: number | null;
+  realizedTradePnl: number | null;
+  realizedTradeAmount: number | null;
+  tradeRoiPct: number | null;
+  invalidReason?: string;
+}
+
+@Injectable()
+export class ReportValidationService {
+  private readonly logger = new Logger(ReportValidationService.name);
+
+  private readonly MARKET_HORIZONS = [24, 72] as const;
+  private readonly PORTFOLIO_HORIZONS = [24, 72] as const;
+  private readonly BACKFILL_LOOKBACK_DAYS = 7;
+  private readonly VALIDATION_SUMMARY_LOOKBACK_DAYS = 30;
+  private readonly PORTFOLIO_GLOBAL_GUARDRAIL_CACHE_TTL_MS = 5 * 60 * 1000;
+  private readonly RETENTION_DAYS = 180;
+  private readonly DUE_BATCH_LIMIT = 300;
+  private readonly LOW_SCORE_THRESHOLD = 0.5;
+  private readonly RUNNING_STALE_TIMEOUT_MS = REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration + 5 * 60 * 1000;
+  private backfillChecked = false;
+  private portfolioGlobalGuardrailsCache: { expiresAt: number; guardrails: string[] } | null = null;
+  private portfolioGlobalGuardrailsInFlight: Promise<string[]> | null = null;
+
+  constructor(
+    private readonly i18n: I18nService,
+    private readonly openaiService: OpenaiService,
+    private readonly upbitService: UpbitService,
+    private readonly notifyService: NotifyService,
+    private readonly errorService: ErrorService,
+  ) {}
+
+  @Cron(ScheduleExpression.HOURLY_REPORT_VALIDATION)
+  @WithRedlock({ duration: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration })
+  public async executeDueValidations(): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(this.i18n.t('logging.schedule.skip'));
+      return;
+    }
+
+    await this.executeDueValidationsTask();
+  }
+
+  @Cron(ScheduleExpression.DAILY_REPORT_VALIDATION_RETENTION)
+  public async cleanupOldValidations(): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(this.i18n.t('logging.schedule.skip'));
+      return;
+    }
+
+    await this.cleanupOldValidationsTask();
+  }
+
+  public async executeDueValidationsTask(): Promise<void> {
+    try {
+      await this.ensureBackfillIfNeeded();
+      await this.processDueItems();
+    } catch (error) {
+      this.logger.error('Failed to execute report validation task', error);
+      await this.safeNotifyServer(
+        `*[시스템 알림]* report validation task failed\n> ${this.errorService.getErrorMessage(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  public async cleanupOldValidationsTask(): Promise<void> {
+    const threshold = new Date(Date.now() - this.RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
+    try {
+      await ReportValidationItem.createQueryBuilder()
+        .delete()
+        .where('created_at < :threshold', { threshold })
+        .andWhere('status IN (:...statuses)', { statuses: ['completed', 'failed'] })
+        .execute();
+
+      await ReportValidationRun.createQueryBuilder()
+        .delete()
+        .where('created_at < :threshold', { threshold })
+        .andWhere('status IN (:...statuses)', { statuses: ['completed', 'failed'] })
+        .execute();
+    } catch (error) {
+      this.logger.error('Failed to cleanup old validation rows', error);
+      await this.safeNotifyServer(
+        `*[시스템 알림]* report validation cleanup failed\n> ${this.errorService.getErrorMessage(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  public async enqueueMarketBatchValidation(batchId: string): Promise<void> {
+    await this.enqueueBatchValidation('market', batchId);
+  }
+
+  public async enqueuePortfolioBatchValidation(batchId: string): Promise<void> {
+    await this.enqueueBatchValidation('portfolio', batchId);
+  }
+
+  public async buildMarketValidationGuardrailText(): Promise<string | null> {
+    const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const items = await ReportValidationItem.find({
+      where: {
+        reportType: 'market',
+        status: 'completed',
+        createdAt: MoreThanOrEqual(since),
+      } as any,
+      order: {
+        createdAt: 'DESC',
+      },
+      take: 1500,
+    });
+
+    const evaluatedItems = items.filter((item) => item.gptVerdict !== 'invalid');
+    if (evaluatedItems.length < 1) {
+      return null;
+    }
+
+    const items24h = evaluatedItems.filter((item) => item.horizonHours === 24);
+    const items72h = evaluatedItems.filter((item) => item.horizonHours === 72);
+
+    const accuracy24h = this.calculateAccuracy(items24h);
+    const accuracy72h = this.calculateAccuracy(items72h);
+    const highConfidenceItems = evaluatedItems.filter(
+      (item) => this.isFiniteNumber(item.recommendationConfidence) && Number(item.recommendationConfidence) >= 0.7,
+    );
+    const highConfidenceMiss = highConfidenceItems.filter((item) => item.directionHit === false).length;
+    const highConfidenceMissRate =
+      highConfidenceItems.length > 0 ? (highConfidenceMiss / highConfidenceItems.length) * 100 : 0;
+    const topGuardrails = this.extractTopGuardrails(evaluatedItems, 5);
+
+    return [
+      `최근 ${this.VALIDATION_SUMMARY_LOOKBACK_DAYS}일 마켓 리포트 사후검증 요약`,
+      `24h 정확도: ${accuracy24h.ratio.toFixed(2)}% (${accuracy24h.hit}/${accuracy24h.total})`,
+      `72h 정확도: ${accuracy72h.ratio.toFixed(2)}% (${accuracy72h.hit}/${accuracy72h.total})`,
+      `고신뢰(>=70%) 오판율: ${highConfidenceMissRate.toFixed(2)}% (${highConfidenceMiss}/${highConfidenceItems.length})`,
+      `주요 가드레일: ${topGuardrails.length > 0 ? topGuardrails.join(' | ') : '없음'}`,
+    ].join('\n');
+  }
+
+  public async buildPortfolioValidationGuardrailText(symbol: string): Promise<string | null> {
+    const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const symbolItems = await ReportValidationItem.find({
+      where: {
+        reportType: 'portfolio',
+        status: 'completed',
+        symbol,
+        createdAt: MoreThanOrEqual(since),
+      } as any,
+      order: {
+        createdAt: 'DESC',
+      },
+      take: 800,
+    });
+
+    const evaluatedSymbolItems = symbolItems.filter((item) => item.gptVerdict !== 'invalid');
+    if (evaluatedSymbolItems.length < 1) {
+      return null;
+    }
+
+    const items24h = evaluatedSymbolItems.filter((item) => item.horizonHours === 24);
+    const items72h = evaluatedSymbolItems.filter((item) => item.horizonHours === 72);
+    const accuracy24h = this.calculateAccuracy(items24h);
+    const accuracy72h = this.calculateAccuracy(items72h);
+    const avgTradeRoi = this.average(
+      evaluatedSymbolItems
+        .map((item) => (this.isFiniteNumber(item.tradeRoiPct) ? Number(item.tradeRoiPct) : null))
+        .filter((value): value is number => value != null),
+    );
+    const topGlobalGuardrails = await this.getPortfolioGlobalGuardrails();
+
+    return [
+      `최근 ${this.VALIDATION_SUMMARY_LOOKBACK_DAYS}일 포트폴리오 사후검증 요약 (${symbol})`,
+      `24h 방향 정확도: ${accuracy24h.ratio.toFixed(2)}% (${accuracy24h.hit}/${accuracy24h.total})`,
+      `72h 방향 정확도: ${accuracy72h.ratio.toFixed(2)}% (${accuracy72h.hit}/${accuracy72h.total})`,
+      `평균 Trade ROI: ${avgTradeRoi != null ? `${avgTradeRoi.toFixed(2)}%` : 'N/A'}`,
+      `전역 주요 가드레일: ${topGlobalGuardrails.length > 0 ? topGlobalGuardrails.join(' | ') : '없음'}`,
+    ].join('\n');
+  }
+
+  public async getMarketValidationBadgeMap(recommendationIds: string[]): Promise<Map<string, MarketValidationBadges>> {
+    const ids = Array.from(new Set(recommendationIds.filter((id) => !!id)));
+    const map = new Map<string, MarketValidationBadges>();
+    if (ids.length < 1) {
+      return map;
+    }
+
+    const items = await ReportValidationItem.find({
+      where: {
+        sourceRecommendationId: In(ids),
+        reportType: 'market',
+        horizonHours: In([...this.MARKET_HORIZONS]),
+      } as any,
+    });
+
+    for (const item of items) {
+      const existing = map.get(item.sourceRecommendationId) ?? {};
+      const badge = this.buildBadge(item);
+      if (item.horizonHours === 24) {
+        existing.validation24h = badge;
+      } else if (item.horizonHours === 72) {
+        existing.validation72h = badge;
+      }
+      map.set(item.sourceRecommendationId, existing);
+    }
+
+    return map;
+  }
+
+  public async getPortfolioValidationBadgeMap(
+    recommendationIds: string[],
+  ): Promise<Map<string, PortfolioValidationBadges>> {
+    const ids = Array.from(new Set(recommendationIds.filter((id) => !!id)));
+    const map = new Map<string, PortfolioValidationBadges>();
+    if (ids.length < 1) {
+      return map;
+    }
+
+    const items = await ReportValidationItem.find({
+      where: {
+        sourceRecommendationId: In(ids),
+        reportType: 'portfolio',
+        horizonHours: In([...this.PORTFOLIO_HORIZONS]),
+      } as any,
+    });
+
+    for (const item of items) {
+      const existing = map.get(item.sourceRecommendationId) ?? {};
+      const badge = this.buildBadge(item);
+      if (item.horizonHours === 24) {
+        existing.validation24h = badge;
+      } else if (item.horizonHours === 72) {
+        existing.validation72h = badge;
+      }
+      map.set(item.sourceRecommendationId, existing);
+    }
+
+    return map;
+  }
+
+  public async getValidationRuns(params?: {
+    limit?: number;
+    reportType?: ReportType;
+    status?: ReportValidationStatus;
+  }): Promise<ReportValidationRunListItem[]> {
+    const safeLimit = this.clampLimit(params?.limit, 30, 1, 200);
+    const where: Record<string, unknown> = {};
+
+    if (params?.reportType) {
+      where.reportType = params.reportType;
+    }
+
+    if (params?.status) {
+      where.status = params.status;
+    }
+
+    const runs = await ReportValidationRun.find({
+      where: where as any,
+      order: {
+        createdAt: 'DESC',
+      },
+      take: safeLimit,
+    });
+
+    return runs.map((run) => ({
+      id: run.id,
+      seq: run.seq,
+      reportType: run.reportType,
+      sourceBatchId: run.sourceBatchId,
+      horizonHours: run.horizonHours,
+      status: run.status,
+      itemCount: run.itemCount,
+      completedCount: run.completedCount,
+      deterministicScoreAvg: run.deterministicScoreAvg,
+      gptScoreAvg: run.gptScoreAvg,
+      overallScore: run.overallScore,
+      summary: run.summary,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+      error: run.error,
+      createdAt: run.createdAt,
+      updatedAt: run.updatedAt,
+    }));
+  }
+
+  public async getValidationRunItems(runId: string, limit?: number): Promise<ReportValidationRunItemListItem[]> {
+    const safeLimit = this.clampLimit(limit, 200, 1, 1000);
+    const items = await ReportValidationItem.find({
+      where: {
+        run: {
+          id: runId,
+        },
+      } as any,
+      order: {
+        createdAt: 'DESC',
+      },
+      take: safeLimit,
+      relations: {
+        run: true,
+      },
+    });
+
+    return items.map((item) => ({
+      id: item.id,
+      seq: item.seq,
+      runId: item.run.id,
+      reportType: item.reportType,
+      sourceRecommendationId: item.sourceRecommendationId,
+      sourceBatchId: item.sourceBatchId,
+      symbol: item.symbol,
+      horizonHours: item.horizonHours,
+      dueAt: item.dueAt,
+      recommendationCreatedAt: item.recommendationCreatedAt,
+      recommendationReason: item.recommendationReason,
+      recommendationConfidence: item.recommendationConfidence,
+      recommendationWeight: item.recommendationWeight,
+      recommendationIntensity: item.recommendationIntensity,
+      recommendationAction: item.recommendationAction,
+      recommendationPrice: item.recommendationPrice,
+      evaluatedPrice: item.evaluatedPrice,
+      returnPct: item.returnPct,
+      directionHit: item.directionHit,
+      realizedTradePnl: item.realizedTradePnl,
+      realizedTradeAmount: item.realizedTradeAmount,
+      tradeRoiPct: item.tradeRoiPct,
+      deterministicScore: item.deterministicScore,
+      gptVerdict: item.gptVerdict,
+      gptScore: item.gptScore,
+      gptCalibration: item.gptCalibration,
+      gptExplanation: item.gptExplanation,
+      nextGuardrail: item.nextGuardrail,
+      status: item.status,
+      evaluatedAt: item.evaluatedAt,
+      error: item.error,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+  }
+
+  private buildBadge(item: ReportValidationItem): ReportValidationBadge {
+    return {
+      status: item.status,
+      overallScore: this.calculateItemOverallScore(item),
+      verdict: item.gptVerdict,
+      evaluatedAt: item.evaluatedAt,
+    };
+  }
+
+  private async ensureBackfillIfNeeded(): Promise<void> {
+    if (this.backfillChecked) {
+      return;
+    }
+
+    const since = new Date(Date.now() - this.BACKFILL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const [marketRecommendations, balanceRecommendations] = await Promise.all([
+      MarketRecommendation.find({
+        where: {
+          createdAt: MoreThanOrEqual(since),
+        } as any,
+      }),
+      BalanceRecommendation.find({
+        where: {
+          createdAt: MoreThanOrEqual(since),
+        } as any,
+      }),
+    ]);
+
+    const marketBatchIds = Array.from(new Set(marketRecommendations.map((item) => item.batchId)));
+    const balanceBatchIds = Array.from(new Set(balanceRecommendations.map((item) => item.batchId)));
+
+    for (const batchId of marketBatchIds) {
+      await this.enqueueMarketBatchValidation(batchId);
+    }
+
+    for (const batchId of balanceBatchIds) {
+      await this.enqueuePortfolioBatchValidation(batchId);
+    }
+
+    this.backfillChecked = true;
+  }
+
+  private async enqueueBatchValidation(reportType: ReportType, batchId: string): Promise<void> {
+    const horizons = reportType === 'market' ? [...this.MARKET_HORIZONS] : [...this.PORTFOLIO_HORIZONS];
+    const recommendations =
+      reportType === 'market'
+        ? await MarketRecommendation.find({ where: { batchId } })
+        : await BalanceRecommendation.find({ where: { batchId } });
+
+    if (recommendations.length < 1) {
+      return;
+    }
+
+    for (const horizonHours of horizons) {
+      const run = await this.findOrCreateRun(reportType, batchId, horizonHours);
+      const recommendationIds = recommendations.map((item) => item.id);
+      const existing = await ReportValidationItem.find({
+        where: {
+          sourceRecommendationId: In(recommendationIds),
+          horizonHours,
+        } as any,
+        select: ['sourceRecommendationId'],
+      });
+      const existingIdSet = new Set(existing.map((item) => item.sourceRecommendationId));
+
+      const itemsToCreate = await Promise.all(
+        recommendations
+          .filter((item) => !existingIdSet.has(item.id))
+          .map(async (item) => {
+            const entity = new ReportValidationItem();
+            const recommendationCreatedAt = item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt);
+            const recommendationPrice = await this.resolvePriceAtTime(item.symbol, recommendationCreatedAt);
+
+            entity.run = run;
+            entity.reportType = reportType;
+            entity.sourceRecommendationId = item.id;
+            entity.sourceBatchId = batchId;
+            entity.symbol = item.symbol;
+            entity.horizonHours = horizonHours;
+            entity.dueAt = new Date(recommendationCreatedAt.getTime() + horizonHours * 60 * 60 * 1000);
+            entity.recommendationCreatedAt = recommendationCreatedAt;
+            entity.recommendationPrice = recommendationPrice ?? null;
+            entity.status = 'pending';
+            entity.error = null;
+
+            if (reportType === 'market') {
+              const recommendation = item as MarketRecommendation;
+              entity.recommendationReason = recommendation.reason;
+              entity.recommendationConfidence = this.toNullableNumber(recommendation.confidence);
+              entity.recommendationWeight = this.toNullableNumber(recommendation.weight);
+              entity.recommendationIntensity = null;
+              entity.recommendationAction = 'buy';
+            } else {
+              const recommendation = item as BalanceRecommendation;
+              entity.recommendationReason = recommendation.reason;
+              entity.recommendationConfidence = null;
+              entity.recommendationWeight = null;
+              entity.recommendationIntensity = this.toNullableNumber(recommendation.intensity);
+              entity.recommendationAction = recommendation.action ?? null;
+            }
+
+            return entity;
+          }),
+      );
+
+      if (itemsToCreate.length > 0) {
+        try {
+          await ReportValidationItem.save(itemsToCreate, { chunk: 100 });
+        } catch (error) {
+          this.logger.warn(
+            `Validation items insert partially failed for ${reportType}/${batchId}/${horizonHours}`,
+            error,
+          );
+        }
+      }
+
+      run.itemCount = await ReportValidationItem.count({
+        where: {
+          run: {
+            id: run.id,
+          },
+        } as any,
+      });
+      await run.save();
+    }
+  }
+
+  private async findOrCreateRun(
+    reportType: ReportType,
+    sourceBatchId: string,
+    horizonHours: number,
+  ): Promise<ReportValidationRun> {
+    const existing = await ReportValidationRun.findOne({
+      where: { reportType, sourceBatchId, horizonHours },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    const run = new ReportValidationRun();
+    run.reportType = reportType;
+    run.sourceBatchId = sourceBatchId;
+    run.horizonHours = horizonHours;
+    run.status = 'pending';
+    run.itemCount = 0;
+    run.completedCount = 0;
+    run.summary = null;
+    run.error = null;
+    run.startedAt = null;
+    run.completedAt = null;
+    run.deterministicScoreAvg = null;
+    run.gptScoreAvg = null;
+    run.overallScore = null;
+
+    try {
+      return await run.save();
+    } catch {
+      const latest = await ReportValidationRun.findOne({
+        where: { reportType, sourceBatchId, horizonHours },
+      });
+      if (!latest) {
+        throw new Error(`Failed to create report validation run for ${reportType}/${sourceBatchId}/${horizonHours}`);
+      }
+      return latest;
+    }
+  }
+
+  private async processDueItems(): Promise<void> {
+    const now = new Date();
+    const staleRunningThreshold = new Date(now.getTime() - this.RUNNING_STALE_TIMEOUT_MS);
+    const dueItems = await ReportValidationItem.find({
+      where: [
+        {
+          status: 'pending',
+          dueAt: LessThanOrEqual(now),
+        },
+        {
+          status: 'failed',
+          dueAt: LessThanOrEqual(now),
+        },
+        {
+          status: 'running',
+          dueAt: LessThanOrEqual(now),
+          updatedAt: LessThanOrEqual(staleRunningThreshold),
+        },
+      ] as any,
+      relations: {
+        run: true,
+      },
+      order: {
+        dueAt: 'ASC',
+      },
+      take: this.DUE_BATCH_LIMIT,
+    });
+
+    if (dueItems.length < 1) {
+      return;
+    }
+
+    const itemsByRunId = new Map<string, ReportValidationItem[]>();
+    for (const item of dueItems) {
+      const runId = item.run.id;
+      const existing = itemsByRunId.get(runId) ?? [];
+      existing.push(item);
+      itemsByRunId.set(runId, existing);
+    }
+
+    for (const [runId, items] of itemsByRunId.entries()) {
+      const run = items[0]?.run;
+      if (!run || run.id !== runId) {
+        continue;
+      }
+      await this.processRun(run, items);
+    }
+  }
+
+  private async processRun(run: ReportValidationRun, runItems: ReportValidationItem[]): Promise<void> {
+    run.status = 'running';
+    run.startedAt = run.startedAt ?? new Date();
+    run.error = null;
+    await run.save();
+
+    const gptCandidates: ReportValidationItem[] = [];
+
+    for (const item of runItems) {
+      try {
+        const deterministic = await this.evaluateItemDeterministic(item);
+        item.recommendationPrice = deterministic.recommendationPrice;
+        item.evaluatedPrice = deterministic.evaluatedPrice;
+        item.returnPct = deterministic.returnPct;
+        item.directionHit = deterministic.directionHit;
+        item.deterministicScore = deterministic.deterministicScore;
+        item.realizedTradePnl = deterministic.realizedTradePnl;
+        item.realizedTradeAmount = deterministic.realizedTradeAmount;
+        item.tradeRoiPct = deterministic.tradeRoiPct;
+
+        if (deterministic.invalidReason) {
+          item.gptVerdict = 'invalid';
+          item.gptScore = null;
+          item.gptCalibration = null;
+          item.gptExplanation = null;
+          item.nextGuardrail = null;
+          item.status = 'completed';
+          item.evaluatedAt = new Date();
+          item.error = deterministic.invalidReason;
+        } else {
+          item.status = 'running';
+          item.error = null;
+          gptCandidates.push(item);
+        }
+
+        await item.save();
+      } catch (error) {
+        item.status = 'failed';
+        item.error = this.errorService.getErrorMessage(error);
+        item.evaluatedAt = new Date();
+        await item.save();
+      }
+    }
+
+    if (gptCandidates.length > 0) {
+      await this.applyGptEvaluation(gptCandidates);
+    }
+
+    await this.finalizeRun(run);
+  }
+
+  private async evaluateItemDeterministic(item: ReportValidationItem): Promise<DeterministicEvaluation> {
+    const recommendationPrice =
+      this.toNullableNumber(item.recommendationPrice) ??
+      (await this.resolvePriceAtTime(item.symbol, item.recommendationCreatedAt)) ??
+      null;
+
+    const evaluatedPrice = await this.resolvePriceAtTime(item.symbol, item.dueAt);
+
+    if (!this.isFiniteNumber(recommendationPrice) || !this.isFiniteNumber(evaluatedPrice) || recommendationPrice <= 0) {
+      return {
+        recommendationPrice: recommendationPrice ?? null,
+        evaluatedPrice: evaluatedPrice ?? null,
+        returnPct: null,
+        directionHit: null,
+        deterministicScore: null,
+        realizedTradePnl: null,
+        realizedTradeAmount: null,
+        tradeRoiPct: null,
+        invalidReason: 'Unable to resolve recommendation/evaluated price',
+      };
+    }
+
+    const returnPct = ((evaluatedPrice - recommendationPrice) / recommendationPrice) * 100;
+
+    if (item.reportType === 'market') {
+      const signedReturnPct = returnPct;
+      const directionHit = returnPct > 0;
+      const returnComponent = this.clamp((signedReturnPct + 5) / 10, 0, 1);
+      const deterministicScore = this.clamp(0.7 * (directionHit ? 1 : 0) + 0.3 * returnComponent, 0, 1);
+
+      return {
+        recommendationPrice,
+        evaluatedPrice,
+        returnPct,
+        directionHit,
+        deterministicScore,
+        realizedTradePnl: null,
+        realizedTradeAmount: null,
+        tradeRoiPct: null,
+      };
+    }
+
+    const action = this.resolvePortfolioAction(item);
+    const signedReturnPct = action === 'buy' ? returnPct : action === 'sell' ? -returnPct : -Math.abs(returnPct);
+    const directionHit =
+      action === 'buy' ? returnPct > 0 : action === 'sell' ? returnPct < 0 : Math.abs(returnPct) <= 1;
+    const returnComponent = this.clamp((signedReturnPct + 5) / 10, 0, 1);
+
+    const tradeMetrics = await this.fetchTradeMetrics(item.sourceRecommendationId, item.dueAt);
+    const tradeRoiPct =
+      this.isFiniteNumber(tradeMetrics.amount) && tradeMetrics.amount > 0
+        ? (tradeMetrics.profit / tradeMetrics.amount) * 100
+        : null;
+
+    let deterministicScore: number;
+    if (this.isFiniteNumber(tradeRoiPct)) {
+      const tradeComponent = this.clamp((tradeRoiPct + 2) / 4, 0, 1);
+      deterministicScore = this.clamp(
+        0.5 * (directionHit ? 1 : 0) + 0.3 * returnComponent + 0.2 * tradeComponent,
+        0,
+        1,
+      );
+    } else {
+      deterministicScore = this.clamp(0.7 * (directionHit ? 1 : 0) + 0.3 * returnComponent, 0, 1);
+    }
+
+    return {
+      recommendationPrice,
+      evaluatedPrice,
+      returnPct,
+      directionHit,
+      deterministicScore,
+      realizedTradePnl: tradeMetrics.profit,
+      realizedTradeAmount: tradeMetrics.amount,
+      tradeRoiPct,
+    };
+  }
+
+  private resolvePortfolioAction(item: ReportValidationItem): 'buy' | 'sell' | 'hold' {
+    const action = (item.recommendationAction ?? '').toLowerCase();
+    if (action === 'buy' || action === 'sell' || action === 'hold') {
+      return action;
+    }
+
+    const intensity = this.toNullableNumber(item.recommendationIntensity);
+    if (intensity == null) {
+      return 'hold';
+    }
+    return intensity > 0 ? 'buy' : 'sell';
+  }
+
+  private async fetchTradeMetrics(inferenceId: string, dueAt: Date): Promise<{ profit: number; amount: number }> {
+    try {
+      const result = await Trade.createQueryBuilder('trade')
+        .select('SUM(trade.profit)', 'profit')
+        .addSelect('SUM(trade.amount)', 'amount')
+        .where('trade.inference_id = :inferenceId', { inferenceId })
+        .andWhere('trade.created_at <= :dueAt', { dueAt })
+        .getRawOne();
+
+      return {
+        profit: this.toNumber(result?.profit),
+        amount: this.toNumber(result?.amount),
+      };
+    } catch {
+      return {
+        profit: 0,
+        amount: 0,
+      };
+    }
+  }
+
+  private async applyGptEvaluation(items: ReportValidationItem[]): Promise<void> {
+    const requestConfig = {
+      ...REPORT_VALIDATION_EVALUATOR_CONFIG,
+      text: {
+        format: {
+          type: 'json_schema' as const,
+          name: 'report_validation_evaluator',
+          strict: true,
+          schema: REPORT_VALIDATION_EVALUATOR_RESPONSE_SCHEMA as Record<string, unknown>,
+        },
+      },
+    };
+
+    const batchRequestLines = items.map((item) => {
+      const messages = this.buildEvaluatorMessages(item);
+      return this.openaiService.createBatchRequest(item.id, messages, requestConfig);
+    });
+
+    try {
+      const batchId = await this.openaiService.createBatch(batchRequestLines.join('\n'));
+      const batchResults = await this.openaiService.waitBatch(batchId);
+      const resultMap = new Map<string, any>(batchResults.map((result) => [result.custom_id, result]));
+
+      for (const item of items) {
+        const result = resultMap.get(item.id);
+        if (!result || result.error || !result.data) {
+          item.status = 'failed';
+          item.error = result?.error ?? 'Missing GPT evaluation result';
+          item.evaluatedAt = new Date();
+          await item.save();
+          continue;
+        }
+
+        const verdict = String(result.data.verdict ?? '').toLowerCase() as ReportValidationVerdict;
+        item.gptVerdict = ['good', 'mixed', 'bad', 'invalid'].includes(verdict) ? verdict : 'invalid';
+        item.gptScore = this.toNullableNumber(result.data.score);
+        item.gptCalibration = this.toNullableNumber(result.data.calibration);
+        item.gptExplanation = typeof result.data.explanation === 'string' ? result.data.explanation : null;
+        item.nextGuardrail = typeof result.data.nextGuardrail === 'string' ? result.data.nextGuardrail : null;
+        item.status = 'completed';
+        item.evaluatedAt = new Date();
+        item.error = null;
+        await item.save();
+      }
+    } catch (error) {
+      for (const item of items) {
+        item.status = 'failed';
+        item.error = this.errorService.getErrorMessage(error);
+        item.evaluatedAt = new Date();
+      }
+      await ReportValidationItem.save(items, { chunk: 100 });
+    }
+  }
+
+  private buildEvaluatorMessages(item: ReportValidationItem): EasyInputMessage[] {
+    const messages: EasyInputMessage[] = [];
+    this.openaiService.addMessage(messages, 'system', REPORT_VALIDATION_EVALUATOR_PROMPT);
+
+    const payload = {
+      reportType: item.reportType,
+      symbol: item.symbol,
+      horizonHours: item.horizonHours,
+      recommendation: {
+        reason: item.recommendationReason,
+        confidence: item.recommendationConfidence,
+        weight: item.recommendationWeight,
+        intensity: item.recommendationIntensity,
+        action: item.recommendationAction,
+        recommendationPrice: item.recommendationPrice,
+        recommendationCreatedAt: item.recommendationCreatedAt,
+      },
+      observed: {
+        evaluatedPrice: item.evaluatedPrice,
+        returnPct: item.returnPct,
+        directionHit: item.directionHit,
+        deterministicScore: item.deterministicScore,
+        realizedTradePnl: item.realizedTradePnl,
+        realizedTradeAmount: item.realizedTradeAmount,
+        tradeRoiPct: item.tradeRoiPct,
+      },
+    };
+
+    this.openaiService.addMessage(messages, 'user', JSON.stringify(payload, null, 2));
+    return messages;
+  }
+
+  private async finalizeRun(run: ReportValidationRun): Promise<void> {
+    const items = await ReportValidationItem.find({
+      where: {
+        run: {
+          id: run.id,
+        },
+      } as any,
+    });
+
+    const completedItems = items.filter((item) => item.status === 'completed');
+    const failedItems = items.filter((item) => item.status === 'failed');
+    const pendingOrRunningItems = items.filter((item) => item.status === 'pending' || item.status === 'running');
+    const deterministicScores = completedItems
+      .map((item) => this.toNullableNumber(item.deterministicScore))
+      .filter((score): score is number => score != null);
+    const gptScores = completedItems
+      .map((item) => this.toNullableNumber(item.gptScore))
+      .filter((score): score is number => score != null);
+
+    run.itemCount = items.length;
+    run.completedCount = completedItems.length;
+    run.deterministicScoreAvg = this.average(deterministicScores);
+    run.gptScoreAvg = this.average(gptScores);
+    run.overallScore = this.calculateRunOverallScore(run.deterministicScoreAvg, run.gptScoreAvg);
+    run.summary = this.buildRunSummary(completedItems);
+
+    const isTerminal = pendingOrRunningItems.length < 1;
+    run.status = isTerminal
+      ? failedItems.length > 0 && completedItems.length < 1
+        ? 'failed'
+        : 'completed'
+      : 'running';
+    run.completedAt = isTerminal ? new Date() : null;
+    run.error =
+      failedItems.length > 0
+        ? `failed items=${failedItems.length}, sample=${failedItems
+            .slice(0, 3)
+            .map((item) => item.symbol)
+            .join(',')}`
+        : null;
+
+    await run.save();
+
+    if (run.reportType === 'portfolio' && isTerminal) {
+      this.clearPortfolioGlobalGuardrailsCache();
+    }
+
+    if (isTerminal && failedItems.length > 0) {
+      await this.safeNotifyServer(
+        `*[시스템 알림]* report validation partially failed\n> run=${run.id}\n> reportType=${run.reportType}\n> batch=${run.sourceBatchId}\n> horizon=${run.horizonHours}\n> failed=${failedItems.length}`,
+      );
+    }
+  }
+
+  private buildRunSummary(items: ReportValidationItem[]): string {
+    const validItems = items.filter((item) => item.gptVerdict !== 'invalid');
+    if (validItems.length < 1) {
+      return 'No valid items';
+    }
+
+    const overallScores = validItems
+      .map((item) => this.calculateItemOverallScore(item))
+      .filter((score): score is number => this.isFiniteNumber(score));
+    const lowScoreItems = validItems.filter((item) => {
+      const score = this.calculateItemOverallScore(item);
+      return this.isFiniteNumber(score) && score < this.LOW_SCORE_THRESHOLD;
+    });
+    const topGuardrails = this.extractTopGuardrails(lowScoreItems, 3);
+    const accuracy = this.calculateAccuracy(validItems);
+    const avgReturn = this.average(
+      validItems.map((item) => this.toNullableNumber(item.returnPct)).filter((value): value is number => value != null),
+    );
+    const avgOverall = this.average(overallScores);
+
+    return [
+      `accuracy=${accuracy.ratio.toFixed(2)}% (${accuracy.hit}/${accuracy.total})`,
+      `avgReturn=${avgReturn != null ? `${avgReturn.toFixed(2)}%` : 'N/A'}`,
+      `avgOverall=${avgOverall != null ? avgOverall.toFixed(4) : 'N/A'}`,
+      `lowScore=${lowScoreItems.length}`,
+      `guardrails=${topGuardrails.length > 0 ? topGuardrails.join(' | ') : 'none'}`,
+    ].join(', ');
+  }
+
+  private extractTopGuardrails(items: ReportValidationItem[], limit: number): string[] {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const guardrail = (item.nextGuardrail ?? '').trim();
+      if (!guardrail) {
+        continue;
+      }
+      counts.set(guardrail, (counts.get(guardrail) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([guardrail]) => guardrail);
+  }
+
+  private async getPortfolioGlobalGuardrails(): Promise<string[]> {
+    const now = Date.now();
+
+    if (this.portfolioGlobalGuardrailsCache && this.portfolioGlobalGuardrailsCache.expiresAt > now) {
+      return this.portfolioGlobalGuardrailsCache.guardrails;
+    }
+
+    if (this.portfolioGlobalGuardrailsInFlight) {
+      return this.portfolioGlobalGuardrailsInFlight;
+    }
+
+    const loadPromise = (async () => {
+      const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const globalItems = await ReportValidationItem.find({
+        where: {
+          reportType: 'portfolio',
+          status: 'completed',
+          createdAt: MoreThanOrEqual(since),
+        } as any,
+        order: {
+          createdAt: 'DESC',
+        },
+        take: 2000,
+      });
+
+      const guardrails = this.extractTopGuardrails(
+        globalItems.filter((item) => item.gptVerdict !== 'invalid'),
+        4,
+      );
+      this.portfolioGlobalGuardrailsCache = {
+        expiresAt: Date.now() + this.PORTFOLIO_GLOBAL_GUARDRAIL_CACHE_TTL_MS,
+        guardrails,
+      };
+      return guardrails;
+    })();
+
+    this.portfolioGlobalGuardrailsInFlight = loadPromise;
+    try {
+      return await loadPromise;
+    } finally {
+      if (this.portfolioGlobalGuardrailsInFlight === loadPromise) {
+        this.portfolioGlobalGuardrailsInFlight = null;
+      }
+    }
+  }
+
+  private clearPortfolioGlobalGuardrailsCache(): void {
+    this.portfolioGlobalGuardrailsCache = null;
+  }
+
+  private calculateAccuracy(items: ReportValidationItem[]): { hit: number; total: number; ratio: number } {
+    const directional = items.filter((item) => item.directionHit != null);
+    const hit = directional.filter((item) => item.directionHit === true).length;
+    const total = directional.length;
+    return {
+      hit,
+      total,
+      ratio: total > 0 ? (hit / total) * 100 : 0,
+    };
+  }
+
+  private calculateItemOverallScore(
+    item: Pick<ReportValidationItem, 'deterministicScore' | 'gptScore'>,
+  ): number | null {
+    const deterministic = this.toNullableNumber(item.deterministicScore);
+    const gptScore = this.toNullableNumber(item.gptScore);
+
+    if (deterministic != null && gptScore != null) {
+      return this.clamp(0.6 * deterministic + 0.4 * gptScore, 0, 1);
+    }
+
+    if (deterministic != null) {
+      return this.clamp(deterministic, 0, 1);
+    }
+
+    if (gptScore != null) {
+      return this.clamp(gptScore, 0, 1);
+    }
+
+    return null;
+  }
+
+  private calculateRunOverallScore(deterministic: number | null, gpt: number | null): number | null {
+    const deterministicScore = this.toNullableNumber(deterministic);
+    const gptScore = this.toNullableNumber(gpt);
+
+    if (deterministicScore != null && gptScore != null) {
+      return this.clamp(0.6 * deterministicScore + 0.4 * gptScore, 0, 1);
+    }
+    if (deterministicScore != null) {
+      return this.clamp(deterministicScore, 0, 1);
+    }
+    if (gptScore != null) {
+      return this.clamp(gptScore, 0, 1);
+    }
+    return null;
+  }
+
+  private async resolvePriceAtTime(symbol: string, time: Date): Promise<number | undefined> {
+    try {
+      const minuteOpen = await this.upbitService.getMinuteCandleAt(symbol, time);
+      if (this.isFiniteNumber(minuteOpen) && minuteOpen > 0) {
+        return minuteOpen;
+      }
+    } catch {
+      // no-op
+    }
+
+    try {
+      const marketData = await this.upbitService.getMarketData(symbol);
+      const currentPrice = this.toNullableNumber(marketData?.ticker?.last);
+      const candles1d = marketData?.candles1d ?? [];
+      const targetDate = new Date(time).toISOString().slice(0, 10);
+      const sameDate = candles1d.find(
+        (candle: number[]) => new Date(candle[0]).toISOString().slice(0, 10) === targetDate,
+      );
+
+      if (sameDate && sameDate.length >= 5 && this.isFiniteNumber(sameDate[4])) {
+        return Number(sameDate[4]);
+      }
+
+      if (candles1d.length > 0) {
+        const last = candles1d[candles1d.length - 1];
+        if (last && last.length >= 5 && this.isFiniteNumber(last[4])) {
+          return Number(last[4]);
+        }
+      }
+
+      return currentPrice ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private clampLimit(value: number | undefined, fallback: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return fallback;
+    }
+
+    const parsed = Math.floor(Number(value));
+    if (parsed < min) return min;
+    if (parsed > max) return max;
+    return parsed;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return min;
+    }
+
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
+
+  private average(values: number[]): number | null {
+    if (values.length < 1) {
+      return null;
+    }
+
+    const sum = values.reduce((acc, value) => acc + value, 0);
+    return sum / values.length;
+  }
+
+  private isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  private toNullableNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  private toNumber(value: unknown): number {
+    const parsed = this.toNullableNumber(value);
+    return parsed ?? 0;
+  }
+
+  private async safeNotifyServer(message: string): Promise<void> {
+    try {
+      await this.notifyService.notifyServer(message);
+    } catch (error) {
+      this.logger.warn('Failed to notify server for report validation', error);
+    }
+  }
+}

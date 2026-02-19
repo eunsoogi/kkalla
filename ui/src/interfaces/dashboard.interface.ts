@@ -1,3 +1,5 @@
+import { ReportValidationBadge } from './inference.interface';
+
 /** 최신 마켓 리포트 (추천 시점 대비 변동률 포함) */
 export interface MarketReportWithChange {
   id: string;
@@ -12,6 +14,8 @@ export interface MarketReportWithChange {
   recommendationPrice?: number;
   currentPrice?: number;
   priceChangePct?: number;
+  validation24h?: ReportValidationBadge;
+  validation72h?: ReportValidationBadge;
 }
 
 /** 보유 종목 (History 기반, 당일 변동량 포함) */

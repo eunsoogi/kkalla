@@ -15,6 +15,7 @@ import { OpenaiService } from '../openai/openai.service';
 import { ProfitService } from '../profit/profit.service';
 import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { RedlockService } from '../redlock/redlock.service';
+import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
 import { OrderTypes } from '../upbit/upbit.enum';
@@ -148,6 +149,13 @@ describe('MarketVolatilityService', () => {
           provide: ErrorService,
           useValue: {
             retryWithFallback: jest.fn((fn: () => Promise<unknown>) => fn()),
+          },
+        },
+        {
+          provide: ReportValidationService,
+          useValue: {
+            enqueuePortfolioBatchValidation: jest.fn().mockResolvedValue(undefined),
+            buildPortfolioValidationGuardrailText: jest.fn().mockResolvedValue(null),
           },
         },
       ],

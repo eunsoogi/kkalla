@@ -12,6 +12,7 @@ import { NotifyModule } from '../notify/notify.module';
 import { OpenaiModule } from '../openai/openai.module';
 import { ProfitModule } from '../profit/profit.module';
 import { RedlockModule } from '../redlock/redlock.module';
+import { ReportValidationModule } from '../report-validation/report-validation.module';
 import { ScheduleModule } from '../schedule/schedule.module';
 import { UpbitModule } from '../upbit/upbit.module';
 import { BalanceRecommendationSubscriber } from './entities/balance-recommendation.subscriber';
@@ -34,6 +35,7 @@ import { RebalanceService } from './rebalance.service';
     OpenaiModule,
     FeatureModule,
     ErrorModule,
+    ReportValidationModule,
   ],
   controllers: [RebalanceController],
   providers: [RebalanceService, BalanceRecommendationSubscriber],
