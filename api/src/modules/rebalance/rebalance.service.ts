@@ -434,6 +434,7 @@ export class RebalanceService implements OnModuleInit {
 
     // 권한이 있는 추론이 없으면 리포트/알림 없이 종료
     if (authorizedBalanceRecommendations.length === 0) {
+      this.clearClients();
       return [];
     }
 

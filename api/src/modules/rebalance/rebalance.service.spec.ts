@@ -505,5 +505,7 @@ describe('RebalanceService', () => {
     expect(result).toEqual([]);
     expect(notifyService.notify).not.toHaveBeenCalled();
     expect(upbitService.getBalances).not.toHaveBeenCalled();
+    expect(upbitService.clearClients).toHaveBeenCalledTimes(1);
+    expect(notifyService.clearClients).toHaveBeenCalledTimes(1);
   });
 });
