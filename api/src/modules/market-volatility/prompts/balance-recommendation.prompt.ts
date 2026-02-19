@@ -8,6 +8,10 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 - 필드:
   - symbol: string (입력된 대상 심볼과 정확히 동일해야 하며, 형식은 "BASE/KRW")
   - intensity: number (-1 ~ 1)
+  - reason: string
+    - 최소 2개의 독립 근거를 포함합니다. (예: 추세/지지저항/거래량/이벤트/거시 중 2개 이상)
+    - 반드시 confidence=0~1 수치와 expectedVolatility=+/-x% 형식을 포함합니다.
+    - 한글 1~2문장으로 간결하게 작성합니다.
 - 추가 텍스트, 코드블록, 설명은 출력하지 않습니다.
 
 [핵심 원칙]
@@ -76,7 +80,10 @@ export const UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA = {
       minimum: -1,
       maximum: 1,
     },
+    reason: {
+      type: 'string',
+    },
   },
-  required: ['symbol', 'intensity'],
+  required: ['symbol', 'intensity', 'reason'],
   additionalProperties: false,
 };

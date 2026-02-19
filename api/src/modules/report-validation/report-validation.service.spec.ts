@@ -1,6 +1,7 @@
 import { MarketRecommendation } from '../market-research/entities/market-recommendation.entity';
 import { BalanceRecommendation } from '../rebalance/entities/balance-recommendation.entity';
 import { ReportValidationItem } from './entities/report-validation-item.entity';
+import { ReportValidationRun } from './entities/report-validation-run.entity';
 import { ReportValidationService } from './report-validation.service';
 
 describe('ReportValidationService', () => {
@@ -79,6 +80,23 @@ describe('ReportValidationService', () => {
     expect(holdAction).toBe('hold');
   });
 
+  it('should extract confidence from portfolio reason text', () => {
+    const confidence = (service as any).extractConfidenceFromReason(
+      '거래량 증가와 이벤트 모멘텀 반영, confidence=0.73, expectedVolatility=+/-2.4%',
+    );
+
+    expect(confidence).toBeCloseTo(0.73, 5);
+  });
+
+  it('should fallback to abs(intensity) when portfolio reason has no confidence', () => {
+    const confidence = (service as any).resolvePortfolioRecommendationConfidence({
+      reason: '거래량 증가 + 단기 추세 상향',
+      intensity: -0.42,
+    });
+
+    expect(confidence).toBeCloseTo(0.42, 5);
+  });
+
   it('should build summary with top guardrails from low score items', () => {
     const summary = (service as any).buildRunSummary([
       {
@@ -109,6 +127,105 @@ describe('ReportValidationService', () => {
 
     expect(summary).toContain('accuracy=');
     expect(summary).toContain('guardrails=외부 이벤트 확인 강화');
+  });
+
+  it('should paginate validation runs', async () => {
+    const findAndCountSpy = jest.spyOn(ReportValidationRun, 'findAndCount').mockResolvedValue([
+      [
+        {
+          id: 'run-1',
+          seq: 10,
+          reportType: 'portfolio',
+          sourceBatchId: 'batch-1',
+          horizonHours: 24,
+          status: 'completed',
+          itemCount: 20,
+          completedCount: 20,
+          deterministicScoreAvg: 0.6,
+          gptScoreAvg: 0.5,
+          overallScore: 0.56,
+          summary: 'summary',
+          startedAt: new Date(),
+          completedAt: new Date(),
+          error: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as any,
+      53,
+    ]);
+
+    const result = await service.getValidationRuns({ page: 2, perPage: 20, reportType: 'portfolio' });
+
+    expect(findAndCountSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 20,
+        skip: 20,
+        where: expect.objectContaining({ reportType: 'portfolio' }),
+      }),
+    );
+    expect(result.page).toBe(2);
+    expect(result.perPage).toBe(20);
+    expect(result.total).toBe(53);
+    expect(result.totalPages).toBe(3);
+    expect(result.items).toHaveLength(1);
+  });
+
+  it('should paginate validation run items', async () => {
+    const findAndCountSpy = jest.spyOn(ReportValidationItem, 'findAndCount').mockResolvedValue([
+      [
+        {
+          id: 'item-1',
+          seq: 1,
+          run: { id: 'run-1' },
+          reportType: 'portfolio',
+          sourceRecommendationId: 'rec-1',
+          sourceBatchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          horizonHours: 24,
+          dueAt: new Date(),
+          recommendationCreatedAt: new Date(),
+          recommendationReason: 'reason',
+          recommendationConfidence: 0.7,
+          recommendationWeight: null,
+          recommendationIntensity: 0.3,
+          recommendationAction: 'buy',
+          recommendationPrice: 100,
+          evaluatedPrice: 102,
+          returnPct: 2,
+          directionHit: true,
+          realizedTradePnl: 1000,
+          realizedTradeAmount: 10000,
+          tradeRoiPct: 10,
+          deterministicScore: 0.8,
+          gptVerdict: 'good',
+          gptScore: 0.7,
+          gptCalibration: 0.7,
+          gptExplanation: 'ok',
+          nextGuardrail: 'guardrail',
+          status: 'completed',
+          evaluatedAt: new Date(),
+          error: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as any,
+      201,
+    ]);
+
+    const result = await service.getValidationRunItems('run-1', { page: 3, perPage: 50 });
+
+    expect(findAndCountSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 50,
+        skip: 100,
+      }),
+    );
+    expect(result.page).toBe(3);
+    expect(result.perPage).toBe(50);
+    expect(result.total).toBe(201);
+    expect(result.totalPages).toBe(5);
+    expect(result.items).toHaveLength(1);
   });
 
   it('should retry backfill after an initial failure', async () => {

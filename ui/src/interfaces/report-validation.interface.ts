@@ -1,3 +1,5 @@
+import { PaginatedItem } from './item.interface';
+
 export type ReportType = 'market' | 'portfolio';
 export type ReportValidationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ReportValidationVerdict = 'good' | 'mixed' | 'bad' | 'invalid';
@@ -57,3 +59,6 @@ export interface ReportValidationItem {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ReportValidationRunPage = PaginatedItem<ReportValidationRun>;
+export type ReportValidationItemPage = PaginatedItem<ReportValidationItem>;

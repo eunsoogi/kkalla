@@ -27,7 +27,9 @@ import {
   PortfolioValidationBadges,
   ReportType,
   ReportValidationBadge,
+  ReportValidationRunItemPage,
   ReportValidationRunItemListItem,
+  ReportValidationRunPage,
   ReportValidationRunListItem,
   ReportValidationStatus,
   ReportValidationVerdict,
@@ -283,10 +285,13 @@ export class ReportValidationService {
 
   public async getValidationRuns(params?: {
     limit?: number;
+    page?: number;
+    perPage?: number;
     reportType?: ReportType;
     status?: ReportValidationStatus;
-  }): Promise<ReportValidationRunListItem[]> {
-    const safeLimit = this.clampLimit(params?.limit, 30, 1, 200);
+  }): Promise<ReportValidationRunPage> {
+    const safePage = this.clampLimit(params?.page, 1, 1, 1000000);
+    const safePerPage = this.clampLimit(params?.perPage ?? params?.limit, 30, 1, 200);
     const where: Record<string, unknown> = {};
 
     if (params?.reportType) {
@@ -297,38 +302,49 @@ export class ReportValidationService {
       where.status = params.status;
     }
 
-    const runs = await ReportValidationRun.find({
+    const [runs, total] = await ReportValidationRun.findAndCount({
       where: where as any,
       order: {
         createdAt: 'DESC',
       },
-      take: safeLimit,
+      take: safePerPage,
+      skip: (safePage - 1) * safePerPage,
     });
 
-    return runs.map((run) => ({
-      id: run.id,
-      seq: run.seq,
-      reportType: run.reportType,
-      sourceBatchId: run.sourceBatchId,
-      horizonHours: run.horizonHours,
-      status: run.status,
-      itemCount: run.itemCount,
-      completedCount: run.completedCount,
-      deterministicScoreAvg: run.deterministicScoreAvg,
-      gptScoreAvg: run.gptScoreAvg,
-      overallScore: run.overallScore,
-      summary: run.summary,
-      startedAt: run.startedAt,
-      completedAt: run.completedAt,
-      error: run.error,
-      createdAt: run.createdAt,
-      updatedAt: run.updatedAt,
-    }));
+    return {
+      items: runs.map((run) => ({
+        id: run.id,
+        seq: run.seq,
+        reportType: run.reportType,
+        sourceBatchId: run.sourceBatchId,
+        horizonHours: run.horizonHours,
+        status: run.status,
+        itemCount: run.itemCount,
+        completedCount: run.completedCount,
+        deterministicScoreAvg: run.deterministicScoreAvg,
+        gptScoreAvg: run.gptScoreAvg,
+        overallScore: run.overallScore,
+        summary: run.summary,
+        startedAt: run.startedAt,
+        completedAt: run.completedAt,
+        error: run.error,
+        createdAt: run.createdAt,
+        updatedAt: run.updatedAt,
+      })),
+      total,
+      page: safePage,
+      perPage: safePerPage,
+      totalPages: Math.ceil(total / safePerPage),
+    };
   }
 
-  public async getValidationRunItems(runId: string, limit?: number): Promise<ReportValidationRunItemListItem[]> {
-    const safeLimit = this.clampLimit(limit, 200, 1, 1000);
-    const items = await ReportValidationItem.find({
+  public async getValidationRunItems(
+    runId: string,
+    params?: { limit?: number; page?: number; perPage?: number },
+  ): Promise<ReportValidationRunItemPage> {
+    const safePage = this.clampLimit(params?.page, 1, 1, 1000000);
+    const safePerPage = this.clampLimit(params?.perPage ?? params?.limit, 200, 1, 1000);
+    const [items, total] = await ReportValidationItem.findAndCount({
       where: {
         run: {
           id: runId,
@@ -337,47 +353,54 @@ export class ReportValidationService {
       order: {
         createdAt: 'DESC',
       },
-      take: safeLimit,
+      take: safePerPage,
+      skip: (safePage - 1) * safePerPage,
       relations: {
         run: true,
       },
     });
 
-    return items.map((item) => ({
-      id: item.id,
-      seq: item.seq,
-      runId: item.run.id,
-      reportType: item.reportType,
-      sourceRecommendationId: item.sourceRecommendationId,
-      sourceBatchId: item.sourceBatchId,
-      symbol: item.symbol,
-      horizonHours: item.horizonHours,
-      dueAt: item.dueAt,
-      recommendationCreatedAt: item.recommendationCreatedAt,
-      recommendationReason: item.recommendationReason,
-      recommendationConfidence: item.recommendationConfidence,
-      recommendationWeight: item.recommendationWeight,
-      recommendationIntensity: item.recommendationIntensity,
-      recommendationAction: item.recommendationAction,
-      recommendationPrice: item.recommendationPrice,
-      evaluatedPrice: item.evaluatedPrice,
-      returnPct: item.returnPct,
-      directionHit: item.directionHit,
-      realizedTradePnl: item.realizedTradePnl,
-      realizedTradeAmount: item.realizedTradeAmount,
-      tradeRoiPct: item.tradeRoiPct,
-      deterministicScore: item.deterministicScore,
-      gptVerdict: item.gptVerdict,
-      gptScore: item.gptScore,
-      gptCalibration: item.gptCalibration,
-      gptExplanation: item.gptExplanation,
-      nextGuardrail: item.nextGuardrail,
-      status: item.status,
-      evaluatedAt: item.evaluatedAt,
-      error: item.error,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    }));
+    return {
+      items: items.map((item) => ({
+        id: item.id,
+        seq: item.seq,
+        runId: item.run.id,
+        reportType: item.reportType,
+        sourceRecommendationId: item.sourceRecommendationId,
+        sourceBatchId: item.sourceBatchId,
+        symbol: item.symbol,
+        horizonHours: item.horizonHours,
+        dueAt: item.dueAt,
+        recommendationCreatedAt: item.recommendationCreatedAt,
+        recommendationReason: item.recommendationReason,
+        recommendationConfidence: item.recommendationConfidence,
+        recommendationWeight: item.recommendationWeight,
+        recommendationIntensity: item.recommendationIntensity,
+        recommendationAction: item.recommendationAction,
+        recommendationPrice: item.recommendationPrice,
+        evaluatedPrice: item.evaluatedPrice,
+        returnPct: item.returnPct,
+        directionHit: item.directionHit,
+        realizedTradePnl: item.realizedTradePnl,
+        realizedTradeAmount: item.realizedTradeAmount,
+        tradeRoiPct: item.tradeRoiPct,
+        deterministicScore: item.deterministicScore,
+        gptVerdict: item.gptVerdict,
+        gptScore: item.gptScore,
+        gptCalibration: item.gptCalibration,
+        gptExplanation: item.gptExplanation,
+        nextGuardrail: item.nextGuardrail,
+        status: item.status,
+        evaluatedAt: item.evaluatedAt,
+        error: item.error,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
+      total,
+      page: safePage,
+      perPage: safePerPage,
+      totalPages: Math.ceil(total / safePerPage),
+    };
   }
 
   private buildBadge(item: ReportValidationItem): ReportValidationBadge {
@@ -479,7 +502,7 @@ export class ReportValidationService {
             } else {
               const recommendation = item as BalanceRecommendation;
               entity.recommendationReason = recommendation.reason;
-              entity.recommendationConfidence = null;
+              entity.recommendationConfidence = this.resolvePortfolioRecommendationConfidence(recommendation);
               entity.recommendationWeight = null;
               entity.recommendationIntensity = this.toNullableNumber(recommendation.intensity);
               entity.recommendationAction = recommendation.action ?? null;
@@ -1107,6 +1130,49 @@ export class ReportValidationService {
     } catch {
       return undefined;
     }
+  }
+
+  private resolvePortfolioRecommendationConfidence(recommendation: BalanceRecommendation): number | null {
+    const fromReason = this.extractConfidenceFromReason(recommendation.reason);
+    if (fromReason != null) {
+      return fromReason;
+    }
+
+    const intensity = this.toNullableNumber(recommendation.intensity);
+    if (intensity == null) {
+      return null;
+    }
+
+    return this.clamp(Math.abs(intensity), 0, 1);
+  }
+
+  private extractConfidenceFromReason(reason: string | null | undefined): number | null {
+    if (typeof reason !== 'string' || reason.trim() === '') {
+      return null;
+    }
+
+    const normalized = reason.replace(/,/g, '.');
+    const candidates = [
+      /confidence\s*[:=]\s*([01](?:\.\d+)?)/i,
+      /신뢰도\s*[:=]\s*([01](?:\.\d+)?)/i,
+      /확신도\s*[:=]\s*([01](?:\.\d+)?)/i,
+    ];
+
+    for (const pattern of candidates) {
+      const matched = normalized.match(pattern);
+      if (!matched || !matched[1]) {
+        continue;
+      }
+
+      const parsed = this.toNullableNumber(matched[1]);
+      if (parsed == null) {
+        continue;
+      }
+
+      return this.clamp(parsed, 0, 1);
+    }
+
+    return null;
   }
 
   private clampLimit(value: number | undefined, fallback: number, min: number, max: number): number {

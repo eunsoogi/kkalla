@@ -6,8 +6,8 @@ import { PermissionGuard } from '../auth/guards/permission.guard';
 import { Permission } from '../permission/permission.enum';
 import {
   ReportType,
-  ReportValidationRunItemListItem,
-  ReportValidationRunListItem,
+  ReportValidationRunItemPage,
+  ReportValidationRunPage,
   ReportValidationStatus,
 } from './report-validation.interface';
 import { ReportValidationService } from './report-validation.service';
@@ -21,15 +21,21 @@ export class ReportValidationController {
   @Get('runs')
   public async getRuns(
     @Query('limit') limitRaw?: string,
+    @Query('page') pageRaw?: string,
+    @Query('perPage') perPageRaw?: string,
     @Query('reportType') reportTypeRaw?: string,
     @Query('status') statusRaw?: string,
-  ): Promise<ReportValidationRunListItem[]> {
+  ): Promise<ReportValidationRunPage> {
     const reportType = this.parseReportType(reportTypeRaw);
     const status = this.parseStatus(statusRaw);
     const limit = this.parseLimit(limitRaw);
+    const page = this.parseLimit(pageRaw);
+    const perPage = this.parseLimit(perPageRaw);
 
     return this.reportValidationService.getValidationRuns({
       limit,
+      page,
+      perPage,
       reportType,
       status,
     });
@@ -39,9 +45,13 @@ export class ReportValidationController {
   public async getRunItems(
     @Param('runId') runId: string,
     @Query('limit') limitRaw?: string,
-  ): Promise<ReportValidationRunItemListItem[]> {
+    @Query('page') pageRaw?: string,
+    @Query('perPage') perPageRaw?: string,
+  ): Promise<ReportValidationRunItemPage> {
     const limit = this.parseLimit(limitRaw);
-    return this.reportValidationService.getValidationRunItems(runId, limit);
+    const page = this.parseLimit(pageRaw);
+    const perPage = this.parseLimit(perPageRaw);
+    return this.reportValidationService.getValidationRunItems(runId, { limit, page, perPage });
   }
 
   private parseReportType(value?: string): ReportType | undefined {

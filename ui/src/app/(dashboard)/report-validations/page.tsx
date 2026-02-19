@@ -16,7 +16,9 @@ import { Permission } from '@/interfaces/permission.interface';
 import {
   ReportType,
   ReportValidationItem,
+  ReportValidationItemPage,
   ReportValidationRun,
+  ReportValidationRunPage,
   ReportValidationStatus,
   ReportValidationVerdict,
 } from '@/interfaces/report-validation.interface';
@@ -91,6 +93,8 @@ const calculateItemOverallScore = (item: ReportValidationItem): number | null =>
 };
 
 const Page: React.FC = () => {
+  const RUNS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 50;
   const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations();
   const permissions = session?.permissions ?? [];
@@ -98,18 +102,22 @@ const Page: React.FC = () => {
   const canLoadReportValidationData = sessionStatus === 'authenticated' && hasReportValidationAccess;
   const [reportType, setReportType] = useState<'all' | ReportType>('all');
   const [status, setStatus] = useState<'all' | ReportValidationStatus>('all');
+  const [runsPage, setRunsPage] = useState(1);
+  const [itemsPage, setItemsPage] = useState(1);
   const [selectedRunId, setSelectedRunId] = useState<string>('');
 
-  const { data: runs = [], isLoading: isRunsLoading } = useQuery<ReportValidationRun[]>({
-    queryKey: ['report-validation', 'runs', reportType, status],
+  const { data: runsData, isLoading: isRunsLoading } = useQuery<ReportValidationRunPage>({
+    queryKey: ['report-validation', 'runs', reportType, status, runsPage],
     queryFn: () =>
       getReportValidationRunsAction({
         reportType,
         status,
-        limit: 80,
+        page: runsPage,
+        perPage: RUNS_PER_PAGE,
       }),
     enabled: canLoadReportValidationData,
   });
+  const runs: ReportValidationRun[] = useMemo(() => runsData?.items ?? [], [runsData]);
 
   const activeRunId = useMemo(() => {
     if (runs.length < 1) {
@@ -122,11 +130,16 @@ const Page: React.FC = () => {
 
   const selectedRun = useMemo(() => runs.find((run) => run.id === activeRunId), [runs, activeRunId]);
 
-  const { data: items = [], isLoading: isItemsLoading } = useQuery<ReportValidationItem[]>({
-    queryKey: ['report-validation', 'run-items', activeRunId],
-    queryFn: () => getReportValidationRunItemsAction(activeRunId, 300),
+  const { data: itemsData, isLoading: isItemsLoading } = useQuery<ReportValidationItemPage>({
+    queryKey: ['report-validation', 'run-items', activeRunId, itemsPage],
+    queryFn: () =>
+      getReportValidationRunItemsAction(activeRunId, {
+        page: itemsPage,
+        perPage: ITEMS_PER_PAGE,
+      }),
     enabled: canLoadReportValidationData && !!activeRunId,
   });
+  const items: ReportValidationItem[] = useMemo(() => itemsData?.items ?? [], [itemsData]);
 
   const summaryStats = useMemo(() => {
     const pendingOrRunning = runs.filter((run) => run.status === 'pending' || run.status === 'running').length;
@@ -137,12 +150,12 @@ const Page: React.FC = () => {
     const avgScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
 
     return {
-      totalRuns: runs.length,
+      totalRuns: runsData?.total ?? 0,
       pendingOrRunning,
       completed,
       avgScore,
     };
-  }, [runs]);
+  }, [runs, runsData?.total]);
 
   const itemStats = useMemo(() => {
     const validItems = items.filter((item) => item.gptVerdict !== 'invalid');
@@ -209,7 +222,12 @@ const Page: React.FC = () => {
               <Select
                 id='reportType'
                 value={reportType}
-                onChange={(event) => setReportType(event.target.value as 'all' | ReportType)}
+                onChange={(event) => {
+                  setReportType(event.target.value as 'all' | ReportType);
+                  setRunsPage(1);
+                  setItemsPage(1);
+                  setSelectedRunId('');
+                }}
               >
                 <option value='all'>{t('reportValidation.filters.all')}</option>
                 <option value='market'>{t('reportValidation.type.market')}</option>
@@ -222,7 +240,12 @@ const Page: React.FC = () => {
               <Select
                 id='status'
                 value={status}
-                onChange={(event) => setStatus(event.target.value as 'all' | ReportValidationStatus)}
+                onChange={(event) => {
+                  setStatus(event.target.value as 'all' | ReportValidationStatus);
+                  setRunsPage(1);
+                  setItemsPage(1);
+                  setSelectedRunId('');
+                }}
               >
                 <option value='all'>{t('reportValidation.filters.all')}</option>
                 <option value='pending'>{t('reportValidation.status.pending')}</option>
@@ -287,7 +310,10 @@ const Page: React.FC = () => {
                     return (
                       <TableRow
                         key={run.id}
-                        onClick={() => setSelectedRunId(run.id)}
+                        onClick={() => {
+                          setSelectedRunId(run.id);
+                          setItemsPage(1);
+                        }}
                         className={`cursor-pointer border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${
                           active ? 'bg-lightprimary/40 dark:bg-darkprimary/30' : ''
                         }`}
@@ -314,6 +340,39 @@ const Page: React.FC = () => {
               </Table>
             </div>
           </SimpleBar>
+          {!isRunsLoading && runsData && (
+            <div className='mt-4 flex flex-col gap-3 px-4 pb-6 sm:flex-row sm:items-center sm:justify-between'>
+              <div className='text-sm text-gray-700 dark:text-gray-300'>
+                {t('pagination', {
+                  start: (runsData.page - 1) * (runsData.perPage ?? 1) + 1,
+                  end: Math.min(runsData.page * (runsData.perPage ?? 1), runsData.total),
+                  total: runsData.total,
+                })}
+              </div>
+              <div className='w-full overflow-x-auto sm:w-auto'>
+                <div className='flex w-max gap-2 sm:justify-end'>
+                  {Array.from({ length: runsData.totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      className={`px-3 py-1 text-sm rounded ${
+                        runsData.page === pageNumber
+                          ? 'bg-blue-600 text-white dark:bg-blue-500'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:bg-dark dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
+                      }`}
+                      disabled={runsData.page === pageNumber}
+                      onClick={() => {
+                        setRunsPage(pageNumber);
+                        setItemsPage(1);
+                        setSelectedRunId('');
+                      }}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative overflow-hidden'>
@@ -455,6 +514,35 @@ const Page: React.FC = () => {
                 </Table>
               </div>
             </SimpleBar>
+            {!isItemsLoading && itemsData && (
+              <div className='mt-4 flex flex-col gap-3 px-4 pb-6 sm:flex-row sm:items-center sm:justify-between'>
+                <div className='text-sm text-gray-700 dark:text-gray-300'>
+                  {t('pagination', {
+                    start: (itemsData.page - 1) * (itemsData.perPage ?? 1) + 1,
+                    end: Math.min(itemsData.page * (itemsData.perPage ?? 1), itemsData.total),
+                    total: itemsData.total,
+                  })}
+                </div>
+                <div className='w-full overflow-x-auto sm:w-auto'>
+                  <div className='flex w-max gap-2 sm:justify-end'>
+                    {Array.from({ length: itemsData.totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        className={`px-3 py-1 text-sm rounded ${
+                          itemsData.page === pageNumber
+                            ? 'bg-blue-600 text-white dark:bg-blue-500'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 dark:bg-dark dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'
+                        }`}
+                        disabled={itemsData.page === pageNumber}
+                        onClick={() => setItemsPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
