@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ToggleSwitch } from 'flowbite-react';
+import { Checkbox, Label, ToggleSwitch } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
-
 import { Schedule, initialState } from '@/interfaces/schedule.interface';
 
 import { getScheduleAction, postScheduleAction } from './action';
 
-const ScheduleToggleSwitch: React.FC = () => {
+type ScheduleToggleSwitchProps = {
+  isRiskAcknowledged: boolean;
+};
+
+const ScheduleToggleSwitch: React.FC<ScheduleToggleSwitchProps> = ({ isRiskAcknowledged }) => {
   const t = useTranslations();
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
@@ -32,43 +35,55 @@ const ScheduleToggleSwitch: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-4">
-        <ToggleSwitch
-          checked={false}
-          onChange={() => null}
-          label={t('activate')}
-          disabled
-        />
-      </div>
-    );
+        <div className='flex items-center gap-4'>
+          <ToggleSwitch checked={false} onChange={() => null} label={t('activate')} disabled />
+        </div>
+      );
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className='flex items-center gap-4'>
       <ToggleSwitch
         checked={data?.enabled ?? false}
         onChange={handleToggle}
-        disabled={isPending}
+        disabled={isPending || !isRiskAcknowledged}
         label={t('activate')}
       />
     </div>
   );
 };
 
-
 const ScheduleForm: React.FC = () => {
   const t = useTranslations();
+  const [isRiskAcknowledged, setRiskAcknowledged] = useState(false);
 
   return (
     <>
-      <div className='flex flex-column items-center gap-2'>
-        <h5 className='card-title text-dark dark:text-white'>{t('service.title')}</h5>
+      <div className='flex flex-col items-start gap-2 text-left w-full'>
+        <h5 className='card-title text-dark dark:text-white'>{t('service.activation_title')}</h5>
       </div>
-      <div className='border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 mt-6 p-4'>
-        <p className='text-gray-500 dark:text-gray-400'>{t('service.termsofuse')}</p>
+      <div className='mt-6 rounded-lg border border-amber-200 dark:border-amber-500 bg-amber-50/80 dark:bg-amber-500/10 p-4'>
+        <p className='text-sm font-semibold text-amber-700 dark:text-amber-300'>{t('service.registerFlow.risk_summary')}</p>
+        <p className='mt-2 text-sm text-amber-700 dark:text-amber-200'>{t('service.registerFlow.risk_note')}</p>
+        <details className='group mt-3'>
+          <summary className='cursor-pointer text-sm font-medium text-primary'>{t('service.registerFlow.risk_open')}</summary>
+          <p className='mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300'>{t('service.termsofuse')}</p>
+        </details>
+        <div className='mt-4'>
+          <div className='flex items-start gap-3'>
+            <Checkbox
+              id='riskAcknowledged'
+              checked={isRiskAcknowledged}
+              onChange={(event) => setRiskAcknowledged(event.target.checked)}
+            />
+            <Label className='mt-0.5' htmlFor='riskAcknowledged'>
+              {t('service.registerFlow.risk_ack_label')}
+            </Label>
+          </div>
+        </div>
       </div>
       <div className='mt-6'>
-        <ScheduleToggleSwitch />
+        <ScheduleToggleSwitch isRiskAcknowledged={isRiskAcknowledged} />
       </div>
     </>
   );
