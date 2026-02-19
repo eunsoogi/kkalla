@@ -8,7 +8,9 @@ describe('SlackService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [SlackService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<SlackService>(SlackService);
   });

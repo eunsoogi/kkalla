@@ -8,7 +8,9 @@ describe('FeargreedController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FeargreedController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<FeargreedController>(FeargreedController);
   });

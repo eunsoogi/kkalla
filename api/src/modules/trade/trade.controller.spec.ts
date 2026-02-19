@@ -8,7 +8,9 @@ describe('TradeController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TradeController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<TradeController>(TradeController);
   });

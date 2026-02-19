@@ -10,7 +10,9 @@ describe('UpbitController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UpbitController],
       providers: [UpbitService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<UpbitController>(UpbitController);
   });

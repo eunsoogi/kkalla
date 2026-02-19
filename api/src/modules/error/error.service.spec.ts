@@ -8,7 +8,9 @@ describe('ErrorService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [ErrorService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<ErrorService>(ErrorService);
   });

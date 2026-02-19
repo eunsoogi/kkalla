@@ -10,7 +10,9 @@ describe('IpController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [IpController],
       providers: [IpService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<IpController>(IpController);
   });

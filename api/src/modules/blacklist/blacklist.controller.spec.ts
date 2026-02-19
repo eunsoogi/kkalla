@@ -10,7 +10,9 @@ describe('BlacklistController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BlacklistController],
       providers: [BlacklistService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<BlacklistController>(BlacklistController);
   });

@@ -10,7 +10,9 @@ describe('SlackController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SlackController],
       providers: [SlackService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<SlackController>(SlackController);
   });
