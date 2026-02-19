@@ -13,6 +13,7 @@ import { NewsService } from '../news/news.service';
 import { NotifyService } from '../notify/notify.service';
 import { OpenaiService } from '../openai/openai.service';
 import { ProfitService } from '../profit/profit.service';
+import { BalanceRecommendation } from '../rebalance/entities/balance-recommendation.entity';
 import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { RedlockService } from '../redlock/redlock.service';
 import { ReportValidationService } from '../report-validation/report-validation.service';
@@ -516,6 +517,45 @@ describe('MarketVolatilityService', () => {
         category: Category.COIN_MINOR,
       },
     ]);
+  });
+
+  it('should persist normalized target symbol even when AI returns malformed symbol', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutputText.mockReturnValue(
+      JSON.stringify({
+        symbol: 'BTC',
+        intensity: 0.35,
+      }),
+    );
+
+    const saveSpy = jest.spyOn(service, 'saveBalanceRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-1',
+        seq: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        reason: null,
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.balanceRecommendation([
+      {
+        symbol: 'KRW-BTC',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'BTC/KRW' }));
+    expect(result).toHaveLength(1);
+    expect(result[0].symbol).toBe('BTC/KRW');
   });
 
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {

@@ -15,6 +15,7 @@ import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
+import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import { BlacklistService } from '../blacklist/blacklist.service';
 import { Category } from '../category/category.enum';
@@ -221,8 +222,8 @@ export class MarketResearchService {
 
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.batch_complete'));
 
-    const hasRecommendations =
-      Array.isArray(inferenceResult.recommendations) && inferenceResult.recommendations.length > 0;
+    const normalizedRecommendations = this.normalizeMarketRecommendations(inferenceResult.recommendations, symbols);
+    const hasRecommendations = normalizedRecommendations.length > 0;
 
     // 추론 결과가 없으면 빈 배열 반환
     if (!hasRecommendations) {
@@ -234,12 +235,12 @@ export class MarketResearchService {
     // 결과 저장
     this.logger.log(
       this.i18n.t('logging.inference.marketRecommendation.presave', {
-        args: { count: inferenceResult.recommendations.length },
+        args: { count: normalizedRecommendations.length },
       }),
     );
 
     const recommendationResults = await Promise.all(
-      inferenceResult.recommendations.map((recommendation) =>
+      normalizedRecommendations.map((recommendation) =>
         this.saveMarketRecommendation({ ...recommendation, batchId: inferenceResult.batchId }),
       ),
     );
@@ -252,7 +253,9 @@ export class MarketResearchService {
     await this.cacheLatestRecommendationState(inferenceResult.batchId, true);
     this.reportValidationService
       .enqueueMarketBatchValidation(inferenceResult.batchId)
-      .catch((error) => this.logger.warn('Failed to enqueue market report validation', error));
+      .catch((error) =>
+        this.logger.warn(this.i18n.t('logging.inference.marketRecommendation.enqueue_validation_failed'), error),
+      );
 
     return recommendationResults.map((saved) => ({
       id: saved.id,
@@ -319,7 +322,7 @@ export class MarketResearchService {
         this.openaiService.addMessagePair(messages, 'prompt.input.validation_market', validationSummary);
       }
     } catch (error) {
-      this.logger.warn('Failed to load market validation guardrail summary', error);
+      this.logger.warn(this.i18n.t('logging.inference.marketRecommendation.validation_guardrail_load_failed'), error);
     }
 
     // 종목 feature 데이터 추가
@@ -444,8 +447,13 @@ export class MarketResearchService {
    * @returns 저장된 시장 추천 엔티티
    */
   public async saveMarketRecommendation(recommendation: MarketRecommendationData): Promise<MarketRecommendation> {
+    const normalizedSymbol = normalizeKrwSymbol(recommendation.symbol);
+    if (!normalizedSymbol) {
+      throw new Error(`Invalid market recommendation symbol: ${recommendation.symbol}`);
+    }
+
     const marketRecommendation = new MarketRecommendation();
-    Object.assign(marketRecommendation, recommendation);
+    Object.assign(marketRecommendation, recommendation, { symbol: normalizedSymbol });
     return marketRecommendation.save();
   }
 
@@ -517,8 +525,55 @@ export class MarketResearchService {
     try {
       return await this.reportValidationService.getMarketValidationBadgeMap(ids);
     } catch (error) {
-      this.logger.warn('Failed to load market validation badges', error);
+      this.logger.warn(this.i18n.t('logging.inference.marketRecommendation.validation_badges_load_failed'), error);
       return new Map();
     }
+  }
+
+  private normalizeMarketRecommendations(
+    recommendations: Array<{
+      symbol: string;
+      weight: number;
+      confidence: number;
+      reason: string;
+    }> | null,
+    allowedSymbols?: string[],
+  ): Array<{
+    symbol: string;
+    weight: number;
+    confidence: number;
+    reason: string;
+  }> {
+    if (!Array.isArray(recommendations)) {
+      return [];
+    }
+
+    const allowedSet =
+      Array.isArray(allowedSymbols) && allowedSymbols.length > 0
+        ? new Set(allowedSymbols.map((symbol) => symbol.toUpperCase()))
+        : null;
+
+    return recommendations.flatMap((recommendation) => {
+      const normalizedSymbol = normalizeKrwSymbol(recommendation?.symbol);
+      if (!normalizedSymbol) {
+        this.logger.warn(
+          this.i18n.t('logging.inference.marketRecommendation.invalid_symbol_skipped', {
+            args: { symbol: recommendation?.symbol ?? 'unknown' },
+          }),
+        );
+        return [];
+      }
+
+      if (allowedSet && !allowedSet.has(normalizedSymbol)) {
+        this.logger.warn(
+          this.i18n.t('logging.inference.marketRecommendation.out_of_market_symbol_skipped', {
+            args: { symbol: normalizedSymbol },
+          }),
+        );
+        return [];
+      }
+
+      return [{ ...recommendation, symbol: normalizedSymbol }];
+    });
   }
 }

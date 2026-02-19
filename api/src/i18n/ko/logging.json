@@ -54,7 +54,12 @@
       "batch_complete": "배치 요청 처리를 완료했습니다.",
       "complete": "상위 10개 종목 추천 분석을 완료했습니다.",
       "presave": "상위 10개 종목 추천 데이터 {count}개를 저장합니다...",
-      "save": "상위 10개 종목 추천 데이터 {count}개를 저장했습니다."
+      "save": "상위 10개 종목 추천 데이터 {count}개를 저장했습니다.",
+      "enqueue_validation_failed": "마켓 리포트 사후 검증 큐 등록에 실패했습니다.",
+      "validation_guardrail_load_failed": "마켓 리포트 사후 검증 가드레일 요약 로드에 실패했습니다.",
+      "validation_badges_load_failed": "마켓 리포트 사후 검증 배지 로드에 실패했습니다.",
+      "invalid_symbol_skipped": "잘못된 마켓 추천 심볼을 건너뜁니다. symbol={symbol}",
+      "out_of_market_symbol_skipped": "입력된 KRW 마켓 범위를 벗어난 추천 심볼을 건너뜁니다. symbol={symbol}"
     },
     "balanceRecommendation": {
       "start": "포트폴리오 추천 분석을 시작합니다...",
@@ -72,7 +77,11 @@
       "prev_target_weight_failed": "[이전 최종 비중 조회 실패] symbol={symbol}, seq={seq}",
       "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
       "skip_rebalance_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
-      "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}"
+      "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}",
+      "symbol_normalized": "심볼 형식을 정규화했습니다. from={from}, to={to}",
+      "enqueue_validation_failed": "포트폴리오 리포트 사후 검증 큐 등록에 실패했습니다.",
+      "validation_guardrail_load_failed": "포트폴리오 리포트 사후 검증 가드레일 요약 로드에 실패했습니다. symbol={symbol}",
+      "validation_badges_load_failed": "포트폴리오 리포트 사후 검증 배지 로드에 실패했습니다."
     }
   },
   "blacklist": {
@@ -203,7 +212,9 @@
       "no_trigger": "이번 틱에서 새로운 변동 구간에 진입한 종목이 없습니다.",
       "trigger_start": "{count}개 종목에 대해 변동성 기반 잔고 추천을 실행합니다.",
       "no_users": "스케줄이 활성화된 사용자가 없습니다.",
-      "trade_failed": "사용자 {userId}의 변동성 기반 거래 실행 중 오류가 발생했습니다."
+      "trade_failed": "사용자 {userId}의 변동성 기반 거래 실행 중 오류가 발생했습니다.",
+      "cooldown_read_failed": "쿨다운 캐시 조회에 실패했습니다. symbol={symbol}, 쿨다운 미적용으로 계속 진행합니다.",
+      "cooldown_write_failed": "쿨다운 캐시 저장에 실패했습니다. symbol={symbol}, 쿨다운 없이 계속 진행합니다."
     }
   },
   "trade": {

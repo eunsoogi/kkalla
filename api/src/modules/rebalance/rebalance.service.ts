@@ -24,6 +24,7 @@ import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { formatNumber } from '@/utils/number';
+import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import { BlacklistService } from '../blacklist/blacklist.service';
 import { Category } from '../category/category.enum';
@@ -1646,7 +1647,20 @@ export class RebalanceService implements OnModuleInit {
     const inferenceResults = await Promise.all(
       items.map((item) => {
         return this.errorService.retryWithFallback(async () => {
-          const { messages, marketFeatures } = await this.buildBalanceRecommendationMessages(item.symbol);
+          const targetSymbol =
+            item.category === Category.NASDAQ ? item.symbol : (normalizeKrwSymbol(item.symbol) ?? item.symbol);
+          if (targetSymbol !== item.symbol) {
+            this.logger.warn(
+              this.i18n.t('logging.inference.balanceRecommendation.symbol_normalized', {
+                args: {
+                  from: item.symbol,
+                  to: targetSymbol,
+                },
+              }),
+            );
+          }
+
+          const { messages, marketFeatures } = await this.buildBalanceRecommendationMessages(targetSymbol);
 
           const requestConfig = {
             ...UPBIT_BALANCE_RECOMMENDATION_CONFIG,
@@ -1669,12 +1683,13 @@ export class RebalanceService implements OnModuleInit {
           const responseData = JSON.parse(outputText);
           const intensity = Number(responseData?.intensity);
           const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
-          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, item.symbol);
-          const previousMetricsBySymbol = previousMetrics.get(item.symbol);
+          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, targetSymbol);
+          const previousMetricsBySymbol = previousMetrics.get(targetSymbol) ?? previousMetrics.get(item.symbol);
 
           // 추론 결과와 아이템 병합
           return {
             ...responseData,
+            symbol: targetSymbol,
             intensity: safeIntensity,
             category: item?.category,
             hasStock: item?.hasStock || false,
@@ -1716,7 +1731,9 @@ export class RebalanceService implements OnModuleInit {
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
     this.reportValidationService
       .enqueuePortfolioBatchValidation(batchId)
-      .catch((error) => this.logger.warn('Failed to enqueue portfolio report validation', error));
+      .catch((error) =>
+        this.logger.warn(this.i18n.t('logging.inference.balanceRecommendation.enqueue_validation_failed'), error),
+      );
 
     return recommendationResults.map((saved, index) => ({
       id: saved.id,
@@ -1770,7 +1787,12 @@ export class RebalanceService implements OnModuleInit {
         this.openaiService.addMessagePair(messages, 'prompt.input.validation_portfolio', validationSummary);
       }
     } catch (error) {
-      this.logger.warn(`Failed to load portfolio validation guardrail summary for ${symbol}`, error);
+      this.logger.warn(
+        this.i18n.t('logging.inference.balanceRecommendation.validation_guardrail_load_failed', {
+          args: { symbol },
+        }),
+        error,
+      );
     }
 
     // 개별 종목 feature 데이터 추가
@@ -1961,8 +1983,16 @@ export class RebalanceService implements OnModuleInit {
    * @returns 저장된 잔고 추천 엔티티
    */
   public async saveBalanceRecommendation(recommendation: BalanceRecommendationData): Promise<BalanceRecommendation> {
+    const normalizedSymbol =
+      recommendation.category === Category.NASDAQ
+        ? recommendation.symbol?.trim().toUpperCase()
+        : normalizeKrwSymbol(recommendation.symbol);
+    if (!normalizedSymbol) {
+      throw new Error(`Invalid balance recommendation symbol: ${recommendation.symbol}`);
+    }
+
     const balanceRecommendation = new BalanceRecommendation();
-    Object.assign(balanceRecommendation, recommendation);
+    Object.assign(balanceRecommendation, recommendation, { symbol: normalizedSymbol });
     return balanceRecommendation.save();
   }
 
@@ -1995,7 +2025,7 @@ export class RebalanceService implements OnModuleInit {
     try {
       return await this.reportValidationService.getPortfolioValidationBadgeMap(ids);
     } catch (error) {
-      this.logger.warn('Failed to load portfolio validation badges', error);
+      this.logger.warn(this.i18n.t('logging.inference.balanceRecommendation.validation_badges_load_failed'), error);
       return new Map();
     }
   }
