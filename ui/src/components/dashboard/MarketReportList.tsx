@@ -1,19 +1,17 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import React from 'react';
 
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
+import { getConfidenceColor, getValidationColor, getWeightColor } from '@/components/inference/style';
+import type { MarketReportWithChange } from '@/interfaces/dashboard.interface';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
-
-import type { MarketReportWithChange } from '@/interfaces/dashboard.interface';
-
-import { getConfidenceColor, getWeightColor } from '@/components/inference/style';
 
 import { ContentModal } from './ContentModal';
 import { getLatestMarketReportsAction } from './action';
@@ -31,6 +29,42 @@ const MarketReportRow = ({
   const confidencePct = Math.floor((item.confidence ?? 0) * 100);
   const weightStyle = getWeightColor(item.weight ?? 0);
   const confidenceStyle = getConfidenceColor(item.confidence ?? 0);
+  const renderValidationBadge = (scope: '24h' | '72h') => {
+    const validation = scope === '24h' ? item.validation24h : item.validation72h;
+    if (!validation) return '-';
+
+    const style = getValidationColor(validation.status, validation.verdict);
+    const score =
+      typeof validation.overallScore === 'number' && Number.isFinite(validation.overallScore)
+        ? ` ${(validation.overallScore * 100).toFixed(0)}%`
+        : '';
+    const statusLabel =
+      validation.status === 'pending'
+        ? t('inference.validationPending')
+        : validation.status === 'running'
+          ? t('inference.validationRunning')
+          : validation.status === 'failed'
+            ? t('inference.validationFailed')
+            : validation.verdict === 'good'
+              ? 'Good'
+              : validation.verdict === 'mixed'
+                ? 'Mixed'
+                : validation.verdict === 'bad'
+                  ? 'Bad'
+                  : validation.verdict === 'invalid'
+                    ? t('inference.validationInvalid')
+                    : t('inference.validationCompleted');
+
+    return (
+      <span
+        className='rounded px-1.5 py-0.5 text-xs font-medium'
+        style={{ backgroundColor: style.backgroundColor, color: style.color }}
+      >
+        {`${statusLabel}${score}`}
+      </span>
+    );
+  };
+
   return (
     <TableRow
       role='button'
@@ -42,10 +76,7 @@ const MarketReportRow = ({
       <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>{item.symbol}</TableCell>
       <TableCell className='px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[320px] min-w-0'>
         <div className='flex flex-col gap-y-2'>
-          <div
-            className='inline-flex shrink-0 items-center'
-            style={{ gap: '0.375rem' }}
-          >
+          <div className='inline-flex shrink-0 items-center' style={{ gap: '0.375rem' }}>
             <span
               className='rounded px-1.5 py-0.5 text-xs font-medium'
               style={{ backgroundColor: weightStyle.backgroundColor, color: weightStyle.color }}
@@ -90,6 +121,8 @@ const MarketReportRow = ({
           '-'
         )}
       </TableCell>
+      <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>{renderValidationBadge('24h')}</TableCell>
+      <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>{renderValidationBadge('72h')}</TableCell>
     </TableRow>
   );
 };
@@ -159,18 +192,23 @@ export function MarketReportList() {
                   <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
                     {t('dashboard.columnRecommendationPrice')}
                   </TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnCurrentPrice')}</TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnChangePct')}</TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                    {t('dashboard.columnCurrentPrice')}
+                  </TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                    {t('dashboard.columnChangePct')}
+                  </TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                    {t('dashboard.columnValidation24h')}
+                  </TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                    {t('dashboard.columnValidation72h')}
+                  </TableHeadCell>
                 </TableRow>
               </TableHead>
               <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
                 {items.map((item) => (
-                  <MarketReportRow
-                    key={item.id}
-                    item={item}
-                    t={t}
-                    onRowClick={(id) => setOpenId(id || null)}
-                  />
+                  <MarketReportRow key={item.id} item={item} t={t} onRowClick={(id) => setOpenId(id || null)} />
                 ))}
               </TableBody>
             </Table>

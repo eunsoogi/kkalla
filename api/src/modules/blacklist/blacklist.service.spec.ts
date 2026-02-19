@@ -8,7 +8,9 @@ describe('BlacklistService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [BlacklistService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<BlacklistService>(BlacklistService);
   });

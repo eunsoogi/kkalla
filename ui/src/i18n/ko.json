@@ -21,7 +21,8 @@
     "roleManagement": "권한 관리",
     "profitManagement": "수익 관리",
     "blacklistManagement": "블랙리스트 관리",
-    "scheduleManagement": "스케줄 관리"
+    "scheduleManagement": "스케줄 관리",
+    "reportValidation": "사후 검증"
   },
   "title": {
     "coin": "코인"
@@ -69,7 +70,14 @@
     "mine": "내 추론만 보기",
     "rate": "비율",
     "weight": "가중치",
-    "confidence": "신뢰도"
+    "confidence": "신뢰도",
+    "validation24h": "검증 24h",
+    "validation72h": "검증 72h",
+    "validationPending": "대기",
+    "validationRunning": "진행중",
+    "validationCompleted": "완료",
+    "validationFailed": "실패",
+    "validationInvalid": "무효"
   },
   "trade": {
     "list": "거래 목록",
@@ -102,6 +110,8 @@
     "columnRecommendationPrice": "추천 시점 가격",
     "columnCurrentPrice": "현재가",
     "columnChangePct": "변동률",
+    "columnValidation24h": "검증 24h",
+    "columnValidation72h": "검증 72h",
     "columnDailyChange": "당일 변동",
     "columnTime": "시각",
     "columnMessage": "메시지",
@@ -267,6 +277,80 @@
   "profile": "프로필",
   "more": "더 보기",
   "close": "닫기",
+  "reportValidation": {
+    "title": "리포트 사후 검증",
+    "description": "발행된 마켓/포트폴리오 리포트의 사후 성과를 검토하고 다음 가드레일 품질을 점검합니다.",
+    "filters": {
+      "reportType": "리포트 유형",
+      "status": "상태",
+      "all": "전체"
+    },
+    "actions": {
+      "refresh": "새로고침"
+    },
+    "stats": {
+      "totalRuns": "전체 실행",
+      "activeRuns": "진행/대기",
+      "completedRuns": "완료",
+      "avgScore": "평균 점수"
+    },
+    "runs": {
+      "title": "실행 이력",
+      "description": "최근 배치 실행 결과입니다. 행을 선택하면 아래 상세 항목이 갱신됩니다."
+    },
+    "type": {
+      "market": "마켓",
+      "portfolio": "포트폴리오"
+    },
+    "status": {
+      "pending": "대기",
+      "running": "진행중",
+      "completed": "완료",
+      "failed": "실패"
+    },
+    "verdict": {
+      "good": "좋음",
+      "mixed": "혼합",
+      "bad": "나쁨",
+      "invalid": "무효"
+    },
+    "columns": {
+      "seq": "번호",
+      "type": "유형",
+      "horizon": "Horizon",
+      "status": "상태",
+      "progress": "진행률",
+      "overallScore": "종합 점수",
+      "completedAt": "완료 시각"
+    },
+    "detail": {
+      "title": "실행 상세",
+      "batchId": "Batch ID",
+      "summary": "요약",
+      "error": "오류",
+      "emptyDescription": "실행 이력을 선택하면 상세 항목을 확인할 수 있습니다.",
+      "itemCount": "항목 수",
+      "invalidCount": "무효 항목",
+      "avgReturn": "평균 수익률",
+      "avgItemScore": "평균 항목 점수",
+      "verdictBreakdown": "판정 분포"
+    },
+    "items": {
+      "title": "평가 항목",
+      "description": "선택한 실행 배치의 개별 평가 결과입니다.",
+      "symbol": "종목",
+      "status": "상태",
+      "verdict": "판정",
+      "deterministicScore": "결정론 점수",
+      "aiScore": "AI 점수",
+      "overallScore": "점수",
+      "returnPct": "수익률",
+      "nextGuardrail": "다음 가드레일",
+      "evaluatedAt": "평가 시각"
+    },
+    "emptyRuns": "표시할 실행 이력이 없습니다.",
+    "emptyItems": "표시할 상세 항목이 없습니다."
+  },
   "schedule": {
     "management": {
       "title": "스케줄 관리",
@@ -322,6 +406,11 @@
       "balanceRecommendationNew": {
         "title": "신규 종목 포트폴리오 분석",
         "description": "신규 종목들을 포함한 전체 AI 추론을 실행합니다.",
+        "button": "실행"
+      },
+      "reportValidation": {
+        "title": "리포트 사후 검증",
+        "description": "발행된 마켓/포트폴리오 리포트를 사후 평가해 다음 리포트 가드레일을 갱신합니다.",
         "button": "실행"
       },
       "recent": {

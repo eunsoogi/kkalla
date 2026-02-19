@@ -8,7 +8,9 @@ describe('OpenaiService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [OpenaiService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<OpenaiService>(OpenaiService);
   });

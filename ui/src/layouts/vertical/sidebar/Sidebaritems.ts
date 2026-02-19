@@ -126,16 +126,28 @@ export const SidebarContent = (): MenuItem[] => {
     });
   }
 
-  if (hasPermission([
+  const hasLegacyScheduleAccess = hasPermission([
     Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
-    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING, 
-    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW
-  ])) {
+    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
+    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+  ]);
+  const hasReportValidationAccess = hasPermission([Permission.EXEC_SCHEDULE_REPORT_VALIDATION]);
+
+  if (hasLegacyScheduleAccess || hasReportValidationAccess) {
     adminChildren.push({
       name: t('scheduleManagement'),
       icon: 'solar:calendar-mark-line-duotone',
       id: uniqueId(),
       url: '/schedules',
+    });
+  }
+
+  if (hasPermission([Permission.EXEC_SCHEDULE_REPORT_VALIDATION])) {
+    adminChildren.push({
+      name: t('reportValidation'),
+      icon: 'solar:checklist-minimalistic-line-duotone',
+      id: uniqueId(),
+      url: '/report-validations',
     });
   }
 

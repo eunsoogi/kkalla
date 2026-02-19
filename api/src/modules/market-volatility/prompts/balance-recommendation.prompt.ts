@@ -38,6 +38,10 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 - 웹 검색 근거는 최신 이벤트 우선.
 - 오래된 이슈는 가중치를 낮춥니다.
 
+8. 사후 검증 가드레일 반영
+- 입력에 "최근 포트폴리오 리포트 사후 검증 요약"이 제공되면 반드시 우선 참조합니다.
+- 요약의 오판 패턴/가드레일과 충돌하면 intensity 절대값을 줄여 과격한 신호를 억제합니다.
+
 [intensity 해석]
 - intensity <= 0: 매도/비편입 신호
 - intensity > 0: 매수/편입 신호

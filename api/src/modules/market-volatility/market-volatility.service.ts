@@ -39,6 +39,7 @@ import {
   RecommendationItem,
 } from '../rebalance/rebalance.interface';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
+import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
 import { Trade } from '../trade/entities/trade.entity';
@@ -138,6 +139,7 @@ export class MarketVolatilityService implements OnModuleInit {
     private readonly openaiService: OpenaiService,
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
+    private readonly reportValidationService: ReportValidationService,
   ) {
     if (!this.queueUrl) {
       throw new Error('AWS_SQS_QUEUE_URL_VOLATILITY environment variable is required');
@@ -1740,6 +1742,9 @@ export class MarketVolatilityService implements OnModuleInit {
     );
 
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
+    this.reportValidationService
+      .enqueuePortfolioBatchValidation(batchId)
+      .catch((error) => this.logger.warn('Failed to enqueue portfolio report validation', error));
 
     return recommendationResults.map((saved, index) => ({
       id: saved.id,
@@ -1785,6 +1790,15 @@ export class MarketVolatilityService implements OnModuleInit {
     const feargreed = await this.fetchFearGreedData();
     if (feargreed) {
       this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    }
+
+    try {
+      const validationSummary = await this.reportValidationService.buildPortfolioValidationGuardrailText(symbol);
+      if (validationSummary) {
+        this.openaiService.addMessagePair(messages, 'prompt.input.validation_portfolio', validationSummary);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to load portfolio validation guardrail summary for ${symbol}`, error);
     }
 
     // 개별 종목 feature 데이터 추가

@@ -81,6 +81,11 @@ describe('RebalanceService', () => {
       {
         retryWithFallback: jest.fn((fn: () => Promise<unknown>) => fn()),
       } as any,
+      {
+        enqueuePortfolioBatchValidation: jest.fn().mockResolvedValue(undefined),
+        buildPortfolioValidationGuardrailText: jest.fn().mockResolvedValue(null),
+        getPortfolioValidationBadgeMap: jest.fn().mockResolvedValue(new Map()),
+      } as any,
     );
   });
 

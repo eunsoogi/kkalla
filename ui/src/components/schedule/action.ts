@@ -20,7 +20,7 @@ export interface ScheduleActionState {
 }
 
 const isScheduleExecutionStatus = (status: string): status is ScheduleExecutionStatus => {
-  return ['started', 'skipped_lock', 'skipped_development'].includes(status);
+  return ['started', 'skipped_lock'].includes(status);
 };
 
 const getStatusMessage = (t: Awaited<ReturnType<typeof getTranslations>>, status: ScheduleActionStatus): string => {
@@ -29,17 +29,12 @@ const getStatusMessage = (t: Awaited<ReturnType<typeof getTranslations>>, status
       return t('schedule.execute.status.started');
     case 'skipped_lock':
       return t('schedule.execute.status.skippedLock');
-    case 'skipped_development':
-      return t('schedule.execute.status.skippedDevelopment');
     default:
       return t('schedule.execute.status.failed');
   }
 };
 
-const executeScheduleAction = async (
-  path: string,
-  task: ScheduleExecutionTask,
-): Promise<ScheduleActionState> => {
+const executeScheduleAction = async (path: string, task: ScheduleExecutionTask): Promise<ScheduleActionState> => {
   const client = await getClient();
   const t = await getTranslations();
 
@@ -76,11 +71,18 @@ export const executeMarketRecommendationAction = async (): Promise<ScheduleActio
 };
 
 export const executeBalanceRecommendationWithExistingItemsAction = async (): Promise<ScheduleActionState> => {
-  return executeScheduleAction('/api/v1/schedules/execute/balance-recommendation/existing', 'balanceRecommendationExisting');
+  return executeScheduleAction(
+    '/api/v1/schedules/execute/balance-recommendation/existing',
+    'balanceRecommendationExisting',
+  );
 };
 
 export const executebalanceRecommendationNewItemsAction = async (): Promise<ScheduleActionState> => {
   return executeScheduleAction('/api/v1/schedules/execute/balance-recommendation/new', 'balanceRecommendationNew');
+};
+
+export const executeReportValidationAction = async (): Promise<ScheduleActionState> => {
+  return executeScheduleAction('/api/v1/schedules/execute/report-validation', 'reportValidation');
 };
 
 export const getScheduleExecutionPlansAction = async (): Promise<ScheduleExecutionPlanResponse[]> => {

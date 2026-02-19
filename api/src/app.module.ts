@@ -20,6 +20,7 @@ import { PermissionModule } from './modules/permission/permission.module';
 import { ProfitModule } from './modules/profit/profit.module';
 import { RebalanceModule } from './modules/rebalance/rebalance.module';
 import { RedlockModule } from './modules/redlock/redlock.module';
+import { ReportValidationModule } from './modules/report-validation/report-validation.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { SequenceModule } from './modules/sequence/sequence.module';
@@ -61,6 +62,7 @@ import { UserModule } from './modules/user/user.module';
     PermissionModule,
     ProfitModule,
     RebalanceModule,
+    ReportValidationModule,
     RoleModule,
     ScheduleModule,
     SlackModule,

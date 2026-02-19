@@ -2,21 +2,35 @@
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
 
+import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { ForbiddenError } from '@/components/error/403';
-import { Permission } from '@/interfaces/permission.interface';
-import { ScheduleExecutionPlanResponse, ScheduleExecutionTask } from '@/interfaces/schedule-execution.interface';
-import {
-  getScheduleExecutionPlansAction,
-  ScheduleActionState,
-  executeMarketRecommendationAction,
-  executeBalanceRecommendationWithExistingItemsAction,
-  executebalanceRecommendationNewItemsAction
-} from '@/components/schedule/action';
 import ScheduleExecuteButton from '@/components/schedule/ScheduleExecuteButton';
 import ScheduleWarning from '@/components/schedule/ScheduleWarning';
+import {
+  ScheduleActionState,
+  executeBalanceRecommendationWithExistingItemsAction,
+  executeMarketRecommendationAction,
+  executeReportValidationAction,
+  executebalanceRecommendationNewItemsAction,
+  getScheduleExecutionPlansAction,
+} from '@/components/schedule/action';
+import { Permission } from '@/interfaces/permission.interface';
+import { ScheduleExecutionPlanResponse, ScheduleExecutionTask } from '@/interfaces/schedule-execution.interface';
+
+const LEGACY_SCHEDULE_PERMISSIONS = [
+  Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+  Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
+  Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+] as const;
+
+const TASK_PERMISSION_MAP: Record<ScheduleExecutionTask, Permission> = {
+  marketRecommendation: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+  balanceRecommendationExisting: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
+  balanceRecommendationNew: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+  reportValidation: Permission.EXEC_SCHEDULE_REPORT_VALIDATION,
+};
 
 interface NextRunHighlight {
   task: ScheduleExecutionTask;
@@ -78,7 +92,8 @@ const findNearestNextRun = (plans: ScheduleExecutionPlanResponse[]): NextRunHigh
         continue;
       }
 
-      const minutesUntil = targetMinutes >= currentMinutes ? targetMinutes - currentMinutes : 1440 - currentMinutes + targetMinutes;
+      const minutesUntil =
+        targetMinutes >= currentMinutes ? targetMinutes - currentMinutes : 1440 - currentMinutes + targetMinutes;
       if (!nearest || minutesUntil < nearest.minutesUntil) {
         nearest = {
           task: plan.task,
@@ -113,10 +128,14 @@ const formatRemainingTime = (minutesUntil: number, t: ReturnType<typeof useTrans
 };
 
 const Page: React.FC = () => {
+  const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations();
+  const permissions = useMemo(() => session?.permissions ?? [], [session?.permissions]);
   const [isPending, startTransition] = useTransition();
   const [recentResults, setRecentResults] = useState<Partial<Record<ScheduleExecutionTask, ScheduleActionState>>>({});
-  const [executionPlans, setExecutionPlans] = useState<Partial<Record<ScheduleExecutionTask, ScheduleExecutionPlanResponse>>>({});
+  const [executionPlans, setExecutionPlans] = useState<
+    Partial<Record<ScheduleExecutionTask, ScheduleExecutionPlanResponse>>
+  >({});
   const [isPlanLoading, setIsPlanLoading] = useState(true);
 
   const taskTitle = (task: ScheduleExecutionTask) => {
@@ -125,6 +144,8 @@ const Page: React.FC = () => {
         return t('schedule.execute.marketRecommendation.title');
       case 'balanceRecommendationExisting':
         return t('schedule.execute.balanceRecommendationExisting.title');
+      case 'reportValidation':
+        return t('schedule.execute.reportValidation.title');
       default:
         return t('schedule.execute.balanceRecommendationNew.title');
     }
@@ -159,9 +180,15 @@ const Page: React.FC = () => {
   }, []);
 
   const nextRunHighlight = useMemo(() => {
-    const plans = Object.values(executionPlans).filter((plan): plan is ScheduleExecutionPlanResponse => !!plan);
+    const plans = Object.values(executionPlans).filter((plan): plan is ScheduleExecutionPlanResponse => {
+      if (!plan) {
+        return false;
+      }
+
+      return permissions.includes(TASK_PERMISSION_MAP[plan.task]);
+    });
     return findNearestNextRun(plans);
-  }, [executionPlans]);
+  }, [executionPlans, permissions]);
 
   const nextRunRemainingText = nextRunHighlight ? formatRemainingTime(nextRunHighlight.minutesUntil, t) : undefined;
 
@@ -187,94 +214,110 @@ const Page: React.FC = () => {
     execute(executebalanceRecommendationNewItemsAction);
   };
 
+  const handleExecuteReportValidation = () => {
+    execute(executeReportValidationAction);
+  };
+
+  const hasLegacyScheduleAccess = LEGACY_SCHEDULE_PERMISSIONS.every((permission) => permissions.includes(permission));
+  const hasReportValidationAccess = permissions.includes(Permission.EXEC_SCHEDULE_REPORT_VALIDATION);
+  const hasSchedulePageAccess = hasLegacyScheduleAccess || hasReportValidationAccess;
+
+  if (sessionStatus === 'loading') {
+    return null;
+  }
+
+  if (!hasSchedulePageAccess) {
+    return <ForbiddenError />;
+  }
+
   return (
-    <PermissionGuard
-      permissions={[
-        Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
-        Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
-        Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW
-      ]}
-      fallback={<ForbiddenError />}
-    >
-      <div className='space-y-6'>
-        <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6'>
-          <h1 className='text-2xl font-bold text-gray-900 dark:text-white mb-4'>
-            {t('schedule.management.title')}
-          </h1>
-          <p className='text-gray-600 dark:text-gray-300 mb-6'>
-            {t('schedule.management.description')}
-          </p>
+    <div className='space-y-6'>
+      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6'>
+        <h1 className='text-2xl font-bold text-gray-900 dark:text-white mb-4'>{t('schedule.management.title')}</h1>
+        <p className='text-gray-600 dark:text-gray-300 mb-6'>{t('schedule.management.description')}</p>
 
-          <div className='mb-4'>
-            <ScheduleWarning />
-          </div>
+        <div className='mb-4'>
+          <ScheduleWarning />
+        </div>
 
-          <div className='mb-4 rounded-lg border border-primary/30 bg-lightprimary/30 px-4 py-3 dark:bg-darkprimary/30'>
-            {nextRunHighlight ? (
-              <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                {t('schedule.execute.auto.nextRunSummary', {
-                  task: taskTitle(nextRunHighlight.task),
-                  time: nextRunHighlight.time,
-                  timezone: nextRunHighlight.timezone,
-                  remaining: formatRemainingTime(nextRunHighlight.minutesUntil, t),
-                })}
-              </p>
-            ) : (
-              <p className='text-sm text-gray-500 dark:text-gray-400'>
-                {isPlanLoading ? t('schedule.execute.auto.loading') : t('schedule.execute.auto.nextRunUnavailable')}
-              </p>
-            )}
-          </div>
+        <div className='mb-4 rounded-lg border border-primary/30 bg-lightprimary/30 px-4 py-3 dark:bg-darkprimary/30'>
+          {nextRunHighlight ? (
+            <p className='text-sm font-medium text-gray-900 dark:text-white'>
+              {t('schedule.execute.auto.nextRunSummary', {
+                task: taskTitle(nextRunHighlight.task),
+                time: nextRunHighlight.time,
+                timezone: nextRunHighlight.timezone,
+                remaining: formatRemainingTime(nextRunHighlight.minutesUntil, t),
+              })}
+            </p>
+          ) : (
+            <p className='text-sm text-gray-500 dark:text-gray-400'>
+              {isPlanLoading ? t('schedule.execute.auto.loading') : t('schedule.execute.auto.nextRunUnavailable')}
+            </p>
+          )}
+        </div>
 
-          <div className='mt-3 border-y border-gray-200 dark:border-gray-700'>
-            <div className='hidden lg:grid grid-cols-12 gap-3 bg-gray-50 px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800/40 dark:text-gray-400'>
-              <div className='col-span-5'>{t('schedule.execute.column.task')}</div>
-              <div className='col-span-4'>{t('schedule.execute.column.auto')}</div>
-              <div className='col-span-3'>
-                <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-3'>
-                  <span className='text-right'>{t('schedule.execute.column.status')}</span>
-                  <span className='text-right'>{t('schedule.execute.column.action')}</span>
-                </div>
+        <div className='mt-3 border-y border-gray-200 dark:border-gray-700'>
+          <div className='hidden lg:grid grid-cols-12 gap-3 bg-gray-50 px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800/40 dark:text-gray-400'>
+            <div className='col-span-5'>{t('schedule.execute.column.task')}</div>
+            <div className='col-span-4'>{t('schedule.execute.column.auto')}</div>
+            <div className='col-span-3'>
+              <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-3'>
+                <span className='text-right'>{t('schedule.execute.column.status')}</span>
+                <span className='text-right'>{t('schedule.execute.column.action')}</span>
               </div>
             </div>
-            <div className='divide-y divide-gray-200 dark:divide-gray-700'>
-              <ScheduleExecuteButton
-                type='marketRecommendation'
-                isPending={isPending}
-                onExecute={handleExecuteMarketRecommendation}
-                result={recentResults.marketRecommendation}
-                plan={executionPlans.marketRecommendation}
-                isPlanLoading={isPlanLoading}
-                highlightRunAt={nextRunHighlight?.task === 'marketRecommendation' ? nextRunHighlight.time : undefined}
-                highlightRemainingText={nextRunHighlight?.task === 'marketRecommendation' ? nextRunRemainingText : undefined}
-              />
+          </div>
+          <div className='divide-y divide-gray-200 dark:divide-gray-700'>
+            <ScheduleExecuteButton
+              type='marketRecommendation'
+              isPending={isPending}
+              onExecute={handleExecuteMarketRecommendation}
+              result={recentResults.marketRecommendation}
+              plan={executionPlans.marketRecommendation}
+              isPlanLoading={isPlanLoading}
+              highlightRunAt={nextRunHighlight?.task === 'marketRecommendation' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={nextRunHighlight?.task === 'marketRecommendation' ? nextRunRemainingText : undefined}
+            />
 
-              <ScheduleExecuteButton
-                type='existItems'
-                isPending={isPending}
-                onExecute={handleExecuteExistItems}
-                result={recentResults.balanceRecommendationExisting}
-                plan={executionPlans.balanceRecommendationExisting}
-                isPlanLoading={isPlanLoading}
-                highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunHighlight.time : undefined}
-                highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunRemainingText : undefined}
-              />
+            <ScheduleExecuteButton
+              type='existItems'
+              isPending={isPending}
+              onExecute={handleExecuteExistItems}
+              result={recentResults.balanceRecommendationExisting}
+              plan={executionPlans.balanceRecommendationExisting}
+              isPlanLoading={isPlanLoading}
+              highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={
+                nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunRemainingText : undefined
+              }
+            />
 
-              <ScheduleExecuteButton
-                type='newItems'
-                isPending={isPending}
-                onExecute={handleExecuteNewItems}
-                result={recentResults.balanceRecommendationNew}
-                plan={executionPlans.balanceRecommendationNew}
-                isPlanLoading={isPlanLoading}
-                highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunHighlight.time : undefined}
-                highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunRemainingText : undefined}
-              />
-            </div>
+            <ScheduleExecuteButton
+              type='newItems'
+              isPending={isPending}
+              onExecute={handleExecuteNewItems}
+              result={recentResults.balanceRecommendationNew}
+              plan={executionPlans.balanceRecommendationNew}
+              isPlanLoading={isPlanLoading}
+              highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunRemainingText : undefined}
+            />
+
+            <ScheduleExecuteButton
+              type='reportValidation'
+              isPending={isPending}
+              onExecute={handleExecuteReportValidation}
+              result={recentResults.reportValidation}
+              plan={executionPlans.reportValidation}
+              isPlanLoading={isPlanLoading}
+              highlightRunAt={nextRunHighlight?.task === 'reportValidation' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={nextRunHighlight?.task === 'reportValidation' ? nextRunRemainingText : undefined}
+            />
           </div>
         </div>
       </div>
-    </PermissionGuard>
+    </div>
   );
 };
 

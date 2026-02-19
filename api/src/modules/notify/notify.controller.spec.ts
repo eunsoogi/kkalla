@@ -10,7 +10,9 @@ describe('NotifyController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotifyController],
       providers: [NotifyService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<NotifyController>(NotifyController);
   });

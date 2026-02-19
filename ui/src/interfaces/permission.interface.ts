@@ -9,6 +9,7 @@ export enum Permission {
   EXEC_SCHEDULE_MARKET_RECOMMENDATION = 'exec:schedule:market_recommendation',
   EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW = 'exec:schedule:balance_recommendation_new',
   EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING = 'exec:schedule:balance_recommendation_existing',
+  EXEC_SCHEDULE_REPORT_VALIDATION = 'exec:schedule:report_validation',
   VIEW_INFERENCE_NASDAQ = 'view:inference:nasdaq',
   VIEW_INFERENCE_COIN_MAJOR = 'view:inference:coin:major',
   VIEW_INFERENCE_COIN_MINOR = 'view:inference:coin:minor',

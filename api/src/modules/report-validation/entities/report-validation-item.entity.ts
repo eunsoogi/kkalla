@@ -1,0 +1,245 @@
+import {
+  BaseEntity,
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+import { ReportType, ReportValidationStatus, ReportValidationVerdict } from '../report-validation.interface';
+import { ReportValidationRun } from './report-validation-run.entity';
+
+@Entity('report_validation_item')
+@Index('idx_report_validation_item_source_recommendation_horizon', ['sourceRecommendationId', 'horizonHours'], {
+  unique: true,
+})
+@Index('idx_report_validation_item_status_due_at', ['status', 'dueAt'])
+@Index('idx_report_validation_item_report_type_symbol_created_at', ['reportType', 'symbol', 'createdAt'])
+@Index('idx_report_validation_item_source_batch_horizon', ['sourceBatchId', 'horizonHours'])
+export class ReportValidationItem extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+  })
+  seq: number;
+
+  @ManyToOne(() => ReportValidationRun, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'run_id' })
+  run: ReportValidationRun;
+
+  @Column({
+    name: 'report_type',
+    type: 'enum',
+    enum: ['market', 'portfolio'],
+    nullable: false,
+  })
+  reportType: ReportType;
+
+  @Column({
+    name: 'source_recommendation_id',
+    type: 'uuid',
+    nullable: false,
+  })
+  sourceRecommendationId: string;
+
+  @Column({
+    name: 'source_batch_id',
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  sourceBatchId: string;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  symbol: string;
+
+  @Column({
+    name: 'horizon_hours',
+    type: 'int',
+    nullable: false,
+  })
+  horizonHours: number;
+
+  @Column({
+    name: 'due_at',
+    type: 'datetime',
+    nullable: false,
+  })
+  dueAt: Date;
+
+  @Column({
+    name: 'recommendation_created_at',
+    type: 'datetime',
+    nullable: false,
+  })
+  recommendationCreatedAt: Date;
+
+  @Column({
+    name: 'recommendation_reason',
+    type: 'text',
+    nullable: true,
+  })
+  recommendationReason: string | null;
+
+  @Column({
+    name: 'recommendation_confidence',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationConfidence: number | null;
+
+  @Column({
+    name: 'recommendation_weight',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationWeight: number | null;
+
+  @Column({
+    name: 'recommendation_intensity',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationIntensity: number | null;
+
+  @Column({
+    name: 'recommendation_action',
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  recommendationAction: string | null;
+
+  @Column({
+    name: 'recommendation_price',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationPrice: number | null;
+
+  @Column({
+    name: 'evaluated_price',
+    type: 'double',
+    nullable: true,
+  })
+  evaluatedPrice: number | null;
+
+  @Column({
+    name: 'return_pct',
+    type: 'double',
+    nullable: true,
+  })
+  returnPct: number | null;
+
+  @Column({
+    name: 'direction_hit',
+    type: 'boolean',
+    nullable: true,
+  })
+  directionHit: boolean | null;
+
+  @Column({
+    name: 'realized_trade_pnl',
+    type: 'double',
+    nullable: true,
+  })
+  realizedTradePnl: number | null;
+
+  @Column({
+    name: 'realized_trade_amount',
+    type: 'double',
+    nullable: true,
+  })
+  realizedTradeAmount: number | null;
+
+  @Column({
+    name: 'trade_roi_pct',
+    type: 'double',
+    nullable: true,
+  })
+  tradeRoiPct: number | null;
+
+  @Column({
+    name: 'deterministic_score',
+    type: 'double',
+    nullable: true,
+  })
+  deterministicScore: number | null;
+
+  @Column({
+    name: 'gpt_verdict',
+    type: 'enum',
+    enum: ['good', 'mixed', 'bad', 'invalid'],
+    nullable: true,
+  })
+  gptVerdict: ReportValidationVerdict | null;
+
+  @Column({
+    name: 'gpt_score',
+    type: 'double',
+    nullable: true,
+  })
+  gptScore: number | null;
+
+  @Column({
+    name: 'gpt_calibration',
+    type: 'double',
+    nullable: true,
+  })
+  gptCalibration: number | null;
+
+  @Column({
+    name: 'gpt_explanation',
+    type: 'text',
+    nullable: true,
+  })
+  gptExplanation: string | null;
+
+  @Column({
+    name: 'next_guardrail',
+    type: 'text',
+    nullable: true,
+  })
+  nextGuardrail: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: ['pending', 'running', 'completed', 'failed'],
+    default: 'pending',
+    nullable: false,
+  })
+  status: ReportValidationStatus;
+
+  @Column({
+    name: 'evaluated_at',
+    type: 'datetime',
+    nullable: true,
+  })
+  evaluatedAt: Date | null;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  error: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}

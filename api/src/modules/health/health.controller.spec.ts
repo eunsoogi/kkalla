@@ -10,7 +10,9 @@ describe('HealthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [HealthService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<HealthController>(HealthController);
   });

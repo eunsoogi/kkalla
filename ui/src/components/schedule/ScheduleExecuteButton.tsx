@@ -8,10 +8,11 @@ import { useTranslations } from 'next-intl';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { Permission } from '@/interfaces/permission.interface';
 import type { ScheduleExecutionPlanResponse } from '@/interfaces/schedule-execution.interface';
+
 import type { ScheduleActionState } from './action';
 
 interface ScheduleExecuteButtonProps {
-  type: 'marketRecommendation' | 'existItems' | 'newItems';
+  type: 'marketRecommendation' | 'existItems' | 'newItems' | 'reportValidation';
   isPending: boolean;
   onExecute: () => void;
   result?: ScheduleActionState;
@@ -36,7 +37,6 @@ const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
   const STATUS_STYLES: Record<ScheduleActionState['status'], string> = {
     started: 'text-success bg-lightsuccess dark:text-white dark:bg-success',
     skipped_lock: 'text-warning bg-lightwarning dark:text-white dark:bg-warning',
-    skipped_development: 'text-info bg-lightinfo dark:text-white dark:bg-info',
     failed: 'text-error bg-lighterror dark:text-white dark:bg-error',
   };
 
@@ -59,6 +59,12 @@ const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
       description: t('schedule.execute.balanceRecommendationNew.description'),
       button: t('schedule.execute.balanceRecommendationNew.button'),
     },
+    reportValidation: {
+      permission: Permission.EXEC_SCHEDULE_REPORT_VALIDATION,
+      title: t('schedule.execute.reportValidation.title'),
+      description: t('schedule.execute.reportValidation.description'),
+      button: t('schedule.execute.reportValidation.button'),
+    },
   };
 
   const currentConfig = config[type];
@@ -69,8 +75,6 @@ const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
         return t('schedule.execute.statusLabel.started');
       case 'skipped_lock':
         return t('schedule.execute.statusLabel.skippedLock');
-      case 'skipped_development':
-        return t('schedule.execute.statusLabel.skippedDevelopment');
       default:
         return t('schedule.execute.statusLabel.failed');
     }
@@ -90,7 +94,9 @@ const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
         </div>
 
         <div className='min-w-0 lg:col-span-4'>
-          <p className='mb-2 text-xs font-medium text-gray-500 dark:text-gray-400'>{t('schedule.execute.auto.label')}</p>
+          <p className='mb-2 text-xs font-medium text-gray-500 dark:text-gray-400'>
+            {t('schedule.execute.auto.label')}
+          </p>
           {isPlanLoading ? (
             <p className='text-sm text-gray-400 dark:text-gray-500'>{t('schedule.execute.auto.loading')}</p>
           ) : plan ? (
@@ -134,26 +140,29 @@ const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
         <div className='lg:col-span-3'>
           <div className='grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-x-3'>
             <div className='flex min-w-0 flex-col items-start gap-2 lg:items-end'>
-              <p className='text-xs font-medium text-gray-500 dark:text-gray-400'>{t('schedule.execute.status.label')}</p>
+              <p className='text-xs font-medium text-gray-500 dark:text-gray-400'>
+                {t('schedule.execute.status.label')}
+              </p>
               {result ? (
                 <>
-                  <span className={`inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[result.status]}`}>
+                  <span
+                    className={`inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[result.status]}`}
+                  >
                     {statusLabel(result.status)}
                   </span>
-                  <span className='text-xs text-gray-500 dark:text-gray-400 lg:text-right'>{formatRequestedAt(result.requestedAt)}</span>
+                  <span className='text-xs text-gray-500 dark:text-gray-400 lg:text-right'>
+                    {formatRequestedAt(result.requestedAt)}
+                  </span>
                 </>
               ) : (
-                <span className='text-xs text-gray-400 dark:text-gray-500'>{t('schedule.execute.statusLabel.idle')}</span>
+                <span className='text-xs text-gray-400 dark:text-gray-500'>
+                  {t('schedule.execute.statusLabel.idle')}
+                </span>
               )}
             </div>
 
             <div className='flex items-center lg:justify-end'>
-              <Button
-                color='primary'
-                onClick={onExecute}
-                disabled={isPending}
-                className='w-full whitespace-nowrap'
-              >
+              <Button color='primary' onClick={onExecute} disabled={isPending} className='w-full whitespace-nowrap'>
                 {isPending ? t('schedule.execute.executing') : currentConfig.button}
               </Button>
             </div>

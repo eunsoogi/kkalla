@@ -38,6 +38,7 @@ import {
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
+import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '../trade/trade.interface';
@@ -116,6 +117,7 @@ export class RebalanceService implements OnModuleInit {
     private readonly openaiService: OpenaiService,
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
+    private readonly reportValidationService: ReportValidationService,
   ) {
     if (!this.queueUrl) {
       throw new Error('AWS_SQS_QUEUE_URL_REBALANCE environment variable is required');
@@ -1712,6 +1714,9 @@ export class RebalanceService implements OnModuleInit {
     );
 
     this.logger.log(this.i18n.t('logging.inference.balanceRecommendation.complete'));
+    this.reportValidationService
+      .enqueuePortfolioBatchValidation(batchId)
+      .catch((error) => this.logger.warn('Failed to enqueue portfolio report validation', error));
 
     return recommendationResults.map((saved, index) => ({
       id: saved.id,
@@ -1757,6 +1762,15 @@ export class RebalanceService implements OnModuleInit {
     const feargreed = await this.fetchFearGreedData();
     if (feargreed) {
       this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    }
+
+    try {
+      const validationSummary = await this.reportValidationService.buildPortfolioValidationGuardrailText(symbol);
+      if (validationSummary) {
+        this.openaiService.addMessagePair(messages, 'prompt.input.validation_portfolio', validationSummary);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to load portfolio validation guardrail summary for ${symbol}`, error);
     }
 
     // 개별 종목 feature 데이터 추가
@@ -1874,6 +1888,7 @@ export class RebalanceService implements OnModuleInit {
     params: GetBalanceRecommendationsPaginationDto,
   ): Promise<PaginatedItem<BalanceRecommendationDto>> {
     const paginatedResult = await BalanceRecommendation.paginate(params);
+    const badgeMap = await this.getPortfolioValidationBadgeMapSafe(paginatedResult.items.map((entity) => entity.id));
     const items = await Promise.all(
       paginatedResult.items.map(async (entity) => ({
         id: entity.id,
@@ -1890,6 +1905,8 @@ export class RebalanceService implements OnModuleInit {
         reason: entity.reason,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
+        validation24h: badgeMap.get(entity.id)?.validation24h,
+        validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
     );
 
@@ -1909,6 +1926,7 @@ export class RebalanceService implements OnModuleInit {
     params: GetBalanceRecommendationsCursorDto,
   ): Promise<CursorItem<BalanceRecommendationDto, string>> {
     const cursorResult = await BalanceRecommendation.cursor(params);
+    const badgeMap = await this.getPortfolioValidationBadgeMapSafe(cursorResult.items.map((entity) => entity.id));
     const items = await Promise.all(
       cursorResult.items.map(async (entity) => ({
         id: entity.id,
@@ -1925,6 +1943,8 @@ export class RebalanceService implements OnModuleInit {
         reason: entity.reason,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
+        validation24h: badgeMap.get(entity.id)?.validation24h,
+        validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
     );
 
@@ -1969,5 +1989,14 @@ export class RebalanceService implements OnModuleInit {
     }
 
     return null;
+  }
+
+  private async getPortfolioValidationBadgeMapSafe(ids: string[]) {
+    try {
+      return await this.reportValidationService.getPortfolioValidationBadgeMap(ids);
+    } catch (error) {
+      this.logger.warn('Failed to load portfolio validation badges', error);
+      return new Map();
+    }
   }
 }

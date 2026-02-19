@@ -21,6 +21,7 @@ import { Category } from '../category/category.enum';
 import { NotifyService } from '../notify/notify.service';
 import { RecommendationItem } from '../rebalance/rebalance.interface';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
+import { ReportValidationService } from '../report-validation/report-validation.service';
 import { GetMarketRecommendationsCursorDto } from './dto/get-market-recommendations-cursor.dto';
 import { GetMarketRecommendationsPaginationDto } from './dto/get-market-recommendations-pagination.dto';
 import { MarketRecommendationWithChangeDto } from './dto/market-recommendation-with-change.dto';
@@ -60,6 +61,7 @@ export class MarketResearchService {
     private readonly openaiService: OpenaiService,
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
+    private readonly reportValidationService: ReportValidationService,
   ) {}
 
   /**
@@ -248,6 +250,9 @@ export class MarketResearchService {
 
     this.logger.log(this.i18n.t('logging.inference.marketRecommendation.complete'));
     await this.cacheLatestRecommendationState(inferenceResult.batchId, true);
+    this.reportValidationService
+      .enqueueMarketBatchValidation(inferenceResult.batchId)
+      .catch((error) => this.logger.warn('Failed to enqueue market report validation', error));
 
     return recommendationResults.map((saved) => ({
       id: saved.id,
@@ -306,6 +311,15 @@ export class MarketResearchService {
     const feargreed = await this.fetchFearGreedData();
     if (feargreed) {
       this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    }
+
+    try {
+      const validationSummary = await this.reportValidationService.buildMarketValidationGuardrailText();
+      if (validationSummary) {
+        this.openaiService.addMessagePair(messages, 'prompt.input.validation_market', validationSummary);
+      }
+    } catch (error) {
+      this.logger.warn('Failed to load market validation guardrail summary', error);
     }
 
     // 종목 feature 데이터 추가
@@ -367,7 +381,30 @@ export class MarketResearchService {
   public async paginateMarketRecommendations(
     params: GetMarketRecommendationsPaginationDto,
   ): Promise<PaginatedItem<MarketRecommendationDto>> {
-    return MarketRecommendation.paginate(params as any);
+    const paginatedResult = await MarketRecommendation.paginate(params as any);
+    const badgeMap = await this.getMarketValidationBadgeMapSafe(paginatedResult.items.map((entity) => entity.id));
+
+    const items = paginatedResult.items.map((entity) => {
+      const validation = badgeMap.get(entity.id) ?? {};
+      return {
+        id: entity.id,
+        seq: entity.seq,
+        symbol: entity.symbol,
+        weight: Number(entity.weight),
+        reason: entity.reason,
+        confidence: Number(entity.confidence),
+        batchId: entity.batchId,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+        validation24h: validation.validation24h,
+        validation72h: validation.validation72h,
+      };
+    });
+
+    return {
+      ...paginatedResult,
+      items,
+    };
   }
 
   /**
@@ -380,13 +417,15 @@ export class MarketResearchService {
     params: GetMarketRecommendationsCursorDto,
   ): Promise<CursorItem<MarketRecommendationDto, string>> {
     const cursorResult = await MarketRecommendation.cursor(params as any);
+    const badgeMap = await this.getMarketValidationBadgeMapSafe(cursorResult.items.map((entity) => entity.id));
     const items = cursorResult.items.map((entity) => ({
+      ...(badgeMap.get(entity.id) ?? {}),
       id: entity.id,
       seq: entity.seq,
       symbol: entity.symbol,
-      weight: entity.weight,
+      weight: Number(entity.weight),
       reason: entity.reason,
-      confidence: entity.confidence,
+      confidence: Number(entity.confidence),
       batchId: entity.batchId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -416,6 +455,7 @@ export class MarketResearchService {
   public async getLatestWithPriceChange(limit = 10): Promise<MarketRecommendationWithChangeDto[]> {
     const latest = await MarketRecommendation.getLatestRecommends();
     const items = [...latest].sort((a, b) => Number(b.confidence) - Number(a.confidence)).slice(0, limit);
+    const badgeMap = await this.getMarketValidationBadgeMapSafe(items.map((entity) => entity.id));
 
     const result: MarketRecommendationWithChangeDto[] = await Promise.all(
       items.map(async (entity) => {
@@ -453,6 +493,7 @@ export class MarketResearchService {
         }
 
         return {
+          ...(badgeMap.get(entity.id) ?? {}),
           id: entity.id,
           seq: entity.seq,
           symbol: entity.symbol,
@@ -470,5 +511,14 @@ export class MarketResearchService {
     );
 
     return result;
+  }
+
+  private async getMarketValidationBadgeMapSafe(ids: string[]) {
+    try {
+      return await this.reportValidationService.getMarketValidationBadgeMap(ids);
+    } catch (error) {
+      this.logger.warn('Failed to load market validation badges', error);
+      return new Map();
+    }
   }
 }

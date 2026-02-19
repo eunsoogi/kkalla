@@ -5,6 +5,11 @@ import { MarketResearchService } from '../market-research/market-research.servic
 import { ScheduleExpression as RebalanceScheduleExpression } from '../rebalance/rebalance.enum';
 import { RebalanceService } from '../rebalance/rebalance.service';
 import { RedlockService } from '../redlock/redlock.service';
+import {
+  REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK,
+  ScheduleExpression as ReportValidationScheduleExpression,
+} from '../report-validation/report-validation.enum';
+import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleExecutionResponse, ScheduleExecutionTask } from './schedule-execution.interface';
 import { SchedulePlanResponse } from './schedule-plan.interface';
 
@@ -32,11 +37,17 @@ export class ScheduleExecutionService {
     duration: 3_600_000,
   };
 
+  private readonly reportValidationLock: LockConfig = {
+    resourceName: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
+    duration: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
+  };
+
   constructor(
     @Inject(forwardRef(() => MarketResearchService))
     private readonly marketResearchService: MarketResearchService,
     @Inject(forwardRef(() => RebalanceService))
     private readonly rebalanceService: RebalanceService,
+    private readonly reportValidationService: ReportValidationService,
     private readonly redlockService: RedlockService,
   ) {}
 
@@ -53,6 +64,10 @@ export class ScheduleExecutionService {
       {
         task: 'balanceRecommendationNew',
         cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_NEW,
+      },
+      {
+        task: 'reportValidation',
+        cronExpression: ReportValidationScheduleExpression.HOURLY_REPORT_VALIDATION,
       },
     ];
 
@@ -81,20 +96,18 @@ export class ScheduleExecutionService {
     );
   }
 
+  public async executeReportValidation(): Promise<ScheduleExecutionResponse> {
+    return this.executeWithLock('reportValidation', this.reportValidationLock, () =>
+      this.reportValidationService.executeDueValidationsTask(),
+    );
+  }
+
   private async executeWithLock(
     task: ScheduleExecutionTask,
     lock: LockConfig,
     callback: () => Promise<void>,
   ): Promise<ScheduleExecutionResponse> {
     const requestedAt = new Date().toISOString();
-
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        task,
-        status: 'skipped_development',
-        requestedAt,
-      };
-    }
 
     const started = await this.redlockService.startWithLock(lock.resourceName, lock.duration, callback);
 
@@ -115,11 +128,14 @@ export class ScheduleExecutionService {
     }
 
     const minute = Number(minuteField);
-    const hours = hourField
-      .split(',')
-      .filter((hour) => /^\d+$/.test(hour))
-      .map((hour) => Number(hour))
-      .sort((a, b) => a - b);
+    const hours =
+      hourField === '*'
+        ? Array.from({ length: 24 }, (_, index) => index)
+        : hourField
+            .split(',')
+            .filter((hour) => /^\d+$/.test(hour))
+            .map((hour) => Number(hour))
+            .sort((a, b) => a - b);
 
     return hours.map((hour) => `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
   }
