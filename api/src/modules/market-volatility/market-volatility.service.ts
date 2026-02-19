@@ -237,17 +237,19 @@ export class MarketVolatilityService implements OnModuleInit {
 
       this.logger.debug(trades);
 
-      // 수익금 조회 및 사용자에게 알림 전송
-      const profitData = await this.profitService.getProfit(user);
+      // 실행된 거래가 있을 때만 수익금 알림 전송
+      if (trades.length > 0) {
+        const profitData = await this.profitService.getProfit(user);
 
-      await this.notifyService.notify(
-        user,
-        this.i18n.t('notify.profit.result', {
-          args: {
-            profit: formatNumber(profitData.profit),
-          },
-        }),
-      );
+        await this.notifyService.notify(
+          user,
+          this.i18n.t('notify.profit.result', {
+            args: {
+              profit: formatNumber(profitData.profit),
+            },
+          }),
+        );
+      }
 
       this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
 
