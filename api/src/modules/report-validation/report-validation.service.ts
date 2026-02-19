@@ -100,9 +100,13 @@ export class ReportValidationService {
       await this.ensureBackfillIfNeeded();
       await this.processDueItems();
     } catch (error) {
-      this.logger.error('Failed to execute report validation task', error);
+      this.logger.error(this.i18n.t('logging.reportValidation.task.execute_failed'), error);
       await this.safeNotifyServer(
-        `*[시스템 알림]* report validation task failed\n> ${this.errorService.getErrorMessage(error)}`,
+        this.i18n.t('notify.reportValidation.task_failed', {
+          args: {
+            message: this.errorService.getErrorMessage(error),
+          },
+        }),
       );
       throw error;
     }
@@ -124,9 +128,13 @@ export class ReportValidationService {
         .andWhere('status IN (:...statuses)', { statuses: ['completed', 'failed'] })
         .execute();
     } catch (error) {
-      this.logger.error('Failed to cleanup old validation rows', error);
+      this.logger.error(this.i18n.t('logging.reportValidation.task.cleanup_failed'), error);
       await this.safeNotifyServer(
-        `*[시스템 알림]* report validation cleanup failed\n> ${this.errorService.getErrorMessage(error)}`,
+        this.i18n.t('notify.reportValidation.cleanup_failed', {
+          args: {
+            message: this.errorService.getErrorMessage(error),
+          },
+        }),
       );
       throw error;
     }
@@ -512,7 +520,13 @@ export class ReportValidationService {
           await ReportValidationItem.save(itemsToCreate, { chunk: 100 });
         } catch (error) {
           this.logger.warn(
-            `Validation items insert partially failed for ${reportType}/${batchId}/${horizonHours}`,
+            this.i18n.t('logging.reportValidation.task.insert_partial_failed', {
+              args: {
+                reportType,
+                batchId,
+                horizonHours,
+              },
+            }),
             error,
           );
         }
@@ -943,7 +957,15 @@ export class ReportValidationService {
 
     if (isTerminal && failedItems.length > 0) {
       await this.safeNotifyServer(
-        `*[시스템 알림]* report validation partially failed\n> run=${run.id}\n> reportType=${run.reportType}\n> batch=${run.sourceBatchId}\n> horizon=${run.horizonHours}\n> failed=${failedItems.length}`,
+        this.i18n.t('notify.reportValidation.partially_failed', {
+          args: {
+            runId: run.id,
+            reportType: run.reportType,
+            sourceBatchId: run.sourceBatchId,
+            horizonHours: run.horizonHours,
+            failedCount: failedItems.length,
+          },
+        }),
       );
     }
   }
@@ -951,7 +973,7 @@ export class ReportValidationService {
   private buildRunSummary(items: ReportValidationItem[]): string {
     const validItems = items.filter((item) => item.gptVerdict !== 'invalid');
     if (validItems.length < 1) {
-      return 'No valid items';
+      return this.i18n.t('logging.reportValidation.summary.no_valid_items');
     }
 
     const overallScores = validItems
@@ -967,13 +989,41 @@ export class ReportValidationService {
       validItems.map((item) => this.toNullableNumber(item.returnPct)).filter((value): value is number => value != null),
     );
     const avgOverall = this.average(overallScores);
+    const avgReturnText =
+      avgReturn != null ? `${avgReturn.toFixed(2)}%` : this.i18n.t('logging.reportValidation.summary.na');
+    const avgOverallText =
+      avgOverall != null ? avgOverall.toFixed(4) : this.i18n.t('logging.reportValidation.summary.na');
+    const guardrailsText =
+      topGuardrails.length > 0 ? topGuardrails.join(' | ') : this.i18n.t('logging.reportValidation.summary.none');
 
     return [
-      `accuracy=${accuracy.ratio.toFixed(2)}% (${accuracy.hit}/${accuracy.total})`,
-      `avgReturn=${avgReturn != null ? `${avgReturn.toFixed(2)}%` : 'N/A'}`,
-      `avgOverall=${avgOverall != null ? avgOverall.toFixed(4) : 'N/A'}`,
-      `lowScore=${lowScoreItems.length}`,
-      `guardrails=${topGuardrails.length > 0 ? topGuardrails.join(' | ') : 'none'}`,
+      this.i18n.t('logging.reportValidation.summary.accuracy', {
+        args: {
+          ratio: accuracy.ratio.toFixed(2),
+          hit: accuracy.hit,
+          total: accuracy.total,
+        },
+      }),
+      this.i18n.t('logging.reportValidation.summary.avg_return', {
+        args: {
+          value: avgReturnText,
+        },
+      }),
+      this.i18n.t('logging.reportValidation.summary.avg_overall', {
+        args: {
+          value: avgOverallText,
+        },
+      }),
+      this.i18n.t('logging.reportValidation.summary.low_score', {
+        args: {
+          count: lowScoreItems.length,
+        },
+      }),
+      this.i18n.t('logging.reportValidation.summary.guardrails', {
+        args: {
+          value: guardrailsText,
+        },
+      }),
     ].join(', ');
   }
 
@@ -1224,7 +1274,7 @@ export class ReportValidationService {
     try {
       await this.notifyService.notifyServer(message);
     } catch (error) {
-      this.logger.warn('Failed to notify server for report validation', error);
+      this.logger.warn(this.i18n.t('logging.reportValidation.task.notify_failed'), error);
     }
   }
 }

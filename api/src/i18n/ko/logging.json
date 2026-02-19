@@ -114,6 +114,24 @@
       "failed": "일일 상위 10개 종목 추천 분석에 실패했습니다."
     }
   },
+  "reportValidation": {
+    "task": {
+      "execute_failed": "리포트 사후 검증 작업 실행에 실패했습니다.",
+      "cleanup_failed": "리포트 사후 검증 데이터 정리에 실패했습니다.",
+      "insert_partial_failed": "리포트 사후 검증 항목 저장 중 일부 실패했습니다. reportType={reportType}, batch={batchId}, horizonHours={horizonHours}",
+      "notify_failed": "리포트 사후 검증 서버 알림 전송에 실패했습니다."
+    },
+    "summary": {
+      "no_valid_items": "유효한 항목이 없습니다.",
+      "accuracy": "accuracy={ratio}% ({hit}/{total})",
+      "avg_return": "avgReturn={value}",
+      "avg_overall": "avgOverall={value}",
+      "low_score": "lowScore={count}",
+      "guardrails": "guardrails={value}",
+      "na": "N/A",
+      "none": "none"
+    }
+  },
   "retry": {
     "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중... 오류: {message}",
     "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {message}",

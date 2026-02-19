@@ -14,6 +14,20 @@ describe('ReportValidationService', () => {
   };
 
   beforeEach(() => {
+    const interpolate = (template: string, args: Record<string, unknown>) =>
+      template.replace(/\{(\w+)\}/g, (_: string, key: string) => String(args[key] ?? ''));
+
+    const templates: Record<string, string> = {
+      'logging.reportValidation.summary.no_valid_items': 'No valid items',
+      'logging.reportValidation.summary.accuracy': 'accuracy={ratio}% ({hit}/{total})',
+      'logging.reportValidation.summary.avg_return': 'avgReturn={value}',
+      'logging.reportValidation.summary.avg_overall': 'avgOverall={value}',
+      'logging.reportValidation.summary.low_score': 'lowScore={count}',
+      'logging.reportValidation.summary.guardrails': 'guardrails={value}',
+      'logging.reportValidation.summary.na': 'N/A',
+      'logging.reportValidation.summary.none': 'none',
+    };
+
     openaiService = {
       addMessage: jest.fn(),
       createBatchRequest: jest.fn(),
@@ -23,7 +37,13 @@ describe('ReportValidationService', () => {
 
     service = new ReportValidationService(
       {
-        t: jest.fn((key: string) => key),
+        t: jest.fn((key: string, options?: { args?: Record<string, unknown> }) => {
+          const template = templates[key];
+          if (!template) {
+            return key;
+          }
+          return interpolate(template, options?.args ?? {});
+        }),
       } as any,
       openaiService as any,
       {
