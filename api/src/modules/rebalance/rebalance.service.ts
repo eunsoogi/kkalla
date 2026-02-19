@@ -1022,7 +1022,12 @@ export class RebalanceService implements OnModuleInit {
     return 'buy';
   }
 
-  private calculateModelSignals(intensity: number, category: Category, marketFeatures: MarketFeatures | null) {
+  private calculateModelSignals(
+    intensity: number,
+    category: Category,
+    marketFeatures: MarketFeatures | null,
+    symbol?: string,
+  ) {
     const aiBuy = this.clamp01(intensity);
     const aiSell = this.clamp01(-intensity);
     const featureScore = this.calculateFeatureScore(marketFeatures);
@@ -1039,6 +1044,7 @@ export class RebalanceService implements OnModuleInit {
     this.logger.log(
       this.i18n.t('logging.inference.balanceRecommendation.model_signal', {
         args: {
+          symbol: symbol ?? 'N/A',
           intensity,
           category,
           featureScore,
@@ -1062,7 +1068,7 @@ export class RebalanceService implements OnModuleInit {
     const baseTargetWeight =
       inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
         ? this.clamp01(inference.modelTargetWeight)
-        : this.calculateModelSignals(inference.intensity, inference.category, null).modelTargetWeight;
+        : this.calculateModelSignals(inference.intensity, inference.category, null, inference.symbol).modelTargetWeight;
 
     if (baseTargetWeight <= 0) {
       return 0;
@@ -1228,12 +1234,12 @@ export class RebalanceService implements OnModuleInit {
 
     const checkedCount = checks.filter((check) => check.checked).length;
     if (checkedCount < 1) {
-      this.logger.warn('Failed to validate orderable symbols; fallback to KRW-only symbol filtering');
+      this.logger.warn(this.i18n.t('logging.inference.balanceRecommendation.orderable_symbol_check_failed'));
       return undefined;
     }
 
     if (checkedCount < checks.length) {
-      this.logger.warn('Partially failed to validate orderable symbols; include unchecked symbols for safety');
+      this.logger.warn(this.i18n.t('logging.inference.balanceRecommendation.orderable_symbol_check_partial'));
     }
 
     return new Set(checks.filter((check) => !check.checked || check.exists).map((check) => check.symbol));
@@ -1491,13 +1497,13 @@ export class RebalanceService implements OnModuleInit {
     try {
       latestState = await this.cacheService.get<MarketRecommendationState>(MARKET_RECOMMENDATION_STATE_CACHE_KEY);
     } catch (error) {
-      this.logger.warn('Failed to read market recommendation state cache; fallback to latest recommendations', error);
+      this.logger.warn(this.i18n.t('logging.schedule.balanceRecommendation.state_cache_read_failed'), error);
     }
 
     let recommendations: MarketRecommendation[];
 
     if (!latestState?.batchId || !this.isLatestRecommendationStateFresh(latestState)) {
-      this.logger.warn('Latest market recommendation state is missing or stale; fallback to latest recommendations');
+      this.logger.warn(this.i18n.t('logging.schedule.balanceRecommendation.state_stale_fallback'));
       recommendations = await MarketRecommendation.getLatestRecommends();
     } else if (!latestState.hasRecommendations) {
       const latestRecommendations = await MarketRecommendation.getLatestRecommends();
@@ -1518,6 +1524,23 @@ export class RebalanceService implements OnModuleInit {
       if (recommendations.length < 1 || hasNewerRecommendations || hasDifferentBatch) {
         recommendations = latestRecommendations;
       }
+    }
+
+    const minimumFilteredOutRecommendations = recommendations.filter(
+      (recommendation) =>
+        Number(recommendation.weight) < this.MIN_RECOMMEND_WEIGHT ||
+        Number(recommendation.confidence) < this.MIN_RECOMMEND_CONFIDENCE,
+    );
+
+    if (minimumFilteredOutRecommendations.length > 0) {
+      this.logger.log(
+        this.i18n.t('logging.schedule.balanceRecommendation.minimum_filtered', {
+          args: {
+            count: minimumFilteredOutRecommendations.length,
+            symbols: minimumFilteredOutRecommendations.map((recommendation) => recommendation.symbol).join(', '),
+          },
+        }),
+      );
     }
 
     const filteredRecommendations = recommendations
@@ -1554,15 +1577,43 @@ export class RebalanceService implements OnModuleInit {
   private async filterBalanceRecommendations(items: RecommendationItem[]): Promise<RecommendationItem[]> {
     // 블랙리스트 전체 조회
     const blacklist = await this.blacklistService.findAll();
+    const blacklistKeySet = new Set(blacklist.map((item) => `${item.symbol}:${item.category}`));
+    const firstIndexBySymbol = new Map<string, number>();
+    const blacklistFilteredSymbols = new Set<string>();
+
+    items.forEach((item, index) => {
+      if (!firstIndexBySymbol.has(item.symbol)) {
+        firstIndexBySymbol.set(item.symbol, index);
+      }
+    });
 
     // 중복 및 블랙리스트 제거
     // 1. 중복 제거: 같은 심볼이 여러 번 나타나는 경우 첫 번째만 유지
     // 2. 블랙리스트 필터링: 블랙리스트에 등록된 종목(심볼+카테고리 조합) 제외
-    items = items.filter(
-      (item, index, self) =>
-        index === self.findIndex((t) => t.symbol === item.symbol) &&
-        !blacklist.some((t) => t.symbol === item.symbol && t.category === item.category),
-    );
+    items = items.filter((item, index) => {
+      const isFirstSymbol = index === firstIndexBySymbol.get(item.symbol);
+      if (!isFirstSymbol) {
+        return false;
+      }
+
+      const isBlacklisted = blacklistKeySet.has(`${item.symbol}:${item.category}`);
+      if (isBlacklisted) {
+        blacklistFilteredSymbols.add(item.symbol);
+      }
+
+      return !isBlacklisted;
+    });
+
+    if (blacklistFilteredSymbols.size > 0) {
+      this.logger.log(
+        this.i18n.t('logging.schedule.balanceRecommendation.blacklist_filtered', {
+          args: {
+            count: blacklistFilteredSymbols.size,
+            symbols: Array.from(blacklistFilteredSymbols).join(', '),
+          },
+        }),
+      );
+    }
 
     return items;
   }
@@ -1608,7 +1659,7 @@ export class RebalanceService implements OnModuleInit {
           const responseData = JSON.parse(outputText);
           const intensity = Number(responseData?.intensity);
           const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
-          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures);
+          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, item.symbol);
           const previousMetricsBySymbol = previousMetrics.get(item.symbol);
 
           // 추론 결과와 아이템 병합
