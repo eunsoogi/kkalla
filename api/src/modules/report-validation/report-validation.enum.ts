@@ -5,5 +5,6 @@ export enum ScheduleExpression {
 
 export const REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK = {
   resourceName: 'ReportValidationService:executeDueValidations',
-  duration: 3_600_000,
+  // Keep single-run semantics even when OpenAI batch wait spans up to 24h.
+  duration: 24 * 60 * 60 * 1000 + 5 * 60 * 1000,
 } as const;
