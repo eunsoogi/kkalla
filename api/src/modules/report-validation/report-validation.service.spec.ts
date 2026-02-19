@@ -302,22 +302,21 @@ describe('ReportValidationService', () => {
     expect(openaiService.waitBatch).toHaveBeenCalledWith('batch-1', 86_400_000, 30_000);
   });
 
-  it('should include failed and stale running items in due queue lookup', async () => {
-    const findSpy = jest.spyOn(ReportValidationItem, 'find').mockResolvedValue([]);
+  it('should prioritize pending/stale-running lookup before failed retries', async () => {
+    const findSpy = jest.spyOn(ReportValidationItem, 'find').mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
     await (service as any).processDueItems();
 
-    const options = findSpy.mock.calls[0]?.[0] as any;
-    expect(options).toBeDefined();
-    expect(Array.isArray(options.where)).toBe(true);
-    expect(options.where).toEqual(
+    expect(findSpy).toHaveBeenCalledTimes(2);
+    const primaryOptions = findSpy.mock.calls[0]?.[0] as any;
+    const failedRetryOptions = findSpy.mock.calls[1]?.[0] as any;
+
+    expect(primaryOptions).toBeDefined();
+    expect(Array.isArray(primaryOptions.where)).toBe(true);
+    expect(primaryOptions.where).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           status: 'pending',
-          dueAt: expect.any(Object),
-        }),
-        expect.objectContaining({
-          status: 'failed',
           dueAt: expect.any(Object),
         }),
         expect.objectContaining({
@@ -327,5 +326,35 @@ describe('ReportValidationService', () => {
         }),
       ]),
     );
+    expect(primaryOptions.where).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: 'failed',
+        }),
+      ]),
+    );
+
+    expect(failedRetryOptions).toBeDefined();
+    expect(failedRetryOptions.where).toEqual(
+      expect.objectContaining({
+        status: 'failed',
+        dueAt: expect.any(Object),
+        updatedAt: expect.any(Object),
+      }),
+    );
+    expect(failedRetryOptions.order).toEqual({ updatedAt: 'ASC' });
+  });
+
+  it('should skip failed retry lookup when pending queue is full', async () => {
+    (service as any).DUE_BATCH_LIMIT = 1;
+    const run = { id: 'run-1' };
+    const pendingItem = { id: 'item-1', run, status: 'pending' };
+    const findSpy = jest.spyOn(ReportValidationItem, 'find').mockResolvedValueOnce([pendingItem] as any);
+    const processRunSpy = jest.spyOn(service as any, 'processRun').mockResolvedValue(undefined);
+
+    await (service as any).processDueItems();
+
+    expect(findSpy).toHaveBeenCalledTimes(1);
+    expect(processRunSpy).toHaveBeenCalledTimes(1);
   });
 });

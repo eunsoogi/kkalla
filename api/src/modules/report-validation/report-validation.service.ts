@@ -61,6 +61,7 @@ export class ReportValidationService {
   private readonly OPENAI_BATCH_MAX_WAIT_MS = 24 * 60 * 60 * 1000;
   private readonly OPENAI_BATCH_POLL_INTERVAL_MS = 30 * 1000;
   private readonly RUNNING_STALE_TIMEOUT_MS = this.OPENAI_BATCH_MAX_WAIT_MS + 5 * 60 * 1000;
+  private readonly FAILED_RETRY_INTERVAL_MS = 30 * 60 * 1000;
   private lastBackfillCheckedAt: number | null = null;
   private portfolioGlobalGuardrailsCache: { expiresAt: number; guardrails: string[] } | null = null;
   private portfolioGlobalGuardrailsInFlight: Promise<string[]> | null = null;
@@ -553,14 +554,11 @@ export class ReportValidationService {
   private async processDueItems(): Promise<void> {
     const now = new Date();
     const staleRunningThreshold = new Date(now.getTime() - this.RUNNING_STALE_TIMEOUT_MS);
+    const failedRetryThreshold = new Date(now.getTime() - this.FAILED_RETRY_INTERVAL_MS);
     const dueItems = await ReportValidationItem.find({
       where: [
         {
           status: 'pending',
-          dueAt: LessThanOrEqual(now),
-        },
-        {
-          status: 'failed',
           dueAt: LessThanOrEqual(now),
         },
         {
@@ -578,12 +576,32 @@ export class ReportValidationService {
       take: this.DUE_BATCH_LIMIT,
     });
 
-    if (dueItems.length < 1) {
+    const remainingSlots = this.DUE_BATCH_LIMIT - dueItems.length;
+    const failedRetryItems =
+      remainingSlots > 0
+        ? await ReportValidationItem.find({
+            where: {
+              status: 'failed',
+              dueAt: LessThanOrEqual(now),
+              updatedAt: LessThanOrEqual(failedRetryThreshold),
+            } as any,
+            relations: {
+              run: true,
+            },
+            order: {
+              updatedAt: 'ASC',
+            },
+            take: remainingSlots,
+          })
+        : [];
+    const queuedItems = dueItems.concat(failedRetryItems);
+
+    if (queuedItems.length < 1) {
       return;
     }
 
     const itemsByRunId = new Map<string, ReportValidationItem[]>();
-    for (const item of dueItems) {
+    for (const item of queuedItems) {
       const runId = item.run.id;
       const existing = itemsByRunId.get(runId) ?? [];
       existing.push(item);
