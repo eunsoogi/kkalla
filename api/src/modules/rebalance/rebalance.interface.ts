@@ -35,6 +35,7 @@ export interface BalanceRecommendationData {
   symbol: string;
   category: Category;
   intensity: number;
+  reason?: string | null;
   prevIntensity?: number | null;
   prevModelTargetWeight?: number | null;
   buyScore?: number;

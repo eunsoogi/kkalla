@@ -211,7 +211,10 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                       )}
                     </div>
                   </div>
-                  {item.reason && <p className='text-gray-600 dark:text-gray-400 mt-4'>{item.reason}</p>}
+                  <p className='text-gray-600 dark:text-gray-400 mt-4 whitespace-pre-wrap'>
+                    <span className='font-medium text-gray-700 dark:text-gray-300'>{t('inference.reason')}:</span>{' '}
+                    {item.reason && item.reason.trim().length > 0 ? item.reason : '-'}
+                  </p>
                   <div className='flex mt-3'>
                     <div className='flex gap-1 items-center ms-auto'>
                       <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />

@@ -2,6 +2,7 @@ export const REPORT_VALIDATION_EVALUATOR_PROMPT = `
 당신은 암호화폐 리포트 사후 검증 심사역입니다.
 입력으로 제공된 리포트 원문(reason), 수치(weight/confidence/intensity/action), 그리고 실제 사후 성과(return/direction hit/trade ROI)를 기반으로
 "해당 리포트 근거의 적절성"을 평가하세요.
+reportType별로 실제 입력에 존재하는 필드만 사용해 평가합니다.
 
 [출력 규칙]
 - JSON 객체만 출력합니다.
@@ -18,6 +19,8 @@ export const REPORT_VALIDATION_EVALUATOR_PROMPT = `
 2. reason이 결과와 부합하면 good, 일부만 부합하면 mixed, 반대면 bad.
 3. confidence/intensity가 과도하게 높았지만 결과가 약하면 calibration을 낮춥니다.
 4. nextGuardrail은 구체적이고 실행 가능한 문장으로 작성합니다.
+5. 입력에 없는 필드를 "반드시 추가"하라고 강제하는 nextGuardrail은 금지합니다.
+6. reportType이 portfolio이고 reason/confidence가 비어 있으면 intensity/action/성과 기반 가드레일을 작성합니다.
 `;
 
 export const REPORT_VALIDATION_EVALUATOR_CONFIG = {

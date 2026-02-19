@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
-import { getConfidenceColor, getValidationColor, getWeightColor } from '@/components/inference/style';
+import { getConfidenceColor, getWeightColor } from '@/components/inference/style';
 import type { MarketReportWithChange } from '@/interfaces/dashboard.interface';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
@@ -29,41 +29,6 @@ const MarketReportRow = ({
   const confidencePct = Math.floor((item.confidence ?? 0) * 100);
   const weightStyle = getWeightColor(item.weight ?? 0);
   const confidenceStyle = getConfidenceColor(item.confidence ?? 0);
-  const renderValidationBadge = (scope: '24h' | '72h') => {
-    const validation = scope === '24h' ? item.validation24h : item.validation72h;
-    if (!validation) return '-';
-
-    const style = getValidationColor(validation.status, validation.verdict);
-    const score =
-      typeof validation.overallScore === 'number' && Number.isFinite(validation.overallScore)
-        ? ` ${(validation.overallScore * 100).toFixed(0)}%`
-        : '';
-    const statusLabel =
-      validation.status === 'pending'
-        ? t('inference.validationPending')
-        : validation.status === 'running'
-          ? t('inference.validationRunning')
-          : validation.status === 'failed'
-            ? t('inference.validationFailed')
-            : validation.verdict === 'good'
-              ? 'Good'
-              : validation.verdict === 'mixed'
-                ? 'Mixed'
-                : validation.verdict === 'bad'
-                  ? 'Bad'
-                  : validation.verdict === 'invalid'
-                    ? t('inference.validationInvalid')
-                    : t('inference.validationCompleted');
-
-    return (
-      <span
-        className='rounded px-1.5 py-0.5 text-xs font-medium'
-        style={{ backgroundColor: style.backgroundColor, color: style.color }}
-      >
-        {`${statusLabel}${score}`}
-      </span>
-    );
-  };
 
   return (
     <TableRow
@@ -121,8 +86,6 @@ const MarketReportRow = ({
           '-'
         )}
       </TableCell>
-      <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>{renderValidationBadge('24h')}</TableCell>
-      <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>{renderValidationBadge('72h')}</TableCell>
     </TableRow>
   );
 };
@@ -197,12 +160,6 @@ export function MarketReportList() {
                   </TableHeadCell>
                   <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
                     {t('dashboard.columnChangePct')}
-                  </TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
-                    {t('dashboard.columnValidation24h')}
-                  </TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
-                    {t('dashboard.columnValidation72h')}
                   </TableHeadCell>
                 </TableRow>
               </TableHead>

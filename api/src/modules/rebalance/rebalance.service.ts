@@ -455,6 +455,7 @@ export class RebalanceService implements OnModuleInit {
                   symbol: recommendation.symbol,
                   prevModelTargetWeight: this.toPercent(recommendation.prevModelTargetWeight),
                   modelTargetWeight: this.toPercent(recommendation.modelTargetWeight),
+                  reason: recommendation.reason ?? '-',
                 },
               }),
             )
@@ -1683,6 +1684,7 @@ export class RebalanceService implements OnModuleInit {
           const responseData = JSON.parse(outputText);
           const intensity = Number(responseData?.intensity);
           const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
+          const reason = typeof responseData?.reason === 'string' ? responseData.reason.trim() : '';
           const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, targetSymbol);
           const previousMetricsBySymbol = previousMetrics.get(targetSymbol) ?? previousMetrics.get(item.symbol);
 
@@ -1691,6 +1693,7 @@ export class RebalanceService implements OnModuleInit {
             ...responseData,
             symbol: targetSymbol,
             intensity: safeIntensity,
+            reason: reason.length > 0 ? reason : null,
             category: item?.category,
             hasStock: item?.hasStock || false,
             prevIntensity: previousMetricsBySymbol?.intensity ?? null,
@@ -1747,6 +1750,7 @@ export class RebalanceService implements OnModuleInit {
       sellScore: saved.sellScore,
       modelTargetWeight: saved.modelTargetWeight,
       action: saved.action,
+      reason: saved.reason,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
