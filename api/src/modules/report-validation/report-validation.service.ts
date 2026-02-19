@@ -57,7 +57,9 @@ export class ReportValidationService {
   private readonly RETENTION_DAYS = 180;
   private readonly DUE_BATCH_LIMIT = 300;
   private readonly LOW_SCORE_THRESHOLD = 0.5;
-  private readonly RUNNING_STALE_TIMEOUT_MS = REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration + 5 * 60 * 1000;
+  private readonly OPENAI_BATCH_MAX_WAIT_MS = 24 * 60 * 60 * 1000;
+  private readonly OPENAI_BATCH_POLL_INTERVAL_MS = 30 * 1000;
+  private readonly RUNNING_STALE_TIMEOUT_MS = this.OPENAI_BATCH_MAX_WAIT_MS + 5 * 60 * 1000;
   private backfillChecked = false;
   private portfolioGlobalGuardrailsCache: { expiresAt: number; guardrails: string[] } | null = null;
   private portfolioGlobalGuardrailsInFlight: Promise<string[]> | null = null;
@@ -613,12 +615,12 @@ export class ReportValidationService {
         item.tradeRoiPct = deterministic.tradeRoiPct;
 
         if (deterministic.invalidReason) {
-          item.gptVerdict = 'invalid';
+          item.gptVerdict = null;
           item.gptScore = null;
           item.gptCalibration = null;
           item.gptExplanation = null;
           item.nextGuardrail = null;
-          item.status = 'completed';
+          item.status = 'failed';
           item.evaluatedAt = new Date();
           item.error = deterministic.invalidReason;
         } else {
@@ -731,7 +733,13 @@ export class ReportValidationService {
     if (intensity == null) {
       return 'hold';
     }
-    return intensity > 0 ? 'buy' : 'sell';
+    if (intensity > 0) {
+      return 'buy';
+    }
+    if (intensity < 0) {
+      return 'sell';
+    }
+    return 'hold';
   }
 
   private async fetchTradeMetrics(inferenceId: string, dueAt: Date): Promise<{ profit: number; amount: number }> {
@@ -775,7 +783,11 @@ export class ReportValidationService {
 
     try {
       const batchId = await this.openaiService.createBatch(batchRequestLines.join('\n'));
-      const batchResults = await this.openaiService.waitBatch(batchId);
+      const batchResults = await this.openaiService.waitBatch(
+        batchId,
+        this.OPENAI_BATCH_MAX_WAIT_MS,
+        this.OPENAI_BATCH_POLL_INTERVAL_MS,
+      );
       const resultMap = new Map<string, any>(batchResults.map((result) => [result.custom_id, result]));
 
       for (const item of items) {
