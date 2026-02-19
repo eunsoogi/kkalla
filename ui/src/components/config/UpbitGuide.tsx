@@ -70,7 +70,7 @@ const UpbitGuide: React.FC = () => {
 
   return (
     <>
-      <div className='flex flex-column items-center gap-2'>
+      <div className='flex flex-col items-start gap-2 text-left w-full'>
         <h5 className='card-title text-dark dark:text-white'>{t('upbit.guide')}</h5>
       </div>
       <div className='mt-6 space-y-4'>

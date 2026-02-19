@@ -55,7 +55,7 @@ const UpbitForm: React.FC = () => {
         </Alert>
       )}
       <form action={handleSubmit}>
-        <div className='flex flex-column items-center gap-2'>
+        <div className='flex flex-col items-start gap-2 text-left w-full'>
           <h5 className='card-title text-dark dark:text-white'>{t('upbit.register')}</h5>
           <Suspense fallback={<UpbitStatusBadgeSkeleton />}>
             <UpbitStatusBadge />
@@ -74,8 +74,10 @@ const UpbitForm: React.FC = () => {
                     name='accessKey'
                     type='text'
                     required
+                    autoComplete='off'
                     className='form-control form-rounded-xl'
                   />
+                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>{t('upbit.access_key_help')}</p>
                 </div>
               </div>
             </div>
@@ -88,10 +90,12 @@ const UpbitForm: React.FC = () => {
                   <TextInput
                     id='upbitSecretKey'
                     name='secretKey'
-                    type='text'
+                    type='password'
                     required
+                    autoComplete='off'
                     className='form-control form-rounded-xl'
                   />
+                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>{t('upbit.secret_key_help')}</p>
                 </div>
               </div>
             </div>

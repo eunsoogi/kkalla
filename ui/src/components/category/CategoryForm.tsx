@@ -49,6 +49,7 @@ const CategoryFormContent = () => {
   });
 
   const allCategories = Object.values(CategoryEnum);
+  const enabledCategoryCount = userCategories.filter((userCategory) => userCategory.enabled).length;
 
   const handleCategoryChange = useCallback(
     (categoryEnum: CategoryEnum, checked: boolean) => {
@@ -71,7 +72,7 @@ const CategoryFormContent = () => {
         </Alert>
       )}
       <form>
-        <div className='flex flex-column items-center gap-2'>
+        <div className='flex flex-col items-start gap-2 text-left w-full'>
           <h5 className='card-title text-dark dark:text-white'>{t('category.title')}</h5>
         </div>
         <div className='mt-6'>
@@ -79,6 +80,11 @@ const CategoryFormContent = () => {
             <div>
               <Label>{t('category.label')}</Label>
               <p className='text-sm text-gray-500 dark:text-gray-400 mb-4'>{t('category.description')}</p>
+              <p className='text-sm text-primary mb-4'>
+                {enabledCategoryCount > 0
+                  ? t('category.selected_count', { count: enabledCategoryCount })
+                  : t('category.selected_empty')}
+              </p>
               <div className='flex flex-wrap gap-4 mt-2'>
                 {allCategories.map((categoryEnum) => {
                   const userCategory = userCategories.find((uc) => uc.category === categoryEnum);
