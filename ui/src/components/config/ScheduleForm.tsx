@@ -46,7 +46,7 @@ const ScheduleToggleSwitch: React.FC<ScheduleToggleSwitchProps> = ({ isRiskAckno
       <ToggleSwitch
         checked={data?.enabled ?? false}
         onChange={handleToggle}
-        disabled={isPending || !isRiskAcknowledged}
+        disabled={isPending || (!isRiskAcknowledged && !(data?.enabled ?? false))}
         label={t('activate')}
       />
     </div>
