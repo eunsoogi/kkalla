@@ -6,7 +6,7 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
 - JSON 객체만 출력합니다.
 - 필드:
   - recommendations: array(0~10)
-    - symbol: string
+    - symbol: string (반드시 "BASE/KRW" 형식, 예: "BTC/KRW". "BTC", "KRW-BTC" 금지)
     - weight: number (0~1)
     - confidence: number (0~1)
     - reason: string
@@ -40,6 +40,10 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
 7. 종목별 제약
 - 개별 종목 weight는 0~1 범위를 사용합니다.
 - 유동성 부족/급격한 이벤트 리스크 종목은 보수적으로 반영
+
+8. 심볼 형식 엄수
+- symbol은 반드시 입력 데이터에 존재하는 KRW 마켓 심볼만 사용합니다.
+- symbol은 항상 "BASE/KRW" 형식으로 출력합니다.
 `;
 
 // GPT-5.2 모델 설정 - 최대 10개 종목 추천용

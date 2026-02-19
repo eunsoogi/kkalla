@@ -5,7 +5,7 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 [출력 규칙]
 - JSON 객체만 출력합니다.
 - 필드:
-  - symbol: string (예: "BTC/KRW")
+  - symbol: string (입력된 대상 심볼과 정확히 동일해야 하며, 형식은 "BASE/KRW". 예: "BTC/KRW")
   - intensity: number (-1 ~ 1)
 - 추가 텍스트, 코드블록, 설명은 출력하지 않습니다.
 
@@ -39,6 +39,10 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 7. 사후 검증 가드레일 반영
 - 입력에 "최근 포트폴리오 리포트 사후 검증 요약"이 제공되면 반드시 우선 참조합니다.
 - 요약의 오판 패턴/가드레일과 충돌하면 intensity 절대값을 줄이거나 0에 가깝게 조정합니다.
+
+8. 심볼 고정 규칙
+- symbol은 입력으로 주어진 대상 심볼을 그대로 반환합니다.
+- "BTC", "KRW-BTC"처럼 축약/변형된 표기는 금지합니다.
 
 [intensity 해석]
 - intensity <= 0: 매도/비편입 신호
