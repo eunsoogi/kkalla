@@ -124,12 +124,31 @@ describe('ReportValidationService', () => {
     jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([{ batchId: 'portfolio-batch-1' }] as any);
 
     await expect((service as any).ensureBackfillIfNeeded()).rejects.toThrow('boom');
-    expect((service as any).backfillChecked).toBe(false);
+    expect((service as any).lastBackfillCheckedAt).toBeNull();
 
     await expect((service as any).ensureBackfillIfNeeded()).resolves.toBeUndefined();
     expect(enqueueMarketSpy).toHaveBeenCalledWith('market-batch-1');
     expect(enqueuePortfolioSpy).toHaveBeenCalledWith('portfolio-batch-1');
-    expect((service as any).backfillChecked).toBe(true);
+    expect(typeof (service as any).lastBackfillCheckedAt).toBe('number');
+  });
+
+  it('should re-run backfill reconciliation after the recheck interval', async () => {
+    jest.spyOn(MarketRecommendation, 'find').mockResolvedValue([] as any);
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([] as any);
+
+    await expect((service as any).ensureBackfillIfNeeded()).resolves.toBeUndefined();
+    await expect((service as any).ensureBackfillIfNeeded()).resolves.toBeUndefined();
+
+    expect(MarketRecommendation.find).toHaveBeenCalledTimes(1);
+    expect(BalanceRecommendation.find).toHaveBeenCalledTimes(1);
+
+    (service as any).lastBackfillCheckedAt =
+      Date.now() - (service as any).BACKFILL_RECHECK_INTERVAL_MS - 1;
+
+    await expect((service as any).ensureBackfillIfNeeded()).resolves.toBeUndefined();
+
+    expect(MarketRecommendation.find).toHaveBeenCalledTimes(2);
+    expect(BalanceRecommendation.find).toHaveBeenCalledTimes(2);
   });
 
   it('should cache global portfolio guardrails across symbol requests', async () => {

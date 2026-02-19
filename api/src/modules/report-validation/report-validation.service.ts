@@ -52,6 +52,7 @@ export class ReportValidationService {
   private readonly MARKET_HORIZONS = [24, 72] as const;
   private readonly PORTFOLIO_HORIZONS = [24, 72] as const;
   private readonly BACKFILL_LOOKBACK_DAYS = 7;
+  private readonly BACKFILL_RECHECK_INTERVAL_MS = 60 * 60 * 1000;
   private readonly VALIDATION_SUMMARY_LOOKBACK_DAYS = 30;
   private readonly PORTFOLIO_GLOBAL_GUARDRAIL_CACHE_TTL_MS = 5 * 60 * 1000;
   private readonly RETENTION_DAYS = 180;
@@ -60,7 +61,7 @@ export class ReportValidationService {
   private readonly OPENAI_BATCH_MAX_WAIT_MS = 24 * 60 * 60 * 1000;
   private readonly OPENAI_BATCH_POLL_INTERVAL_MS = 30 * 1000;
   private readonly RUNNING_STALE_TIMEOUT_MS = this.OPENAI_BATCH_MAX_WAIT_MS + 5 * 60 * 1000;
-  private backfillChecked = false;
+  private lastBackfillCheckedAt: number | null = null;
   private portfolioGlobalGuardrailsCache: { expiresAt: number; guardrails: string[] } | null = null;
   private portfolioGlobalGuardrailsInFlight: Promise<string[]> | null = null;
 
@@ -388,7 +389,11 @@ export class ReportValidationService {
   }
 
   private async ensureBackfillIfNeeded(): Promise<void> {
-    if (this.backfillChecked) {
+    const now = Date.now();
+    if (
+      this.lastBackfillCheckedAt != null &&
+      now - this.lastBackfillCheckedAt < this.BACKFILL_RECHECK_INTERVAL_MS
+    ) {
       return;
     }
 
@@ -417,7 +422,7 @@ export class ReportValidationService {
       await this.enqueuePortfolioBatchValidation(batchId);
     }
 
-    this.backfillChecked = true;
+    this.lastBackfillCheckedAt = Date.now();
   }
 
   private async enqueueBatchValidation(reportType: ReportType, batchId: string): Promise<void> {

@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Label, Select, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
+import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
@@ -90,7 +91,11 @@ const calculateItemOverallScore = (item: ReportValidationItem): number | null =>
 };
 
 const Page: React.FC = () => {
+  const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations();
+  const permissions = session?.permissions ?? [];
+  const hasReportValidationAccess = permissions.includes(Permission.EXEC_SCHEDULE_REPORT_VALIDATION);
+  const canLoadReportValidationData = sessionStatus === 'authenticated' && hasReportValidationAccess;
   const [reportType, setReportType] = useState<'all' | ReportType>('all');
   const [status, setStatus] = useState<'all' | ReportValidationStatus>('all');
   const [selectedRunId, setSelectedRunId] = useState<string>('');
@@ -103,6 +108,7 @@ const Page: React.FC = () => {
         status,
         limit: 80,
       }),
+    enabled: canLoadReportValidationData,
   });
 
   const activeRunId = useMemo(() => {
@@ -119,7 +125,7 @@ const Page: React.FC = () => {
   const { data: items = [], isLoading: isItemsLoading } = useQuery<ReportValidationItem[]>({
     queryKey: ['report-validation', 'run-items', activeRunId],
     queryFn: () => getReportValidationRunItemsAction(activeRunId, 300),
-    enabled: !!activeRunId,
+    enabled: canLoadReportValidationData && !!activeRunId,
   });
 
   const summaryStats = useMemo(() => {

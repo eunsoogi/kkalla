@@ -25,6 +25,13 @@ const LEGACY_SCHEDULE_PERMISSIONS = [
   Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
 ] as const;
 
+const TASK_PERMISSION_MAP: Record<ScheduleExecutionTask, Permission> = {
+  marketRecommendation: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+  balanceRecommendationExisting: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
+  balanceRecommendationNew: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+  reportValidation: Permission.EXEC_SCHEDULE_REPORT_VALIDATION,
+};
+
 interface NextRunHighlight {
   task: ScheduleExecutionTask;
   time: string;
@@ -123,6 +130,7 @@ const formatRemainingTime = (minutesUntil: number, t: ReturnType<typeof useTrans
 const Page: React.FC = () => {
   const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations();
+  const permissions = useMemo(() => session?.permissions ?? [], [session?.permissions]);
   const [isPending, startTransition] = useTransition();
   const [recentResults, setRecentResults] = useState<Partial<Record<ScheduleExecutionTask, ScheduleActionState>>>({});
   const [executionPlans, setExecutionPlans] = useState<
@@ -172,9 +180,15 @@ const Page: React.FC = () => {
   }, []);
 
   const nextRunHighlight = useMemo(() => {
-    const plans = Object.values(executionPlans).filter((plan): plan is ScheduleExecutionPlanResponse => !!plan);
+    const plans = Object.values(executionPlans).filter((plan): plan is ScheduleExecutionPlanResponse => {
+      if (!plan) {
+        return false;
+      }
+
+      return permissions.includes(TASK_PERMISSION_MAP[plan.task]);
+    });
     return findNearestNextRun(plans);
-  }, [executionPlans]);
+  }, [executionPlans, permissions]);
 
   const nextRunRemainingText = nextRunHighlight ? formatRemainingTime(nextRunHighlight.minutesUntil, t) : undefined;
 
@@ -204,7 +218,6 @@ const Page: React.FC = () => {
     execute(executeReportValidationAction);
   };
 
-  const permissions = session?.permissions ?? [];
   const hasLegacyScheduleAccess = LEGACY_SCHEDULE_PERMISSIONS.every((permission) => permissions.includes(permission));
   const hasReportValidationAccess = permissions.includes(Permission.EXEC_SCHEDULE_REPORT_VALIDATION);
   const hasSchedulePageAccess = hasLegacyScheduleAccess || hasReportValidationAccess;
