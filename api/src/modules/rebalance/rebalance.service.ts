@@ -432,6 +432,11 @@ export class RebalanceService implements OnModuleInit {
     // 권한이 있는 추론만 필터링: 사용자가 거래할 수 있는 카테고리만 포함
     const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
 
+    // 권한이 있는 추론이 없으면 리포트/알림 없이 종료
+    if (authorizedBalanceRecommendations.length === 0) {
+      return [];
+    }
+
     // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
     await this.notifyService.notify(
       user,

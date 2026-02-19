@@ -42,6 +42,7 @@ describe('RebalanceService', () => {
       } as any,
       {
         getPrice: jest.fn(),
+        getBalances: jest.fn(),
         isSymbolExist: jest.fn().mockResolvedValue(true),
         clearClients: jest.fn(),
       } as any,
@@ -486,5 +487,23 @@ describe('RebalanceService', () => {
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('AAA/KRW');
     expect(requests[0].diff).toBe(-1);
+  });
+
+  it('should skip inference notify when no authorized recommendations are available', async () => {
+    const notifyService = (service as any).notifyService;
+    const upbitService = (service as any).upbitService;
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue([]);
+
+    const result = await service.executeRebalanceForUser({ id: 'user-1' } as any, [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+      } as any,
+    ]);
+
+    expect(result).toEqual([]);
+    expect(notifyService.notify).not.toHaveBeenCalled();
+    expect(upbitService.getBalances).not.toHaveBeenCalled();
   });
 });
