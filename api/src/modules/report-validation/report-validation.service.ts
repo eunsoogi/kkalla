@@ -28,9 +28,7 @@ import {
   ReportType,
   ReportValidationBadge,
   ReportValidationRunItemPage,
-  ReportValidationRunItemListItem,
   ReportValidationRunPage,
-  ReportValidationRunListItem,
   ReportValidationStatus,
   ReportValidationVerdict,
 } from './report-validation.interface';
@@ -414,10 +412,7 @@ export class ReportValidationService {
 
   private async ensureBackfillIfNeeded(): Promise<void> {
     const now = Date.now();
-    if (
-      this.lastBackfillCheckedAt != null &&
-      now - this.lastBackfillCheckedAt < this.BACKFILL_RECHECK_INTERVAL_MS
-    ) {
+    if (this.lastBackfillCheckedAt != null && now - this.lastBackfillCheckedAt < this.BACKFILL_RECHECK_INTERVAL_MS) {
       return;
     }
 

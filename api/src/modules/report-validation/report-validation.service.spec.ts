@@ -259,8 +259,7 @@ describe('ReportValidationService', () => {
     expect(MarketRecommendation.find).toHaveBeenCalledTimes(1);
     expect(BalanceRecommendation.find).toHaveBeenCalledTimes(1);
 
-    (service as any).lastBackfillCheckedAt =
-      Date.now() - (service as any).BACKFILL_RECHECK_INTERVAL_MS - 1;
+    (service as any).lastBackfillCheckedAt = Date.now() - (service as any).BACKFILL_RECHECK_INTERVAL_MS - 1;
 
     await expect((service as any).ensureBackfillIfNeeded()).resolves.toBeUndefined();
 
