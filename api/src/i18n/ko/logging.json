@@ -65,7 +65,9 @@
       "complete": "포트폴리오 추천 분석을 완료했습니다.",
       "presave": "포트폴리오 추천 데이터 {count}개를 저장합니다...",
       "save": "포트폴리오 추천 데이터 {count}개를 저장했습니다.",
-      "model_signal": "[모델 시그널] category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
+      "orderable_symbol_check_failed": "주문 가능 심볼 검증에 실패했습니다. KRW 심볼 필터만 사용합니다.",
+      "orderable_symbol_check_partial": "일부 주문 가능 심볼 검증에 실패했습니다. 미검증 심볼은 안전상 포함합니다.",
+      "model_signal": "[모델 시그널] symbol={symbol}, category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
       "target_weight": "[최종 비중] symbol={symbol}, baseTargetWeight={baseTargetWeight}, regimeMultiplier={regimeMultiplier}, modelTargetWeight={modelTargetWeight}",
       "prev_target_weight_failed": "[이전 최종 비중 조회 실패] symbol={symbol}, seq={seq}",
       "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
@@ -90,6 +92,12 @@
     "start": "포트폴리오 조정 스케줄 시작...",
     "end": "포트폴리오 조정 스케줄 종료.",
     "skip": "개발 환경에서는 스케줄이 실행되지 않습니다.",
+    "balanceRecommendation": {
+      "state_cache_read_failed": "마켓 리포트 상태 캐시 조회에 실패했습니다. 최신 추천으로 대체합니다.",
+      "state_stale_fallback": "마켓 리포트 상태가 없거나 오래되어 최신 추천으로 대체합니다.",
+      "minimum_filtered": "최소 기준으로 {count}개 종목이 제외되었습니다. symbols={symbols}",
+      "blacklist_filtered": "블랙리스트로 {count}개 종목이 제외되었습니다. symbols={symbols}"
+    },
     "marketRecommendation": {
       "start": "일일 상위 10개 종목 추천 분석을 시작합니다...",
       "filtered": "추천을 위해 {count}개 종목을 필터링했습니다.",

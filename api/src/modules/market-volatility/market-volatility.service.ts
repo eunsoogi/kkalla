@@ -1038,7 +1038,12 @@ export class MarketVolatilityService implements OnModuleInit {
     return 'buy';
   }
 
-  private calculateModelSignals(intensity: number, category: Category, marketFeatures: MarketFeatures | null) {
+  private calculateModelSignals(
+    intensity: number,
+    category: Category,
+    marketFeatures: MarketFeatures | null,
+    symbol?: string,
+  ) {
     const aiBuy = this.clamp01(intensity);
     const aiSell = this.clamp01(-intensity);
     const featureScore = this.calculateFeatureScore(marketFeatures);
@@ -1055,6 +1060,7 @@ export class MarketVolatilityService implements OnModuleInit {
     this.logger.log(
       this.i18n.t('logging.inference.balanceRecommendation.model_signal', {
         args: {
+          symbol: symbol ?? 'N/A',
           intensity,
           category,
           featureScore,
@@ -1078,7 +1084,7 @@ export class MarketVolatilityService implements OnModuleInit {
     const baseTargetWeight =
       inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
         ? this.clamp01(inference.modelTargetWeight)
-        : this.calculateModelSignals(inference.intensity, inference.category, null).modelTargetWeight;
+        : this.calculateModelSignals(inference.intensity, inference.category, null, inference.symbol).modelTargetWeight;
 
     if (baseTargetWeight <= 0) {
       return 0;
@@ -1687,7 +1693,7 @@ export class MarketVolatilityService implements OnModuleInit {
           const responseData = JSON.parse(outputText);
           const intensity = Number(responseData?.intensity);
           const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
-          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures);
+          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, item.symbol);
           const previousMetricsBySymbol = previousMetrics.get(item.symbol);
 
           // 추론 결과와 아이템 병합
