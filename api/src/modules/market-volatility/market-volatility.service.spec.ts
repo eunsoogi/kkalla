@@ -509,4 +509,30 @@ describe('MarketVolatilityService', () => {
       },
     ]);
   });
+
+  it('should skip profit notify when no trades are executed in SQS message handling', async () => {
+    const profitService = (service as any).profitService;
+    const notifyService = (service as any).notifyService;
+
+    jest.spyOn(service, 'executeVolatilityTradesForUser').mockResolvedValue([]);
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    await (service as any).handleMessage({
+      MessageId: 'message-1',
+      ReceiptHandle: 'receipt-1',
+      Body: JSON.stringify({
+        user: { id: 'user-1' },
+        inferences: [],
+        buyAvailable: true,
+      }),
+    });
+
+    expect(profitService.getProfit).not.toHaveBeenCalled();
+    expect(notifyService.notify).not.toHaveBeenCalled();
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
+      ReceiptHandle: 'receipt-1',
+    });
+  });
 });
