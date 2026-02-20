@@ -15,9 +15,12 @@ describe('ScheduleExecutionService', () => {
   };
   let reportValidationService: {
     executeDueValidationsTask: jest.Mock;
+    requeueRunningValidationsToPending: jest.Mock;
   };
   let redlockService: {
     startWithLock: jest.Mock;
+    getLockStatus: jest.Mock;
+    forceReleaseLock: jest.Mock;
   };
   const originalNodeEnv = process.env.NODE_ENV;
 
@@ -31,9 +34,15 @@ describe('ScheduleExecutionService', () => {
     };
     reportValidationService = {
       executeDueValidationsTask: jest.fn().mockResolvedValue(undefined),
+      requeueRunningValidationsToPending: jest.fn().mockResolvedValue(0),
     };
     redlockService = {
       startWithLock: jest.fn().mockResolvedValue(true),
+      getLockStatus: jest.fn().mockResolvedValue({
+        locked: false,
+        ttlMs: null,
+      }),
+      forceReleaseLock: jest.fn().mockResolvedValue(false),
     };
 
     process.env.NODE_ENV = 'test';
@@ -118,6 +127,75 @@ describe('ScheduleExecutionService', () => {
         ],
       },
     ]);
+  });
+
+  it('should return lock states by task', async () => {
+    redlockService.getLockStatus
+      .mockResolvedValueOnce({ locked: true, ttlMs: 10_000 })
+      .mockResolvedValueOnce({ locked: false, ttlMs: null });
+
+    const lockStates = await service.getLockStates(['marketRecommendation', 'reportValidation']);
+
+    expect(redlockService.getLockStatus).toHaveBeenNthCalledWith(
+      1,
+      'MarketResearchService:executeMarketRecommendation',
+    );
+    expect(redlockService.getLockStatus).toHaveBeenNthCalledWith(2, 'ReportValidationService:executeDueValidations');
+    expect(lockStates).toHaveLength(2);
+    expect(lockStates[0]?.task).toBe('marketRecommendation');
+    expect(lockStates[0]?.locked).toBe(true);
+    expect(lockStates[0]?.ttlMs).toBe(10_000);
+    expect(lockStates[1]?.task).toBe('reportValidation');
+    expect(lockStates[1]?.locked).toBe(false);
+  });
+
+  it('should release task lock and return updated state', async () => {
+    redlockService.forceReleaseLock.mockResolvedValue(true);
+    redlockService.getLockStatus.mockResolvedValue({
+      locked: false,
+      ttlMs: null,
+    });
+
+    const result = await service.releaseLock('balanceRecommendationExisting');
+
+    expect(redlockService.forceReleaseLock).toHaveBeenCalledWith(
+      'RebalanceService:executeBalanceRecommendationExisting',
+    );
+    expect(redlockService.getLockStatus).toHaveBeenCalledWith('RebalanceService:executeBalanceRecommendationExisting');
+    expect(result.task).toBe('balanceRecommendationExisting');
+    expect(result.released).toBe(true);
+    expect(result.locked).toBe(false);
+    expect(result.recoveredRunningCount).toBeUndefined();
+    expect(reportValidationService.requeueRunningValidationsToPending).not.toHaveBeenCalled();
+  });
+
+  it('should recover running report validation items after lock release when unlocked', async () => {
+    redlockService.forceReleaseLock.mockResolvedValue(true);
+    redlockService.getLockStatus.mockResolvedValue({
+      locked: false,
+      ttlMs: null,
+    });
+    reportValidationService.requeueRunningValidationsToPending.mockResolvedValue(12);
+
+    const result = await service.releaseLock('reportValidation');
+
+    expect(redlockService.forceReleaseLock).toHaveBeenCalledWith('ReportValidationService:executeDueValidations');
+    expect(reportValidationService.requeueRunningValidationsToPending).toHaveBeenCalledTimes(1);
+    expect(result.task).toBe('reportValidation');
+    expect(result.recoveredRunningCount).toBe(12);
+  });
+
+  it('should skip report validation recovery when lock remains locked', async () => {
+    redlockService.forceReleaseLock.mockResolvedValue(false);
+    redlockService.getLockStatus.mockResolvedValue({
+      locked: true,
+      ttlMs: 30_000,
+    });
+
+    const result = await service.releaseLock('reportValidation');
+
+    expect(reportValidationService.requeueRunningValidationsToPending).not.toHaveBeenCalled();
+    expect(result.recoveredRunningCount).toBeUndefined();
   });
 
   it('should return started when lock is acquired', async () => {

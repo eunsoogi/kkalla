@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -7,10 +7,29 @@ import { PermissionGuard } from '../auth/guards/permission.guard';
 import { Permission } from '../permission/permission.enum';
 import { User } from '../user/entities/user.entity';
 import { CreateScheduleDto } from './dto/update-schedule.dto';
-import { ScheduleExecutionResponse } from './schedule-execution.interface';
+import {
+  ScheduleExecutionResponse,
+  ScheduleExecutionTask,
+  ScheduleLockReleaseResponse,
+  ScheduleLockStateResponse,
+} from './schedule-execution.interface';
 import { ScheduleExecutionService } from './schedule-execution.service';
 import { SchedulePlanResponse } from './schedule-plan.interface';
 import { ScheduleService } from './schedule.service';
+
+const EXECUTION_TASKS: ScheduleExecutionTask[] = [
+  'marketRecommendation',
+  'balanceRecommendationExisting',
+  'balanceRecommendationNew',
+  'reportValidation',
+];
+
+const TASK_PERMISSION_MAP: Record<ScheduleExecutionTask, Permission> = {
+  marketRecommendation: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+  balanceRecommendationExisting: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
+  balanceRecommendationNew: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+  reportValidation: Permission.EXEC_SCHEDULE_REPORT_VALIDATION,
+};
 
 @Controller('api/v1/schedules')
 export class ScheduleController {
@@ -35,6 +54,23 @@ export class ScheduleController {
   @UseGuards(GoogleTokenAuthGuard)
   public getExecutionPlans(): SchedulePlanResponse[] {
     return this.scheduleExecutionService.getExecutionPlans();
+  }
+
+  @Get('locks')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async getLockStates(@CurrentUser() user: User): Promise<ScheduleLockStateResponse[]> {
+    return this.scheduleExecutionService.getLockStates(this.getAuthorizedTasks(user));
+  }
+
+  @Post('locks/:task/release')
+  @UseGuards(GoogleTokenAuthGuard)
+  public async releaseLock(
+    @CurrentUser() user: User,
+    @Param('task') taskRaw: string,
+  ): Promise<ScheduleLockReleaseResponse> {
+    const task = this.parseTask(taskRaw);
+    this.ensureTaskPermission(user, task);
+    return this.scheduleExecutionService.releaseLock(task);
   }
 
   @Post('execute/market-recommendation')
@@ -63,5 +99,33 @@ export class ScheduleController {
   @RequirePermissions(Permission.EXEC_SCHEDULE_REPORT_VALIDATION)
   public async executeReportValidation(): Promise<ScheduleExecutionResponse> {
     return this.scheduleExecutionService.executeReportValidation();
+  }
+
+  private parseTask(taskRaw: string): ScheduleExecutionTask {
+    if (EXECUTION_TASKS.includes(taskRaw as ScheduleExecutionTask)) {
+      return taskRaw as ScheduleExecutionTask;
+    }
+
+    throw new BadRequestException(`Unknown schedule task: ${taskRaw}`);
+  }
+
+  private getAuthorizedTasks(user: User): ScheduleExecutionTask[] {
+    const permissions = this.getUserPermissions(user);
+
+    return EXECUTION_TASKS.filter((task) => permissions.has(TASK_PERMISSION_MAP[task]));
+  }
+
+  private ensureTaskPermission(user: User, task: ScheduleExecutionTask): void {
+    const permissions = this.getUserPermissions(user);
+    const requiredPermission = TASK_PERMISSION_MAP[task];
+
+    if (!permissions.has(requiredPermission)) {
+      throw new ForbiddenException(`Permission denied for task: ${task}`);
+    }
+  }
+
+  private getUserPermissions(user: User): Set<Permission> {
+    const permissions = user.roles?.flatMap((role) => role.permissions ?? []) ?? [];
+    return new Set(permissions);
   }
 }

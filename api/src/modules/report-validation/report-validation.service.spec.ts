@@ -531,4 +531,70 @@ describe('ReportValidationService', () => {
     expect(findSpy).toHaveBeenCalledTimes(1);
     expect(processRunSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('should requeue running report validation items to pending and reset running runs', async () => {
+    const item1 = {
+      id: 'item-1',
+      status: 'running',
+      error: 'timeout',
+      evaluatedAt: new Date(),
+      run: { id: 'run-1' },
+    };
+    const item2 = {
+      id: 'item-2',
+      status: 'running',
+      error: null,
+      evaluatedAt: null,
+      run: { id: 'run-2' },
+    };
+    const run1 = {
+      id: 'run-1',
+      status: 'running',
+      startedAt: new Date(),
+      completedAt: new Date(),
+      error: 'partial failure',
+    };
+    const run2 = {
+      id: 'run-2',
+      status: 'running',
+      startedAt: new Date(),
+      completedAt: null,
+      error: null,
+    };
+
+    jest.spyOn(ReportValidationItem, 'find').mockResolvedValue([item1, item2] as any);
+    const saveItemsSpy = jest.spyOn(ReportValidationItem, 'save').mockResolvedValue(undefined as any);
+    jest.spyOn(ReportValidationRun, 'find').mockResolvedValue([run1, run2] as any);
+    const saveRunsSpy = jest.spyOn(ReportValidationRun, 'save').mockResolvedValue(undefined as any);
+
+    const recoveredCount = await service.requeueRunningValidationsToPending();
+
+    expect(recoveredCount).toBe(2);
+    expect(item1.status).toBe('pending');
+    expect(item1.error).toBeNull();
+    expect(item1.evaluatedAt).toBeNull();
+    expect(item2.status).toBe('pending');
+    expect(run1.status).toBe('pending');
+    expect(run1.startedAt).toBeNull();
+    expect(run1.completedAt).toBeNull();
+    expect(run1.error).toBeNull();
+    expect(run2.status).toBe('pending');
+    expect(saveItemsSpy).toHaveBeenCalledTimes(1);
+    expect(saveRunsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should skip requeue when there are no running report validation items', async () => {
+    const findItemsSpy = jest.spyOn(ReportValidationItem, 'find').mockResolvedValue([]);
+    const findRunsSpy = jest.spyOn(ReportValidationRun, 'find');
+    const saveItemsSpy = jest.spyOn(ReportValidationItem, 'save');
+    const saveRunsSpy = jest.spyOn(ReportValidationRun, 'save');
+
+    const recoveredCount = await service.requeueRunningValidationsToPending();
+
+    expect(recoveredCount).toBe(0);
+    expect(findItemsSpy).toHaveBeenCalledTimes(1);
+    expect(findRunsSpy).not.toHaveBeenCalled();
+    expect(saveItemsSpy).not.toHaveBeenCalled();
+    expect(saveRunsSpy).not.toHaveBeenCalled();
+  });
 });

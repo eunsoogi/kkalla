@@ -1,7 +1,9 @@
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
+import { Permission } from '../permission/permission.enum';
 import { ScheduleExecutionService } from './schedule-execution.service';
 import { ScheduleController } from './schedule.controller';
 import { ScheduleService } from './schedule.service';
@@ -26,6 +28,8 @@ describe('ScheduleController', () => {
           provide: ScheduleExecutionService,
           useValue: {
             getExecutionPlans: jest.fn(),
+            getLockStates: jest.fn(),
+            releaseLock: jest.fn(),
             executeMarketRecommendation: jest.fn(),
             executeBalanceRecommendationExisting: jest.fn(),
             executeBalanceRecommendationNew: jest.fn(),
@@ -88,6 +92,61 @@ describe('ScheduleController', () => {
 
     expect(scheduleExecutionService.getExecutionPlans).toHaveBeenCalledTimes(1);
     expect(result).toHaveLength(1);
+  });
+
+  it('should return lock states for authorized tasks', async () => {
+    const user = {
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_REPORT_VALIDATION] }],
+    } as any;
+
+    scheduleExecutionService.getLockStates.mockResolvedValue([
+      {
+        task: 'reportValidation',
+        locked: true,
+        ttlMs: 30_000,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ] as any);
+
+    const result = await controller.getLockStates(user);
+
+    expect(scheduleExecutionService.getLockStates).toHaveBeenCalledWith(['reportValidation']);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.task).toBe('reportValidation');
+  });
+
+  it('should release task lock when user has permission', async () => {
+    const user = {
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING] }],
+    } as any;
+
+    scheduleExecutionService.releaseLock.mockResolvedValue({
+      task: 'balanceRecommendationExisting',
+      released: true,
+      locked: false,
+      releasedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const result = await controller.releaseLock(user, 'balanceRecommendationExisting');
+
+    expect(scheduleExecutionService.releaseLock).toHaveBeenCalledWith('balanceRecommendationExisting');
+    expect(result.released).toBe(true);
+  });
+
+  it('should throw forbidden when lock release permission is missing', async () => {
+    const user = {
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_REPORT_VALIDATION] }],
+    } as any;
+
+    await expect(controller.releaseLock(user, 'marketRecommendation')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('should throw bad request for unknown lock release task', async () => {
+    const user = {
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_REPORT_VALIDATION] }],
+    } as any;
+
+    await expect(controller.releaseLock(user, 'unknownTask')).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('should execute market recommendation and return execution status', async () => {

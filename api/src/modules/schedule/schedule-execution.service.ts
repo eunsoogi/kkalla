@@ -10,7 +10,12 @@ import {
   ScheduleExpression as ReportValidationScheduleExpression,
 } from '../report-validation/report-validation.enum';
 import { ReportValidationService } from '../report-validation/report-validation.service';
-import { ScheduleExecutionResponse, ScheduleExecutionTask } from './schedule-execution.interface';
+import {
+  ScheduleExecutionResponse,
+  ScheduleExecutionTask,
+  ScheduleLockReleaseResponse,
+  ScheduleLockStateResponse,
+} from './schedule-execution.interface';
 import { SchedulePlanResponse } from './schedule-plan.interface';
 
 interface LockConfig {
@@ -22,25 +27,43 @@ interface LockConfig {
 export class ScheduleExecutionService {
   private readonly timezone = 'Asia/Seoul';
 
-  private readonly marketRecommendationLock: LockConfig = {
-    resourceName: 'MarketResearchService:executeMarketRecommendation',
-    duration: 88_200_000,
+  private readonly lockConfigByTask: Record<ScheduleExecutionTask, LockConfig> = {
+    marketRecommendation: {
+      resourceName: 'MarketResearchService:executeMarketRecommendation',
+      duration: 88_200_000,
+    },
+    balanceRecommendationExisting: {
+      resourceName: 'RebalanceService:executeBalanceRecommendationExisting',
+      duration: 3_600_000,
+    },
+    balanceRecommendationNew: {
+      resourceName: 'RebalanceService:executeBalanceRecommendationNew',
+      duration: 3_600_000,
+    },
+    reportValidation: {
+      resourceName: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
+      duration: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
+    },
   };
 
-  private readonly balanceRecommendationExistingLock: LockConfig = {
-    resourceName: 'RebalanceService:executeBalanceRecommendationExisting',
-    duration: 3_600_000,
-  };
-
-  private readonly balanceRecommendationNewLock: LockConfig = {
-    resourceName: 'RebalanceService:executeBalanceRecommendationNew',
-    duration: 3_600_000,
-  };
-
-  private readonly reportValidationLock: LockConfig = {
-    resourceName: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
-    duration: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
-  };
+  private readonly executionPlans: Array<{ task: ScheduleExecutionTask; cronExpression: string }> = [
+    {
+      task: 'marketRecommendation',
+      cronExpression: MarketResearchScheduleExpression.DAILY_MARKET_RECOMMENDATION,
+    },
+    {
+      task: 'balanceRecommendationExisting',
+      cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_EXISTING,
+    },
+    {
+      task: 'balanceRecommendationNew',
+      cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_NEW,
+    },
+    {
+      task: 'reportValidation',
+      cronExpression: ReportValidationScheduleExpression.HOURLY_REPORT_VALIDATION,
+    },
+  ];
 
   constructor(
     @Inject(forwardRef(() => MarketResearchService))
@@ -52,52 +75,76 @@ export class ScheduleExecutionService {
   ) {}
 
   public getExecutionPlans(): SchedulePlanResponse[] {
-    const plans: Array<{ task: ScheduleExecutionTask; cronExpression: string }> = [
-      {
-        task: 'marketRecommendation',
-        cronExpression: MarketResearchScheduleExpression.DAILY_MARKET_RECOMMENDATION,
-      },
-      {
-        task: 'balanceRecommendationExisting',
-        cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_EXISTING,
-      },
-      {
-        task: 'balanceRecommendationNew',
-        cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_NEW,
-      },
-      {
-        task: 'reportValidation',
-        cronExpression: ReportValidationScheduleExpression.HOURLY_REPORT_VALIDATION,
-      },
-    ];
-
-    return plans.map((plan) => ({
+    return this.executionPlans.map((plan) => ({
       ...plan,
       timezone: this.timezone,
       runAt: this.extractRunAtTimes(plan.cronExpression),
     }));
   }
 
+  public async getLockStates(tasks: ScheduleExecutionTask[]): Promise<ScheduleLockStateResponse[]> {
+    const checkedAt = new Date().toISOString();
+
+    const lockStateEntries = await Promise.all(
+      tasks.map(async (task) => {
+        const lock = this.getLockConfig(task);
+        const lockStatus = await this.redlockService.getLockStatus(lock.resourceName);
+
+        return {
+          task,
+          lockStatus,
+        };
+      }),
+    );
+
+    return lockStateEntries.map(({ task, lockStatus }) => ({
+      task,
+      locked: lockStatus.locked,
+      ttlMs: lockStatus.ttlMs,
+      checkedAt,
+    }));
+  }
+
+  public async releaseLock(task: ScheduleExecutionTask): Promise<ScheduleLockReleaseResponse> {
+    const lock = this.getLockConfig(task);
+    const released = await this.redlockService.forceReleaseLock(lock.resourceName);
+    const lockStatus = await this.redlockService.getLockStatus(lock.resourceName);
+    const recoveredRunningCount =
+      task === 'reportValidation' && !lockStatus.locked
+        ? await this.reportValidationService.requeueRunningValidationsToPending()
+        : undefined;
+
+    return {
+      task,
+      released,
+      locked: lockStatus.locked,
+      releasedAt: new Date().toISOString(),
+      recoveredRunningCount,
+    };
+  }
+
   public async executeMarketRecommendation(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('marketRecommendation', this.marketRecommendationLock, () =>
+    return this.executeWithLock('marketRecommendation', this.getLockConfig('marketRecommendation'), () =>
       this.marketResearchService.executeMarketRecommendationTask(),
     );
   }
 
   public async executeBalanceRecommendationExisting(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('balanceRecommendationExisting', this.balanceRecommendationExistingLock, () =>
-      this.rebalanceService.executeBalanceRecommendationExistingTask(),
+    return this.executeWithLock(
+      'balanceRecommendationExisting',
+      this.getLockConfig('balanceRecommendationExisting'),
+      () => this.rebalanceService.executeBalanceRecommendationExistingTask(),
     );
   }
 
   public async executeBalanceRecommendationNew(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('balanceRecommendationNew', this.balanceRecommendationNewLock, () =>
+    return this.executeWithLock('balanceRecommendationNew', this.getLockConfig('balanceRecommendationNew'), () =>
       this.rebalanceService.executeBalanceRecommendationNewTask(),
     );
   }
 
   public async executeReportValidation(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('reportValidation', this.reportValidationLock, () =>
+    return this.executeWithLock('reportValidation', this.getLockConfig('reportValidation'), () =>
       this.reportValidationService.executeDueValidationsTask(),
     );
   }
@@ -116,6 +163,10 @@ export class ScheduleExecutionService {
       status: started ? 'started' : 'skipped_lock',
       requestedAt,
     };
+  }
+
+  private getLockConfig(task: ScheduleExecutionTask): LockConfig {
+    return this.lockConfigByTask[task];
   }
 
   private extractRunAtTimes(cronExpression: string): string[] {

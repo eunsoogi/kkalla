@@ -5,6 +5,7 @@ import { I18nService } from 'nestjs-i18n';
 import Redlock, { Lock } from 'redlock';
 
 import { REDLOCK_OPTIONS } from './redlock.constants';
+import { RedlockLockStatus } from './redlock.interface';
 import { RedlockModuleOptions } from './redlock.interface';
 
 @Injectable()
@@ -95,6 +96,36 @@ export class RedlockService implements OnModuleDestroy {
     })();
 
     return true;
+  }
+
+  public async getLockStatus(resourceName: string): Promise<RedlockLockStatus> {
+    const lockKey = this.getLockKey(resourceName);
+    const ttlMs = await this.redisClient.pttl(lockKey);
+
+    if (ttlMs === -2) {
+      return {
+        locked: false,
+        ttlMs: null,
+      };
+    }
+
+    if (ttlMs === -1) {
+      return {
+        locked: true,
+        ttlMs: null,
+      };
+    }
+
+    return {
+      locked: ttlMs >= 0,
+      ttlMs,
+    };
+  }
+
+  public async forceReleaseLock(resourceName: string): Promise<boolean> {
+    const lockKey = this.getLockKey(resourceName);
+    const deleted = await this.redisClient.del(lockKey);
+    return deleted > 0;
   }
 
   private getLockKey(resource: string): string {

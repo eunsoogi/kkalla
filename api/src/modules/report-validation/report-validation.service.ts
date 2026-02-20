@@ -23,15 +23,15 @@ import {
 } from './prompts/report-validation.prompt';
 import { REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK, ScheduleExpression } from './report-validation.enum';
 import {
-  ReportValidationItemSortBy,
   MarketValidationBadges,
   PortfolioValidationBadges,
   ReportType,
   ReportValidationBadge,
+  ReportValidationItemSortBy,
   ReportValidationRunItemPage,
   ReportValidationRunItemSummary,
-  ReportValidationRunSortBy,
   ReportValidationRunPage,
+  ReportValidationRunSortBy,
   ReportValidationRunSummary,
   ReportValidationSortOrder,
   ReportValidationStatus,
@@ -115,6 +115,54 @@ export class ReportValidationService {
       );
       throw error;
     }
+  }
+
+  public async requeueRunningValidationsToPending(): Promise<number> {
+    const runningItems = await ReportValidationItem.find({
+      where: {
+        status: 'running',
+      } as any,
+      relations: {
+        run: true,
+      },
+    });
+
+    if (runningItems.length < 1) {
+      return 0;
+    }
+
+    for (const item of runningItems) {
+      item.status = 'pending';
+      item.error = null;
+      item.evaluatedAt = null;
+    }
+    await ReportValidationItem.save(runningItems, { chunk: 100 });
+
+    const runIds = Array.from(
+      new Set(runningItems.map((item) => item.run?.id).filter((runId): runId is string => !!runId)),
+    );
+
+    if (runIds.length > 0) {
+      const runningRuns = await ReportValidationRun.find({
+        where: {
+          id: In(runIds),
+          status: 'running',
+        } as any,
+      });
+
+      for (const run of runningRuns) {
+        run.status = 'pending';
+        run.startedAt = null;
+        run.completedAt = null;
+        run.error = null;
+      }
+
+      if (runningRuns.length > 0) {
+        await ReportValidationRun.save(runningRuns, { chunk: 100 });
+      }
+    }
+
+    return runningItems.length;
   }
 
   public async cleanupOldValidationsTask(): Promise<void> {
@@ -476,7 +524,10 @@ export class ReportValidationService {
     };
   }
 
-  private async getValidationRunItemsSummary(runId: string, totalItems: number): Promise<ReportValidationRunItemSummary> {
+  private async getValidationRunItemsSummary(
+    runId: string,
+    totalItems: number,
+  ): Promise<ReportValidationRunItemSummary> {
     const nonInvalidCondition = `(item.gpt_verdict IS NULL OR item.gpt_verdict <> 'invalid')`;
     const overallScoreExpression = `
       CASE

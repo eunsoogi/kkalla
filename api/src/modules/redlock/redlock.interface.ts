@@ -10,6 +10,11 @@ export interface RedlockModuleOptions {
   redis: RedisOptions;
 }
 
+export interface RedlockLockStatus {
+  locked: boolean;
+  ttlMs: number | null;
+}
+
 export interface RedlockOptionsFactory {
   createRedlockOptions(): Promise<RedlockModuleOptions> | RedlockModuleOptions;
 }
