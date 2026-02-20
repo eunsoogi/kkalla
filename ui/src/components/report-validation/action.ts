@@ -3,9 +3,12 @@
 import { getClient } from '@/utils/api';
 
 import {
+  ReportValidationItemSortBy,
   ReportType,
   ReportValidationItemPage,
+  ReportValidationRunSortBy,
   ReportValidationRunPage,
+  ReportValidationSortOrder,
   ReportValidationStatus,
 } from '@/interfaces/report-validation.interface';
 
@@ -15,12 +18,18 @@ interface GetReportValidationRunsParams {
   page?: number;
   perPage?: number;
   limit?: number;
+  includeSummary?: boolean;
+  sortBy?: ReportValidationRunSortBy;
+  sortOrder?: ReportValidationSortOrder;
 }
 
 interface GetReportValidationRunItemsParams {
   page?: number;
   perPage?: number;
   limit?: number;
+  includeSummary?: boolean;
+  sortBy?: ReportValidationItemSortBy;
+  sortOrder?: ReportValidationSortOrder;
 }
 
 export const getReportValidationRunsAction = async (
@@ -47,6 +56,18 @@ export const getReportValidationRunsAction = async (
 
   if (typeof params.perPage === 'number' && Number.isFinite(params.perPage)) {
     query.perPage = Math.floor(params.perPage);
+  }
+
+  if (params.sortBy) {
+    query.sortBy = params.sortBy;
+  }
+
+  if (params.sortOrder) {
+    query.sortOrder = params.sortOrder;
+  }
+
+  if (params.includeSummary) {
+    query.includeSummary = 'true';
   }
 
   try {
@@ -92,7 +113,7 @@ export const getReportValidationRunItemsAction = async (
   }
 
   const client = await getClient();
-  const query: Record<string, number> = {};
+  const query: Record<string, string | number> = {};
 
   if (typeof params.limit === 'number' && Number.isFinite(params.limit)) {
     query.limit = Math.floor(params.limit);
@@ -104,6 +125,18 @@ export const getReportValidationRunItemsAction = async (
 
   if (typeof params.perPage === 'number' && Number.isFinite(params.perPage)) {
     query.perPage = Math.floor(params.perPage);
+  }
+
+  if (params.sortBy) {
+    query.sortBy = params.sortBy;
+  }
+
+  if (params.sortOrder) {
+    query.sortOrder = params.sortOrder;
+  }
+
+  if (params.includeSummary) {
+    query.includeSummary = 'true';
   }
 
   try {

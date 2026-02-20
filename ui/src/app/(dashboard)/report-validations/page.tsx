@@ -14,11 +14,14 @@ import { ForbiddenError } from '@/components/error/403';
 import { getReportValidationRunItemsAction, getReportValidationRunsAction } from '@/components/report-validation/action';
 import { Permission } from '@/interfaces/permission.interface';
 import {
+  ReportValidationItemSortBy,
   ReportType,
   ReportValidationItem,
   ReportValidationItemPage,
+  ReportValidationRunSortBy,
   ReportValidationRun,
   ReportValidationRunPage,
+  ReportValidationSortOrder,
   ReportValidationStatus,
   ReportValidationVerdict,
 } from '@/interfaces/report-validation.interface';
@@ -102,18 +105,25 @@ const Page: React.FC = () => {
   const canLoadReportValidationData = sessionStatus === 'authenticated' && hasReportValidationAccess;
   const [reportType, setReportType] = useState<'all' | ReportType>('all');
   const [status, setStatus] = useState<'all' | ReportValidationStatus>('all');
+  const [runsSortBy, setRunsSortBy] = useState<ReportValidationRunSortBy>('seq');
+  const [runsSortOrder, setRunsSortOrder] = useState<ReportValidationSortOrder>('desc');
   const [runsPage, setRunsPage] = useState(1);
+  const [itemsSortBy, setItemsSortBy] = useState<ReportValidationItemSortBy>('evaluatedAt');
+  const [itemsSortOrder, setItemsSortOrder] = useState<ReportValidationSortOrder>('desc');
   const [itemsPage, setItemsPage] = useState(1);
   const [selectedRunId, setSelectedRunId] = useState<string>('');
 
   const { data: runsData, isLoading: isRunsLoading } = useQuery<ReportValidationRunPage>({
-    queryKey: ['report-validation', 'runs', reportType, status, runsPage],
+    queryKey: ['report-validation', 'runs', reportType, status, runsPage, runsSortBy, runsSortOrder],
     queryFn: () =>
       getReportValidationRunsAction({
         reportType,
         status,
         page: runsPage,
         perPage: RUNS_PER_PAGE,
+        sortBy: runsSortBy,
+        sortOrder: runsSortOrder,
+        includeSummary: true,
       }),
     enabled: canLoadReportValidationData,
   });
@@ -131,17 +141,24 @@ const Page: React.FC = () => {
   const selectedRun = useMemo(() => runs.find((run) => run.id === activeRunId), [runs, activeRunId]);
 
   const { data: itemsData, isLoading: isItemsLoading } = useQuery<ReportValidationItemPage>({
-    queryKey: ['report-validation', 'run-items', activeRunId, itemsPage],
+    queryKey: ['report-validation', 'run-items', activeRunId, itemsPage, itemsSortBy, itemsSortOrder],
     queryFn: () =>
       getReportValidationRunItemsAction(activeRunId, {
         page: itemsPage,
         perPage: ITEMS_PER_PAGE,
+        sortBy: itemsSortBy,
+        sortOrder: itemsSortOrder,
+        includeSummary: true,
       }),
     enabled: canLoadReportValidationData && !!activeRunId,
   });
   const items: ReportValidationItem[] = useMemo(() => itemsData?.items ?? [], [itemsData]);
 
   const summaryStats = useMemo(() => {
+    if (runsData?.summary) {
+      return runsData.summary;
+    }
+
     const pendingOrRunning = runs.filter((run) => run.status === 'pending' || run.status === 'running').length;
     const completed = runs.filter((run) => run.status === 'completed').length;
     const scores = runs
@@ -155,9 +172,13 @@ const Page: React.FC = () => {
       completed,
       avgScore,
     };
-  }, [runs, runsData?.total]);
+  }, [runsData, runs]);
 
   const itemStats = useMemo(() => {
+    if (itemsData?.summary) {
+      return itemsData.summary;
+    }
+
     const validItems = items.filter((item) => item.gptVerdict !== 'invalid');
     const invalidCount = items.filter((item) => item.gptVerdict === 'invalid').length;
 
@@ -184,7 +205,32 @@ const Page: React.FC = () => {
       verdictMixed,
       verdictBad,
     };
-  }, [items]);
+  }, [itemsData, items]);
+
+  const sortIndicator = (active: boolean, order: ReportValidationSortOrder): string => {
+    if (!active) return '↕';
+    return order === 'asc' ? '↑' : '↓';
+  };
+
+  const handleRunsSort = (nextSortBy: ReportValidationRunSortBy): void => {
+    const nextOrder: ReportValidationSortOrder =
+      runsSortBy === nextSortBy ? (runsSortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
+
+    setRunsSortBy(nextSortBy);
+    setRunsSortOrder(nextOrder);
+    setRunsPage(1);
+    setItemsPage(1);
+    setSelectedRunId('');
+  };
+
+  const handleItemsSort = (nextSortBy: ReportValidationItemSortBy): void => {
+    const nextOrder: ReportValidationSortOrder =
+      itemsSortBy === nextSortBy ? (itemsSortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
+
+    setItemsSortBy(nextSortBy);
+    setItemsSortOrder(nextOrder);
+    setItemsPage(1);
+  };
 
   return (
     <PermissionGuard permissions={[Permission.EXEC_SCHEDULE_REPORT_VALIDATION]} fallback={<ForbiddenError />}>
@@ -276,13 +322,73 @@ const Page: React.FC = () => {
               <Table hoverable className='w-full text-left min-w-[760px]'>
                 <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700'>
                   <TableRow>
-                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.seq')}</TableHeadCell>
+                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                      <button
+                        type='button'
+                        onClick={() => handleRunsSort('seq')}
+                        className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                      >
+                        <span>{t('reportValidation.columns.seq')}</span>
+                        <span className={runsSortBy === 'seq' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}>
+                          {sortIndicator(runsSortBy === 'seq', runsSortOrder)}
+                        </span>
+                      </button>
+                    </TableHeadCell>
                     <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.type')}</TableHeadCell>
                     <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.horizon')}</TableHeadCell>
-                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.status')}</TableHeadCell>
+                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                      <button
+                        type='button'
+                        onClick={() => handleRunsSort('status')}
+                        className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                      >
+                        <span>{t('reportValidation.columns.status')}</span>
+                        <span
+                          className={
+                            runsSortBy === 'status' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                          }
+                        >
+                          {sortIndicator(runsSortBy === 'status', runsSortOrder)}
+                        </span>
+                      </button>
+                    </TableHeadCell>
                     <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.progress')}</TableHeadCell>
-                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.overallScore')}</TableHeadCell>
-                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.columns.completedAt')}</TableHeadCell>
+                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                      <button
+                        type='button'
+                        onClick={() => handleRunsSort('overallScore')}
+                        className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                      >
+                        <span>{t('reportValidation.columns.overallScore')}</span>
+                        <span
+                          className={
+                            runsSortBy === 'overallScore'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-gray-400 dark:text-gray-500'
+                          }
+                        >
+                          {sortIndicator(runsSortBy === 'overallScore', runsSortOrder)}
+                        </span>
+                      </button>
+                    </TableHeadCell>
+                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                      <button
+                        type='button'
+                        onClick={() => handleRunsSort('completedAt')}
+                        className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                      >
+                        <span>{t('reportValidation.columns.completedAt')}</span>
+                        <span
+                          className={
+                            runsSortBy === 'completedAt'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-gray-400 dark:text-gray-500'
+                          }
+                        >
+                          {sortIndicator(runsSortBy === 'completedAt', runsSortOrder)}
+                        </span>
+                      </button>
+                    </TableHeadCell>
                   </TableRow>
                 </TableHead>
                 <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
@@ -442,15 +548,126 @@ const Page: React.FC = () => {
                 <Table hoverable className='w-full text-left min-w-[1220px]'>
                   <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700'>
                     <TableRow>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.symbol')}</TableHeadCell>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.status')}</TableHeadCell>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.verdict')}</TableHeadCell>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.deterministicScore')}</TableHeadCell>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.aiScore')}</TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('symbol')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.symbol')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'symbol' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'symbol', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('status')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.status')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'status' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'status', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('gptVerdict')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.verdict')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'gptVerdict'
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'gptVerdict', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('deterministicScore')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.deterministicScore')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'deterministicScore'
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'deterministicScore', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('gptScore')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.aiScore')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'gptScore' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'gptScore', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.overallScore')}</TableHeadCell>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.returnPct')}</TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('returnPct')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.returnPct')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'returnPct' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'returnPct', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.nextGuardrail')}</TableHeadCell>
-                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('reportValidation.items.evaluatedAt')}</TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        <button
+                          type='button'
+                          onClick={() => handleItemsSort('evaluatedAt')}
+                          className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
+                        >
+                          <span>{t('reportValidation.items.evaluatedAt')}</span>
+                          <span
+                            className={
+                              itemsSortBy === 'evaluatedAt'
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-gray-400 dark:text-gray-500'
+                            }
+                          >
+                            {sortIndicator(itemsSortBy === 'evaluatedAt', itemsSortOrder)}
+                          </span>
+                        </button>
+                      </TableHeadCell>
                     </TableRow>
                   </TableHead>
                   <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>

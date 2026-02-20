@@ -5,7 +5,10 @@ import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { Permission } from '../permission/permission.enum';
 import {
+  ReportValidationItemSortBy,
+  ReportValidationRunSortBy,
   ReportType,
+  ReportValidationSortOrder,
   ReportValidationRunItemPage,
   ReportValidationRunPage,
   ReportValidationStatus,
@@ -23,19 +26,28 @@ export class ReportValidationController {
     @Query('limit') limitRaw?: string,
     @Query('page') pageRaw?: string,
     @Query('perPage') perPageRaw?: string,
+    @Query('sortBy') sortByRaw?: string,
+    @Query('sortOrder') sortOrderRaw?: string,
+    @Query('includeSummary') includeSummaryRaw?: string,
     @Query('reportType') reportTypeRaw?: string,
     @Query('status') statusRaw?: string,
   ): Promise<ReportValidationRunPage> {
     const reportType = this.parseReportType(reportTypeRaw);
     const status = this.parseStatus(statusRaw);
+    const sortBy = this.parseRunSortBy(sortByRaw);
+    const sortOrder = this.parseSortOrder(sortOrderRaw);
     const limit = this.parseLimit(limitRaw);
     const page = this.parseLimit(pageRaw);
     const perPage = this.parseLimit(perPageRaw);
+    const includeSummary = this.parseBoolean(includeSummaryRaw);
 
     return this.reportValidationService.getValidationRuns({
       limit,
       page,
       perPage,
+      includeSummary,
+      sortBy,
+      sortOrder,
       reportType,
       status,
     });
@@ -47,11 +59,24 @@ export class ReportValidationController {
     @Query('limit') limitRaw?: string,
     @Query('page') pageRaw?: string,
     @Query('perPage') perPageRaw?: string,
+    @Query('sortBy') sortByRaw?: string,
+    @Query('sortOrder') sortOrderRaw?: string,
+    @Query('includeSummary') includeSummaryRaw?: string,
   ): Promise<ReportValidationRunItemPage> {
     const limit = this.parseLimit(limitRaw);
     const page = this.parseLimit(pageRaw);
     const perPage = this.parseLimit(perPageRaw);
-    return this.reportValidationService.getValidationRunItems(runId, { limit, page, perPage });
+    const sortBy = this.parseItemSortBy(sortByRaw);
+    const sortOrder = this.parseSortOrder(sortOrderRaw);
+    const includeSummary = this.parseBoolean(includeSummaryRaw);
+    return this.reportValidationService.getValidationRunItems(runId, {
+      limit,
+      page,
+      perPage,
+      includeSummary,
+      sortBy,
+      sortOrder,
+    });
   }
 
   private parseReportType(value?: string): ReportType | undefined {
@@ -75,5 +100,50 @@ export class ReportValidationController {
 
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private parseRunSortBy(value?: string): ReportValidationRunSortBy | undefined {
+    if (
+      value === 'createdAt' ||
+      value === 'completedAt' ||
+      value === 'overallScore' ||
+      value === 'status' ||
+      value === 'seq'
+    ) {
+      return value;
+    }
+    return undefined;
+  }
+
+  private parseItemSortBy(value?: string): ReportValidationItemSortBy | undefined {
+    if (
+      value === 'createdAt' ||
+      value === 'evaluatedAt' ||
+      value === 'returnPct' ||
+      value === 'deterministicScore' ||
+      value === 'gptScore' ||
+      value === 'symbol' ||
+      value === 'status' ||
+      value === 'gptVerdict'
+    ) {
+      return value;
+    }
+    return undefined;
+  }
+
+  private parseSortOrder(value?: string): ReportValidationSortOrder | undefined {
+    if (value === 'asc' || value === 'desc') {
+      return value;
+    }
+    return undefined;
+  }
+
+  private parseBoolean(value?: string): boolean {
+    if (!value) {
+      return false;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y';
   }
 }

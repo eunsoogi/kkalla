@@ -248,6 +248,44 @@ describe('ReportValidationService', () => {
     expect(result.items).toHaveLength(1);
   });
 
+  it('should apply requested sort for validation runs', async () => {
+    const findAndCountSpy = jest.spyOn(ReportValidationRun, 'findAndCount').mockResolvedValue([[], 0] as any);
+
+    await service.getValidationRuns({
+      page: 1,
+      perPage: 20,
+      sortBy: 'overallScore',
+      sortOrder: 'asc',
+    });
+
+    expect(findAndCountSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: expect.objectContaining({
+          overallScore: 'ASC',
+        }),
+      }),
+    );
+  });
+
+  it('should apply requested sort for validation run items', async () => {
+    const findAndCountSpy = jest.spyOn(ReportValidationItem, 'findAndCount').mockResolvedValue([[], 0] as any);
+
+    await service.getValidationRunItems('run-1', {
+      page: 1,
+      perPage: 50,
+      sortBy: 'returnPct',
+      sortOrder: 'asc',
+    });
+
+    expect(findAndCountSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: expect.objectContaining({
+          returnPct: 'ASC',
+        }),
+      }),
+    );
+  });
+
   it('should retry backfill after an initial failure', async () => {
     const enqueueMarketSpy = jest.spyOn(service as any, 'enqueueMarketBatchValidation').mockResolvedValue(undefined);
     const enqueuePortfolioSpy = jest
