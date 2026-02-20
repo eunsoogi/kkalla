@@ -3,6 +3,17 @@ import { PaginatedItem } from '../item/item.interface';
 export type ReportType = 'market' | 'portfolio';
 export type ReportValidationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ReportValidationVerdict = 'good' | 'mixed' | 'bad' | 'invalid';
+export type ReportValidationSortOrder = 'asc' | 'desc';
+export type ReportValidationRunSortBy = 'createdAt' | 'completedAt' | 'overallScore' | 'status' | 'seq';
+export type ReportValidationItemSortBy =
+  | 'createdAt'
+  | 'evaluatedAt'
+  | 'returnPct'
+  | 'deterministicScore'
+  | 'gptScore'
+  | 'symbol'
+  | 'status'
+  | 'gptVerdict';
 
 export interface ReportValidationRunListItem {
   id: string;
@@ -77,5 +88,26 @@ export interface PortfolioValidationBadges {
   validation72h?: ReportValidationBadge;
 }
 
-export type ReportValidationRunPage = PaginatedItem<ReportValidationRunListItem>;
-export type ReportValidationRunItemPage = PaginatedItem<ReportValidationRunItemListItem>;
+export interface ReportValidationRunSummary {
+  totalRuns: number;
+  pendingOrRunning: number;
+  completed: number;
+  avgScore: number | null;
+}
+
+export interface ReportValidationRunItemSummary {
+  itemCount: number;
+  invalidCount: number;
+  avgItemScore: number | null;
+  avgReturn: number | null;
+  verdictGood: number;
+  verdictMixed: number;
+  verdictBad: number;
+}
+
+export type ReportValidationRunPage = PaginatedItem<ReportValidationRunListItem> & {
+  summary?: ReportValidationRunSummary;
+};
+export type ReportValidationRunItemPage = PaginatedItem<ReportValidationRunItemListItem> & {
+  summary?: ReportValidationRunItemSummary;
+};

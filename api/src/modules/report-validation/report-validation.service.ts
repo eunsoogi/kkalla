@@ -23,12 +23,17 @@ import {
 } from './prompts/report-validation.prompt';
 import { REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK, ScheduleExpression } from './report-validation.enum';
 import {
+  ReportValidationItemSortBy,
   MarketValidationBadges,
   PortfolioValidationBadges,
   ReportType,
   ReportValidationBadge,
   ReportValidationRunItemPage,
+  ReportValidationRunItemSummary,
+  ReportValidationRunSortBy,
   ReportValidationRunPage,
+  ReportValidationRunSummary,
+  ReportValidationSortOrder,
   ReportValidationStatus,
   ReportValidationVerdict,
 } from './report-validation.interface';
@@ -293,11 +298,16 @@ export class ReportValidationService {
     limit?: number;
     page?: number;
     perPage?: number;
+    includeSummary?: boolean;
+    sortBy?: ReportValidationRunSortBy;
+    sortOrder?: ReportValidationSortOrder;
     reportType?: ReportType;
     status?: ReportValidationStatus;
   }): Promise<ReportValidationRunPage> {
     const safePage = this.clampLimit(params?.page, 1, 1, 1000000);
     const safePerPage = this.clampLimit(params?.perPage ?? params?.limit, 30, 1, 200);
+    const sortBy = this.resolveRunSortBy(params?.sortBy);
+    const sortOrder = this.resolveSortOrder(params?.sortOrder);
     const where: Record<string, unknown> = {};
 
     if (params?.reportType) {
@@ -310,14 +320,12 @@ export class ReportValidationService {
 
     const [runs, total] = await ReportValidationRun.findAndCount({
       where: where as any,
-      order: {
-        createdAt: 'DESC',
-      },
+      order: this.buildRunOrder(sortBy, sortOrder),
       take: safePerPage,
       skip: (safePage - 1) * safePerPage,
     });
 
-    return {
+    const response: ReportValidationRunPage = {
       items: runs.map((run) => ({
         id: run.id,
         seq: run.seq,
@@ -342,23 +350,40 @@ export class ReportValidationService {
       perPage: safePerPage,
       totalPages: Math.ceil(total / safePerPage),
     };
+
+    if (params?.includeSummary) {
+      response.summary = await this.getValidationRunsSummary({
+        totalRuns: total,
+        reportType: params?.reportType,
+        status: params?.status,
+      });
+    }
+
+    return response;
   }
 
   public async getValidationRunItems(
     runId: string,
-    params?: { limit?: number; page?: number; perPage?: number },
+    params?: {
+      limit?: number;
+      page?: number;
+      perPage?: number;
+      includeSummary?: boolean;
+      sortBy?: ReportValidationItemSortBy;
+      sortOrder?: ReportValidationSortOrder;
+    },
   ): Promise<ReportValidationRunItemPage> {
     const safePage = this.clampLimit(params?.page, 1, 1, 1000000);
     const safePerPage = this.clampLimit(params?.perPage ?? params?.limit, 200, 1, 1000);
+    const sortBy = this.resolveItemSortBy(params?.sortBy);
+    const sortOrder = this.resolveSortOrder(params?.sortOrder);
     const [items, total] = await ReportValidationItem.findAndCount({
       where: {
         run: {
           id: runId,
         },
       } as any,
-      order: {
-        createdAt: 'DESC',
-      },
+      order: this.buildItemOrder(sortBy, sortOrder),
       take: safePerPage,
       skip: (safePage - 1) * safePerPage,
       relations: {
@@ -366,7 +391,7 @@ export class ReportValidationService {
       },
     });
 
-    return {
+    const response: ReportValidationRunItemPage = {
       items: items.map((item) => ({
         id: item.id,
         seq: item.seq,
@@ -407,6 +432,151 @@ export class ReportValidationService {
       perPage: safePerPage,
       totalPages: Math.ceil(total / safePerPage),
     };
+
+    if (params?.includeSummary) {
+      response.summary = await this.getValidationRunItemsSummary(runId, total);
+    }
+
+    return response;
+  }
+
+  private async getValidationRunsSummary(params: {
+    totalRuns: number;
+    reportType?: ReportType;
+    status?: ReportValidationStatus;
+  }): Promise<ReportValidationRunSummary> {
+    const summaryQuery = ReportValidationRun.createQueryBuilder('run')
+      .select(`SUM(CASE WHEN run.status IN ('pending', 'running') THEN 1 ELSE 0 END)`, 'pendingOrRunning')
+      .addSelect(`SUM(CASE WHEN run.status = 'completed' THEN 1 ELSE 0 END)`, 'completed')
+      .addSelect('AVG(run.overall_score)', 'avgScore');
+
+    if (params.reportType) {
+      summaryQuery.andWhere('run.report_type = :reportType', {
+        reportType: params.reportType,
+      });
+    }
+
+    if (params.status) {
+      summaryQuery.andWhere('run.status = :status', {
+        status: params.status,
+      });
+    }
+
+    const raw = await summaryQuery.getRawOne<{
+      pendingOrRunning?: string | number | null;
+      completed?: string | number | null;
+      avgScore?: string | number | null;
+    }>();
+
+    return {
+      totalRuns: this.toNonNegativeInteger(params.totalRuns),
+      pendingOrRunning: this.toNonNegativeInteger(raw?.pendingOrRunning),
+      completed: this.toNonNegativeInteger(raw?.completed),
+      avgScore: this.toNullableNumber(raw?.avgScore),
+    };
+  }
+
+  private async getValidationRunItemsSummary(runId: string, totalItems: number): Promise<ReportValidationRunItemSummary> {
+    const nonInvalidCondition = `(item.gpt_verdict IS NULL OR item.gpt_verdict <> 'invalid')`;
+    const overallScoreExpression = `
+      CASE
+        WHEN item.deterministic_score IS NOT NULL AND item.gpt_score IS NOT NULL
+          THEN LEAST(GREATEST((0.6 * item.deterministic_score) + (0.4 * item.gpt_score), 0), 1)
+        WHEN item.deterministic_score IS NOT NULL
+          THEN LEAST(GREATEST(item.deterministic_score, 0), 1)
+        WHEN item.gpt_score IS NOT NULL
+          THEN LEAST(GREATEST(item.gpt_score, 0), 1)
+        ELSE NULL
+      END
+    `;
+
+    const summaryQuery = ReportValidationItem.createQueryBuilder('item')
+      .select(`SUM(CASE WHEN item.gpt_verdict = 'invalid' THEN 1 ELSE 0 END)`, 'invalidCount')
+      .addSelect(`SUM(CASE WHEN item.gpt_verdict = 'good' THEN 1 ELSE 0 END)`, 'verdictGood')
+      .addSelect(`SUM(CASE WHEN item.gpt_verdict = 'mixed' THEN 1 ELSE 0 END)`, 'verdictMixed')
+      .addSelect(`SUM(CASE WHEN item.gpt_verdict = 'bad' THEN 1 ELSE 0 END)`, 'verdictBad')
+      .addSelect(`AVG(CASE WHEN ${nonInvalidCondition} THEN ${overallScoreExpression} ELSE NULL END)`, 'avgItemScore')
+      .addSelect(`AVG(CASE WHEN ${nonInvalidCondition} THEN item.return_pct ELSE NULL END)`, 'avgReturn')
+      .where('item.run_id = :runId', { runId });
+
+    const raw = await summaryQuery.getRawOne<{
+      invalidCount?: string | number | null;
+      verdictGood?: string | number | null;
+      verdictMixed?: string | number | null;
+      verdictBad?: string | number | null;
+      avgItemScore?: string | number | null;
+      avgReturn?: string | number | null;
+    }>();
+
+    return {
+      itemCount: this.toNonNegativeInteger(totalItems),
+      invalidCount: this.toNonNegativeInteger(raw?.invalidCount),
+      avgItemScore: this.toNullableNumber(raw?.avgItemScore),
+      avgReturn: this.toNullableNumber(raw?.avgReturn),
+      verdictGood: this.toNonNegativeInteger(raw?.verdictGood),
+      verdictMixed: this.toNonNegativeInteger(raw?.verdictMixed),
+      verdictBad: this.toNonNegativeInteger(raw?.verdictBad),
+    };
+  }
+
+  private resolveRunSortBy(value: ReportValidationRunSortBy | undefined): ReportValidationRunSortBy {
+    if (
+      value === 'createdAt' ||
+      value === 'completedAt' ||
+      value === 'overallScore' ||
+      value === 'status' ||
+      value === 'seq'
+    ) {
+      return value;
+    }
+    return 'createdAt';
+  }
+
+  private resolveItemSortBy(value: ReportValidationItemSortBy | undefined): ReportValidationItemSortBy {
+    if (
+      value === 'createdAt' ||
+      value === 'evaluatedAt' ||
+      value === 'returnPct' ||
+      value === 'deterministicScore' ||
+      value === 'gptScore' ||
+      value === 'symbol' ||
+      value === 'status' ||
+      value === 'gptVerdict'
+    ) {
+      return value;
+    }
+    return 'createdAt';
+  }
+
+  private resolveSortOrder(value: ReportValidationSortOrder | undefined): 'ASC' | 'DESC' {
+    return value === 'asc' ? 'ASC' : 'DESC';
+  }
+
+  private buildRunOrder(sortBy: ReportValidationRunSortBy, sortOrder: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {
+    const order: Record<string, 'ASC' | 'DESC'> = {};
+    order[sortBy] = sortOrder;
+    if (sortBy !== 'createdAt') {
+      order.createdAt = 'DESC';
+    }
+    if (sortBy !== 'seq') {
+      order.seq = 'DESC';
+    }
+    return order;
+  }
+
+  private buildItemOrder(
+    sortBy: ReportValidationItemSortBy,
+    sortOrder: 'ASC' | 'DESC',
+  ): Record<string, 'ASC' | 'DESC'> {
+    const order: Record<string, 'ASC' | 'DESC'> = {};
+    order[sortBy] = sortOrder;
+    if (sortBy !== 'createdAt') {
+      order.createdAt = 'DESC';
+    }
+    if (sortBy !== 'seq') {
+      order.seq = 'DESC';
+    }
+    return order;
   }
 
   private buildBadge(item: ReportValidationItem): ReportValidationBadge {
@@ -1268,6 +1438,14 @@ export class ReportValidationService {
   private toNumber(value: unknown): number {
     const parsed = this.toNullableNumber(value);
     return parsed ?? 0;
+  }
+
+  private toNonNegativeInteger(value: unknown): number {
+    const parsed = this.toNullableNumber(value);
+    if (parsed == null) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(parsed));
   }
 
   private async safeNotifyServer(message: string): Promise<void> {
