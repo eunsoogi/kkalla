@@ -386,6 +386,26 @@
         "remainingHours": "{hours}시간 후",
         "remainingHoursMinutes": "{hours}시간 {minutes}분 후"
       },
+      "lock": {
+        "label": "Lock 상태",
+        "loading": "락 상태를 확인하는 중...",
+        "unavailable": "락 상태 정보를 가져오지 못했습니다.",
+        "locked": "잠김",
+        "unlocked": "해제됨",
+        "ttl": "남은 만료 시간: {value}",
+        "ttlUnknown": "만료 시간 정보를 확인할 수 없습니다.",
+        "ttlMinutesSeconds": "{minutes}분 {seconds}초",
+        "ttlSeconds": "{seconds}초",
+        "checkedAt": "확인 시각: {at}",
+        "releaseButton": "락 강제 해제",
+        "releasing": "해제 중...",
+        "releaseStatus": {
+          "released": "락을 해제했습니다.",
+          "alreadyUnlocked": "이미 해제된 락입니다.",
+          "failed": "락 해제 요청에 실패했습니다."
+        },
+        "recoveredRunningCount": "진행중에서 대기로 복구: {count}건"
+      },
       "status": {
         "label": "최근 수동 실행",
         "started": "실행이 시작되었습니다.",
@@ -428,7 +448,7 @@
       },
       "warning": {
         "title": "주의사항",
-        "description": "수동 실행은 시작 여부만 즉시 확인됩니다. 실제 완료/실패는 서버 로그와 알림에서 확인하세요."
+        "description": "수동 실행은 시작 여부만 즉시 확인됩니다. 실제 완료/실패는 서버 로그와 알림에서 확인하세요. 락 강제 해제는 실행 중인 작업의 잠금도 해제할 수 있으니 신중히 사용하세요."
       }
     }
   }

@@ -10,14 +10,21 @@ import ScheduleExecuteButton from '@/components/schedule/ScheduleExecuteButton';
 import ScheduleWarning from '@/components/schedule/ScheduleWarning';
 import {
   ScheduleActionState,
+  ScheduleLockActionState,
   executeBalanceRecommendationWithExistingItemsAction,
   executeMarketRecommendationAction,
   executeReportValidationAction,
   executebalanceRecommendationNewItemsAction,
   getScheduleExecutionPlansAction,
+  getScheduleLockStatesAction,
+  releaseScheduleLockAction,
 } from '@/components/schedule/action';
 import { Permission } from '@/interfaces/permission.interface';
-import { ScheduleExecutionPlanResponse, ScheduleExecutionTask } from '@/interfaces/schedule-execution.interface';
+import {
+  ScheduleExecutionPlanResponse,
+  ScheduleExecutionTask,
+  ScheduleLockStateResponse,
+} from '@/interfaces/schedule-execution.interface';
 
 const LEGACY_SCHEDULE_PERMISSIONS = [
   Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
@@ -38,6 +45,8 @@ interface NextRunHighlight {
   timezone: string;
   minutesUntil: number;
 }
+
+const LOCK_REFRESH_INTERVAL_MS = 15_000;
 
 const parseRunAtToMinutes = (runAt: string): number | null => {
   const [hourRaw, minuteRaw] = runAt.split(':');
@@ -127,16 +136,29 @@ const formatRemainingTime = (minutesUntil: number, t: ReturnType<typeof useTrans
   return t('schedule.execute.auto.remainingHoursMinutes', { hours, minutes });
 };
 
+const toTaskRecord = <T extends { task: ScheduleExecutionTask }>(items: T[]): Partial<Record<ScheduleExecutionTask, T>> => {
+  return items.reduce<Partial<Record<ScheduleExecutionTask, T>>>((acc, item) => {
+    acc[item.task] = item;
+    return acc;
+  }, {});
+};
+
 const Page: React.FC = () => {
   const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations();
   const permissions = useMemo(() => session?.permissions ?? [], [session?.permissions]);
-  const [isPending, startTransition] = useTransition();
+  const [isExecutePending, startExecuteTransition] = useTransition();
+  const [isLockPending, startLockTransition] = useTransition();
   const [recentResults, setRecentResults] = useState<Partial<Record<ScheduleExecutionTask, ScheduleActionState>>>({});
+  const [recentLockResults, setRecentLockResults] = useState<
+    Partial<Record<ScheduleExecutionTask, ScheduleLockActionState>>
+  >({});
   const [executionPlans, setExecutionPlans] = useState<
     Partial<Record<ScheduleExecutionTask, ScheduleExecutionPlanResponse>>
   >({});
+  const [lockStates, setLockStates] = useState<Partial<Record<ScheduleExecutionTask, ScheduleLockStateResponse>>>({});
   const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [isLockLoading, setIsLockLoading] = useState(true);
 
   const taskTitle = (task: ScheduleExecutionTask) => {
     switch (task) {
@@ -160,15 +182,7 @@ const Page: React.FC = () => {
         return;
       }
 
-      const plansByTask = plans.reduce<Partial<Record<ScheduleExecutionTask, ScheduleExecutionPlanResponse>>>(
-        (acc, plan) => {
-          acc[plan.task] = plan;
-          return acc;
-        },
-        {},
-      );
-
-      setExecutionPlans(plansByTask);
+      setExecutionPlans(toTaskRecord(plans));
       setIsPlanLoading(false);
     };
 
@@ -178,6 +192,36 @@ const Page: React.FC = () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLockStates = async () => {
+      const locks = await getScheduleLockStatesAction();
+      if (!mounted) {
+        return;
+      }
+
+      setLockStates(toTaskRecord(locks));
+      setIsLockLoading(false);
+    };
+
+    void loadLockStates();
+    const intervalId = window.setInterval(() => {
+      void loadLockStates();
+    }, LOCK_REFRESH_INTERVAL_MS);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const refreshLockStates = async () => {
+    const locks = await getScheduleLockStatesAction();
+    setLockStates(toTaskRecord(locks));
+    setIsLockLoading(false);
+  };
 
   const nextRunHighlight = useMemo(() => {
     const plans = Object.values(executionPlans).filter((plan): plan is ScheduleExecutionPlanResponse => {
@@ -192,30 +236,56 @@ const Page: React.FC = () => {
 
   const nextRunRemainingText = nextRunHighlight ? formatRemainingTime(nextRunHighlight.minutesUntil, t) : undefined;
 
-  const execute = (executor: () => Promise<ScheduleActionState>) => {
-    startTransition(async () => {
+  const execute = (task: ScheduleExecutionTask, executor: () => Promise<ScheduleActionState>) => {
+    startExecuteTransition(async () => {
       const result = await executor();
       setRecentResults((prev) => ({
         ...prev,
         [result.task]: result,
       }));
+
+      if (result.status === 'started' || result.status === 'skipped_lock') {
+        setLockStates((prev) => ({
+          ...prev,
+          [task]: {
+            task,
+            locked: true,
+            ttlMs: prev[task]?.ttlMs ?? null,
+            checkedAt: new Date().toISOString(),
+          },
+        }));
+      }
+
+      await refreshLockStates();
+    });
+  };
+
+  const releaseLock = (task: ScheduleExecutionTask) => {
+    startLockTransition(async () => {
+      const result = await releaseScheduleLockAction(task);
+      setRecentLockResults((prev) => ({
+        ...prev,
+        [result.task]: result,
+      }));
+
+      await refreshLockStates();
     });
   };
 
   const handleExecuteMarketRecommendation = () => {
-    execute(executeMarketRecommendationAction);
+    execute('marketRecommendation', executeMarketRecommendationAction);
   };
 
   const handleExecuteExistItems = () => {
-    execute(executeBalanceRecommendationWithExistingItemsAction);
+    execute('balanceRecommendationExisting', executeBalanceRecommendationWithExistingItemsAction);
   };
 
   const handleExecuteNewItems = () => {
-    execute(executebalanceRecommendationNewItemsAction);
+    execute('balanceRecommendationNew', executebalanceRecommendationNewItemsAction);
   };
 
   const handleExecuteReportValidation = () => {
-    execute(executeReportValidationAction);
+    execute('reportValidation', executeReportValidationAction);
   };
 
   const hasLegacyScheduleAccess = LEGACY_SCHEDULE_PERMISSIONS.every((permission) => permissions.includes(permission));
@@ -271,22 +341,32 @@ const Page: React.FC = () => {
           <div className='divide-y divide-gray-200 dark:divide-gray-700'>
             <ScheduleExecuteButton
               type='marketRecommendation'
-              isPending={isPending}
+              isPending={isExecutePending}
+              isReleasePending={isLockPending}
               onExecute={handleExecuteMarketRecommendation}
+              onReleaseLock={() => releaseLock('marketRecommendation')}
               result={recentResults.marketRecommendation}
+              lockState={lockStates.marketRecommendation}
+              lockResult={recentLockResults.marketRecommendation}
               plan={executionPlans.marketRecommendation}
               isPlanLoading={isPlanLoading}
+              isLockLoading={isLockLoading}
               highlightRunAt={nextRunHighlight?.task === 'marketRecommendation' ? nextRunHighlight.time : undefined}
               highlightRemainingText={nextRunHighlight?.task === 'marketRecommendation' ? nextRunRemainingText : undefined}
             />
 
             <ScheduleExecuteButton
               type='existItems'
-              isPending={isPending}
+              isPending={isExecutePending}
+              isReleasePending={isLockPending}
               onExecute={handleExecuteExistItems}
+              onReleaseLock={() => releaseLock('balanceRecommendationExisting')}
               result={recentResults.balanceRecommendationExisting}
+              lockState={lockStates.balanceRecommendationExisting}
+              lockResult={recentLockResults.balanceRecommendationExisting}
               plan={executionPlans.balanceRecommendationExisting}
               isPlanLoading={isPlanLoading}
+              isLockLoading={isLockLoading}
               highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunHighlight.time : undefined}
               highlightRemainingText={
                 nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunRemainingText : undefined
@@ -295,22 +375,32 @@ const Page: React.FC = () => {
 
             <ScheduleExecuteButton
               type='newItems'
-              isPending={isPending}
+              isPending={isExecutePending}
+              isReleasePending={isLockPending}
               onExecute={handleExecuteNewItems}
+              onReleaseLock={() => releaseLock('balanceRecommendationNew')}
               result={recentResults.balanceRecommendationNew}
+              lockState={lockStates.balanceRecommendationNew}
+              lockResult={recentLockResults.balanceRecommendationNew}
               plan={executionPlans.balanceRecommendationNew}
               isPlanLoading={isPlanLoading}
+              isLockLoading={isLockLoading}
               highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunHighlight.time : undefined}
               highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunRemainingText : undefined}
             />
 
             <ScheduleExecuteButton
               type='reportValidation'
-              isPending={isPending}
+              isPending={isExecutePending}
+              isReleasePending={isLockPending}
               onExecute={handleExecuteReportValidation}
+              onReleaseLock={() => releaseLock('reportValidation')}
               result={recentResults.reportValidation}
+              lockState={lockStates.reportValidation}
+              lockResult={recentLockResults.reportValidation}
               plan={executionPlans.reportValidation}
               isPlanLoading={isPlanLoading}
+              isLockLoading={isLockLoading}
               highlightRunAt={nextRunHighlight?.task === 'reportValidation' ? nextRunHighlight.time : undefined}
               highlightRemainingText={nextRunHighlight?.task === 'reportValidation' ? nextRunRemainingText : undefined}
             />

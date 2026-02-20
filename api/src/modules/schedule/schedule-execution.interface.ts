@@ -11,3 +11,18 @@ export interface ScheduleExecutionResponse {
   status: ScheduleExecutionStatus;
   requestedAt: string;
 }
+
+export interface ScheduleLockStateResponse {
+  task: ScheduleExecutionTask;
+  locked: boolean;
+  ttlMs: number | null;
+  checkedAt: string;
+}
+
+export interface ScheduleLockReleaseResponse {
+  task: ScheduleExecutionTask;
+  released: boolean;
+  locked: boolean;
+  releasedAt: string;
+  recoveredRunningCount?: number;
+}
