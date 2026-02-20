@@ -23,6 +23,11 @@
   "retry": {
     "failed": "*[시스템 알림]* 재시도에 실패했습니다.\n\n상세 정보\n> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
   },
+  "reportValidation": {
+    "task_failed": "*[시스템 알림]* 리포트 사후 검증 작업 실패\n> {message}",
+    "cleanup_failed": "*[시스템 알림]* 리포트 사후 검증 정리 작업 실패\n> {message}",
+    "partially_failed": "*[시스템 알림]* 리포트 사후 검증 일부 실패\n> run={runId}\n> reportType={reportType}\n> batch={sourceBatchId}\n> horizon={horizonHours}\n> failed={failedCount}"
+  },
   "marketRecommendation": {
     "transaction": "*{symbol}*\n> 이유: {reason}",
     "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}"
