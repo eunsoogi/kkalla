@@ -100,6 +100,15 @@ describe('ReportValidationService', () => {
     expect(holdAction).toBe('hold');
   });
 
+  it('should treat no_trade action as hold', () => {
+    const action = (service as any).resolvePortfolioAction({
+      recommendationAction: 'no_trade',
+      recommendationIntensity: 0.8,
+    });
+
+    expect(action).toBe('hold');
+  });
+
   it('should extract confidence from portfolio reason text', () => {
     const confidence = (service as any).extractConfidenceFromReason(
       '거래량 증가와 이벤트 모멘텀 반영, confidence=0.73, expectedVolatility=+/-2.4%',
