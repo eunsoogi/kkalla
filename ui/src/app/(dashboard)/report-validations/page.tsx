@@ -80,16 +80,16 @@ const verdictLabel = (t: ReturnType<typeof useTranslations>, verdict: ReportVali
 };
 
 const calculateItemOverallScore = (item: ReportValidationItem): number | null => {
-  if (typeof item.deterministicScore === 'number' && typeof item.gptScore === 'number') {
-    return 0.6 * item.deterministicScore + 0.4 * item.gptScore;
+  if (typeof item.deterministicScore === 'number' && typeof item.aiScore === 'number') {
+    return 0.6 * item.deterministicScore + 0.4 * item.aiScore;
   }
 
   if (typeof item.deterministicScore === 'number') {
     return item.deterministicScore;
   }
 
-  if (typeof item.gptScore === 'number') {
-    return item.gptScore;
+  if (typeof item.aiScore === 'number') {
+    return item.aiScore;
   }
 
   return null;
@@ -171,6 +171,7 @@ const Page: React.FC = () => {
       pendingOrRunning,
       completed,
       avgScore,
+      recommendedMarketMinConfidenceForPortfolio: null,
     };
   }, [runsData, runs]);
 
@@ -179,8 +180,8 @@ const Page: React.FC = () => {
       return itemsData.summary;
     }
 
-    const validItems = items.filter((item) => item.gptVerdict !== 'invalid');
-    const invalidCount = items.filter((item) => item.gptVerdict === 'invalid').length;
+    const validItems = items.filter((item) => item.aiVerdict !== 'invalid');
+    const invalidCount = items.filter((item) => item.aiVerdict === 'invalid').length;
 
     const scores = validItems
       .map((item) => calculateItemOverallScore(item))
@@ -192,9 +193,9 @@ const Page: React.FC = () => {
       .filter((ret): ret is number => typeof ret === 'number' && Number.isFinite(ret));
     const avgReturn = returns.length > 0 ? returns.reduce((sum, ret) => sum + ret, 0) / returns.length : null;
 
-    const verdictGood = validItems.filter((item) => item.gptVerdict === 'good').length;
-    const verdictMixed = validItems.filter((item) => item.gptVerdict === 'mixed').length;
-    const verdictBad = validItems.filter((item) => item.gptVerdict === 'bad').length;
+    const verdictGood = validItems.filter((item) => item.aiVerdict === 'good').length;
+    const verdictMixed = validItems.filter((item) => item.aiVerdict === 'mixed').length;
+    const verdictBad = validItems.filter((item) => item.aiVerdict === 'bad').length;
 
     return {
       itemCount: items.length,
@@ -239,25 +240,33 @@ const Page: React.FC = () => {
           <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>{t('reportValidation.title')}</h1>
           <p className='mt-2 text-sm text-gray-600 dark:text-gray-300'>{t('reportValidation.description')}</p>
 
-          <div className='mt-5 grid grid-cols-12 gap-3'>
-            <div className='col-span-12 md:col-span-3 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3'>
+          <div className='mt-5 grid grid-cols-1 gap-3 lg:grid-cols-5'>
+            <div className='rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3'>
               <p className='text-xs text-gray-500 dark:text-gray-400'>{t('reportValidation.stats.totalRuns')}</p>
               <p className='mt-1 text-xl font-semibold text-gray-900 dark:text-white'>{summaryStats.totalRuns}</p>
             </div>
-            <div className='col-span-12 md:col-span-3 rounded-lg border border-amber-300/50 bg-amber-50/40 dark:bg-amber-900/10 dark:border-amber-500/40 px-4 py-3'>
+            <div className='rounded-lg border border-amber-300/50 bg-amber-50/40 dark:bg-amber-900/10 dark:border-amber-500/40 px-4 py-3'>
               <p className='text-xs text-amber-700 dark:text-amber-300'>{t('reportValidation.stats.activeRuns')}</p>
               <p className='mt-1 text-xl font-semibold text-amber-800 dark:text-amber-200'>
                 {summaryStats.pendingOrRunning}
               </p>
             </div>
-            <div className='col-span-12 md:col-span-3 rounded-lg border border-green-300/50 bg-green-50/40 dark:bg-green-900/10 dark:border-green-500/40 px-4 py-3'>
+            <div className='rounded-lg border border-green-300/50 bg-green-50/40 dark:bg-green-900/10 dark:border-green-500/40 px-4 py-3'>
               <p className='text-xs text-green-700 dark:text-green-300'>{t('reportValidation.stats.completedRuns')}</p>
               <p className='mt-1 text-xl font-semibold text-green-800 dark:text-green-200'>{summaryStats.completed}</p>
             </div>
-            <div className='col-span-12 md:col-span-3 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3'>
+            <div className='rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3'>
               <p className='text-xs text-gray-500 dark:text-gray-400'>{t('reportValidation.stats.avgScore')}</p>
               <p className={`mt-1 text-xl font-semibold ${scoreClassName(summaryStats.avgScore)}`}>
                 {formatScore(summaryStats.avgScore)}
+              </p>
+            </div>
+            <div className='rounded-lg border border-blue-300/40 bg-blue-50/40 dark:bg-blue-900/10 dark:border-blue-500/40 px-4 py-3'>
+              <p className='text-xs text-blue-700 dark:text-blue-300'>
+                {t('reportValidation.stats.recommendedMinConfidence')}
+              </p>
+              <p className='mt-1 text-xl font-semibold text-blue-800 dark:text-blue-200'>
+                {formatScore(summaryStats.recommendedMarketMinConfidenceForPortfolio)}
               </p>
             </div>
           </div>
@@ -583,18 +592,18 @@ const Page: React.FC = () => {
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
                         <button
                           type='button'
-                          onClick={() => handleItemsSort('gptVerdict')}
+                          onClick={() => handleItemsSort('aiVerdict')}
                           className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
                         >
                           <span>{t('reportValidation.items.verdict')}</span>
                           <span
                             className={
-                              itemsSortBy === 'gptVerdict'
+                              itemsSortBy === 'aiVerdict'
                                 ? 'text-blue-600 dark:text-blue-400'
                                 : 'text-gray-400 dark:text-gray-500'
                             }
                           >
-                            {sortIndicator(itemsSortBy === 'gptVerdict', itemsSortOrder)}
+                            {sortIndicator(itemsSortBy === 'aiVerdict', itemsSortOrder)}
                           </span>
                         </button>
                       </TableHeadCell>
@@ -619,16 +628,16 @@ const Page: React.FC = () => {
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
                         <button
                           type='button'
-                          onClick={() => handleItemsSort('gptScore')}
+                          onClick={() => handleItemsSort('aiScore')}
                           className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
                         >
                           <span>{t('reportValidation.items.aiScore')}</span>
                           <span
                             className={
-                              itemsSortBy === 'gptScore' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                              itemsSortBy === 'aiScore' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
                             }
                           >
-                            {sortIndicator(itemsSortBy === 'gptScore', itemsSortOrder)}
+                            {sortIndicator(itemsSortBy === 'aiScore', itemsSortOrder)}
                           </span>
                         </button>
                       </TableHeadCell>
@@ -702,14 +711,14 @@ const Page: React.FC = () => {
                             {item.symbol}
                           </TableCell>
                           <TableCell className='px-4 py-3 whitespace-nowrap'>
-                            <Badge color={toBadgeColor(item.status, item.gptVerdict)}>{statusLabel(t, item.status)}</Badge>
+                            <Badge color={toBadgeColor(item.status, item.aiVerdict)}>{statusLabel(t, item.status)}</Badge>
                           </TableCell>
-                          <TableCell className='px-4 py-3 whitespace-nowrap'>{verdictLabel(t, item.gptVerdict)}</TableCell>
+                          <TableCell className='px-4 py-3 whitespace-nowrap'>{verdictLabel(t, item.aiVerdict)}</TableCell>
                           <TableCell className={`px-4 py-3 whitespace-nowrap font-medium ${scoreClassName(item.deterministicScore)}`}>
                             {formatScore(item.deterministicScore)}
                           </TableCell>
-                          <TableCell className={`px-4 py-3 whitespace-nowrap font-medium ${scoreClassName(item.gptScore)}`}>
-                            {formatScore(item.gptScore)}
+                          <TableCell className={`px-4 py-3 whitespace-nowrap font-medium ${scoreClassName(item.aiScore)}`}>
+                            {formatScore(item.aiScore)}
                           </TableCell>
                           <TableCell className={`px-4 py-3 whitespace-nowrap font-medium ${scoreClassName(overallScore)}`}>
                             {formatScore(overallScore)}

@@ -299,7 +299,8 @@
       "totalRuns": "전체 실행",
       "activeRuns": "진행/대기",
       "completedRuns": "완료",
-      "avgScore": "평균 점수"
+      "avgScore": "평균 점수",
+      "recommendedMinConfidence": "기준 신뢰도"
     },
     "runs": {
       "title": "실행 이력",

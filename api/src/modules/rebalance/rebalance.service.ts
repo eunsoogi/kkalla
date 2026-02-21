@@ -86,7 +86,7 @@ export class RebalanceService implements OnModuleInit {
   private readonly ESTIMATED_SLIPPAGE_RATE = 0.001;
   private readonly COST_GUARD_MULTIPLIER = 2;
   private readonly MIN_RECOMMEND_WEIGHT = 0.05;
-  private readonly MIN_RECOMMEND_CONFIDENCE = 0.55;
+  private readonly MIN_RECOMMEND_CONFIDENCE = 0.45;
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
@@ -1538,10 +1538,12 @@ export class RebalanceService implements OnModuleInit {
       }
     }
 
+    const minRecommendConfidence = await this.resolveMinRecommendConfidence();
+
     const minimumFilteredOutRecommendations = recommendations.filter(
       (recommendation) =>
         Number(recommendation.weight) < this.MIN_RECOMMEND_WEIGHT ||
-        Number(recommendation.confidence) < this.MIN_RECOMMEND_CONFIDENCE,
+        Number(recommendation.confidence) < minRecommendConfidence,
     );
 
     if (minimumFilteredOutRecommendations.length > 0) {
@@ -1559,7 +1561,7 @@ export class RebalanceService implements OnModuleInit {
       .filter(
         (recommendation) =>
           Number(recommendation.weight) >= this.MIN_RECOMMEND_WEIGHT &&
-          Number(recommendation.confidence) >= this.MIN_RECOMMEND_CONFIDENCE,
+          Number(recommendation.confidence) >= minRecommendConfidence,
       )
       .sort((a, b) => Number(b.weight) * Number(b.confidence) - Number(a.weight) * Number(a.confidence));
 
@@ -1576,6 +1578,19 @@ export class RebalanceService implements OnModuleInit {
         weight: Number(recommendation.weight),
         confidence: Number(recommendation.confidence),
       }));
+  }
+
+  private async resolveMinRecommendConfidence(): Promise<number> {
+    try {
+      const tunedConfidence = await this.reportValidationService.getRecommendedMarketMinConfidenceForPortfolio();
+      if (!Number.isFinite(tunedConfidence)) {
+        return this.MIN_RECOMMEND_CONFIDENCE;
+      }
+      return this.clamp01(tunedConfidence);
+    } catch (error) {
+      this.logger.warn('Failed to resolve tuned minimum recommendation confidence', error);
+      return this.MIN_RECOMMEND_CONFIDENCE;
+    }
   }
 
   /**

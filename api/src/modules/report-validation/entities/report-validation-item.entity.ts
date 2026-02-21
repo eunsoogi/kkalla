@@ -181,33 +181,33 @@ export class ReportValidationItem extends BaseEntity {
   deterministicScore: number | null;
 
   @Column({
-    name: 'gpt_verdict',
+    name: 'ai_verdict',
     type: 'enum',
     enum: ['good', 'mixed', 'bad', 'invalid'],
     nullable: true,
   })
-  gptVerdict: ReportValidationVerdict | null;
+  aiVerdict: ReportValidationVerdict | null;
 
   @Column({
-    name: 'gpt_score',
+    name: 'ai_score',
     type: 'double',
     nullable: true,
   })
-  gptScore: number | null;
+  aiScore: number | null;
 
   @Column({
-    name: 'gpt_calibration',
+    name: 'ai_calibration',
     type: 'double',
     nullable: true,
   })
-  gptCalibration: number | null;
+  aiCalibration: number | null;
 
   @Column({
-    name: 'gpt_explanation',
+    name: 'ai_explanation',
     type: 'text',
     nullable: true,
   })
-  gptExplanation: string | null;
+  aiExplanation: string | null;
 
   @Column({
     name: 'next_guardrail',
