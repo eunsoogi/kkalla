@@ -121,7 +121,7 @@ export class RedlockService implements OnModuleDestroy {
       try {
         await callback();
       } catch (error) {
-        this.logger.error(`Error while executing background task for ${resourceName}`, error);
+        this.logger.error(this.i18n.t('logging.redlock.lock.background_task_error', { args: { resourceName } }), error);
       } finally {
         try {
           await lock.release();

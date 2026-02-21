@@ -184,6 +184,7 @@
       "not_acquired": "{resourceName}에 대한 락 획득 실패",
       "acquired": "{resourceName}에 대한 락 획득 성공",
       "released": "{resourceName}에 대한 락 해제 완료",
+      "background_task_error": "{resourceName}에 대한 백그라운드 작업 실행 중 오류 발생",
       "extend_error": "{resourceName}에 대한 락 연장 중 오류 발생",
       "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
     }
