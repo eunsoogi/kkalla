@@ -81,11 +81,11 @@ export class ReportValidationRun extends BaseEntity {
   deterministicScoreAvg: number | null;
 
   @Column({
-    name: 'gpt_score_avg',
+    name: 'ai_score_avg',
     type: 'double',
     nullable: true,
   })
-  gptScoreAvg: number | null;
+  aiScoreAvg: number | null;
 
   @Column({
     name: 'overall_score',

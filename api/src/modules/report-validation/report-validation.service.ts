@@ -50,6 +50,12 @@ interface DeterministicEvaluation {
   invalidReason?: string;
 }
 
+interface ConfidenceCalibrationSample {
+  confidence: number;
+  directionHit: boolean;
+  horizonHours: number;
+}
+
 @Injectable()
 export class ReportValidationService {
   private readonly logger = new Logger(ReportValidationService.name);
@@ -67,9 +73,22 @@ export class ReportValidationService {
   private readonly OPENAI_BATCH_POLL_INTERVAL_MS = 30 * 1000;
   private readonly RUNNING_STALE_TIMEOUT_MS = this.OPENAI_BATCH_MAX_WAIT_MS + 5 * 60 * 1000;
   private readonly FAILED_RETRY_INTERVAL_MS = 30 * 60 * 1000;
+  private readonly MARKET_MIN_CONFIDENCE_CACHE_TTL_MS = 10 * 60 * 1000;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_DEFAULT = 0.45;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN = 0.45;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_MAX = 0.65;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_STEP = 0.01;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES = 40;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_BUCKET_SAMPLES = 20;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_COVERAGE = 0.15;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_TARGET_HIT_RATE = 0.55;
+  private readonly PORTFOLIO_MARKET_MIN_CONFIDENCE_TARGET_LIFT = 0.03;
   private lastBackfillCheckedAt: number | null = null;
   private portfolioGlobalGuardrailsCache: { expiresAt: number; guardrails: string[] } | null = null;
   private portfolioGlobalGuardrailsInFlight: Promise<string[]> | null = null;
+  private marketMinConfidenceCache: { expiresAt: number; value: number } | null = null;
+  private marketMinConfidenceInFlight: Promise<number> | null = null;
+  private marketMinConfidenceCacheGeneration = 0;
 
   constructor(
     private readonly i18n: I18nService,
@@ -180,6 +199,9 @@ export class ReportValidationService {
         .where('created_at < :threshold', { threshold })
         .andWhere('status IN (:...statuses)', { statuses: ['completed', 'failed'] })
         .execute();
+
+      this.clearMarketMinConfidenceCache();
+      this.clearPortfolioGlobalGuardrailsCache();
     } catch (error) {
       this.logger.error(this.i18n.t('logging.reportValidation.task.cleanup_failed'), error);
       await this.safeNotifyServer(
@@ -201,6 +223,58 @@ export class ReportValidationService {
     await this.enqueueBatchValidation('portfolio', batchId);
   }
 
+  public async getRecommendedMarketMinConfidenceForPortfolio(): Promise<number> {
+    const now = Date.now();
+    if (this.marketMinConfidenceCache && this.marketMinConfidenceCache.expiresAt > now) {
+      return this.marketMinConfidenceCache.value;
+    }
+    if (this.marketMinConfidenceInFlight) {
+      return this.marketMinConfidenceInFlight;
+    }
+
+    const generation = this.marketMinConfidenceCacheGeneration;
+    const loadPromise = (async () => {
+      const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const items = await ReportValidationItem.find({
+        where: {
+          reportType: 'market',
+          status: 'completed',
+          createdAt: MoreThanOrEqual(since),
+        } as any,
+        order: {
+          createdAt: 'DESC',
+        },
+        take: 2000,
+      });
+
+      const tuned = this.resolveMarketMinConfidenceFromValidation(items);
+      const value = this.clamp(
+        tuned ?? this.PORTFOLIO_MARKET_MIN_CONFIDENCE_DEFAULT,
+        this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN,
+        this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MAX,
+      );
+
+      // Ignore stale async results once cache was invalidated and generation moved on.
+      if (this.marketMinConfidenceCacheGeneration === generation) {
+        this.marketMinConfidenceCache = {
+          value,
+          expiresAt: Date.now() + this.MARKET_MIN_CONFIDENCE_CACHE_TTL_MS,
+        };
+      }
+
+      return value;
+    })();
+
+    this.marketMinConfidenceInFlight = loadPromise;
+    try {
+      return await loadPromise;
+    } finally {
+      if (this.marketMinConfidenceInFlight === loadPromise) {
+        this.marketMinConfidenceInFlight = null;
+      }
+    }
+  }
+
   public async buildMarketValidationGuardrailText(): Promise<string | null> {
     const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
     const items = await ReportValidationItem.find({
@@ -215,7 +289,7 @@ export class ReportValidationService {
       take: 1500,
     });
 
-    const evaluatedItems = items.filter((item) => item.gptVerdict !== 'invalid');
+    const evaluatedItems = items.filter((item) => item.aiVerdict !== 'invalid');
     if (evaluatedItems.length < 1) {
       return null;
     }
@@ -257,7 +331,7 @@ export class ReportValidationService {
       take: 800,
     });
 
-    const evaluatedSymbolItems = symbolItems.filter((item) => item.gptVerdict !== 'invalid');
+    const evaluatedSymbolItems = symbolItems.filter((item) => item.aiVerdict !== 'invalid');
     if (evaluatedSymbolItems.length < 1) {
       return null;
     }
@@ -384,7 +458,7 @@ export class ReportValidationService {
         itemCount: run.itemCount,
         completedCount: run.completedCount,
         deterministicScoreAvg: run.deterministicScoreAvg,
-        gptScoreAvg: run.gptScoreAvg,
+        aiScoreAvg: run.aiScoreAvg,
         overallScore: run.overallScore,
         summary: run.summary,
         startedAt: run.startedAt,
@@ -464,10 +538,10 @@ export class ReportValidationService {
         realizedTradeAmount: item.realizedTradeAmount,
         tradeRoiPct: item.tradeRoiPct,
         deterministicScore: item.deterministicScore,
-        gptVerdict: item.gptVerdict,
-        gptScore: item.gptScore,
-        gptCalibration: item.gptCalibration,
-        gptExplanation: item.gptExplanation,
+        aiVerdict: item.aiVerdict,
+        aiScore: item.aiScore,
+        aiCalibration: item.aiCalibration,
+        aiExplanation: item.aiExplanation,
         nextGuardrail: item.nextGuardrail,
         status: item.status,
         evaluatedAt: item.evaluatedAt,
@@ -516,11 +590,19 @@ export class ReportValidationService {
       avgScore?: string | number | null;
     }>();
 
+    let recommendedMarketMinConfidenceForPortfolio: number | null = null;
+    try {
+      recommendedMarketMinConfidenceForPortfolio = await this.getRecommendedMarketMinConfidenceForPortfolio();
+    } catch (error) {
+      this.logger.warn('Failed to load recommended market minimum confidence for summary', error);
+    }
+
     return {
       totalRuns: this.toNonNegativeInteger(params.totalRuns),
       pendingOrRunning: this.toNonNegativeInteger(raw?.pendingOrRunning),
       completed: this.toNonNegativeInteger(raw?.completed),
       avgScore: this.toNullableNumber(raw?.avgScore),
+      recommendedMarketMinConfidenceForPortfolio,
     };
   }
 
@@ -528,24 +610,24 @@ export class ReportValidationService {
     runId: string,
     totalItems: number,
   ): Promise<ReportValidationRunItemSummary> {
-    const nonInvalidCondition = `(item.gpt_verdict IS NULL OR item.gpt_verdict <> 'invalid')`;
+    const nonInvalidCondition = `(item.ai_verdict IS NULL OR item.ai_verdict <> 'invalid')`;
     const overallScoreExpression = `
       CASE
-        WHEN item.deterministic_score IS NOT NULL AND item.gpt_score IS NOT NULL
-          THEN LEAST(GREATEST((0.6 * item.deterministic_score) + (0.4 * item.gpt_score), 0), 1)
+        WHEN item.deterministic_score IS NOT NULL AND item.ai_score IS NOT NULL
+          THEN LEAST(GREATEST((0.6 * item.deterministic_score) + (0.4 * item.ai_score), 0), 1)
         WHEN item.deterministic_score IS NOT NULL
           THEN LEAST(GREATEST(item.deterministic_score, 0), 1)
-        WHEN item.gpt_score IS NOT NULL
-          THEN LEAST(GREATEST(item.gpt_score, 0), 1)
+        WHEN item.ai_score IS NOT NULL
+          THEN LEAST(GREATEST(item.ai_score, 0), 1)
         ELSE NULL
       END
     `;
 
     const summaryQuery = ReportValidationItem.createQueryBuilder('item')
-      .select(`SUM(CASE WHEN item.gpt_verdict = 'invalid' THEN 1 ELSE 0 END)`, 'invalidCount')
-      .addSelect(`SUM(CASE WHEN item.gpt_verdict = 'good' THEN 1 ELSE 0 END)`, 'verdictGood')
-      .addSelect(`SUM(CASE WHEN item.gpt_verdict = 'mixed' THEN 1 ELSE 0 END)`, 'verdictMixed')
-      .addSelect(`SUM(CASE WHEN item.gpt_verdict = 'bad' THEN 1 ELSE 0 END)`, 'verdictBad')
+      .select(`SUM(CASE WHEN item.ai_verdict = 'invalid' THEN 1 ELSE 0 END)`, 'invalidCount')
+      .addSelect(`SUM(CASE WHEN item.ai_verdict = 'good' THEN 1 ELSE 0 END)`, 'verdictGood')
+      .addSelect(`SUM(CASE WHEN item.ai_verdict = 'mixed' THEN 1 ELSE 0 END)`, 'verdictMixed')
+      .addSelect(`SUM(CASE WHEN item.ai_verdict = 'bad' THEN 1 ELSE 0 END)`, 'verdictBad')
       .addSelect(`AVG(CASE WHEN ${nonInvalidCondition} THEN ${overallScoreExpression} ELSE NULL END)`, 'avgItemScore')
       .addSelect(`AVG(CASE WHEN ${nonInvalidCondition} THEN item.return_pct ELSE NULL END)`, 'avgReturn')
       .where('item.run_id = :runId', { runId });
@@ -589,10 +671,10 @@ export class ReportValidationService {
       value === 'evaluatedAt' ||
       value === 'returnPct' ||
       value === 'deterministicScore' ||
-      value === 'gptScore' ||
+      value === 'aiScore' ||
       value === 'symbol' ||
       value === 'status' ||
-      value === 'gptVerdict'
+      value === 'aiVerdict'
     ) {
       return value;
     }
@@ -634,7 +716,7 @@ export class ReportValidationService {
     return {
       status: item.status,
       overallScore: this.calculateItemOverallScore(item),
-      verdict: item.gptVerdict,
+      verdict: item.aiVerdict,
       evaluatedAt: item.evaluatedAt,
     };
   }
@@ -788,7 +870,7 @@ export class ReportValidationService {
     run.startedAt = null;
     run.completedAt = null;
     run.deterministicScoreAvg = null;
-    run.gptScoreAvg = null;
+    run.aiScoreAvg = null;
     run.overallScore = null;
 
     try {
@@ -876,7 +958,7 @@ export class ReportValidationService {
     run.error = null;
     await run.save();
 
-    const gptCandidates: ReportValidationItem[] = [];
+    const aiCandidates: ReportValidationItem[] = [];
 
     for (const item of runItems) {
       try {
@@ -891,10 +973,10 @@ export class ReportValidationService {
         item.tradeRoiPct = deterministic.tradeRoiPct;
 
         if (deterministic.invalidReason) {
-          item.gptVerdict = null;
-          item.gptScore = null;
-          item.gptCalibration = null;
-          item.gptExplanation = null;
+          item.aiVerdict = null;
+          item.aiScore = null;
+          item.aiCalibration = null;
+          item.aiExplanation = null;
           item.nextGuardrail = null;
           item.status = 'failed';
           item.evaluatedAt = new Date();
@@ -902,7 +984,7 @@ export class ReportValidationService {
         } else {
           item.status = 'running';
           item.error = null;
-          gptCandidates.push(item);
+          aiCandidates.push(item);
         }
 
         await item.save();
@@ -914,8 +996,8 @@ export class ReportValidationService {
       }
     }
 
-    if (gptCandidates.length > 0) {
-      await this.applyGptEvaluation(gptCandidates);
+    if (aiCandidates.length > 0) {
+      await this.applyAiEvaluation(aiCandidates);
     }
 
     await this.finalizeRun(run);
@@ -1039,7 +1121,7 @@ export class ReportValidationService {
     }
   }
 
-  private async applyGptEvaluation(items: ReportValidationItem[]): Promise<void> {
+  private async applyAiEvaluation(items: ReportValidationItem[]): Promise<void> {
     const requestConfig = {
       ...REPORT_VALIDATION_EVALUATOR_CONFIG,
       text: {
@@ -1077,10 +1159,10 @@ export class ReportValidationService {
         }
 
         const verdict = String(result.data.verdict ?? '').toLowerCase() as ReportValidationVerdict;
-        item.gptVerdict = ['good', 'mixed', 'bad', 'invalid'].includes(verdict) ? verdict : 'invalid';
-        item.gptScore = this.toNullableNumber(result.data.score);
-        item.gptCalibration = this.toNullableNumber(result.data.calibration);
-        item.gptExplanation = typeof result.data.explanation === 'string' ? result.data.explanation : null;
+        item.aiVerdict = ['good', 'mixed', 'bad', 'invalid'].includes(verdict) ? verdict : 'invalid';
+        item.aiScore = this.toNullableNumber(result.data.score);
+        item.aiCalibration = this.toNullableNumber(result.data.calibration);
+        item.aiExplanation = typeof result.data.explanation === 'string' ? result.data.explanation : null;
         item.nextGuardrail = typeof result.data.nextGuardrail === 'string' ? result.data.nextGuardrail : null;
         item.status = 'completed';
         item.evaluatedAt = new Date();
@@ -1144,15 +1226,15 @@ export class ReportValidationService {
     const deterministicScores = completedItems
       .map((item) => this.toNullableNumber(item.deterministicScore))
       .filter((score): score is number => score != null);
-    const gptScores = completedItems
-      .map((item) => this.toNullableNumber(item.gptScore))
+    const aiScores = completedItems
+      .map((item) => this.toNullableNumber(item.aiScore))
       .filter((score): score is number => score != null);
 
     run.itemCount = items.length;
     run.completedCount = completedItems.length;
     run.deterministicScoreAvg = this.average(deterministicScores);
-    run.gptScoreAvg = this.average(gptScores);
-    run.overallScore = this.calculateRunOverallScore(run.deterministicScoreAvg, run.gptScoreAvg);
+    run.aiScoreAvg = this.average(aiScores);
+    run.overallScore = this.calculateRunOverallScore(run.deterministicScoreAvg, run.aiScoreAvg);
     run.summary = this.buildRunSummary(completedItems);
 
     const isTerminal = pendingOrRunningItems.length < 1;
@@ -1175,6 +1257,9 @@ export class ReportValidationService {
     if (run.reportType === 'portfolio' && isTerminal) {
       this.clearPortfolioGlobalGuardrailsCache();
     }
+    if (run.reportType === 'market' && isTerminal) {
+      this.clearMarketMinConfidenceCache();
+    }
 
     if (isTerminal && failedItems.length > 0) {
       await this.safeNotifyServer(
@@ -1192,7 +1277,7 @@ export class ReportValidationService {
   }
 
   private buildRunSummary(items: ReportValidationItem[]): string {
-    const validItems = items.filter((item) => item.gptVerdict !== 'invalid');
+    const validItems = items.filter((item) => item.aiVerdict !== 'invalid');
     if (validItems.length < 1) {
       return this.i18n.t('logging.reportValidation.summary.no_valid_items');
     }
@@ -1290,7 +1375,7 @@ export class ReportValidationService {
       });
 
       const guardrails = this.extractTopGuardrails(
-        globalItems.filter((item) => item.gptVerdict !== 'invalid'),
+        globalItems.filter((item) => item.aiVerdict !== 'invalid'),
         4,
       );
       this.portfolioGlobalGuardrailsCache = {
@@ -1314,6 +1399,95 @@ export class ReportValidationService {
     this.portfolioGlobalGuardrailsCache = null;
   }
 
+  private resolveMarketMinConfidenceFromValidation(items: ReportValidationItem[]): number | null {
+    const samples: ConfidenceCalibrationSample[] = items
+      .filter(
+        (item) =>
+          item.aiVerdict !== 'invalid' &&
+          item.directionHit != null &&
+          this.isFiniteNumber(item.recommendationConfidence),
+      )
+      .map((item) => ({
+        confidence: this.clamp(Number(item.recommendationConfidence), 0, 1),
+        directionHit: item.directionHit === true,
+        horizonHours: Number(item.horizonHours),
+      }));
+
+    if (samples.length < this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES) {
+      return null;
+    }
+
+    const samples24h = samples.filter((item) => item.horizonHours === 24);
+    const pool = samples24h.length >= this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES ? samples24h : samples;
+    if (pool.length < this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES) {
+      return null;
+    }
+
+    const baselineHitRate = this.calculateDirectionHitRate(pool);
+    const targetHitRate = Math.max(
+      this.PORTFOLIO_MARKET_MIN_CONFIDENCE_TARGET_HIT_RATE,
+      baselineHitRate + this.PORTFOLIO_MARKET_MIN_CONFIDENCE_TARGET_LIFT,
+    );
+
+    let fallback: { threshold: number; hitRate: number; sampleCount: number } | null = null;
+
+    for (
+      let threshold = this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN;
+      threshold <= this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MAX + Number.EPSILON;
+      threshold += this.PORTFOLIO_MARKET_MIN_CONFIDENCE_STEP
+    ) {
+      const normalizedThreshold = this.clamp(Math.round(threshold * 100) / 100, 0, 1);
+      const bucket = pool.filter((item) => item.confidence >= normalizedThreshold);
+      const sampleCount = bucket.length;
+      const coverage = sampleCount / pool.length;
+
+      if (
+        sampleCount < this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_BUCKET_SAMPLES ||
+        coverage < this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN_COVERAGE
+      ) {
+        continue;
+      }
+
+      const hitRate = this.calculateDirectionHitRate(bucket);
+      if (hitRate >= targetHitRate) {
+        return normalizedThreshold;
+      }
+
+      if (
+        !fallback ||
+        hitRate > fallback.hitRate ||
+        (Math.abs(hitRate - fallback.hitRate) < Number.EPSILON && sampleCount > fallback.sampleCount)
+      ) {
+        fallback = {
+          threshold: normalizedThreshold,
+          hitRate,
+          sampleCount,
+        };
+      }
+    }
+
+    if (fallback && fallback.hitRate >= baselineHitRate + this.PORTFOLIO_MARKET_MIN_CONFIDENCE_TARGET_LIFT / 2) {
+      return fallback.threshold;
+    }
+
+    return null;
+  }
+
+  private calculateDirectionHitRate(items: Array<Pick<ConfidenceCalibrationSample, 'directionHit'>>): number {
+    if (items.length < 1) {
+      return 0;
+    }
+
+    const hit = items.filter((item) => item.directionHit).length;
+    return hit / items.length;
+  }
+
+  private clearMarketMinConfidenceCache(): void {
+    this.marketMinConfidenceCache = null;
+    this.marketMinConfidenceInFlight = null;
+    this.marketMinConfidenceCacheGeneration += 1;
+  }
+
   private calculateAccuracy(items: ReportValidationItem[]): { hit: number; total: number; ratio: number } {
     const directional = items.filter((item) => item.directionHit != null);
     const hit = directional.filter((item) => item.directionHit === true).length;
@@ -1325,39 +1499,37 @@ export class ReportValidationService {
     };
   }
 
-  private calculateItemOverallScore(
-    item: Pick<ReportValidationItem, 'deterministicScore' | 'gptScore'>,
-  ): number | null {
+  private calculateItemOverallScore(item: Pick<ReportValidationItem, 'deterministicScore' | 'aiScore'>): number | null {
     const deterministic = this.toNullableNumber(item.deterministicScore);
-    const gptScore = this.toNullableNumber(item.gptScore);
+    const aiScore = this.toNullableNumber(item.aiScore);
 
-    if (deterministic != null && gptScore != null) {
-      return this.clamp(0.6 * deterministic + 0.4 * gptScore, 0, 1);
+    if (deterministic != null && aiScore != null) {
+      return this.clamp(0.6 * deterministic + 0.4 * aiScore, 0, 1);
     }
 
     if (deterministic != null) {
       return this.clamp(deterministic, 0, 1);
     }
 
-    if (gptScore != null) {
-      return this.clamp(gptScore, 0, 1);
+    if (aiScore != null) {
+      return this.clamp(aiScore, 0, 1);
     }
 
     return null;
   }
 
-  private calculateRunOverallScore(deterministic: number | null, gpt: number | null): number | null {
+  private calculateRunOverallScore(deterministic: number | null, ai: number | null): number | null {
     const deterministicScore = this.toNullableNumber(deterministic);
-    const gptScore = this.toNullableNumber(gpt);
+    const aiScore = this.toNullableNumber(ai);
 
-    if (deterministicScore != null && gptScore != null) {
-      return this.clamp(0.6 * deterministicScore + 0.4 * gptScore, 0, 1);
+    if (deterministicScore != null && aiScore != null) {
+      return this.clamp(0.6 * deterministicScore + 0.4 * aiScore, 0, 1);
     }
     if (deterministicScore != null) {
       return this.clamp(deterministicScore, 0, 1);
     }
-    if (gptScore != null) {
-      return this.clamp(gptScore, 0, 1);
+    if (aiScore != null) {
+      return this.clamp(aiScore, 0, 1);
     }
     return null;
   }

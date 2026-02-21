@@ -10,10 +10,10 @@ export type ReportValidationItemSortBy =
   | 'evaluatedAt'
   | 'returnPct'
   | 'deterministicScore'
-  | 'gptScore'
+  | 'aiScore'
   | 'symbol'
   | 'status'
-  | 'gptVerdict';
+  | 'aiVerdict';
 
 export interface ReportValidationRun {
   id: string;
@@ -25,7 +25,7 @@ export interface ReportValidationRun {
   itemCount: number;
   completedCount: number;
   deterministicScoreAvg: number | null;
-  gptScoreAvg: number | null;
+  aiScoreAvg: number | null;
   overallScore: number | null;
   summary: string | null;
   startedAt: string | null;
@@ -59,10 +59,10 @@ export interface ReportValidationItem {
   realizedTradeAmount: number | null;
   tradeRoiPct: number | null;
   deterministicScore: number | null;
-  gptVerdict: ReportValidationVerdict | null;
-  gptScore: number | null;
-  gptCalibration: number | null;
-  gptExplanation: string | null;
+  aiVerdict: ReportValidationVerdict | null;
+  aiScore: number | null;
+  aiCalibration: number | null;
+  aiExplanation: string | null;
   nextGuardrail: string | null;
   status: ReportValidationStatus;
   evaluatedAt: string | null;
@@ -76,6 +76,7 @@ export interface ReportValidationRunSummary {
   pendingOrRunning: number;
   completed: number;
   avgScore: number | null;
+  recommendedMarketMinConfidenceForPortfolio: number | null;
 }
 
 export interface ReportValidationItemSummary {

@@ -63,19 +63,19 @@ describe('ReportValidationService', () => {
     jest.restoreAllMocks();
   });
 
-  it('should combine deterministic and gpt score with 0.6/0.4 ratio', () => {
+  it('should combine deterministic and ai score with 0.6/0.4 ratio', () => {
     const score = (service as any).calculateItemOverallScore({
       deterministicScore: 0.5,
-      gptScore: 1,
+      aiScore: 1,
     });
 
     expect(score).toBeCloseTo(0.7, 5);
   });
 
-  it('should fallback to deterministic score when gpt score is missing', () => {
+  it('should fallback to deterministic score when ai score is missing', () => {
     const score = (service as any).calculateItemOverallScore({
       deterministicScore: 0.42,
-      gptScore: null,
+      aiScore: null,
     });
 
     expect(score).toBeCloseTo(0.42, 5);
@@ -120,25 +120,25 @@ describe('ReportValidationService', () => {
   it('should build summary with top guardrails from low score items', () => {
     const summary = (service as any).buildRunSummary([
       {
-        gptVerdict: 'bad',
+        aiVerdict: 'bad',
         deterministicScore: 0.1,
-        gptScore: 0.2,
+        aiScore: 0.2,
         directionHit: false,
         returnPct: -3.2,
         nextGuardrail: '외부 이벤트 확인 강화',
       },
       {
-        gptVerdict: 'mixed',
+        aiVerdict: 'mixed',
         deterministicScore: 0.3,
-        gptScore: 0.3,
+        aiScore: 0.3,
         directionHit: false,
         returnPct: -1.1,
         nextGuardrail: '외부 이벤트 확인 강화',
       },
       {
-        gptVerdict: 'good',
+        aiVerdict: 'good',
         deterministicScore: 0.8,
-        gptScore: 0.9,
+        aiScore: 0.9,
         directionHit: true,
         returnPct: 1.8,
         nextGuardrail: '거시 변수 모니터링',
@@ -162,7 +162,7 @@ describe('ReportValidationService', () => {
           itemCount: 20,
           completedCount: 20,
           deterministicScoreAvg: 0.6,
-          gptScoreAvg: 0.5,
+          aiScoreAvg: 0.5,
           overallScore: 0.56,
           summary: 'summary',
           startedAt: new Date(),
@@ -218,10 +218,10 @@ describe('ReportValidationService', () => {
           realizedTradeAmount: 10000,
           tradeRoiPct: 10,
           deterministicScore: 0.8,
-          gptVerdict: 'good',
-          gptScore: 0.7,
-          gptCalibration: 0.7,
-          gptExplanation: 'ok',
+          aiVerdict: 'good',
+          aiScore: 0.7,
+          aiCalibration: 0.7,
+          aiExplanation: 'ok',
           nextGuardrail: 'guardrail',
           status: 'completed',
           evaluatedAt: new Date(),
@@ -330,7 +330,7 @@ describe('ReportValidationService', () => {
       if (options?.where?.symbol) {
         return [
           {
-            gptVerdict: 'good',
+            aiVerdict: 'good',
             directionHit: true,
             tradeRoiPct: 1.5,
           },
@@ -339,7 +339,7 @@ describe('ReportValidationService', () => {
 
       return [
         {
-          gptVerdict: 'bad',
+          aiVerdict: 'bad',
           nextGuardrail: '거시 변수 모니터링 강화',
         },
       ] as any;
@@ -354,7 +354,7 @@ describe('ReportValidationService', () => {
     expect(globalCalls).toHaveLength(1);
   });
 
-  it('should mark item as running before gpt evaluation', async () => {
+  it('should mark item as running before ai evaluation', async () => {
     const run = {
       id: 'run-1',
       status: 'pending',
@@ -383,13 +383,13 @@ describe('ReportValidationService', () => {
       realizedTradeAmount: null,
       tradeRoiPct: null,
     });
-    const applyGptEvaluationSpy = jest.spyOn(service as any, 'applyGptEvaluation').mockResolvedValue(undefined);
+    const applyAiEvaluationSpy = jest.spyOn(service as any, 'applyAiEvaluation').mockResolvedValue(undefined);
     jest.spyOn(service as any, 'finalizeRun').mockResolvedValue(undefined);
 
     await (service as any).processRun(run, [item]);
 
     expect(item.status).toBe('running');
-    expect(applyGptEvaluationSpy).toHaveBeenCalledWith([item]);
+    expect(applyAiEvaluationSpy).toHaveBeenCalledWith([item]);
   });
 
   it('should mark unresolved price item as failed for retry', async () => {
@@ -422,14 +422,14 @@ describe('ReportValidationService', () => {
       tradeRoiPct: null,
       invalidReason: 'Unable to resolve recommendation/evaluated price',
     });
-    const applyGptEvaluationSpy = jest.spyOn(service as any, 'applyGptEvaluation').mockResolvedValue(undefined);
+    const applyAiEvaluationSpy = jest.spyOn(service as any, 'applyAiEvaluation').mockResolvedValue(undefined);
     jest.spyOn(service as any, 'finalizeRun').mockResolvedValue(undefined);
 
     await (service as any).processRun(run, [item]);
 
     expect(item.status).toBe('failed');
-    expect(item.gptVerdict).toBeNull();
-    expect(applyGptEvaluationSpy).not.toHaveBeenCalled();
+    expect(item.aiVerdict).toBeNull();
+    expect(applyAiEvaluationSpy).not.toHaveBeenCalled();
   });
 
   it('should wait batch with 24h timeout to avoid premature stale retry', async () => {
@@ -471,7 +471,7 @@ describe('ReportValidationService', () => {
       },
     ]);
 
-    await (service as any).applyGptEvaluation([item]);
+    await (service as any).applyAiEvaluation([item]);
 
     expect(openaiService.waitBatch).toHaveBeenCalledWith('batch-1', 86_400_000, 30_000);
   });
@@ -596,5 +596,47 @@ describe('ReportValidationService', () => {
     expect(findRunsSpy).not.toHaveBeenCalled();
     expect(saveItemsSpy).not.toHaveBeenCalled();
     expect(saveRunsSpy).not.toHaveBeenCalled();
+  });
+
+  it('should ignore stale in-flight confidence load after cache invalidation', async () => {
+    let resolveFirstFind: ((items: any[]) => void) | null = null;
+    const firstFindPromise = new Promise<any[]>((resolve) => {
+      resolveFirstFind = resolve;
+    });
+    const findSpy = jest
+      .spyOn(ReportValidationItem, 'find')
+      .mockImplementationOnce(() => firstFindPromise as any)
+      .mockResolvedValueOnce([]);
+
+    const firstCall = service.getRecommendedMarketMinConfidenceForPortfolio();
+    await Promise.resolve();
+
+    (service as any).clearMarketMinConfidenceCache();
+
+    const refreshed = await service.getRecommendedMarketMinConfidenceForPortfolio();
+    expect(refreshed).toBeCloseTo(0.45, 5);
+
+    const staleSamples = [
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'bad',
+        directionHit: false,
+        recommendationConfidence: 0.64,
+        horizonHours: 24,
+      })),
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'good',
+        directionHit: true,
+        recommendationConfidence: 0.65,
+        horizonHours: 24,
+      })),
+    ];
+    resolveFirstFind?.(staleSamples as any[]);
+
+    const staleResult = await firstCall;
+    expect(staleResult).toBeCloseTo(0.65, 5);
+
+    const finalValue = await service.getRecommendedMarketMinConfidenceForPortfolio();
+    expect(finalValue).toBeCloseTo(0.45, 5);
+    expect(findSpy).toHaveBeenCalledTimes(2);
   });
 });

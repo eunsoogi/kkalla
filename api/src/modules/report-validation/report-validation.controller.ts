@@ -5,12 +5,12 @@ import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { Permission } from '../permission/permission.enum';
 import {
-  ReportValidationItemSortBy,
-  ReportValidationRunSortBy,
   ReportType,
-  ReportValidationSortOrder,
+  ReportValidationItemSortBy,
   ReportValidationRunItemPage,
   ReportValidationRunPage,
+  ReportValidationRunSortBy,
+  ReportValidationSortOrder,
   ReportValidationStatus,
 } from './report-validation.interface';
 import { ReportValidationService } from './report-validation.service';
@@ -121,10 +121,10 @@ export class ReportValidationController {
       value === 'evaluatedAt' ||
       value === 'returnPct' ||
       value === 'deterministicScore' ||
-      value === 'gptScore' ||
+      value === 'aiScore' ||
       value === 'symbol' ||
       value === 'status' ||
-      value === 'gptVerdict'
+      value === 'aiVerdict'
     ) {
       return value;
     }

@@ -86,6 +86,7 @@ describe('RebalanceService', () => {
         enqueuePortfolioBatchValidation: jest.fn().mockResolvedValue(undefined),
         buildPortfolioValidationGuardrailText: jest.fn().mockResolvedValue(null),
         getPortfolioValidationBadgeMap: jest.fn().mockResolvedValue(new Map()),
+        getRecommendedMarketMinConfidenceForPortfolio: jest.fn().mockResolvedValue(0.55),
       } as any,
     );
   });
