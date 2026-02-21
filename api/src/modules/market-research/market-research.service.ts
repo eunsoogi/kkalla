@@ -13,6 +13,7 @@ import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 import { NewsTypes } from '@/modules/news/news.enum';
 import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
+import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { normalizeKrwSymbol } from '@/utils/symbol';
@@ -122,7 +123,7 @@ export class MarketResearchService {
                 this.i18n.t('notify.marketRecommendation.transaction', {
                   args: {
                     symbol: recommendation.symbol,
-                    reason: recommendation.reason,
+                    reason: toUserFacingText(recommendation.reason),
                   },
                 }),
               )
@@ -262,7 +263,7 @@ export class MarketResearchService {
       batchId: saved.batchId,
       symbol: saved.symbol,
       weight: saved.weight,
-      reason: saved.reason,
+      reason: toUserFacingText(saved.reason),
       confidence: saved.confidence,
     }));
   }
@@ -394,7 +395,7 @@ export class MarketResearchService {
         seq: entity.seq,
         symbol: entity.symbol,
         weight: Number(entity.weight),
-        reason: entity.reason,
+        reason: toUserFacingText(entity.reason),
         confidence: Number(entity.confidence),
         batchId: entity.batchId,
         createdAt: entity.createdAt,
@@ -427,7 +428,7 @@ export class MarketResearchService {
       seq: entity.seq,
       symbol: entity.symbol,
       weight: Number(entity.weight),
-      reason: entity.reason,
+      reason: toUserFacingText(entity.reason),
       confidence: Number(entity.confidence),
       batchId: entity.batchId,
       createdAt: entity.createdAt,
@@ -506,7 +507,7 @@ export class MarketResearchService {
           seq: entity.seq,
           symbol: entity.symbol,
           weight: Number(entity.weight),
-          reason: entity.reason,
+          reason: toUserFacingText(entity.reason),
           confidence: Number(entity.confidence),
           batchId: entity.batchId,
           createdAt: entity.createdAt,

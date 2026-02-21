@@ -8,6 +8,7 @@ import { In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { ErrorService } from '@/modules/error/error.service';
 import { MarketRecommendation } from '@/modules/market-research/entities/market-recommendation.entity';
 import { NotifyService } from '@/modules/notify/notify.service';
+import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
 import { WithRedlock } from '@/modules/redlock/decorators/redlock.decorator';
@@ -460,7 +461,7 @@ export class ReportValidationService {
         deterministicScoreAvg: run.deterministicScoreAvg,
         aiScoreAvg: run.aiScoreAvg,
         overallScore: run.overallScore,
-        summary: run.summary,
+        summary: run.summary != null ? toUserFacingText(run.summary) : null,
         startedAt: run.startedAt,
         completedAt: run.completedAt,
         error: run.error,
@@ -525,7 +526,7 @@ export class ReportValidationService {
         horizonHours: item.horizonHours,
         dueAt: item.dueAt,
         recommendationCreatedAt: item.recommendationCreatedAt,
-        recommendationReason: item.recommendationReason,
+        recommendationReason: item.recommendationReason != null ? toUserFacingText(item.recommendationReason) : null,
         recommendationConfidence: item.recommendationConfidence,
         recommendationWeight: item.recommendationWeight,
         recommendationIntensity: item.recommendationIntensity,
@@ -541,8 +542,8 @@ export class ReportValidationService {
         aiVerdict: item.aiVerdict,
         aiScore: item.aiScore,
         aiCalibration: item.aiCalibration,
-        aiExplanation: item.aiExplanation,
-        nextGuardrail: item.nextGuardrail,
+        aiExplanation: item.aiExplanation != null ? toUserFacingText(item.aiExplanation) : null,
+        nextGuardrail: item.nextGuardrail != null ? toUserFacingText(item.nextGuardrail) : null,
         status: item.status,
         evaluatedAt: item.evaluatedAt,
         error: item.error,

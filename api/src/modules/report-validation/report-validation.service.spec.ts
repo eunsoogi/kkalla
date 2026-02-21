@@ -164,7 +164,7 @@ describe('ReportValidationService', () => {
           deterministicScoreAvg: 0.6,
           aiScoreAvg: 0.5,
           overallScore: 0.56,
-          summary: 'summary',
+          summary: 'summary 〖4:0†source〗',
           startedAt: new Date(),
           completedAt: new Date(),
           error: null,
@@ -189,6 +189,7 @@ describe('ReportValidationService', () => {
     expect(result.total).toBe(53);
     expect(result.totalPages).toBe(3);
     expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.summary).toBe('summary');
   });
 
   it('should paginate validation run items', async () => {
@@ -205,7 +206,7 @@ describe('ReportValidationService', () => {
           horizonHours: 24,
           dueAt: new Date(),
           recommendationCreatedAt: new Date(),
-          recommendationReason: 'reason',
+          recommendationReason: 'reason 〖4:0†source〗',
           recommendationConfidence: 0.7,
           recommendationWeight: null,
           recommendationIntensity: 0.3,
@@ -221,8 +222,8 @@ describe('ReportValidationService', () => {
           aiVerdict: 'good',
           aiScore: 0.7,
           aiCalibration: 0.7,
-          aiExplanation: 'ok',
-          nextGuardrail: 'guardrail',
+          aiExplanation: 'ok[^1]',
+          nextGuardrail: 'guardrail [출처: https://example.com]',
           status: 'completed',
           evaluatedAt: new Date(),
           error: null,
@@ -246,6 +247,9 @@ describe('ReportValidationService', () => {
     expect(result.total).toBe(201);
     expect(result.totalPages).toBe(5);
     expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.recommendationReason).toBe('reason');
+    expect(result.items[0]?.aiExplanation).toBe('ok');
+    expect(result.items[0]?.nextGuardrail).toBe('guardrail');
   });
 
   it('should apply requested sort for validation runs', async () => {
