@@ -807,7 +807,7 @@ describe('MarketVolatilityService', () => {
       }),
     });
 
-    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), []);
+    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), [], expect.any(Function));
     expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',

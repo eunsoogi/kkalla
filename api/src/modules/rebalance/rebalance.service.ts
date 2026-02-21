@@ -298,19 +298,28 @@ export class RebalanceService implements OnModuleInit {
       const lockResult = await this.redlockService.withLock(
         `trade:user:${parsedMessage.userId}`,
         this.USER_TRADE_LOCK_DURATION_MS,
-        async () =>
+        async (lockContext) =>
           this.withProcessingHeartbeat(processingLedgerContext, async () => {
+            const assertLockOrThrow = () => {
+              lockContext?.assertLockOrThrow();
+            };
+            assertLockOrThrow();
             const user = await this.userService.findById(parsedMessage.userId);
+            assertLockOrThrow();
             const trades = await this.executeRebalanceForUser(
               user,
               parsedMessage.inferences,
               parsedMessage.portfolioMode ?? this.DEFAULT_REBALANCE_PORTFOLIO_MODE,
+              assertLockOrThrow,
             );
+            assertLockOrThrow();
 
             this.logger.debug(trades);
 
             if (trades.length > 0) {
+              assertLockOrThrow();
               const profitData = await this.profitService.getProfit(user);
+              assertLockOrThrow();
               await this.notifyService.notify(
                 user,
                 this.i18n.t('notify.profit.result', {
@@ -926,14 +935,20 @@ export class RebalanceService implements OnModuleInit {
     user: User,
     inferences: BalanceRecommendationData[],
     portfolioMode: RebalancePortfolioMode = this.DEFAULT_REBALANCE_PORTFOLIO_MODE,
+    lockGuard?: (() => void) | null,
   ): Promise<Trade[]> {
+    const assertLockOrThrow = typeof lockGuard === 'function' ? lockGuard : () => undefined;
+    assertLockOrThrow();
+
     const userScopedInferences = await this.applyUserHistoryContext(user, inferences);
+    assertLockOrThrow();
 
     // 권한이 있는 추론만 필터링: 사용자가 거래할 수 있는 카테고리만 포함
     const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(
       user,
       userScopedInferences,
     );
+    assertLockOrThrow();
 
     // 권한이 있는 추론이 없으면 리포트/알림 없이 종료
     if (authorizedBalanceRecommendations.length === 0) {
@@ -961,14 +976,17 @@ export class RebalanceService implements OnModuleInit {
         },
       }),
     );
+    assertLockOrThrow();
 
     // 사용자별 최대 편입 종목 수 계산 (카테고리별 제한 고려)
     const count = await this.getItemCount(user);
+    assertLockOrThrow();
     const allowBackfill = portfolioMode === 'new';
     const slotCount = this.resolveSlotCountForRebalance(authorizedBalanceRecommendations, count, allowBackfill);
 
     // 유저 계좌 조회: 현재 보유 종목 및 잔고 정보
     const balances = await this.upbitService.getBalances(user);
+    assertLockOrThrow();
 
     // 계좌 정보가 없으면 거래 불가
     if (!balances) {
@@ -981,13 +999,18 @@ export class RebalanceService implements OnModuleInit {
       ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
       ...balances.info.map((item) => `${item.currency}/${item.unit_currency}`),
     ]);
+    assertLockOrThrow();
     // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
     const marketPrice = await this.upbitService.calculateTradableMarketValue(balances, orderableSymbols);
+    assertLockOrThrow();
     // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
     const regimeMultiplier = await this.getMarketRegimeMultiplier();
+    assertLockOrThrow();
     // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
     const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice, orderableSymbols);
+    assertLockOrThrow();
     const tradableMarketValueMap = await this.buildTradableMarketValueMap(balances, orderableSymbols);
+    assertLockOrThrow();
 
     // 편입/편출 결정 분리
     // 1. 추론에 없는 기존 보유 종목 매도 요청 (완전 매도)
@@ -1026,11 +1049,13 @@ export class RebalanceService implements OnModuleInit {
     const sellRequests = [...nonBalanceRecommendationTradeRequests, ...excludedTradeRequests, ...includedSellRequests];
 
     // 주문 정책: 매도 순차 실행
-    const sellExecutions = await this.executeTradesSequentiallyWithRequests(user, sellRequests);
+    const sellExecutions = await this.executeTradesSequentiallyWithRequests(user, sellRequests, assertLockOrThrow);
+    assertLockOrThrow();
     const sellTrades = sellExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
 
     // 주문 정책: 매도 완료 후 잔고 재조회
     const refreshedBalances = await this.upbitService.getBalances(user);
+    assertLockOrThrow();
 
     let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
     if (refreshedBalances) {
@@ -1038,19 +1063,23 @@ export class RebalanceService implements OnModuleInit {
         ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
         ...refreshedBalances.info.map((item) => `${item.currency}/${item.unit_currency}`),
       ]);
+      assertLockOrThrow();
       const refreshedMarketPrice = await this.upbitService.calculateTradableMarketValue(
         refreshedBalances,
         refreshedOrderableSymbols,
       );
+      assertLockOrThrow();
       const refreshedCurrentWeights = await this.buildCurrentWeightMap(
         refreshedBalances,
         refreshedMarketPrice,
         refreshedOrderableSymbols,
       );
+      assertLockOrThrow();
       const refreshedTradableMarketValueMap = await this.buildTradableMarketValueMap(
         refreshedBalances,
         refreshedOrderableSymbols,
       );
+      assertLockOrThrow();
 
       const refreshedIncludedTradeRequests = this.generateIncludedTradeRequests(
         refreshedBalances,
@@ -1066,14 +1095,17 @@ export class RebalanceService implements OnModuleInit {
       const buyRequests = refreshedIncludedTradeRequests.filter((item) => item.diff > 0);
 
       // 주문 정책: 매수 순차 실행
-      buyExecutions = await this.executeTradesSequentiallyWithRequests(user, buyRequests);
+      buyExecutions = await this.executeTradesSequentiallyWithRequests(user, buyRequests, assertLockOrThrow);
+      assertLockOrThrow();
     }
 
     const buyTrades = buyExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
     const existingHistory = await this.historyService.fetchHistoryByUser(user);
+    assertLockOrThrow();
     const liquidatedItems = this.collectLiquidatedHistoryItems(sellExecutions, existingHistory);
     const executedBuyItems = this.collectExecutedBuyHistoryItems(buyExecutions);
     await this.saveRebalanceHistoryForUser(user, liquidatedItems, executedBuyItems, existingHistory);
+    assertLockOrThrow();
 
     // 실행된 거래 중 null 제거 (주문이 생성되지 않은 경우)
     const allTrades: Trade[] = [...sellTrades, ...buyTrades];
@@ -1099,6 +1131,7 @@ export class RebalanceService implements OnModuleInit {
           },
         }),
       );
+      assertLockOrThrow();
     }
 
     // 클라이언트 캐시 초기화 (메모리 누수 방지)
@@ -1998,11 +2031,15 @@ export class RebalanceService implements OnModuleInit {
   private async executeTradesSequentiallyWithRequests(
     user: User,
     requests: TradeRequest[],
+    lockGuard?: (() => void) | null,
   ): Promise<Array<{ request: TradeRequest; trade: Trade | null }>> {
+    const assertLockOrThrow = typeof lockGuard === 'function' ? lockGuard : () => undefined;
     const executions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
 
     for (const request of requests) {
+      assertLockOrThrow();
       const trade = await this.executeTrade(user, request);
+      assertLockOrThrow();
       executions.push({ request, trade });
     }
 

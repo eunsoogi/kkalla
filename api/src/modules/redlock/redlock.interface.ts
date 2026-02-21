@@ -15,6 +15,11 @@ export interface RedlockLockStatus {
   ttlMs: number | null;
 }
 
+export interface RedlockExecutionContext {
+  signal: AbortSignal;
+  assertLockOrThrow: () => void;
+}
+
 export interface RedlockOptionsFactory {
   createRedlockOptions(): Promise<RedlockModuleOptions> | RedlockModuleOptions;
 }

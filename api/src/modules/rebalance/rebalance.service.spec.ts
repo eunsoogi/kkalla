@@ -1061,7 +1061,7 @@ describe('RebalanceService', () => {
       }),
     });
 
-    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), [], 'new');
+    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), [], 'new', expect.any(Function));
     expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',

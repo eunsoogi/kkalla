@@ -5,6 +5,7 @@ import { I18nService } from 'nestjs-i18n';
 import Redlock, { Lock } from 'redlock';
 
 import { REDLOCK_OPTIONS } from './redlock.constants';
+import { RedlockExecutionContext } from './redlock.interface';
 import { RedlockLockStatus } from './redlock.interface';
 import { RedlockModuleOptions } from './redlock.interface';
 
@@ -43,12 +44,34 @@ export class RedlockService implements OnModuleDestroy {
     }
   }
 
-  public async withLock<T>(resourceName: string, duration: number, callback: () => Promise<T>): Promise<T | undefined> {
+  public async withLock<T>(
+    resourceName: string,
+    duration: number,
+    callback: (context: RedlockExecutionContext) => Promise<T>,
+  ): Promise<T | undefined> {
     const lockKey = this.getLockKey(resourceName);
     let activeLock: Lock | null = null;
     let extensionTimer: NodeJS.Timeout | null = null;
     let extensionInFlight: Promise<void> | null = null;
     let extensionError: unknown = null;
+    const extensionAbortController = new AbortController();
+
+    const toLockExtensionError = () => {
+      const details = extensionError instanceof Error ? extensionError.message : String(extensionError);
+      const message = `Redlock extension failed for ${resourceName}${extensionError ? `: ${details}` : ''}`;
+      const error = new Error(message);
+      error.name = 'RedlockExtensionError';
+      return error;
+    };
+
+    const executionContext: RedlockExecutionContext = {
+      signal: extensionAbortController.signal,
+      assertLockOrThrow: () => {
+        if (extensionAbortController.signal.aborted) {
+          throw toLockExtensionError();
+        }
+      },
+    };
 
     try {
       activeLock = await this.acquireLock(lockKey, duration);
@@ -75,6 +98,7 @@ export class RedlockService implements OnModuleDestroy {
           })
           .catch((error) => {
             extensionError = error;
+            extensionAbortController.abort();
             this.logger.error(this.i18n.t('logging.redlock.lock.extend_error', { args: { resourceName } }), error);
           })
           .finally(() => {
@@ -85,7 +109,25 @@ export class RedlockService implements OnModuleDestroy {
 
       // Lock을 얻으면 함수 실행
       this.logger.debug(this.i18n.t('logging.redlock.lock.acquired', { args: { resourceName } }));
-      return await callback();
+      const lockExtensionFailurePromise = new Promise<never>((_, reject) => {
+        if (extensionAbortController.signal.aborted) {
+          reject(toLockExtensionError());
+          return;
+        }
+
+        extensionAbortController.signal.addEventListener(
+          'abort',
+          () => {
+            reject(toLockExtensionError());
+          },
+          { once: true },
+        );
+      });
+
+      const callbackPromise = callback(executionContext);
+      void callbackPromise.catch(() => undefined);
+
+      return await Promise.race([callbackPromise, lockExtensionFailurePromise]);
     } finally {
       if (extensionTimer) {
         clearInterval(extensionTimer);
