@@ -19,6 +19,12 @@ describe('toUserFacingText', () => {
     expect(toUserFacingText(raw)).toBe('근거 문장, MVRV[2] 지표');
   });
 
+  it('should remove attached korean footnotes before punctuation', () => {
+    const raw = '근거문장[1]. 다음 문장';
+
+    expect(toUserFacingText(raw)).toBe('근거문장. 다음 문장');
+  });
+
   it('should keep plain text as-is', () => {
     const raw = '출처 없는 일반 설명입니다.';
 

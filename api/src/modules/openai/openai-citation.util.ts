@@ -65,7 +65,8 @@ function stripCitationMarkers(raw: string): string {
   }
 
   // Remove plain numeric footnotes only when they look like citation markers.
-  text = text.replace(/(^|[\s(])\[\d+\](?=(?:[\s,.;:!?)]|$))/gm, '$1');
+  text = text.replace(/(^|[\s(,.;:!?])\[\d+\](?=(?:[\s,.;:!?)]|$))/gm, '$1');
+  text = text.replace(/([가-힣])\[\d+\](?=(?:[\s,.;:!?)]|$))/g, '$1');
 
   for (const pattern of CITATION_LINE_PATTERNS) {
     text = text.replace(pattern, '');
