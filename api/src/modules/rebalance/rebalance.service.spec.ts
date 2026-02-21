@@ -951,11 +951,16 @@ describe('RebalanceService', () => {
     expect(result[0].reason).toBe('근거 문장');
   });
 
-  it('should map hold action to no_trade to avoid order execution', async () => {
+  it('should keep hold action as non-trading and carry forward target weight', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([]);
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([
+      {
+        modelTargetWeight: 0.27,
+        intensity: 0,
+      } as any,
+    ]);
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
@@ -989,12 +994,13 @@ describe('RebalanceService', () => {
 
     expect(saveSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'no_trade',
-        modelTargetWeight: 0,
+        action: 'hold',
+        modelTargetWeight: 0.27,
       }),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].action).toBe('no_trade');
+    expect(result[0].action).toBe('hold');
+    expect(result[0].modelTargetWeight).toBeCloseTo(0.27, 10);
   });
 
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {

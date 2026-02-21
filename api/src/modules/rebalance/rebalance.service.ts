@@ -1744,6 +1744,30 @@ export class RebalanceService implements OnModuleInit {
     };
   }
 
+  private resolveNeutralModelTargetWeight(
+    previousModelTargetWeight: number | null | undefined,
+    suggestedWeight: number | null | undefined,
+    fallbackModelTargetWeight: number,
+    hasStock: boolean,
+  ): number {
+    const candidates = [previousModelTargetWeight, suggestedWeight, fallbackModelTargetWeight];
+
+    for (const candidate of candidates) {
+      if (!Number.isFinite(candidate)) {
+        continue;
+      }
+
+      const clamped = this.clamp01(Number(candidate));
+      if (hasStock && clamped <= 0) {
+        continue;
+      }
+
+      return clamped;
+    }
+
+    return hasStock ? this.MIN_RECOMMEND_WEIGHT : 0;
+  }
+
   private calculateTargetWeight(inference: BalanceRecommendationData, regimeMultiplier: number): number {
     const baseTargetWeight =
       inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
@@ -2529,6 +2553,12 @@ export class RebalanceService implements OnModuleInit {
 
           let action: BalanceRecommendationAction = modelSignals.action;
           let modelTargetWeight = this.clamp01(modelSignals.modelTargetWeight);
+          const neutralModelTargetWeight = this.resolveNeutralModelTargetWeight(
+            previousMetricsBySymbol?.modelTargetWeight ?? null,
+            item?.weight,
+            modelTargetWeight,
+            item?.hasStock || false,
+          );
 
           if (normalizedResponse.action === 'sell') {
             action = 'sell';
@@ -2537,16 +2567,16 @@ export class RebalanceService implements OnModuleInit {
             action = 'buy';
             modelTargetWeight = Math.max(modelTargetWeight, this.clamp01(safeIntensity));
           } else if (normalizedResponse.action === 'hold') {
-            action = 'no_trade';
-            modelTargetWeight = 0;
+            action = 'hold';
+            modelTargetWeight = neutralModelTargetWeight;
           } else if (normalizedResponse.action === 'no_trade') {
             action = 'no_trade';
-            modelTargetWeight = 0;
+            modelTargetWeight = neutralModelTargetWeight;
           }
 
           if (decisionConfidence < this.MIN_BALANCE_CONFIDENCE) {
             action = 'no_trade';
-            modelTargetWeight = 0;
+            modelTargetWeight = neutralModelTargetWeight;
           }
 
           // 추론 결과와 아이템 병합
