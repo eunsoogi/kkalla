@@ -536,6 +536,9 @@ export class MarketResearchService {
       symbol: string;
       weight: number;
       confidence: number;
+      cashWeight: number;
+      regime: 'risk_on' | 'neutral' | 'risk_off';
+      riskFlags: string[];
       reason: string;
     }> | null,
     allowedSymbols?: string[],
@@ -543,6 +546,9 @@ export class MarketResearchService {
     symbol: string;
     weight: number;
     confidence: number;
+    cashWeight: number;
+    regime: 'risk_on' | 'neutral' | 'risk_off';
+    riskFlags: string[];
     reason: string;
   }> {
     if (!Array.isArray(recommendations)) {
@@ -574,7 +580,29 @@ export class MarketResearchService {
         return [];
       }
 
-      return [{ ...recommendation, symbol: normalizedSymbol }];
+      const weight = Number(recommendation.weight);
+      const confidence = Number(recommendation.confidence);
+      const cashWeight = Number(recommendation.cashWeight);
+      const regime =
+        recommendation.regime === 'risk_on' || recommendation.regime === 'risk_off' ? recommendation.regime : 'neutral';
+
+      if (!Number.isFinite(weight) || !Number.isFinite(confidence) || !Number.isFinite(cashWeight)) {
+        return [];
+      }
+
+      return [
+        {
+          symbol: normalizedSymbol,
+          weight: Math.max(0, Math.min(1, weight)),
+          confidence: Math.max(0, Math.min(1, confidence)),
+          cashWeight: Math.max(0, Math.min(1, cashWeight)),
+          regime,
+          riskFlags: Array.isArray(recommendation.riskFlags)
+            ? recommendation.riskFlags.filter((item): item is string => typeof item === 'string').slice(0, 10)
+            : [],
+          reason: recommendation.reason,
+        },
+      ];
     });
   }
 }

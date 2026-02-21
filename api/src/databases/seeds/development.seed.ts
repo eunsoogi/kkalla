@@ -132,21 +132,27 @@ export class NotifySeeder implements Seeder {
  */
 export class HistorySeeder implements Seeder {
   async run(): Promise<void> {
+    const users = await User.find();
+    const user = users[0];
+    if (!user) {
+      return;
+    }
+
     await History.createQueryBuilder().delete().execute();
 
     await History.save([
       // 메이저 코인
-      { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
-      { symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
-      { symbol: 'SOL/KRW', category: Category.COIN_MAJOR, index: 2 },
+      { user, symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
+      { user, symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
+      { user, symbol: 'SOL/KRW', category: Category.COIN_MAJOR, index: 2 },
       // 마이너 코인
-      { symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 3 },
-      { symbol: 'ADA/KRW', category: Category.COIN_MINOR, index: 4 },
-      { symbol: 'DOGE/KRW', category: Category.COIN_MINOR, index: 5 },
+      { user, symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 3 },
+      { user, symbol: 'ADA/KRW', category: Category.COIN_MINOR, index: 4 },
+      { user, symbol: 'DOGE/KRW', category: Category.COIN_MINOR, index: 5 },
       // 나스닥
-      { symbol: 'AAPL', category: Category.NASDAQ, index: 6 },
-      { symbol: 'MSFT', category: Category.NASDAQ, index: 7 },
-      { symbol: 'NVDA', category: Category.NASDAQ, index: 8 },
+      { user, symbol: 'AAPL', category: Category.NASDAQ, index: 6 },
+      { user, symbol: 'MSFT', category: Category.NASDAQ, index: 7 },
+      { user, symbol: 'NVDA', category: Category.NASDAQ, index: 8 },
     ]);
   }
 }

@@ -13,6 +13,8 @@ export class RedlockService implements OnModuleDestroy {
   private readonly redlock: Redlock;
   private readonly logger = new Logger(RedlockService.name);
   private readonly redisClient: Redis;
+  private readonly LOCK_EXTENSION_MIN_INTERVAL_MS = 1_000;
+  private readonly LOCK_EXTENSION_INTERVAL_FACTOR = 0.5;
 
   constructor(
     @Inject(REDLOCK_OPTIONS)
@@ -43,24 +45,59 @@ export class RedlockService implements OnModuleDestroy {
 
   public async withLock<T>(resourceName: string, duration: number, callback: () => Promise<T>): Promise<T | undefined> {
     const lockKey = this.getLockKey(resourceName);
-    let lock: Lock | null = null;
+    let activeLock: Lock | null = null;
+    let extensionTimer: NodeJS.Timeout | null = null;
+    let extensionInFlight: Promise<void> | null = null;
+    let extensionError: unknown = null;
 
     try {
-      lock = await this.acquireLock(lockKey, duration);
+      activeLock = await this.acquireLock(lockKey, duration);
 
       // Lock 획득 실패 시 함수 실행 건너뜀
-      if (!lock) {
+      if (!activeLock) {
         this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
         return undefined;
       }
+
+      const extensionIntervalMs = Math.max(
+        this.LOCK_EXTENSION_MIN_INTERVAL_MS,
+        Math.floor(duration * this.LOCK_EXTENSION_INTERVAL_FACTOR),
+      );
+      extensionTimer = setInterval(() => {
+        if (!activeLock || extensionInFlight || extensionError) {
+          return;
+        }
+
+        extensionInFlight = activeLock
+          .extend(duration)
+          .then((extendedLock) => {
+            activeLock = extendedLock;
+          })
+          .catch((error) => {
+            extensionError = error;
+            this.logger.error(this.i18n.t('logging.redlock.lock.extend_error', { args: { resourceName } }), error);
+          })
+          .finally(() => {
+            extensionInFlight = null;
+          });
+      }, extensionIntervalMs);
+      extensionTimer.unref?.();
 
       // Lock을 얻으면 함수 실행
       this.logger.debug(this.i18n.t('logging.redlock.lock.acquired', { args: { resourceName } }));
       return await callback();
     } finally {
-      if (lock) {
+      if (extensionTimer) {
+        clearInterval(extensionTimer);
+      }
+
+      if (extensionInFlight) {
+        await extensionInFlight.catch(() => undefined);
+      }
+
+      if (activeLock) {
         try {
-          await lock.release();
+          await activeLock.release();
           this.logger.debug(this.i18n.t('logging.redlock.lock.released', { args: { resourceName } }));
         } catch (error) {
           this.logger.error(this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName } }), error);

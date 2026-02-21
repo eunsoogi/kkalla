@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 import {
+  ChangeMessageVisibilityCommand,
   DeleteMessageCommand,
   Message,
   ReceiveMessageCommand,
@@ -39,16 +40,24 @@ import {
   BalanceRecommendationAction,
   BalanceRecommendationData,
   RecommendationItem,
+  TradeExecutionMessageV2,
 } from '../rebalance/rebalance.interface';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
+import { RedlockService } from '../redlock/redlock.service';
 import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
+import {
+  TradeExecutionLedgerStatus,
+  TradeExecutionModule,
+} from '../trade-execution-ledger/trade-execution-ledger.enum';
+import { TradeExecutionLedgerService } from '../trade-execution-ledger/trade-execution-ledger.service';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '../trade/trade.interface';
 import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { MarketFeatures } from '../upbit/upbit.interface';
+import { UserService } from '../user/user.service';
 import { SymbolVolatility } from './market-volatility.interface';
 import {
   UPBIT_BALANCE_RECOMMENDATION_CONFIG,
@@ -100,6 +109,11 @@ export class MarketVolatilityService implements OnModuleInit {
   private readonly VOLATILITY_DIRECTION_THRESHOLD = 0.01;
   private readonly VOLATILITY_SYMBOL_COOLDOWN_SECONDS = 1_800;
   private readonly BTC_VOLATILITY_COOLDOWN_SECONDS = 3_600;
+  private readonly MIN_BALANCE_CONFIDENCE = 0.35;
+  private readonly QUEUE_MESSAGE_VERSION = 2 as const;
+  private readonly MESSAGE_TTL_MS = 30 * 60 * 1000;
+  private readonly USER_TRADE_LOCK_DURATION_MS = 5 * 60 * 1000;
+  private readonly PROCESSING_HEARTBEAT_INTERVAL_MS = 60 * 1000;
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
@@ -142,6 +156,9 @@ export class MarketVolatilityService implements OnModuleInit {
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
     private readonly reportValidationService: ReportValidationService,
+    private readonly userService: UserService,
+    private readonly redlockService: RedlockService,
+    private readonly tradeExecutionLedgerService: TradeExecutionLedgerService,
   ) {
     if (!this.queueUrl) {
       throw new Error('AWS_SQS_QUEUE_URL_VOLATILITY environment variable is required');
@@ -230,51 +247,384 @@ export class MarketVolatilityService implements OnModuleInit {
     const messageId = message.MessageId;
     this.logger.log(this.i18n.t('logging.sqs.message.start', { args: { id: messageId } }));
 
+    let parsedMessage: TradeExecutionMessageV2;
     try {
-      // 메시지 본문 파싱: 사용자 정보, 추론 결과, 매수 가능 여부 추출
-      const messageBody = JSON.parse(message.Body);
-      const { user, inferences, buyAvailable } = messageBody;
+      parsedMessage = this.parseVolatilityMessage(message.Body);
+    } catch (error) {
+      await this.markMalformedMessageAsNonRetryable(message, error);
+      return;
+    }
 
-      // Volatility 전용 큐이므로 모든 메시지를 처리
-      // 사용자별 변동성 거래 실행
-      const trades = await this.executeVolatilityTradesForUser(user, inferences, buyAvailable ?? true);
+    const ledgerContext = {
+      module: TradeExecutionModule.VOLATILITY,
+      messageKey: parsedMessage.messageKey,
+      userId: parsedMessage.userId,
+    };
+    let processingLedgerContext: {
+      module: TradeExecutionModule;
+      messageKey: string;
+      userId: string;
+      attemptCount?: number;
+    } = ledgerContext;
 
-      this.logger.debug(trades);
+    let succeeded = false;
 
-      // 실행된 거래가 있을 때만 수익금 알림 전송
-      if (trades.length > 0) {
-        const profitData = await this.profitService.getProfit(user);
+    try {
+      const acquired = await this.tradeExecutionLedgerService.acquire({
+        ...ledgerContext,
+        payloadHash: this.tradeExecutionLedgerService.hashPayload(parsedMessage),
+        generatedAt: new Date(parsedMessage.generatedAt),
+        expiresAt: new Date(parsedMessage.expiresAt),
+      });
 
-        await this.notifyService.notify(
-          user,
-          this.i18n.t('notify.profit.result', {
-            args: {
-              profit: formatNumber(profitData.profit),
-            },
-          }),
-        );
+      if (!acquired.acquired) {
+        if (acquired.status === TradeExecutionLedgerStatus.PROCESSING) {
+          this.logger.warn(
+            this.i18n.t('logging.sqs.message.skipped_processing', {
+              args: {
+                module: TradeExecutionModule.VOLATILITY,
+                messageKey: parsedMessage.messageKey,
+              },
+            }),
+          );
+          await this.deferMessageWhileProcessing(message);
+          return;
+        }
+
+        await this.deleteMessage(message);
+        return;
       }
 
-      this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
+      processingLedgerContext = {
+        ...ledgerContext,
+        attemptCount: acquired.attemptCount,
+      };
 
-      // 처리 완료된 메시지를 큐에서 삭제 (중복 처리 방지)
-      await this.sqs.send(
-        new DeleteMessageCommand({
-          QueueUrl: this.queueUrl,
-          ReceiptHandle: message.ReceiptHandle,
-        }),
+      if (this.isExpired(parsedMessage.expiresAt)) {
+        await this.tradeExecutionLedgerService.markStaleSkipped({
+          ...processingLedgerContext,
+          error: 'Message expired',
+        });
+        await this.deleteMessage(message);
+        return;
+      }
+
+      const lockResult = await this.redlockService.withLock(
+        `trade:user:${parsedMessage.userId}`,
+        this.USER_TRADE_LOCK_DURATION_MS,
+        async () =>
+          this.withProcessingHeartbeat(processingLedgerContext, async () => {
+            const user = await this.userService.findById(parsedMessage.userId);
+            const trades = await this.executeVolatilityTradesForUser(user, parsedMessage.inferences);
+
+            this.logger.debug(trades);
+
+            if (trades.length > 0) {
+              const profitData = await this.profitService.getProfit(user);
+              await this.notifyService.notify(
+                user,
+                this.i18n.t('notify.profit.result', {
+                  args: {
+                    profit: formatNumber(profitData.profit),
+                  },
+                }),
+              );
+            }
+
+            return true;
+          }),
       );
 
-      this.logger.log(this.i18n.t('logging.sqs.message.delete', { args: { id: messageId } }));
+      if (!lockResult) {
+        throw new Error(`Failed to acquire user trade lock: ${parsedMessage.userId}`);
+      }
+
+      await this.tradeExecutionLedgerService.markSucceeded(processingLedgerContext);
+      succeeded = true;
+      this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
+      await this.deleteMessage(message);
     } catch (error) {
-      // 오류 발생 시 로그 기록 후 예외 재발생 (메시지가 다시 큐로 돌아가도록)
       this.logger.error(
         this.i18n.t('logging.sqs.message.error', {
           args: { id: messageId, error },
         }),
       );
+
+      if (succeeded) {
+        throw error;
+      }
+
+      if (this.isNonRetryableExecutionError(error)) {
+        await this.tradeExecutionLedgerService.markNonRetryableFailed({
+          ...processingLedgerContext,
+          error: this.stringifyError(error),
+        });
+        await this.deleteMessage(message);
+        return;
+      }
+
+      await this.tradeExecutionLedgerService.markRetryableFailed({
+        ...processingLedgerContext,
+        error: this.stringifyError(error),
+      });
       throw error;
     }
+  }
+
+  private parseVolatilityMessage(messageBody: string | undefined): TradeExecutionMessageV2 {
+    if (!messageBody) {
+      throw new Error('Empty SQS message body');
+    }
+
+    const parsed = JSON.parse(messageBody) as Partial<TradeExecutionMessageV2>;
+    if (parsed.version !== this.QUEUE_MESSAGE_VERSION) {
+      throw new Error('Unsupported volatility message version');
+    }
+    if (parsed.module !== TradeExecutionModule.VOLATILITY) {
+      throw new Error('Unsupported volatility message module');
+    }
+    if (!this.isNonEmptyString(parsed.runId)) {
+      throw new Error('Invalid runId');
+    }
+    if (!this.isNonEmptyString(parsed.messageKey)) {
+      throw new Error('Invalid messageKey');
+    }
+    if (!this.isNonEmptyString(parsed.userId)) {
+      throw new Error('Invalid userId');
+    }
+    if (!this.isValidDateString(parsed.generatedAt)) {
+      throw new Error('Invalid generatedAt');
+    }
+    if (!this.isValidDateString(parsed.expiresAt)) {
+      throw new Error('Invalid expiresAt');
+    }
+    if (!Array.isArray(parsed.inferences)) {
+      throw new Error('Invalid inferences');
+    }
+
+    return {
+      version: this.QUEUE_MESSAGE_VERSION,
+      module: TradeExecutionModule.VOLATILITY,
+      runId: parsed.runId,
+      messageKey: parsed.messageKey,
+      userId: parsed.userId,
+      generatedAt: parsed.generatedAt,
+      expiresAt: parsed.expiresAt,
+      inferences: parsed.inferences.map((inference) => this.parseQueuedInference(inference)),
+    };
+  }
+
+  private parseQueuedInference(inference: unknown): BalanceRecommendationData {
+    if (!inference || typeof inference !== 'object') {
+      throw new Error('Invalid inference item');
+    }
+
+    const candidate = inference as Partial<BalanceRecommendationData>;
+    const category = candidate.category as Category;
+    if (!Object.values(Category).includes(category)) {
+      throw new Error('Invalid inference category');
+    }
+    if (!this.isNonEmptyString(candidate.id) || !this.isNonEmptyString(candidate.batchId)) {
+      throw new Error('Invalid inference identity');
+    }
+    if (!this.isNonEmptyString(candidate.symbol)) {
+      throw new Error('Invalid inference symbol');
+    }
+
+    return {
+      id: candidate.id,
+      batchId: candidate.batchId,
+      symbol: candidate.symbol,
+      category,
+      intensity: Number.isFinite(candidate.intensity) ? Number(candidate.intensity) : 0,
+      reason: typeof candidate.reason === 'string' ? candidate.reason : null,
+      prevIntensity: Number.isFinite(candidate.prevIntensity) ? Number(candidate.prevIntensity) : null,
+      prevModelTargetWeight: Number.isFinite(candidate.prevModelTargetWeight)
+        ? Number(candidate.prevModelTargetWeight)
+        : null,
+      buyScore: Number.isFinite(candidate.buyScore) ? Number(candidate.buyScore) : undefined,
+      sellScore: Number.isFinite(candidate.sellScore) ? Number(candidate.sellScore) : undefined,
+      modelTargetWeight: Number.isFinite(candidate.modelTargetWeight) ? Number(candidate.modelTargetWeight) : undefined,
+      action: this.normalizeAction(candidate.action),
+      hasStock: Boolean(candidate.hasStock),
+      weight: Number.isFinite(candidate.weight) ? Number(candidate.weight) : undefined,
+      confidence: Number.isFinite(candidate.confidence) ? Number(candidate.confidence) : undefined,
+      decisionConfidence: Number.isFinite(candidate.decisionConfidence)
+        ? Number(candidate.decisionConfidence)
+        : undefined,
+      expectedVolatilityPct: Number.isFinite(candidate.expectedVolatilityPct)
+        ? Number(candidate.expectedVolatilityPct)
+        : undefined,
+      riskFlags: Array.isArray(candidate.riskFlags)
+        ? candidate.riskFlags.filter((item): item is string => typeof item === 'string')
+        : [],
+    };
+  }
+
+  private async markMalformedMessageAsNonRetryable(message: Message, error: unknown): Promise<void> {
+    const parsed = this.tryParseJson(message.Body);
+    const messageKey =
+      this.readString(parsed, 'messageKey') ?? message.MessageId ?? `malformed:${Date.now()}:${randomUUID()}`;
+    const userId = this.readString(parsed, 'userId') ?? 'unknown';
+    const generatedAt = new Date();
+    const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+
+    const acquireResult = await this.tradeExecutionLedgerService.acquire({
+      module: TradeExecutionModule.VOLATILITY,
+      messageKey,
+      userId,
+      payloadHash: this.tradeExecutionLedgerService.hashPayload(parsed ?? message.Body),
+      generatedAt,
+      expiresAt,
+    });
+
+    if (acquireResult.acquired) {
+      await this.tradeExecutionLedgerService.markNonRetryableFailed({
+        module: TradeExecutionModule.VOLATILITY,
+        messageKey,
+        userId,
+        attemptCount: acquireResult.attemptCount,
+        error: this.stringifyError(error),
+      });
+    }
+
+    await this.deleteMessage(message);
+    this.logger.warn(
+      this.i18n.t('logging.sqs.message.dropped_malformed', {
+        args: {
+          module: TradeExecutionModule.VOLATILITY,
+          error: this.stringifyError(error),
+        },
+      }),
+    );
+  }
+
+  private async deleteMessage(message: Message): Promise<void> {
+    if (!message.ReceiptHandle) {
+      return;
+    }
+
+    await this.sqs.send(
+      new DeleteMessageCommand({
+        QueueUrl: this.queueUrl,
+        ReceiptHandle: message.ReceiptHandle,
+      }),
+    );
+  }
+
+  private async deferMessageWhileProcessing(message: Message): Promise<void> {
+    if (!message.ReceiptHandle) {
+      return;
+    }
+
+    const visibilityTimeout = Math.max(1, Math.ceil(this.tradeExecutionLedgerService.getProcessingStaleMs() / 1000));
+
+    try {
+      await this.sqs.send(
+        new ChangeMessageVisibilityCommand({
+          QueueUrl: this.queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: visibilityTimeout,
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        this.i18n.t('logging.sqs.message.visibility_extend_failed', {
+          args: {
+            id: message.MessageId ?? 'unknown',
+          },
+        }),
+        error,
+      );
+    }
+  }
+
+  private async withProcessingHeartbeat<T>(
+    context: { module: TradeExecutionModule; messageKey: string; userId: string; attemptCount?: number },
+    callback: () => Promise<T>,
+  ): Promise<T> {
+    await this.tradeExecutionLedgerService.heartbeatProcessing(context);
+
+    const heartbeatTimer = setInterval(() => {
+      void this.tradeExecutionLedgerService.heartbeatProcessing(context).catch((error) => {
+        this.logger.warn(
+          this.i18n.t('logging.sqs.message.ledger_heartbeat_failed', {
+            args: {
+              module: context.module,
+              messageKey: context.messageKey,
+              userId: context.userId,
+            },
+          }),
+          error,
+        );
+      });
+    }, this.PROCESSING_HEARTBEAT_INTERVAL_MS);
+    heartbeatTimer.unref?.();
+
+    try {
+      return await callback();
+    } finally {
+      clearInterval(heartbeatTimer);
+    }
+  }
+
+  private isExpired(expiresAt: string): boolean {
+    const expiresAtTs = new Date(expiresAt).getTime();
+    return Number.isFinite(expiresAtTs) && expiresAtTs <= Date.now();
+  }
+
+  private isNonRetryableExecutionError(error: unknown): boolean {
+    return (error as { name?: string } | null)?.name === 'NotFoundException';
+  }
+
+  private tryParseJson(value: string | undefined): Record<string, unknown> | null {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private readString(payload: Record<string, unknown> | null, key: string): string | null {
+    const value = payload?.[key];
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private stringifyError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.stack || error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  private isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  private isValidDateString(value: unknown): value is string {
+    if (typeof value !== 'string') {
+      return false;
+    }
+
+    return Number.isFinite(new Date(value).getTime());
   }
 
   /**
@@ -306,8 +656,14 @@ export class MarketVolatilityService implements OnModuleInit {
    * - 버킷이 증가한(새로운 변동 구간에 진입한) 종목만 수집하여 처리합니다.
    */
   private async checkMarketVolatility(): Promise<void> {
+    const users: User[] = await this.scheduleService.getUsers();
+    if (users.length === 0) {
+      this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
+      return;
+    }
+
     // 잔고 추천 대상(포트폴리오) 종목 목록을 조회
-    const historyItems = await this.historyService.fetchHistory();
+    const historyItems = await this.historyService.fetchHistoryByUsers(users);
 
     if (!historyItems.length) {
       // 감시할 종목이 없으면 조용히 종료
@@ -316,7 +672,7 @@ export class MarketVolatilityService implements OnModuleInit {
     }
 
     // 1. BTC/KRW 변동성(1% 단위)을 먼저 확인해, 글로벌 재추론 트리거 여부를 판단
-    const isBtcTriggered = await this.triggerBtcVolatility(historyItems);
+    const isBtcTriggered = await this.triggerBtcVolatility(historyItems, users);
 
     // BTC 변동성이 감지됐다면: 전체 재추론만 수행하고, 개별 종목 변동성 검사는 생략
     if (isBtcTriggered) {
@@ -324,7 +680,7 @@ export class MarketVolatilityService implements OnModuleInit {
     }
 
     // 2. BTC 변동성이 감지되지 않았다면, 개별 종목 변동성을 기준으로 트리거를 검사
-    await this.triggerPerSymbolVolatility(historyItems);
+    await this.triggerPerSymbolVolatility(historyItems, users);
   }
 
   /**
@@ -339,7 +695,7 @@ export class MarketVolatilityService implements OnModuleInit {
    * @param historyItems 포트폴리오 종목 목록
    * @returns 변동성이 감지되어 트리거가 발생했는지 여부
    */
-  private async triggerBtcVolatility(historyItems: RecommendationItem[]): Promise<boolean> {
+  private async triggerBtcVolatility(historyItems: RecommendationItem[], users: User[]): Promise<boolean> {
     let btcVolatility: SymbolVolatility | null;
 
     try {
@@ -388,16 +744,8 @@ export class MarketVolatilityService implements OnModuleInit {
     // BTC는 시장 지표이므로 전체 포트폴리오 재조정
     const inferences: BalanceRecommendationData[] = await this.balanceRecommendation(historyItems);
 
-    // 스케줄 활성화된 사용자 목록 조회
-    const users: User[] = await this.scheduleService.getUsers();
-
-    if (users.length === 0) {
-      this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
-    } else {
-      // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
-      // 포트폴리오 업데이트는 handleMessage에서 거래 완료 후 수행됨
-      await this.publishVolatilityMessage(users, inferences, true);
-    }
+    // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
+    await this.publishVolatilityMessage(users, inferences);
 
     await this.markSymbolOnCooldown(this.BTC_SYMBOL, this.BTC_VOLATILITY_COOLDOWN_SECONDS);
 
@@ -425,7 +773,7 @@ export class MarketVolatilityService implements OnModuleInit {
    * @param historyItems 포트폴리오 종목 목록
    * @returns 하나 이상의 종목에서 변동성이 감지되어 트리거가 발생했는지 여부
    */
-  private async triggerPerSymbolVolatility(historyItems: RecommendationItem[]): Promise<boolean> {
+  private async triggerPerSymbolVolatility(historyItems: RecommendationItem[], users: User[]): Promise<boolean> {
     // 심볼 → RecommendationItem 맵 구성 (나중에 변동성 있는 심볼을 RecommendationItem 으로 복원하기 위함)
     const symbolToItem = new Map<string, RecommendationItem>();
     historyItems.forEach((item) => {
@@ -495,7 +843,7 @@ export class MarketVolatilityService implements OnModuleInit {
     ).filter((item): item is RecommendationItem => !!item);
 
     // 변동성이 감지된 종목들에 대해 후처리(추론/Slack 알림) 실행
-    return this.triggerVolatility(volatileItems);
+    return this.triggerVolatility(volatileItems, users);
   }
 
   /**
@@ -579,7 +927,7 @@ export class MarketVolatilityService implements OnModuleInit {
    * @param volatileItems 변동성이 감지된 종목 목록
    * @returns 변동성이 감지되어 실제로 트리거가 발생했는지 여부
    */
-  private async triggerVolatility(volatileItems: RecommendationItem[]): Promise<boolean> {
+  private async triggerVolatility(volatileItems: RecommendationItem[], users: User[]): Promise<boolean> {
     // 변동성이 감지된 종목이 없다면 아무 작업도 하지 않음
     if (!volatileItems.length) {
       this.logger.log(this.i18n.t('logging.market.volatility.no_trigger'));
@@ -604,16 +952,8 @@ export class MarketVolatilityService implements OnModuleInit {
     // 감지된 종목들만 대상으로 추론하여 포트폴리오 조정
     const inferences: BalanceRecommendationData[] = await this.balanceRecommendation(uniqueChangedItems);
 
-    // 스케줄 활성화된 사용자 목록 조회
-    const users: User[] = await this.scheduleService.getUsers();
-
-    if (users.length === 0) {
-      this.logger.log(this.i18n.t('logging.market.volatility.no_users'));
-    } else {
-      // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
-      // 포트폴리오 업데이트는 handleMessage에서 거래 완료 후 수행됨
-      await this.publishVolatilityMessage(users, inferences, true);
-    }
+    // SQS를 통해 변동성 감지 메시지 전송 (동시 처리 방지)
+    await this.publishVolatilityMessage(users, inferences);
 
     // 과매매 방지를 위해 트리거된 심볼에 쿨다운 부여
     await this.markSymbolsOnCooldown(uniqueChangedItems.map((item) => item.symbol));
@@ -676,13 +1016,8 @@ export class MarketVolatilityService implements OnModuleInit {
    *
    * @param users 스케줄 활성화된 사용자 목록
    * @param inferences 변동성 감지된 종목들의 추론 결과
-   * @param buyAvailable 매수 가능 여부
    */
-  private async publishVolatilityMessage(
-    users: User[],
-    inferences: BalanceRecommendationData[],
-    buyAvailable: boolean = true,
-  ): Promise<void> {
+  private async publishVolatilityMessage(users: User[], inferences: BalanceRecommendationData[]): Promise<void> {
     this.logger.log(
       this.i18n.t('logging.sqs.producer.start', {
         args: { count: users.length },
@@ -690,13 +1025,26 @@ export class MarketVolatilityService implements OnModuleInit {
     );
 
     try {
+      const runId = randomUUID();
+      const generatedAt = new Date();
+      const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+
       // 각 사용자별로 변동성 거래 메시지 생성
-      // 메시지 본문에 사용자 정보, 추론 결과, 매수 가능 여부 포함
+      // 메시지 본문에 사용자 정보, 추론 결과 포함
       const messages = users.map(
         (user) =>
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
-            MessageBody: JSON.stringify({ type: 'volatility', user, inferences, buyAvailable }),
+            MessageBody: JSON.stringify({
+              version: this.QUEUE_MESSAGE_VERSION,
+              module: TradeExecutionModule.VOLATILITY,
+              runId,
+              messageKey: `${runId}:${user.id}`,
+              userId: user.id,
+              generatedAt: generatedAt.toISOString(),
+              expiresAt: expiresAt.toISOString(),
+              inferences,
+            } satisfies TradeExecutionMessageV2),
           }),
       );
 
@@ -724,16 +1072,16 @@ export class MarketVolatilityService implements OnModuleInit {
    *
    * @param user 거래를 실행할 사용자
    * @param inferences 변동성 감지된 종목들의 추론 결과
-   * @param buyAvailable 매수 가능 여부 (false인 경우 매도만 수행)
    * @returns 실행된 거래 목록
    */
-  public async executeVolatilityTradesForUser(
-    user: User,
-    inferences: BalanceRecommendationData[],
-    buyAvailable: boolean = true,
-  ): Promise<Trade[]> {
+  public async executeVolatilityTradesForUser(user: User, inferences: BalanceRecommendationData[]): Promise<Trade[]> {
+    const userScopedInferences = await this.applyUserHistoryContext(user, inferences);
+
     // 권한이 있는 추론만 필터링: 사용자가 거래할 수 있는 카테고리만 포함
-    const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
+    const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(
+      user,
+      userScopedInferences,
+    );
 
     // 권한이 있는 추론이 없으면 거래 불가
     if (authorizedBalanceRecommendations.length === 0) {
@@ -765,7 +1113,10 @@ export class MarketVolatilityService implements OnModuleInit {
     const balances = await this.upbitService.getBalances(user);
 
     // 계좌 정보가 없으면 거래 불가
-    if (!balances) return [];
+    if (!balances) {
+      this.clearClients();
+      return [];
+    }
 
     // 전체 포트폴리오 종목 수 계산 (전체 포트폴리오 비율 유지를 위해 사용)
     const count = await this.getItemCount(user);
@@ -774,6 +1125,7 @@ export class MarketVolatilityService implements OnModuleInit {
     if (count === 0) {
       return [];
     }
+    const slotCount = this.resolveSlotCountForVolatility(authorizedBalanceRecommendations, count);
 
     const orderableSymbols = await this.buildOrderableSymbolSet([
       ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
@@ -792,52 +1144,75 @@ export class MarketVolatilityService implements OnModuleInit {
     const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
-      count,
+      slotCount,
       marketPrice,
       orderableSymbols,
       tradableMarketValueMap,
     );
 
     // 2. 편입 대상 종목 매수/매도 요청 (intensity > 0인 종목들의 목표 비율 조정)
-    let includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
+    const includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
-      count,
+      slotCount,
       regimeMultiplier,
       currentWeights,
       marketPrice,
       orderableSymbols,
       tradableMarketValueMap,
     );
+    const includedSellRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    const sellRequests = [...excludedTradeRequests, ...includedSellRequests];
 
-    // 매수 불가능한 경우 매도만 수행 (diff < 0인 것만 필터링)
-    if (!buyAvailable) {
-      includedTradeRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    // 주문 정책: 매도 순차 실행
+    const sellExecutions = await this.executeTradesSequentiallyWithRequests(user, sellRequests);
+    const sellTrades = sellExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
+
+    // 주문 정책: 매도 완료 후 잔고 재조회
+    const refreshedBalances = await this.upbitService.getBalances(user);
+    let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
+    if (refreshedBalances) {
+      const refreshedOrderableSymbols = await this.buildOrderableSymbolSet([
+        ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
+        ...refreshedBalances.info.map((item) => `${item.currency}/${item.unit_currency}`),
+      ]);
+      const refreshedMarketPrice = await this.upbitService.calculateTradableMarketValue(
+        refreshedBalances,
+        refreshedOrderableSymbols,
+      );
+      const refreshedCurrentWeights = await this.buildCurrentWeightMap(
+        refreshedBalances,
+        refreshedMarketPrice,
+        refreshedOrderableSymbols,
+      );
+      const refreshedTradableMarketValueMap = await this.buildTradableMarketValueMap(
+        refreshedBalances,
+        refreshedOrderableSymbols,
+      );
+
+      const refreshedIncludedRequests = this.generateIncludedTradeRequests(
+        refreshedBalances,
+        authorizedBalanceRecommendations,
+        slotCount,
+        regimeMultiplier,
+        refreshedCurrentWeights,
+        refreshedMarketPrice,
+        refreshedOrderableSymbols,
+        refreshedTradableMarketValueMap,
+      );
+      const buyRequests = refreshedIncludedRequests.filter((item) => item.diff > 0);
+
+      // 주문 정책: 매수 순차 실행
+      buyExecutions = await this.executeTradesSequentiallyWithRequests(user, buyRequests);
     }
 
-    // 편출 처리: 병렬로 모든 매도 주문 실행
-    const excludedTrades: Trade[] = await Promise.all(
-      excludedTradeRequests.map((request) => this.executeTrade(user, request)),
-    );
-
-    // 편입 처리: 병렬로 모든 매수/매도 주문 실행
-    const includedTrades: Trade[] = await Promise.all(
-      includedTradeRequests.map((request) => this.executeTrade(user, request)),
-    );
-
-    const liquidatedItems = this.collectLiquidatedHistoryItems(
-      excludedTradeRequests,
-      excludedTrades,
-      includedTradeRequests,
-      includedTrades,
-    );
-
-    if (liquidatedItems.length > 0) {
-      await this.historyService.removeHistory(liquidatedItems);
-    }
+    const buyTrades = buyExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
+    const liquidatedItems = this.collectLiquidatedHistoryItems(sellExecutions);
+    const executedBuyItems = this.collectExecutedBuyHistoryItems(buyExecutions);
+    await this.saveVolatilityHistoryForUser(user, liquidatedItems, executedBuyItems);
 
     // 실행된 거래 중 null 제거 (주문이 생성되지 않은 경우)
-    const allTrades: Trade[] = [...excludedTrades, ...includedTrades].filter((item) => item !== null);
+    const allTrades: Trade[] = [...sellTrades, ...buyTrades];
 
     // 거래가 실행된 경우 사용자에게 알림 전송
     if (allTrades.length > 0) {
@@ -866,40 +1241,6 @@ export class MarketVolatilityService implements OnModuleInit {
     this.clearClients();
 
     return allTrades;
-  }
-
-  private collectLiquidatedHistoryItems(
-    excludedRequests: TradeRequest[],
-    excludedTrades: Trade[],
-    includedRequests: TradeRequest[],
-    includedTrades: Trade[],
-  ): HistoryRemoveItem[] {
-    const removedMap = new Map<string, HistoryRemoveItem>();
-
-    const collect = (requests: TradeRequest[], trades: Trade[]) => {
-      trades.forEach((trade, index) => {
-        const request = requests[index];
-        if (!trade || !request?.inference || trade.type !== OrderTypes.SELL) {
-          return;
-        }
-
-        // diff = -1 인 경우를 "전량 매도"로 간주해 포트폴리오 히스토리에서 제거한다.
-        if (request.diff > -1 + Number.EPSILON) {
-          return;
-        }
-
-        const key = `${request.symbol}:${request.inference.category}`;
-        removedMap.set(key, {
-          symbol: request.symbol,
-          category: request.inference.category,
-        });
-      });
-    };
-
-    collect(excludedRequests, excludedTrades);
-    collect(includedRequests, includedTrades);
-
-    return Array.from(removedMap.values());
   }
 
   /**
@@ -1002,11 +1343,89 @@ export class MarketVolatilityService implements OnModuleInit {
   }
 
   private isIncludedRecommendation(inference: BalanceRecommendationData): boolean {
+    if (this.isNoTradeRecommendation(inference)) {
+      return false;
+    }
+
     if (inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)) {
       return this.clamp01(inference.modelTargetWeight) > 0;
     }
 
     return inference.intensity > this.MINIMUM_TRADE_INTENSITY;
+  }
+
+  private isNoTradeRecommendation(inference: BalanceRecommendationData): boolean {
+    if (inference.action === 'no_trade') {
+      return true;
+    }
+
+    if (inference.decisionConfidence != null && Number.isFinite(inference.decisionConfidence)) {
+      return inference.decisionConfidence < this.MIN_BALANCE_CONFIDENCE;
+    }
+
+    return false;
+  }
+
+  private normalizeAction(action: unknown): BalanceRecommendationAction {
+    if (action === 'buy' || action === 'sell' || action === 'hold' || action === 'no_trade') {
+      return action;
+    }
+
+    return 'hold';
+  }
+
+  private normalizeBalanceRecommendationResponse(
+    response: unknown,
+    expectedSymbol: string,
+  ): {
+    action: BalanceRecommendationAction;
+    intensity: number;
+    confidence: number;
+    expectedVolatilityPct: number;
+    riskFlags: string[];
+    reason: string;
+  } | null {
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+
+    const parsed = response as {
+      symbol?: unknown;
+      action?: unknown;
+      intensity?: unknown;
+      confidence?: unknown;
+      expectedVolatilityPct?: unknown;
+      riskFlags?: unknown;
+      reason?: unknown;
+    };
+    const outputSymbol = typeof parsed.symbol === 'string' ? parsed.symbol.trim() : '';
+    if (outputSymbol !== expectedSymbol) {
+      this.logger.warn(
+        this.i18n.t('logging.inference.balanceRecommendation.symbol_mismatch_dropped', {
+          args: {
+            outputSymbol,
+            expectedSymbol,
+          },
+        }),
+      );
+      return null;
+    }
+
+    const intensity = Number(parsed.intensity);
+    const confidence = Number(parsed.confidence);
+    const expectedVolatilityPct = Number(parsed.expectedVolatilityPct);
+    const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
+
+    return {
+      action: this.normalizeAction(parsed.action),
+      intensity: Number.isFinite(intensity) ? this.clamp(intensity, -1, 1) : 0,
+      confidence: Number.isFinite(confidence) ? this.clamp01(confidence) : 0,
+      expectedVolatilityPct: Number.isFinite(expectedVolatilityPct) ? Math.max(0, expectedVolatilityPct) : 0,
+      riskFlags: Array.isArray(parsed.riskFlags)
+        ? parsed.riskFlags.filter((item): item is string => typeof item === 'string').slice(0, 10)
+        : [],
+      reason,
+    };
   }
 
   private calculateFeatureScore(marketFeatures: MarketFeatures | null): number {
@@ -1410,8 +1829,23 @@ export class MarketVolatilityService implements OnModuleInit {
    */
   private filterExcludedBalanceRecommendations(inferences: BalanceRecommendationData[]): BalanceRecommendationData[] {
     return this.sortBalanceRecommendations(
-      inferences.filter((item) => !this.isIncludedRecommendation(item) && item.hasStock),
+      inferences.filter(
+        (item) => !this.isIncludedRecommendation(item) && item.hasStock && !this.isNoTradeRecommendation(item),
+      ),
     );
+  }
+
+  private async applyUserHistoryContext(
+    user: User,
+    inferences: BalanceRecommendationData[],
+  ): Promise<BalanceRecommendationData[]> {
+    const historyItems = await this.historyService.fetchHistoryByUser(user);
+    const heldSymbolSet = new Set(historyItems.map((item) => `${item.symbol}:${item.category}`));
+
+    return inferences.map((inference) => ({
+      ...inference,
+      hasStock: heldSymbolSet.has(`${inference.symbol}:${inference.category}`),
+    }));
   }
 
   /**
@@ -1436,8 +1870,10 @@ export class MarketVolatilityService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
-    // 편입 대상 종목 선정 (intensity > 0인 종목들)
-    const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences);
+    // 편입 대상 종목 선정 (기존 보유 + intensity > 0인 종목들)
+    const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).filter(
+      (inference) => inference.hasStock,
+    );
     const topK = Math.max(1, count);
 
     // 편입 거래 요청 생성
@@ -1539,11 +1975,15 @@ export class MarketVolatilityService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
+    const includedBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).filter(
+      (inference) => inference.hasStock,
+    );
+
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
     // 2. intensity <= 0 && hasStock인 종목들
     const filteredBalanceRecommendations = [
-      ...this.filterIncludedBalanceRecommendations(inferences).slice(count),
+      ...includedBalanceRecommendations.slice(count),
       ...this.filterExcludedBalanceRecommendations(inferences),
     ];
 
@@ -1565,6 +2005,16 @@ export class MarketVolatilityService implements OnModuleInit {
     return tradeRequests;
   }
 
+  private resolveSlotCountForVolatility(inferences: BalanceRecommendationData[], defaultSlotCount: number): number {
+    const heldCount = new Set(
+      inferences
+        .filter((inference) => inference.hasStock)
+        .map((inference) => `${inference.symbol}:${inference.category}`),
+    ).size;
+
+    return Math.min(defaultSlotCount, heldCount);
+  }
+
   /**
    * 클라이언트 캐시 초기화
    *
@@ -1574,6 +2024,102 @@ export class MarketVolatilityService implements OnModuleInit {
   private clearClients(): void {
     this.upbitService.clearClients();
     this.notifyService.clearClients();
+  }
+
+  private async executeTradesSequentiallyWithRequests(
+    user: User,
+    requests: TradeRequest[],
+  ): Promise<Array<{ request: TradeRequest; trade: Trade | null }>> {
+    const executions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
+
+    for (const request of requests) {
+      const trade = await this.executeTrade(user, request);
+      executions.push({ request, trade });
+    }
+
+    return executions;
+  }
+
+  private collectLiquidatedHistoryItems(
+    executions: Array<{ request: TradeRequest; trade: Trade | null }>,
+  ): HistoryRemoveItem[] {
+    const removedMap = new Map<string, HistoryRemoveItem>();
+
+    executions.forEach(({ request, trade }) => {
+      if (!trade || !request.inference || trade.type !== OrderTypes.SELL) {
+        return;
+      }
+
+      // diff = -1 인 경우를 "전량 매도"로 간주해 포트폴리오 히스토리에서 제거한다.
+      if (request.diff > -1 + Number.EPSILON) {
+        return;
+      }
+
+      const key = `${request.symbol}:${request.inference.category}`;
+      removedMap.set(key, {
+        symbol: request.symbol,
+        category: request.inference.category,
+      });
+    });
+
+    return Array.from(removedMap.values());
+  }
+
+  private collectExecutedBuyHistoryItems(
+    executions: Array<{ request: TradeRequest; trade: Trade | null }>,
+  ): HistoryRemoveItem[] {
+    const boughtMap = new Map<string, HistoryRemoveItem>();
+
+    executions.forEach(({ request, trade }) => {
+      if (!trade || !request.inference || trade.type !== OrderTypes.BUY) {
+        return;
+      }
+
+      const key = `${request.symbol}:${request.inference.category}`;
+      boughtMap.set(key, {
+        symbol: request.symbol,
+        category: request.inference.category,
+      });
+    });
+
+    return Array.from(boughtMap.values());
+  }
+
+  private async saveVolatilityHistoryForUser(
+    user: User,
+    liquidatedItems: HistoryRemoveItem[],
+    executedBuyItems: HistoryRemoveItem[],
+  ): Promise<void> {
+    const existingHistory = await this.historyService.fetchHistoryByUser(user);
+    const removedKeySet = new Set(liquidatedItems.map((item) => `${item.symbol}:${item.category}`));
+
+    const merged = new Map<string, RecommendationItem>();
+    existingHistory.forEach((item) => {
+      const key = `${item.symbol}:${item.category}`;
+      if (!removedKeySet.has(key)) {
+        merged.set(key, item);
+      }
+    });
+
+    executedBuyItems.forEach((item) => {
+      const key = `${item.symbol}:${item.category}`;
+      if (!removedKeySet.has(key)) {
+        merged.set(key, {
+          symbol: item.symbol,
+          category: item.category,
+          hasStock: true,
+        });
+      }
+    });
+
+    await this.historyService.saveHistoryForUser(
+      user,
+      Array.from(merged.values()).map((item, index) => ({
+        symbol: item.symbol,
+        category: item.category,
+        index,
+      })),
+    );
   }
 
   private toPercent(value: number | null | undefined): string {
@@ -1712,11 +2258,35 @@ export class MarketVolatilityService implements OnModuleInit {
             return null;
           }
           const responseData = JSON.parse(outputText);
-          const intensity = Number(responseData?.intensity);
-          const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
-          const reason = typeof responseData?.reason === 'string' ? responseData.reason.trim() : '';
+          const normalizedResponse = this.normalizeBalanceRecommendationResponse(responseData, targetSymbol);
+          if (!normalizedResponse) {
+            return null;
+          }
+
+          const safeIntensity = normalizedResponse.intensity;
+          const reason = normalizedResponse.reason;
           const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, targetSymbol);
           const previousMetricsBySymbol = previousMetrics.get(targetSymbol) ?? previousMetrics.get(item.symbol);
+          const decisionConfidence = normalizedResponse.confidence;
+
+          let action: BalanceRecommendationAction = modelSignals.action;
+          let modelTargetWeight = this.clamp01(modelSignals.modelTargetWeight);
+
+          if (normalizedResponse.action === 'sell') {
+            action = 'sell';
+            modelTargetWeight = 0;
+          } else if (normalizedResponse.action === 'buy') {
+            action = 'buy';
+            modelTargetWeight = Math.max(modelTargetWeight, this.clamp01(safeIntensity));
+          } else if (normalizedResponse.action === 'no_trade') {
+            action = 'no_trade';
+            modelTargetWeight = 0;
+          }
+
+          if (decisionConfidence < this.MIN_BALANCE_CONFIDENCE) {
+            action = 'no_trade';
+            modelTargetWeight = 0;
+          }
 
           // 추론 결과와 아이템 병합
           return {
@@ -1730,10 +2300,13 @@ export class MarketVolatilityService implements OnModuleInit {
             prevModelTargetWeight: previousMetricsBySymbol?.modelTargetWeight ?? null,
             weight: item?.weight,
             confidence: item?.confidence,
+            decisionConfidence,
+            expectedVolatilityPct: normalizedResponse.expectedVolatilityPct,
+            riskFlags: normalizedResponse.riskFlags,
             buyScore: modelSignals.buyScore,
             sellScore: modelSignals.sellScore,
-            modelTargetWeight: modelSignals.modelTargetWeight,
-            action: modelSignals.action,
+            modelTargetWeight,
+            action,
           };
         });
       }),
@@ -1784,6 +2357,9 @@ export class MarketVolatilityService implements OnModuleInit {
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
+      decisionConfidence: validResults[index].decisionConfidence,
+      expectedVolatilityPct: validResults[index].expectedVolatilityPct,
+      riskFlags: validResults[index].riskFlags,
     }));
   }
 

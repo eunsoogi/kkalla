@@ -16,6 +16,9 @@ export interface MarketRecommendation {
   reason: string;
   confidence: number;
   weight: number;
+  cashWeight?: number;
+  regime?: 'risk_on' | 'neutral' | 'risk_off';
+  riskFlags?: string[];
 }
 
 export interface MarketRecommendationResponse {
@@ -30,6 +33,9 @@ export interface MarketRecommendationData {
   weight: number;
   reason: string;
   confidence: number;
+  cashWeight?: number;
+  regime?: 'risk_on' | 'neutral' | 'risk_off';
+  riskFlags?: string[];
 }
 
 export const MARKET_RECOMMENDATION_STATE_CACHE_KEY = 'market-research:latest-state';

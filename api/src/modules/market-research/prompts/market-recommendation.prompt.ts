@@ -9,6 +9,9 @@ export const UPBIT_MARKET_RECOMMENDATION_PROMPT = `
     - symbol: string (반드시 "BASE/KRW" 형식, 예: "BTC/KRW". "BTC", "KRW-BTC" 금지)
     - weight: number (0~1)
     - confidence: number (0~1)
+    - cashWeight: number (0~1, 해당 종목 리스크 대비 현금 보유 권고 비중)
+    - regime: string ("risk_on" | "neutral" | "risk_off")
+    - riskFlags: string[] (리스크 키워드 목록, 없으면 빈 배열)
     - reason: string
 - 추가 텍스트/코드블록/설명은 출력하지 않습니다.
 
@@ -66,9 +69,17 @@ export const UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA = {
           symbol: { type: 'string' },
           weight: { type: 'number', minimum: 0, maximum: 1 },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
+          cashWeight: { type: 'number', minimum: 0, maximum: 1 },
+          regime: { type: 'string', enum: ['risk_on', 'neutral', 'risk_off'] },
+          riskFlags: {
+            type: 'array',
+            items: { type: 'string' },
+            minItems: 0,
+            maxItems: 10,
+          },
           reason: { type: 'string' },
         },
-        required: ['symbol', 'weight', 'confidence', 'reason'],
+        required: ['symbol', 'weight', 'confidence', 'cashWeight', 'regime', 'riskFlags', 'reason'],
         additionalProperties: false,
       },
       minItems: 0,

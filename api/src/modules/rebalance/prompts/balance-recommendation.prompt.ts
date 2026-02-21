@@ -6,10 +6,13 @@ export const UPBIT_BALANCE_RECOMMENDATION_PROMPT = `
 - JSON 객체만 출력합니다.
 - 필드:
   - symbol: string (입력된 대상 심볼과 정확히 동일해야 하며, 형식은 "BASE/KRW". 예: "BTC/KRW")
+  - action: string ("buy" | "sell" | "hold" | "no_trade")
   - intensity: number (-1 ~ 1)
+  - confidence: number (0 ~ 1)
+  - expectedVolatilityPct: number (예상 변동성 %, 0 이상)
+  - riskFlags: string[] (리스크 키워드 목록, 없으면 빈 배열)
   - reason: string
     - 최소 2개의 독립 근거를 포함합니다. (예: 추세/지지저항/거래량/이벤트/거시 중 2개 이상)
-    - 반드시 confidence=0~1 수치와 expectedVolatility=+/-x% 형식을 포함합니다.
     - 한글 1~2문장으로 간결하게 작성합니다.
 - 추가 텍스트, 코드블록, 설명은 출력하지 않습니다.
 
@@ -73,15 +76,36 @@ export const UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA = {
     symbol: {
       type: 'string',
     },
+    action: {
+      type: 'string',
+      enum: ['buy', 'sell', 'hold', 'no_trade'],
+    },
     intensity: {
       type: 'number',
       minimum: -1,
       maximum: 1,
     },
+    confidence: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+    },
+    expectedVolatilityPct: {
+      type: 'number',
+      minimum: 0,
+    },
+    riskFlags: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      minItems: 0,
+      maxItems: 10,
+    },
     reason: {
       type: 'string',
     },
   },
-  required: ['symbol', 'intensity', 'reason'],
+  required: ['symbol', 'action', 'intensity', 'confidence', 'expectedVolatilityPct', 'riskFlags', 'reason'],
   additionalProperties: false,
 };

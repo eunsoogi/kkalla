@@ -26,7 +26,7 @@ export class HoldingsService {
    */
   async getHoldings(user: User): Promise<HoldingDto[]> {
     const [items, enabledCategories] = await Promise.all([
-      this.historyService.fetchHistory(),
+      this.historyService.fetchHistoryByUser(user),
       this.categoryService.findEnabledByUser(user),
     ]);
 

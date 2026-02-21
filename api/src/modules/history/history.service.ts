@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
+import { In } from 'typeorm';
+
 import { RecommendationItem } from '../rebalance/rebalance.interface';
+import { User } from '../user/entities/user.entity';
 import { History } from './entities/history.entity';
 import { HistoryItem, HistoryRemoveItem } from './history.interface';
 
@@ -16,6 +19,24 @@ export class HistoryService {
    */
   public async fetchHistory(): Promise<RecommendationItem[]> {
     const items = await History.find({
+      relations: {
+        user: true,
+      },
+      order: {
+        index: 'ASC',
+      },
+    });
+
+    return this.toRecommendationItems(items);
+  }
+
+  public async fetchHistoryByUser(user: User): Promise<RecommendationItem[]> {
+    const items = await History.find({
+      where: {
+        user: {
+          id: user.id,
+        },
+      },
       order: {
         index: 'ASC',
       },
@@ -28,6 +49,29 @@ export class HistoryService {
     }));
   }
 
+  public async fetchHistoryByUsers(users: User[]): Promise<RecommendationItem[]> {
+    if (users.length < 1) {
+      return [];
+    }
+
+    const userIds = users.map((user) => user.id);
+    const items = await History.find({
+      where: {
+        user: {
+          id: In(userIds),
+        },
+      },
+      relations: {
+        user: true,
+      },
+      order: {
+        index: 'ASC',
+      },
+    });
+
+    return this.toRecommendationItems(items);
+  }
+
   /**
    * 포트폴리오 저장
    *
@@ -37,12 +81,17 @@ export class HistoryService {
    * @param items 저장할 포트폴리오 종목 목록
    * @returns 저장된 포트폴리오 엔티티 목록
    */
-  public async saveHistory(items: HistoryItem[]): Promise<History[]> {
-    await History.createQueryBuilder().delete().execute();
+  public async saveHistoryForUser(user: User, items: HistoryItem[]): Promise<History[]> {
+    await History.createQueryBuilder().delete().where('user_id = :userId', { userId: user.id }).execute();
+
+    if (items.length < 1) {
+      return [];
+    }
 
     return History.save(
       items.map((item) =>
         History.create({
+          user,
           symbol: item.symbol,
           category: item.category,
           index: item.index,
@@ -60,7 +109,7 @@ export class HistoryService {
    *
    * @param items 삭제할 종목 목록 (심볼과 카테고리)
    */
-  public async removeHistory(items: HistoryRemoveItem[]): Promise<void> {
+  public async removeHistoryForUser(user: User, items: HistoryRemoveItem[]): Promise<void> {
     if (items.length === 0) {
       return;
     }
@@ -71,9 +120,30 @@ export class HistoryService {
       items.map((item) =>
         History.createQueryBuilder()
           .delete()
-          .where('symbol = :symbol AND category = :category', { symbol: item.symbol, category: item.category })
+          .where('user_id = :userId AND symbol = :symbol AND category = :category', {
+            userId: user.id,
+            symbol: item.symbol,
+            category: item.category,
+          })
           .execute(),
       ),
     );
+  }
+
+  private toRecommendationItems(items: History[]): RecommendationItem[] {
+    const deduped = new Map<string, RecommendationItem>();
+
+    items.forEach((item) => {
+      const key = `${item.symbol}:${item.category}`;
+      if (!deduped.has(key)) {
+        deduped.set(key, {
+          symbol: item.symbol,
+          category: item.category,
+          hasStock: true,
+        });
+      }
+    });
+
+    return Array.from(deduped.values());
   }
 }

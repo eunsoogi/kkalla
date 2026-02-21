@@ -25,6 +25,7 @@ import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { SequenceModule } from './modules/sequence/sequence.module';
 import { SlackModule } from './modules/slack/slack.module';
+import { TradeExecutionLedgerModule } from './modules/trade-execution-ledger/trade-execution-ledger.module';
 import { TradeModule } from './modules/trade/trade.module';
 import { TranslateModule } from './modules/translate/translate.module';
 import { UpbitModule } from './modules/upbit/upbit.module';
@@ -67,6 +68,7 @@ import { UserModule } from './modules/user/user.module';
     ScheduleModule,
     SlackModule,
     TradeModule,
+    TradeExecutionLedgerModule,
     UpbitModule,
     UserModule,
   ],
