@@ -1493,7 +1493,7 @@ export class MarketVolatilityService implements OnModuleInit {
   }
 
   private isNoTradeRecommendation(inference: BalanceRecommendationData): boolean {
-    if (inference.action === 'no_trade') {
+    if (inference.action === 'no_trade' || inference.action === 'hold') {
       return true;
     }
 
@@ -2420,6 +2420,8 @@ export class MarketVolatilityService implements OnModuleInit {
           } else if (normalizedResponse.action === 'buy') {
             action = 'buy';
             modelTargetWeight = Math.max(modelTargetWeight, this.clamp01(safeIntensity));
+          } else if (normalizedResponse.action === 'hold') {
+            action = 'hold';
           } else if (normalizedResponse.action === 'no_trade') {
             action = 'no_trade';
             modelTargetWeight = 0;

@@ -753,6 +753,48 @@ describe('MarketVolatilityService', () => {
     expect(result[0].reason).toBe('변동성 근거');
   });
 
+  it('should preserve hold action as non-trading in volatility recommendation mapping', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        action: 'hold',
+        intensity: -0.8,
+        confidence: 0.95,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveBalanceRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-hold-1',
+        seq: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.balanceRecommendation([
+      {
+        symbol: 'KRW-BTC',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ action: 'hold' }));
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('hold');
+    expect((service as any).isNoTradeRecommendation(result[0])).toBe(true);
+  });
+
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {
     const profitService = (service as any).profitService;
     const notifyService = (service as any).notifyService;
