@@ -133,6 +133,7 @@ describe('MarketVolatilityService', () => {
           provide: OpenaiService,
           useValue: {
             createResponse: jest.fn(),
+            getResponseOutput: jest.fn(),
             getResponseOutputText: jest.fn(),
             addMessage: jest.fn(),
             addMessagePair: jest.fn(),
@@ -527,12 +528,13 @@ describe('MarketVolatilityService', () => {
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
-    openaiService.getResponseOutputText.mockReturnValue(
-      JSON.stringify({
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
         symbol: 'BTC',
         intensity: 0.35,
       }),
-    );
+      citations: [],
+    });
 
     const saveSpy = jest.spyOn(service, 'saveBalanceRecommendation').mockImplementation(async (recommendation) => {
       return {
@@ -556,6 +558,46 @@ describe('MarketVolatilityService', () => {
     expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'BTC/KRW' }));
     expect(result).toHaveLength(1);
     expect(result[0].symbol).toBe('BTC/KRW');
+  });
+
+  it('should keep raw reason for persistence and return sanitized reason', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        intensity: 0.41,
+        reason: '변동성 근거 〖4:0†source〗',
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveBalanceRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-2',
+        seq: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.balanceRecommendation([
+      {
+        symbol: 'KRW-BTC',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ reason: '변동성 근거 〖4:0†source〗' }));
+    expect(result).toHaveLength(1);
+    expect(result[0].reason).toBe('변동성 근거');
   });
 
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {

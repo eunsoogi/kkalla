@@ -12,7 +12,13 @@ import type {
 
 import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
+import type { CitationRef } from './openai-citation.util';
 import type { ResponseCreateConfig } from './openai.interface';
+
+export interface ResponseOutputWithCitations {
+  text: string;
+  citations: CitationRef[];
+}
 
 @Injectable()
 export class OpenaiService {
@@ -102,20 +108,16 @@ export class OpenaiService {
    * output_text가 있으면 사용하고, 없거나 비어 있으면 output[].content[] (type === 'output_text')에서 추출.
    * 출력이 없으면 빈 문자열을 반환하므로, 호출부에서는 파싱 전에 비어 있지 않은지 검사해야 한다.
    */
+  public getResponseOutput(response: Response): ResponseOutputWithCitations {
+    const parsed = this.extractResponseBodyOutput(response as unknown as Record<string, unknown>);
+    return parsed.text.length > 0 ? parsed : { text: '', citations: [] };
+  }
+
+  /**
+   * Responses API 응답에서 최종 출력 텍스트만 추출 (레거시 호환).
+   */
   public getResponseOutputText(response: Response): string {
-    if (typeof response.output_text === 'string' && response.output_text.length > 0) {
-      return response.output_text;
-    }
-    const texts: string[] = [];
-    for (const item of response.output ?? []) {
-      if (item.type !== 'message' || !Array.isArray(item.content)) continue;
-      for (const content of item.content) {
-        if (content.type === 'output_text') {
-          texts.push((content as ResponseOutputText).text);
-        }
-      }
-    }
-    return texts.join('');
+    return this.getResponseOutput(response).text;
   }
 
   /**
@@ -303,34 +305,19 @@ export class OpenaiService {
             }),
           );
           results.push({ custom_id: result.custom_id, error: result.error.message });
-        } else if (result.response?.body?.output_text) {
-          // Responses API: output_text가 있을 때
-          const content = JSON.parse(result.response.body.output_text);
-          results.push({ custom_id: result.custom_id, data: content });
-        } else if (result.response?.body?.output) {
-          // Responses API: output 배열 전체를 순회해 모든 output_text를 합침 (getResponseOutputText와 동일)
-          const output = result.response.body.output as Array<{
-            type?: string;
-            content?: Array<{ type?: string; text?: string }>;
-          }>;
-          const texts: string[] = [];
-          for (const item of output) {
-            if (item.type !== 'message' || !Array.isArray(item.content)) continue;
-            for (const content of item.content) {
-              if (content.type === 'output_text' && content.text) {
-                texts.push(content.text);
-              }
-            }
-          }
-          const text = texts.join('');
-          if (text) {
-            const content = JSON.parse(text);
-            results.push({ custom_id: result.custom_id, data: content });
-          } else {
-            results.push({ custom_id: result.custom_id, error: 'No output_text in response' });
-          }
         } else {
-          results.push({ custom_id: result.custom_id, error: 'No content in response' });
+          const parsed = this.extractResponseBodyOutput(result.response?.body);
+          if (!parsed.text) {
+            results.push({ custom_id: result.custom_id, error: 'No output_text in response' });
+            continue;
+          }
+
+          const content = JSON.parse(parsed.text);
+          results.push({
+            custom_id: result.custom_id,
+            data: content,
+            citations: parsed.citations.length > 0 ? parsed.citations : undefined,
+          });
         }
       } catch (error) {
         this.logger.error(this.i18n.t('logging.openai.batch.parse_error'), this.errorService.getErrorMessage(error));
@@ -340,5 +327,98 @@ export class OpenaiService {
 
     this.logger.log(this.i18n.t('logging.openai.batch.results_processed', { args: { count: results.length } }));
     return results;
+  }
+
+  private extractResponseBodyOutput(body: unknown): ResponseOutputWithCitations {
+    const responseBody = (body ?? {}) as {
+      output_text?: unknown;
+      output?: unknown;
+    };
+
+    const outputItems = Array.isArray(responseBody.output) ? responseBody.output : [];
+    const outputTexts: string[] = [];
+    const citations: CitationRef[] = [];
+
+    for (const item of outputItems) {
+      const message = item as {
+        type?: string;
+        content?: unknown;
+      };
+      if (message.type !== 'message' || !Array.isArray(message.content)) {
+        continue;
+      }
+
+      for (const content of message.content) {
+        const outputText = content as ResponseOutputText & {
+          annotations?: unknown;
+        };
+
+        if (outputText.type !== 'output_text' || typeof outputText.text !== 'string') {
+          continue;
+        }
+
+        outputTexts.push(outputText.text);
+
+        if (Array.isArray(outputText.annotations)) {
+          citations.push(...this.normalizeCitations(outputText.annotations));
+        }
+      }
+    }
+
+    const textFromOutput = outputTexts.join('');
+    if (textFromOutput.length > 0) {
+      return { text: textFromOutput, citations };
+    }
+
+    if (typeof responseBody.output_text === 'string' && responseBody.output_text.length > 0) {
+      return { text: responseBody.output_text, citations: [] };
+    }
+
+    return { text: '', citations: [] };
+  }
+
+  private normalizeCitations(annotations: unknown[]): CitationRef[] {
+    return annotations
+      .map((annotation) => {
+        const data = annotation as {
+          type?: unknown;
+          text?: unknown;
+          start_index?: unknown;
+          end_index?: unknown;
+          startIndex?: unknown;
+          endIndex?: unknown;
+          url?: unknown;
+          title?: unknown;
+          url_citation?: {
+            url?: unknown;
+            title?: unknown;
+          };
+        };
+
+        const startIndexRaw = data.start_index ?? data.startIndex;
+        const endIndexRaw = data.end_index ?? data.endIndex;
+        const startIndex = typeof startIndexRaw === 'number' && Number.isFinite(startIndexRaw) ? startIndexRaw : null;
+        const endIndex = typeof endIndexRaw === 'number' && Number.isFinite(endIndexRaw) ? endIndexRaw : null;
+
+        return {
+          type: typeof data.type === 'string' ? data.type : null,
+          text: typeof data.text === 'string' ? data.text : null,
+          startIndex,
+          endIndex,
+          url:
+            typeof data.url_citation?.url === 'string'
+              ? data.url_citation.url
+              : typeof data.url === 'string'
+                ? data.url
+                : null,
+          title:
+            typeof data.url_citation?.title === 'string'
+              ? data.url_citation.title
+              : typeof data.title === 'string'
+                ? data.title
+                : null,
+        } as CitationRef;
+      })
+      .filter((citation) => citation.startIndex != null || citation.endIndex != null || citation.url != null);
   }
 }

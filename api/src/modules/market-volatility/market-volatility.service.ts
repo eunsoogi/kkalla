@@ -23,6 +23,7 @@ import { HistoryService } from '@/modules/history/history.service';
 import { NewsTypes } from '@/modules/news/news.enum';
 import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
+import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { User } from '@/modules/user/entities/user.entity';
@@ -751,7 +752,7 @@ export class MarketVolatilityService implements OnModuleInit {
                   symbol: recommendation.symbol,
                   prevModelTargetWeight: this.toPercent(recommendation.prevModelTargetWeight),
                   modelTargetWeight: this.toPercent(recommendation.modelTargetWeight),
-                  reason: recommendation.reason ?? '-',
+                  reason: toUserFacingText(recommendation.reason ?? '') || '-',
                 },
               }),
             )
@@ -1705,7 +1706,8 @@ export class MarketVolatilityService implements OnModuleInit {
 
           // 실시간 API 호출 (Responses API + web_search)
           const response = await this.openaiService.createResponse(messages, requestConfig);
-          const outputText = this.openaiService.getResponseOutputText(response);
+          const output = this.openaiService.getResponseOutput(response);
+          const outputText = output.text;
           if (!outputText || outputText.trim() === '') {
             return null;
           }
@@ -1732,6 +1734,7 @@ export class MarketVolatilityService implements OnModuleInit {
             sellScore: modelSignals.sellScore,
             modelTargetWeight: modelSignals.modelTargetWeight,
             action: modelSignals.action,
+            reasonCitations: output.citations,
           };
         });
       }),
@@ -1778,7 +1781,7 @@ export class MarketVolatilityService implements OnModuleInit {
       sellScore: saved.sellScore,
       modelTargetWeight: saved.modelTargetWeight,
       action: saved.action,
-      reason: saved.reason,
+      reason: saved.reason != null ? toUserFacingText(saved.reason, validResults[index].reasonCitations) : null,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
