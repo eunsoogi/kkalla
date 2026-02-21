@@ -11,7 +11,6 @@ const CITATION_MARKER_PATTERNS: RegExp[] = [
   /〖[^〗]*†source〗/g,
   /\[\^\d+\]/g,
   /\[\d+\]\((https?:\/\/[^\s)]+)\)/g,
-  /\[\d+\]/g,
   /\[(?:출처|source|sources)\s*:[^\]]+\]/gi,
 ];
 
@@ -64,6 +63,10 @@ function stripCitationMarkers(raw: string): string {
   for (const pattern of CITATION_MARKER_PATTERNS) {
     text = text.replace(pattern, '');
   }
+
+  // Remove plain numeric footnotes only when they look like citation markers.
+  text = text.replace(/(^|[\s(])\[\d+\](?=(?:[\s,.;:!?)]|$))/gm, '$1');
+
   for (const pattern of CITATION_LINE_PATTERNS) {
     text = text.replace(pattern, '');
   }

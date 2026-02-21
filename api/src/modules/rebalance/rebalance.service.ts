@@ -1721,7 +1721,6 @@ export class RebalanceService implements OnModuleInit {
             sellScore: modelSignals.sellScore,
             modelTargetWeight: modelSignals.modelTargetWeight,
             action: modelSignals.action,
-            reasonCitations: output.citations,
           };
         });
       }),
@@ -1768,7 +1767,7 @@ export class RebalanceService implements OnModuleInit {
       sellScore: saved.sellScore,
       modelTargetWeight: saved.modelTargetWeight,
       action: saved.action,
-      reason: saved.reason != null ? toUserFacingText(saved.reason, validResults[index].reasonCitations) : null,
+      reason: saved.reason != null ? toUserFacingText(saved.reason) : null,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,

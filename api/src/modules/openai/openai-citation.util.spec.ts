@@ -13,6 +13,12 @@ describe('toUserFacingText', () => {
     expect(toUserFacingText(raw)).toBe('근거 문장');
   });
 
+  it('should keep bracket numbers in normal content while removing citation-style footnotes', () => {
+    const raw = '근거 [1] 문장, MVRV[2] 지표';
+
+    expect(toUserFacingText(raw)).toBe('근거 문장, MVRV[2] 지표');
+  });
+
   it('should keep plain text as-is', () => {
     const raw = '출처 없는 일반 설명입니다.';
 
