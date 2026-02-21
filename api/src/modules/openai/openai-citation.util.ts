@@ -12,6 +12,9 @@ const CITATION_MARKER_PATTERNS: RegExp[] = [
   /\[\^\d+\]/g,
   /\[[^\]\n]+\]\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/g,
   /\[(?:출처|source|sources)\s*:[^\]]+\]/gi,
+];
+
+const RAW_URL_PATTERNS: RegExp[] = [
   /\(\s*https?:\/\/[^\s)]+\s*\)/gi,
   /https?:\/\/[^\s)]+/gi,
 ];
@@ -67,6 +70,16 @@ function stripCitationMarkers(raw: string): string {
     text = text.replace(pattern, '');
   }
 
+  // Remove full citation lines while URL tokens are still present.
+  for (const pattern of CITATION_LINE_PATTERNS) {
+    text = text.replace(pattern, '');
+  }
+
+  // Remove any remaining inline raw URLs.
+  for (const pattern of RAW_URL_PATTERNS) {
+    text = text.replace(pattern, '');
+  }
+
   // Remove wrappers left after removing links, e.g. "([source](...))" -> "()".
   text = text.replace(/\(\s*[,;:]*\s*\)/g, '');
   text = text.replace(/\[\s*\]/g, '');
@@ -75,9 +88,6 @@ function stripCitationMarkers(raw: string): string {
   text = text.replace(/(^|[\s(,.;:!?])\[\d+\](?=(?:[\s,.;:!?)]|$))/gm, '$1');
   text = text.replace(/([가-힣])\[\d+\](?=(?:[\s,.;:!?)]|$))/g, '$1');
 
-  for (const pattern of CITATION_LINE_PATTERNS) {
-    text = text.replace(pattern, '');
-  }
   return text;
 }
 

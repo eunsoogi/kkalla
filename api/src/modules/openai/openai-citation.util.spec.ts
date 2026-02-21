@@ -40,6 +40,12 @@ describe('toUserFacingText', () => {
     expect(toUserFacingText(raw)).toBe('근거 문장');
   });
 
+  it('should remove url-only bullet and numbered citation lines', () => {
+    const raw = '근거\n- https://example.com/a\n1. https://example.com/b';
+
+    expect(toUserFacingText(raw)).toBe('근거');
+  });
+
   it('should keep plain text as-is', () => {
     const raw = '출처 없는 일반 설명입니다.';
 
