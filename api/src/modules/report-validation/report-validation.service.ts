@@ -88,6 +88,7 @@ export class ReportValidationService {
   private portfolioGlobalGuardrailsInFlight: Promise<string[]> | null = null;
   private marketMinConfidenceCache: { expiresAt: number; value: number } | null = null;
   private marketMinConfidenceInFlight: Promise<number> | null = null;
+  private marketMinConfidenceCacheGeneration = 0;
 
   constructor(
     private readonly i18n: I18nService,
@@ -231,6 +232,7 @@ export class ReportValidationService {
       return this.marketMinConfidenceInFlight;
     }
 
+    const generation = this.marketMinConfidenceCacheGeneration;
     const loadPromise = (async () => {
       const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
       const items = await ReportValidationItem.find({
@@ -251,10 +253,14 @@ export class ReportValidationService {
         this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MIN,
         this.PORTFOLIO_MARKET_MIN_CONFIDENCE_MAX,
       );
-      this.marketMinConfidenceCache = {
-        value,
-        expiresAt: Date.now() + this.MARKET_MIN_CONFIDENCE_CACHE_TTL_MS,
-      };
+
+      // Ignore stale async results once cache was invalidated and generation moved on.
+      if (this.marketMinConfidenceCacheGeneration === generation) {
+        this.marketMinConfidenceCache = {
+          value,
+          expiresAt: Date.now() + this.MARKET_MIN_CONFIDENCE_CACHE_TTL_MS,
+        };
+      }
 
       return value;
     })();
@@ -1478,6 +1484,8 @@ export class ReportValidationService {
 
   private clearMarketMinConfidenceCache(): void {
     this.marketMinConfidenceCache = null;
+    this.marketMinConfidenceInFlight = null;
+    this.marketMinConfidenceCacheGeneration += 1;
   }
 
   private calculateAccuracy(items: ReportValidationItem[]): { hit: number; total: number; ratio: number } {

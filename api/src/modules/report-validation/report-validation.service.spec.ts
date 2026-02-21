@@ -597,4 +597,46 @@ describe('ReportValidationService', () => {
     expect(saveItemsSpy).not.toHaveBeenCalled();
     expect(saveRunsSpy).not.toHaveBeenCalled();
   });
+
+  it('should ignore stale in-flight confidence load after cache invalidation', async () => {
+    let resolveFirstFind: ((items: any[]) => void) | null = null;
+    const firstFindPromise = new Promise<any[]>((resolve) => {
+      resolveFirstFind = resolve;
+    });
+    const findSpy = jest
+      .spyOn(ReportValidationItem, 'find')
+      .mockImplementationOnce(() => firstFindPromise as any)
+      .mockResolvedValueOnce([]);
+
+    const firstCall = service.getRecommendedMarketMinConfidenceForPortfolio();
+    await Promise.resolve();
+
+    (service as any).clearMarketMinConfidenceCache();
+
+    const refreshed = await service.getRecommendedMarketMinConfidenceForPortfolio();
+    expect(refreshed).toBeCloseTo(0.45, 5);
+
+    const staleSamples = [
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'bad',
+        directionHit: false,
+        recommendationConfidence: 0.64,
+        horizonHours: 24,
+      })),
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'good',
+        directionHit: true,
+        recommendationConfidence: 0.65,
+        horizonHours: 24,
+      })),
+    ];
+    resolveFirstFind?.(staleSamples as any[]);
+
+    const staleResult = await firstCall;
+    expect(staleResult).toBeCloseTo(0.65, 5);
+
+    const finalValue = await service.getRecommendedMarketMinConfidenceForPortfolio();
+    expect(finalValue).toBeCloseTo(0.45, 5);
+    expect(findSpy).toHaveBeenCalledTimes(2);
+  });
 });
