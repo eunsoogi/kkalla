@@ -1072,6 +1072,37 @@ describe('RebalanceService', () => {
     expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
   });
 
+  it('should defer message when user trade lock is busy', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const redlockService = (service as any).redlockService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    redlockService.withLock.mockResolvedValueOnce(undefined);
+
+    await (service as any).handleMessage({
+      MessageId: 'message-lock-busy',
+      ReceiptHandle: 'receipt-lock-busy',
+      Body: JSON.stringify({
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-lock-busy',
+        messageKey: 'run-lock-busy:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        inferences: [],
+      }),
+    });
+
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_REBALANCE,
+      ReceiptHandle: 'receipt-lock-busy',
+      VisibilityTimeout: 300,
+    });
+    expect(ledgerService.markSucceeded).not.toHaveBeenCalled();
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+  });
+
   it('should not mark failed ledger status when acquire throws before attempt is assigned', async () => {
     const ledgerService = (service as any).tradeExecutionLedgerService;
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);

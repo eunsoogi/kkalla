@@ -335,7 +335,16 @@ export class RebalanceService implements OnModuleInit {
       );
 
       if (!lockResult) {
-        throw new Error(`Failed to acquire user trade lock: ${parsedMessage.userId}`);
+        this.logger.warn(
+          this.i18n.t('logging.sqs.message.skipped_processing', {
+            args: {
+              module: TradeExecutionModule.REBALANCE,
+              messageKey: parsedMessage.messageKey,
+            },
+          }),
+        );
+        await this.deferMessageWhileProcessing(message);
+        return;
       }
 
       await this.tradeExecutionLedgerService.markSucceeded(processingLedgerContext);
