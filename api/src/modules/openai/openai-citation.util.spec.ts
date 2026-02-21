@@ -25,6 +25,39 @@ describe('toUserFacingText', () => {
     expect(toUserFacingText(raw)).toBe('근거문장. 다음 문장');
   });
 
+  it('should remove parenthesized markdown source links', () => {
+    const raw =
+      '근거 문장입니다. ([investing.com](https://www.investing.com/news/commodities-news/gold-prices-muted-amid-usiran-tensions-fed-caution-set-for-weekly-loss-4515095?utm_source=openai)) (confidence=0.58, expectedVolatility=+/-2.0%).';
+
+    expect(toUserFacingText(raw)).toBe(
+      '근거 문장입니다. (confidence=0.58, expectedVolatility=+/-2.0%).',
+    );
+  });
+
+  it('should remove mixed markdown and raw url citation blocks', () => {
+    const raw = '근거 문장 ([marketwatch.com](https://example.com/a)\n(https://example.com/b))';
+
+    expect(toUserFacingText(raw)).toBe('근거 문장');
+  });
+
+  it('should remove url-only bullet and numbered citation lines', () => {
+    const raw = '근거\n- https://example.com/a\n1. https://example.com/b';
+
+    expect(toUserFacingText(raw)).toBe('근거');
+  });
+
+  it('should remove markdown-link-only citation list lines', () => {
+    const raw = '근거\n- [site](https://example.com/a)\n1. [ref](https://example.com/b)';
+
+    expect(toUserFacingText(raw)).toBe('근거');
+  });
+
+  it('should remove source label lines with parenthesized url', () => {
+    const raw = '출처: (https://example.com/a)';
+
+    expect(toUserFacingText(raw)).toBe('');
+  });
+
   it('should keep plain text as-is', () => {
     const raw = '출처 없는 일반 설명입니다.';
 

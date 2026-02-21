@@ -10,13 +10,21 @@ export interface CitationRef {
 const CITATION_MARKER_PATTERNS: RegExp[] = [
   /〖[^〗]*†source〗/g,
   /\[\^\d+\]/g,
-  /\[\d+\]\((https?:\/\/[^\s)]+)\)/g,
+  /\[[^\]\n]+\]\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/g,
   /\[(?:출처|source|sources)\s*:[^\]]+\]/gi,
+];
+
+const RAW_URL_PATTERNS: RegExp[] = [
+  /\(\s*https?:\/\/[^\s)]+\s*\)/gi,
+  /https?:\/\/[^\s)]+/gi,
 ];
 
 const CITATION_LINE_PATTERNS: RegExp[] = [
   /^\s*(?:출처|sources?)\s*:\s*https?:\/\/\S+\s*$/gim,
+  /^\s*(?:출처|sources?)\s*:\s*\(\s*https?:\/\/\S+\s*\)\s*$/gim,
+  /^\s*(?:출처|sources?)\s*:\s*$/gim,
   /^\s*(?:\[\d+\]|[-*]|\d+\.)\s*https?:\/\/\S+\s*$/gim,
+  /^\s*(?:[-*]|\d+\.)\s*$/gm,
 ];
 
 function toFiniteNumber(value: unknown): number | null {
@@ -64,13 +72,24 @@ function stripCitationMarkers(raw: string): string {
     text = text.replace(pattern, '');
   }
 
+  // Remove full citation lines while URL tokens are still present.
+  for (const pattern of CITATION_LINE_PATTERNS) {
+    text = text.replace(pattern, '');
+  }
+
+  // Remove any remaining inline raw URLs.
+  for (const pattern of RAW_URL_PATTERNS) {
+    text = text.replace(pattern, '');
+  }
+
+  // Remove wrappers left after removing links, e.g. "([source](...))" -> "()".
+  text = text.replace(/\(\s*[,;:]*\s*\)/g, '');
+  text = text.replace(/\[\s*\]/g, '');
+
   // Remove plain numeric footnotes only when they look like citation markers.
   text = text.replace(/(^|[\s(,.;:!?])\[\d+\](?=(?:[\s,.;:!?)]|$))/gm, '$1');
   text = text.replace(/([가-힣])\[\d+\](?=(?:[\s,.;:!?)]|$))/g, '$1');
 
-  for (const pattern of CITATION_LINE_PATTERNS) {
-    text = text.replace(pattern, '');
-  }
   return text;
 }
 
