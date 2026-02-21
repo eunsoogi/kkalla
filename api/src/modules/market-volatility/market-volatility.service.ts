@@ -1203,12 +1203,18 @@ export class MarketVolatilityService implements OnModuleInit {
       return [];
     }
 
+    // 변동성 감시는 보유 종목 기준이므로, 미보유 추천은 실행 대상에서 제외한다.
+    const heldBalanceRecommendations = authorizedBalanceRecommendations.filter((recommendation) => recommendation.hasStock);
+    if (heldBalanceRecommendations.length === 0) {
+      return [];
+    }
+
     // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
     await this.notifyService.notify(
       user,
       this.i18n.t('notify.inference.result', {
         args: {
-          transactions: authorizedBalanceRecommendations
+          transactions: heldBalanceRecommendations
             .map((recommendation) =>
               this.i18n.t('notify.inference.transaction', {
                 args: {
@@ -1243,10 +1249,10 @@ export class MarketVolatilityService implements OnModuleInit {
     if (count === 0) {
       return [];
     }
-    const slotCount = this.resolveSlotCountForVolatility(authorizedBalanceRecommendations, count);
+    const slotCount = this.resolveSlotCountForVolatility(heldBalanceRecommendations, count);
 
     const orderableSymbols = await this.buildOrderableSymbolSet([
-      ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
+      ...heldBalanceRecommendations.map((inference) => inference.symbol),
       ...balances.info.map((item) => `${item.currency}/${item.unit_currency}`),
     ]);
     assertLockOrThrow();
@@ -1266,7 +1272,7 @@ export class MarketVolatilityService implements OnModuleInit {
     // 1. 편출 대상 종목 매도 요청 (intensity <= 0인 종목들만 전량 매도)
     const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
-      authorizedBalanceRecommendations,
+      heldBalanceRecommendations,
       slotCount,
       marketPrice,
       orderableSymbols,
@@ -1276,7 +1282,7 @@ export class MarketVolatilityService implements OnModuleInit {
     // 2. 편입 대상 종목 매수/매도 요청 (intensity > 0인 종목들의 목표 비율 조정)
     const includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
       balances,
-      authorizedBalanceRecommendations,
+      heldBalanceRecommendations,
       slotCount,
       regimeMultiplier,
       currentWeights,
@@ -1298,7 +1304,7 @@ export class MarketVolatilityService implements OnModuleInit {
     let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
     if (refreshedBalances) {
       const refreshedOrderableSymbols = await this.buildOrderableSymbolSet([
-        ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
+        ...heldBalanceRecommendations.map((inference) => inference.symbol),
         ...refreshedBalances.info.map((item) => `${item.currency}/${item.unit_currency}`),
       ]);
       assertLockOrThrow();
@@ -1321,7 +1327,7 @@ export class MarketVolatilityService implements OnModuleInit {
 
       const refreshedIncludedRequests = this.generateIncludedTradeRequests(
         refreshedBalances,
-        authorizedBalanceRecommendations,
+        heldBalanceRecommendations,
         slotCount,
         regimeMultiplier,
         refreshedCurrentWeights,

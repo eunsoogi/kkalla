@@ -549,7 +549,7 @@ describe('MarketVolatilityService', () => {
         intensity: 0.7,
         modelTargetWeight: 0.7,
         action: 'buy',
-        hasStock: false,
+        hasStock: true,
       },
     ];
 
@@ -557,6 +557,7 @@ describe('MarketVolatilityService', () => {
     upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
     historyService.fetchHistoryByUser.mockResolvedValue([]);
 
+    jest.spyOn(service as any, 'applyUserHistoryContext').mockResolvedValue(inferences);
     jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
     jest.spyOn(service as any, 'getItemCount').mockResolvedValue(1);
     jest.spyOn(service as any, 'getMarketRegimeMultiplier').mockResolvedValue(1);
@@ -612,6 +613,34 @@ describe('MarketVolatilityService', () => {
         expect.objectContaining({ symbol: 'ETH/KRW', hasStock: true }),
       ]),
     );
+  });
+
+  it('should skip notify and balance fetch when authorized recommendations are not held', async () => {
+    const notifyService = (service as any).notifyService;
+    const inferences = [
+      {
+        id: 'inference-1',
+        batchId: 'batch-1',
+        symbol: 'XRP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.4,
+        modelTargetWeight: 0.4,
+        action: 'buy',
+        hasStock: false,
+      },
+    ];
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
+
+    const result = await service.executeVolatilityTradesForUser(
+      { id: 'user-1', roles: [] } as any,
+      inferences as any,
+    );
+
+    expect(result).toEqual([]);
+    expect(notifyService.notify).not.toHaveBeenCalled();
+    expect(upbitService.getBalances).not.toHaveBeenCalled();
+    expect(historyService.saveHistoryForUser).not.toHaveBeenCalled();
   });
 
   it('should block trade-request backfill in volatility mode', () => {
