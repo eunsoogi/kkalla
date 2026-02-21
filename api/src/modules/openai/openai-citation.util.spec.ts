@@ -46,6 +46,18 @@ describe('toUserFacingText', () => {
     expect(toUserFacingText(raw)).toBe('근거');
   });
 
+  it('should remove markdown-link-only citation list lines', () => {
+    const raw = '근거\n- [site](https://example.com/a)\n1. [ref](https://example.com/b)';
+
+    expect(toUserFacingText(raw)).toBe('근거');
+  });
+
+  it('should remove source label lines with parenthesized url', () => {
+    const raw = '출처: (https://example.com/a)';
+
+    expect(toUserFacingText(raw)).toBe('');
+  });
+
   it('should keep plain text as-is', () => {
     const raw = '출처 없는 일반 설명입니다.';
 

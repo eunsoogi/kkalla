@@ -21,8 +21,10 @@ const RAW_URL_PATTERNS: RegExp[] = [
 
 const CITATION_LINE_PATTERNS: RegExp[] = [
   /^\s*(?:출처|sources?)\s*:\s*https?:\/\/\S+\s*$/gim,
+  /^\s*(?:출처|sources?)\s*:\s*\(\s*https?:\/\/\S+\s*\)\s*$/gim,
   /^\s*(?:출처|sources?)\s*:\s*$/gim,
   /^\s*(?:\[\d+\]|[-*]|\d+\.)\s*https?:\/\/\S+\s*$/gim,
+  /^\s*(?:[-*]|\d+\.)\s*$/gm,
 ];
 
 function toFiniteNumber(value: unknown): number | null {
