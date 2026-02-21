@@ -10,12 +10,15 @@ export interface CitationRef {
 const CITATION_MARKER_PATTERNS: RegExp[] = [
   /〖[^〗]*†source〗/g,
   /\[\^\d+\]/g,
-  /\[\d+\]\((https?:\/\/[^\s)]+)\)/g,
+  /\[[^\]\n]+\]\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/g,
   /\[(?:출처|source|sources)\s*:[^\]]+\]/gi,
+  /\(\s*https?:\/\/[^\s)]+\s*\)/gi,
+  /https?:\/\/[^\s)]+/gi,
 ];
 
 const CITATION_LINE_PATTERNS: RegExp[] = [
   /^\s*(?:출처|sources?)\s*:\s*https?:\/\/\S+\s*$/gim,
+  /^\s*(?:출처|sources?)\s*:\s*$/gim,
   /^\s*(?:\[\d+\]|[-*]|\d+\.)\s*https?:\/\/\S+\s*$/gim,
 ];
 
@@ -63,6 +66,10 @@ function stripCitationMarkers(raw: string): string {
   for (const pattern of CITATION_MARKER_PATTERNS) {
     text = text.replace(pattern, '');
   }
+
+  // Remove wrappers left after removing links, e.g. "([source](...))" -> "()".
+  text = text.replace(/\(\s*[,;:]*\s*\)/g, '');
+  text = text.replace(/\[\s*\]/g, '');
 
   // Remove plain numeric footnotes only when they look like citation markers.
   text = text.replace(/(^|[\s(,.;:!?])\[\d+\](?=(?:[\s,.;:!?)]|$))/gm, '$1');
