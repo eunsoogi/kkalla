@@ -1594,7 +1594,7 @@ export class RebalanceService implements OnModuleInit {
   }
 
   private isNoTradeRecommendation(inference: BalanceRecommendationData): boolean {
-    if (inference.action === 'no_trade') {
+    if (inference.action === 'no_trade' || inference.action === 'hold') {
       return true;
     }
 
@@ -2536,6 +2536,9 @@ export class RebalanceService implements OnModuleInit {
           } else if (normalizedResponse.action === 'buy') {
             action = 'buy';
             modelTargetWeight = Math.max(modelTargetWeight, this.clamp01(safeIntensity));
+          } else if (normalizedResponse.action === 'hold') {
+            action = 'no_trade';
+            modelTargetWeight = 0;
           } else if (normalizedResponse.action === 'no_trade') {
             action = 'no_trade';
             modelTargetWeight = 0;
