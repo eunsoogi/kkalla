@@ -235,7 +235,7 @@ export class RebalanceService implements OnModuleInit {
 
     let parsedMessage: TradeExecutionMessageV2;
     try {
-      parsedMessage = this.parseRebalanceMessage(message.Body);
+      parsedMessage = this.parseRebalanceMessage(message.Body, message.MessageId);
     } catch (error) {
       await this.markMalformedMessageAsNonRetryable(message, error);
       return;
@@ -374,7 +374,10 @@ export class RebalanceService implements OnModuleInit {
     }
   }
 
-  private parseRebalanceMessage(messageBody: string | undefined): TradeExecutionMessageV2 {
+  private parseRebalanceMessage(
+    messageBody: string | undefined,
+    fallbackDeliveryId?: string,
+  ): TradeExecutionMessageV2 {
     if (!messageBody) {
       throw new Error('Empty SQS message body');
     }
@@ -389,7 +392,7 @@ export class RebalanceService implements OnModuleInit {
       throw new Error('Unsupported rebalance message version');
     }
 
-    return this.parseLegacyRebalanceMessage(parsed);
+    return this.parseLegacyRebalanceMessage(parsed, fallbackDeliveryId);
   }
 
   private parseRebalanceMessageV2(parsed: Partial<TradeExecutionMessageV2>): TradeExecutionMessageV2 {
@@ -429,7 +432,10 @@ export class RebalanceService implements OnModuleInit {
     };
   }
 
-  private parseLegacyRebalanceMessage(parsed: Record<string, unknown>): TradeExecutionMessageV2 {
+  private parseLegacyRebalanceMessage(
+    parsed: Record<string, unknown>,
+    fallbackDeliveryId?: string,
+  ): TradeExecutionMessageV2 {
     const legacyModule = this.readString(parsed, 'module');
     const legacyType = this.readString(parsed, 'type');
 
@@ -452,9 +458,10 @@ export class RebalanceService implements OnModuleInit {
       throw new Error('Invalid inferences');
     }
 
+    const deliveryId = this.isNonEmptyString(fallbackDeliveryId) ? fallbackDeliveryId : null;
     const payloadHash = this.tradeExecutionLedgerService.hashPayload(parsed);
-    const runId = this.readString(parsed, 'runId') ?? `legacy:${payloadHash.slice(0, 16)}`;
-    const messageKey = this.readString(parsed, 'messageKey') ?? `${runId}:${userId}`;
+    const runId = this.readString(parsed, 'runId') ?? `legacy:${deliveryId ?? payloadHash.slice(0, 16)}`;
+    const messageKey = this.readString(parsed, 'messageKey') ?? `${runId}:${userId}:${deliveryId ?? 'legacy'}`;
     const generatedAtInput = this.readString(parsed, 'generatedAt');
     const expiresAtInput = this.readString(parsed, 'expiresAt');
     const generatedAt = this.isValidDateString(generatedAtInput) ? new Date(generatedAtInput) : new Date();

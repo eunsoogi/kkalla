@@ -1126,6 +1126,36 @@ describe('RebalanceService', () => {
     });
   });
 
+  it('should use delivery-specific fallback messageKey for legacy rebalance messages', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    jest.spyOn(service, 'executeRebalanceForUser').mockResolvedValue([]);
+    jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    const legacyBody = JSON.stringify({
+      type: 'rebalance',
+      user: { id: 'user-1' },
+      inferences: [],
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'legacy-delivery-1',
+      ReceiptHandle: 'receipt-legacy-1',
+      Body: legacyBody,
+    });
+    await (service as any).handleMessage({
+      MessageId: 'legacy-delivery-2',
+      ReceiptHandle: 'receipt-legacy-2',
+      Body: legacyBody,
+    });
+
+    const firstAcquireInput = ledgerService.acquire.mock.calls[0][0];
+    const secondAcquireInput = ledgerService.acquire.mock.calls[1][0];
+
+    expect(firstAcquireInput.messageKey).not.toBe(secondAcquireInput.messageKey);
+    expect(firstAcquireInput.messageKey).toContain('legacy-delivery-1');
+    expect(secondAcquireInput.messageKey).toContain('legacy-delivery-2');
+  });
+
   it('should not mark malformed message as non-retryable when ledger is already processing', async () => {
     const ledgerService = (service as any).tradeExecutionLedgerService;
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
