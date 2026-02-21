@@ -1020,6 +1020,33 @@ describe('RebalanceService', () => {
     expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
   });
 
+  it('should not mark failed ledger status when acquire throws before attempt is assigned', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockRejectedValueOnce(new Error('acquire failed'));
+
+    await expect(
+      (service as any).handleMessage({
+        MessageId: 'message-acquire-fail',
+        ReceiptHandle: 'receipt-acquire-fail',
+        Body: JSON.stringify({
+          version: 2,
+          module: 'rebalance',
+          runId: 'run-acquire-fail',
+          messageKey: 'run-acquire-fail:user-1',
+          userId: 'user-1',
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          inferences: [],
+        }),
+      }),
+    ).rejects.toThrow('acquire failed');
+
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+    expect(ledgerService.markNonRetryableFailed).not.toHaveBeenCalled();
+    expect(sqsSendMock).not.toHaveBeenCalled();
+  });
+
   it('should process legacy rebalance message shape during migration', async () => {
     const executeSpy = jest.spyOn(service, 'executeRebalanceForUser').mockResolvedValue([]);
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);

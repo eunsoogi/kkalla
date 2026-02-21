@@ -793,6 +793,60 @@ describe('MarketVolatilityService', () => {
     expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
   });
 
+  it('should process legacy volatility message shape during migration', async () => {
+    const executeSpy = jest.spyOn(service, 'executeVolatilityTradesForUser').mockResolvedValue([]);
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    await (service as any).handleMessage({
+      MessageId: 'legacy-message-1',
+      ReceiptHandle: 'receipt-legacy-1',
+      Body: JSON.stringify({
+        type: 'volatility',
+        user: { id: 'user-1' },
+        inferences: [],
+      }),
+    });
+
+    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), []);
+    expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+      }),
+    );
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
+      ReceiptHandle: 'receipt-legacy-1',
+    });
+  });
+
+  it('should not mark failed ledger status when acquire throws before attempt is assigned', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockRejectedValueOnce(new Error('acquire failed'));
+
+    await expect(
+      (service as any).handleMessage({
+        MessageId: 'message-acquire-fail',
+        ReceiptHandle: 'receipt-acquire-fail',
+        Body: JSON.stringify({
+          version: 2,
+          module: 'volatility',
+          runId: 'run-acquire-fail',
+          messageKey: 'run-acquire-fail:user-1',
+          userId: 'user-1',
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          inferences: [],
+        }),
+      }),
+    ).rejects.toThrow('acquire failed');
+
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+    expect(ledgerService.markNonRetryableFailed).not.toHaveBeenCalled();
+    expect(sqsSendMock).not.toHaveBeenCalled();
+  });
+
   it('should not mark malformed message as non-retryable when ledger is already processing', async () => {
     const ledgerService = (service as any).tradeExecutionLedgerService;
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);

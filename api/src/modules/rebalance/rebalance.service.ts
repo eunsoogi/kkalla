@@ -344,6 +344,10 @@ export class RebalanceService implements OnModuleInit {
         throw error;
       }
 
+      if (!this.hasAttemptCount(processingLedgerContext)) {
+        throw error;
+      }
+
       if (this.isNonRetryableExecutionError(error)) {
         await this.tradeExecutionLedgerService.markNonRetryableFailed({
           ...processingLedgerContext,
@@ -696,6 +700,18 @@ export class RebalanceService implements OnModuleInit {
     }
 
     return Number.isFinite(new Date(value).getTime());
+  }
+
+  private hasAttemptCount(
+    context: { attemptCount?: number },
+  ): context is {
+    attemptCount: number;
+  } {
+    return (
+      typeof context.attemptCount === 'number' &&
+      Number.isFinite(context.attemptCount) &&
+      context.attemptCount > 0
+    );
   }
 
   private parsePortfolioMode(value: unknown): RebalancePortfolioMode {

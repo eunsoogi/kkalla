@@ -354,6 +354,10 @@ export class MarketVolatilityService implements OnModuleInit {
         throw error;
       }
 
+      if (!this.hasAttemptCount(processingLedgerContext)) {
+        throw error;
+      }
+
       if (this.isNonRetryableExecutionError(error)) {
         await this.tradeExecutionLedgerService.markNonRetryableFailed({
           ...processingLedgerContext,
@@ -376,10 +380,20 @@ export class MarketVolatilityService implements OnModuleInit {
       throw new Error('Empty SQS message body');
     }
 
-    const parsed = JSON.parse(messageBody) as Partial<TradeExecutionMessageV2>;
-    if (parsed.version !== this.QUEUE_MESSAGE_VERSION) {
+    const parsed = JSON.parse(messageBody) as Partial<TradeExecutionMessageV2> & Record<string, unknown>;
+
+    if (parsed.version === this.QUEUE_MESSAGE_VERSION) {
+      return this.parseVolatilityMessageV2(parsed);
+    }
+
+    if (parsed.version != null && parsed.version !== 1) {
       throw new Error('Unsupported volatility message version');
     }
+
+    return this.parseLegacyVolatilityMessage(parsed);
+  }
+
+  private parseVolatilityMessageV2(parsed: Partial<TradeExecutionMessageV2>): TradeExecutionMessageV2 {
     if (parsed.module !== TradeExecutionModule.VOLATILITY) {
       throw new Error('Unsupported volatility message module');
     }
@@ -414,7 +428,63 @@ export class MarketVolatilityService implements OnModuleInit {
     };
   }
 
-  private parseQueuedInference(inference: unknown): BalanceRecommendationData {
+  private parseLegacyVolatilityMessage(parsed: Record<string, unknown>): TradeExecutionMessageV2 {
+    const legacyModule = this.readString(parsed, 'module');
+    const legacyType = this.readString(parsed, 'type');
+    if (legacyModule && legacyModule !== TradeExecutionModule.VOLATILITY) {
+      throw new Error('Unsupported volatility message module');
+    }
+    if (!legacyModule && legacyType !== TradeExecutionModule.VOLATILITY) {
+      throw new Error('Unsupported volatility message module');
+    }
+
+    const legacyUser = parsed.user;
+    const legacyUserRecord =
+      legacyUser && typeof legacyUser === 'object' ? (legacyUser as Record<string, unknown>) : null;
+    const userId = this.readString(parsed, 'userId') ?? this.readString(legacyUserRecord, 'id');
+    if (!userId) {
+      throw new Error('Invalid userId');
+    }
+    if (!Array.isArray(parsed.inferences)) {
+      throw new Error('Invalid inferences');
+    }
+
+    const payloadHash = this.tradeExecutionLedgerService.hashPayload(parsed);
+    const runId = this.readString(parsed, 'runId') ?? `legacy:${payloadHash.slice(0, 16)}`;
+    const messageKey = this.readString(parsed, 'messageKey') ?? `${runId}:${userId}`;
+    const generatedAtInput = this.readString(parsed, 'generatedAt');
+    const expiresAtInput = this.readString(parsed, 'expiresAt');
+    const generatedAt = this.isValidDateString(generatedAtInput) ? new Date(generatedAtInput) : new Date();
+    const expiresAt = this.isValidDateString(expiresAtInput)
+      ? new Date(expiresAtInput)
+      : new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+
+    return {
+      version: this.QUEUE_MESSAGE_VERSION,
+      module: TradeExecutionModule.VOLATILITY,
+      runId,
+      messageKey,
+      userId,
+      generatedAt: generatedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      inferences: parsed.inferences.map((inference, index) =>
+        this.parseQueuedInference(inference, {
+          allowMissingIdentity: true,
+          fallbackBatchId: runId,
+          fallbackIndex: index,
+        }),
+      ),
+    };
+  }
+
+  private parseQueuedInference(
+    inference: unknown,
+    options?: {
+      allowMissingIdentity?: boolean;
+      fallbackBatchId?: string;
+      fallbackIndex?: number;
+    },
+  ): BalanceRecommendationData {
     if (!inference || typeof inference !== 'object') {
       throw new Error('Invalid inference item');
     }
@@ -424,16 +494,25 @@ export class MarketVolatilityService implements OnModuleInit {
     if (!Object.values(Category).includes(category)) {
       throw new Error('Invalid inference category');
     }
-    if (!this.isNonEmptyString(candidate.id) || !this.isNonEmptyString(candidate.batchId)) {
+
+    const identityId = this.isNonEmptyString(candidate.id) ? candidate.id : null;
+    const identityBatchId = this.isNonEmptyString(candidate.batchId) ? candidate.batchId : null;
+    if ((!identityId || !identityBatchId) && !options?.allowMissingIdentity) {
       throw new Error('Invalid inference identity');
     }
     if (!this.isNonEmptyString(candidate.symbol)) {
       throw new Error('Invalid inference symbol');
     }
 
+    const fallbackBatchId = options?.fallbackBatchId ?? 'legacy';
+    const fallbackIndex =
+      typeof options?.fallbackIndex === 'number' && Number.isFinite(options.fallbackIndex)
+        ? Math.floor(options.fallbackIndex)
+        : 0;
+
     return {
-      id: candidate.id,
-      batchId: candidate.batchId,
+      id: identityId ?? `${fallbackBatchId}:${fallbackIndex}`,
+      batchId: identityBatchId ?? fallbackBatchId,
       symbol: candidate.symbol,
       category,
       intensity: Number.isFinite(candidate.intensity) ? Number(candidate.intensity) : 0,
@@ -463,9 +542,12 @@ export class MarketVolatilityService implements OnModuleInit {
 
   private async markMalformedMessageAsNonRetryable(message: Message, error: unknown): Promise<void> {
     const parsed = this.tryParseJson(message.Body);
+    const legacyUser = parsed?.user;
+    const legacyUserRecord =
+      legacyUser && typeof legacyUser === 'object' ? (legacyUser as Record<string, unknown>) : null;
     const messageKey =
       this.readString(parsed, 'messageKey') ?? message.MessageId ?? `malformed:${Date.now()}:${randomUUID()}`;
-    const userId = this.readString(parsed, 'userId') ?? 'unknown';
+    const userId = this.readString(parsed, 'userId') ?? this.readString(legacyUserRecord, 'id') ?? 'unknown';
     const generatedAt = new Date();
     const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
 
@@ -625,6 +707,18 @@ export class MarketVolatilityService implements OnModuleInit {
     }
 
     return Number.isFinite(new Date(value).getTime());
+  }
+
+  private hasAttemptCount(
+    context: { attemptCount?: number },
+  ): context is {
+    attemptCount: number;
+  } {
+    return (
+      typeof context.attemptCount === 'number' &&
+      Number.isFinite(context.attemptCount) &&
+      context.attemptCount > 0
+    );
   }
 
   /**
