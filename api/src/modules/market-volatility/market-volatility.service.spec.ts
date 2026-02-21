@@ -19,8 +19,10 @@ import { RedlockService } from '../redlock/redlock.service';
 import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleService } from '../schedule/schedule.service';
 import { SlackService } from '../slack/slack.service';
+import { TradeExecutionLedgerService } from '../trade-execution-ledger/trade-execution-ledger.service';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { UpbitService } from '../upbit/upbit.service';
+import { UserService } from '../user/user.service';
 import { MarketVolatilityService } from './market-volatility.service';
 
 describe('MarketVolatilityService', () => {
@@ -49,8 +51,9 @@ describe('MarketVolatilityService', () => {
         {
           provide: HistoryService,
           useValue: {
-            fetchHistory: jest.fn(),
-            removeHistory: jest.fn().mockResolvedValue(undefined),
+            fetchHistoryByUsers: jest.fn(),
+            fetchHistoryByUser: jest.fn().mockResolvedValue([]),
+            saveHistoryForUser: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -114,7 +117,7 @@ describe('MarketVolatilityService', () => {
         {
           provide: ScheduleService,
           useValue: {
-            getUsers: jest.fn().mockResolvedValue([]),
+            getUsers: jest.fn().mockResolvedValue([{ id: 'user-1', roles: [] }]),
           },
         },
         {
@@ -160,6 +163,25 @@ describe('MarketVolatilityService', () => {
             buildPortfolioValidationGuardrailText: jest.fn().mockResolvedValue(null),
           },
         },
+        {
+          provide: UserService,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ id: 'user-1', roles: [] }),
+          },
+        },
+        {
+          provide: TradeExecutionLedgerService,
+          useValue: {
+            hashPayload: jest.fn().mockReturnValue('payload-hash'),
+            acquire: jest.fn().mockResolvedValue({ acquired: true, status: 'processing', attemptCount: 1 }),
+            getProcessingStaleMs: jest.fn().mockReturnValue(5 * 60 * 1000),
+            heartbeatProcessing: jest.fn().mockResolvedValue(undefined),
+            markSucceeded: jest.fn().mockResolvedValue(undefined),
+            markRetryableFailed: jest.fn().mockResolvedValue(undefined),
+            markNonRetryableFailed: jest.fn().mockResolvedValue(undefined),
+            markStaleSkipped: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -173,11 +195,11 @@ describe('MarketVolatilityService', () => {
   });
 
   it('should not trigger inference when there is no history', async () => {
-    historyService.fetchHistory.mockResolvedValueOnce([]);
+    historyService.fetchHistoryByUsers.mockResolvedValueOnce([]);
 
     await service.handleTick();
 
-    expect(historyService.fetchHistory).toHaveBeenCalledTimes(1);
+    expect(historyService.fetchHistoryByUsers).toHaveBeenCalledTimes(1);
     expect(upbitService.getRecentMinuteCandles).not.toHaveBeenCalled();
   });
 
@@ -190,7 +212,7 @@ describe('MarketVolatilityService', () => {
       },
     ];
 
-    historyService.fetchHistory.mockResolvedValue(items);
+    historyService.fetchHistoryByUsers.mockResolvedValue(items);
 
     jest.spyOn(service as any, 'calculateSymbolVolatility').mockResolvedValue({
       triggered: true,
@@ -206,7 +228,7 @@ describe('MarketVolatilityService', () => {
     await (service as any).checkMarketVolatility();
 
     expect(cooldownSpy).toHaveBeenCalledWith('BTC/KRW');
-    expect(perSymbolSpy).toHaveBeenCalledWith(items);
+    expect(perSymbolSpy).toHaveBeenCalledWith(items, [{ id: 'user-1', roles: [] }]);
   });
 
   it('should use 1m candles window (5 + 5) and trigger inference only when volatility bucket increases', async () => {
@@ -223,7 +245,7 @@ describe('MarketVolatilityService', () => {
     // - 다음 5개 구간: close 중 1개 캔들에서만 104 → 변동폭 4% → 버킷 0 (미트리거, 5% step 기준)
     // - 이후 5개 구간: close 중 1개 캔들에서만 105 → 변동폭 5% → 버킷 1 (트리거, 5% step 기준)
     // Note: BTC/KRW는 1% step을 사용하므로, 이 테스트는 BTC가 아닌 다른 심볼(ETH/KRW)을 사용하여 5% step 동작을 검증
-    historyService.fetchHistory.mockResolvedValue(items);
+    historyService.fetchHistoryByUsers.mockResolvedValue(items);
 
     // 첫 번째 호출: 변동폭 0% → 4% (diff 4%) → 트리거 안 됨 (5% step 기준)
     // BTC/KRW 체크 (변동성 없음, 트리거 안 됨)
@@ -369,7 +391,7 @@ describe('MarketVolatilityService', () => {
         symbol: 'ETH/KRW',
         category: Category.COIN_MINOR,
         intensity: 0.9,
-        hasStock: false,
+        hasStock: true,
         modelTargetWeight: 0.5,
       },
     ];
@@ -512,15 +534,147 @@ describe('MarketVolatilityService', () => {
 
     await service.executeVolatilityTradesForUser(user, inferences, true);
 
-    expect(historyService.removeHistory).toHaveBeenCalledWith([
-      {
-        symbol: 'ETH/KRW',
-        category: Category.COIN_MINOR,
-      },
-    ]);
+    expect(historyService.saveHistoryForUser).toHaveBeenCalledWith(user, []);
   });
 
-  it('should persist normalized target symbol even when AI returns malformed symbol', async () => {
+  it('should not persist inferred buys when buy execution fails', async () => {
+    const balances: any = { info: [] };
+    const user: any = { id: 'user-1' };
+    const inferences = [
+      {
+        id: 'inference-1',
+        batchId: 'batch-1',
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.7,
+        modelTargetWeight: 0.7,
+        action: 'buy',
+        hasStock: true,
+      },
+    ];
+
+    upbitService.getBalances.mockResolvedValue(balances);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+    historyService.fetchHistoryByUser.mockResolvedValue([]);
+
+    jest.spyOn(service as any, 'applyUserHistoryContext').mockResolvedValue(inferences);
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
+    jest.spyOn(service as any, 'getItemCount').mockResolvedValue(1);
+    jest.spyOn(service as any, 'getMarketRegimeMultiplier').mockResolvedValue(1);
+    jest.spyOn(service as any, 'buildCurrentWeightMap').mockResolvedValue(new Map());
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([
+      {
+        symbol: 'ETH/KRW',
+        diff: 0.4,
+        balances,
+        marketPrice: 1_000_000,
+        inference: inferences[0],
+      },
+    ]);
+    jest.spyOn(service as any, 'executeTrade').mockResolvedValue(null);
+
+    await service.executeVolatilityTradesForUser(user, inferences as any, true);
+
+    expect(historyService.saveHistoryForUser).toHaveBeenCalledWith(user, []);
+  });
+
+  it('should override hasStock flag using the requesting user history', async () => {
+    const filterSpy = jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue([]);
+
+    historyService.fetchHistoryByUser.mockResolvedValueOnce([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    await service.executeVolatilityTradesForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+        },
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: false,
+        },
+      ] as any,
+    );
+
+    const passedInferences = filterSpy.mock.calls[0][1];
+    expect(passedInferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbol: 'BTC/KRW', hasStock: false }),
+        expect.objectContaining({ symbol: 'ETH/KRW', hasStock: true }),
+      ]),
+    );
+  });
+
+  it('should skip notify and balance fetch when authorized recommendations are not held', async () => {
+    const notifyService = (service as any).notifyService;
+    const inferences = [
+      {
+        id: 'inference-1',
+        batchId: 'batch-1',
+        symbol: 'XRP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.4,
+        modelTargetWeight: 0.4,
+        action: 'buy',
+        hasStock: false,
+      },
+    ];
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
+
+    const result = await service.executeVolatilityTradesForUser(
+      { id: 'user-1', roles: [] } as any,
+      inferences as any,
+    );
+
+    expect(result).toEqual([]);
+    expect(notifyService.notify).not.toHaveBeenCalled();
+    expect(upbitService.getBalances).not.toHaveBeenCalled();
+    expect(historyService.saveHistoryForUser).not.toHaveBeenCalled();
+  });
+
+  it('should block trade-request backfill in volatility mode', () => {
+    const requests = (service as any).generateIncludedTradeRequests(
+      { info: [] } as any,
+      [
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.8,
+          modelTargetWeight: 0.8,
+          action: 'buy',
+          hasStock: true,
+        },
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          intensity: 0.9,
+          modelTargetWeight: 0.9,
+          action: 'buy',
+          hasStock: false,
+        },
+      ] as any,
+      5,
+      1,
+      new Map(),
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('ETH/KRW');
+  });
+
+  it('should drop inference when AI returns symbol mismatch', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -555,9 +709,8 @@ describe('MarketVolatilityService', () => {
       },
     ]);
 
-    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'BTC/KRW' }));
-    expect(result).toHaveLength(1);
-    expect(result[0].symbol).toBe('BTC/KRW');
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(result).toHaveLength(0);
   });
 
   it('should keep raw reason for persistence and return sanitized reason', async () => {
@@ -600,6 +753,48 @@ describe('MarketVolatilityService', () => {
     expect(result[0].reason).toBe('변동성 근거');
   });
 
+  it('should preserve hold action as non-trading in volatility recommendation mapping', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        action: 'hold',
+        intensity: -0.8,
+        confidence: 0.95,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveBalanceRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-hold-1',
+        seq: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.balanceRecommendation([
+      {
+        symbol: 'KRW-BTC',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ action: 'hold' }));
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('hold');
+    expect((service as any).isNoTradeRecommendation(result[0])).toBe(true);
+  });
+
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {
     const profitService = (service as any).profitService;
     const notifyService = (service as any).notifyService;
@@ -611,9 +806,14 @@ describe('MarketVolatilityService', () => {
       MessageId: 'message-1',
       ReceiptHandle: 'receipt-1',
       Body: JSON.stringify({
-        user: { id: 'user-1' },
+        version: 2,
+        module: 'volatility',
+        runId: 'run-1',
+        messageKey: 'run-1:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
         inferences: [],
-        buyAvailable: true,
       }),
     });
 
@@ -624,5 +824,211 @@ describe('MarketVolatilityService', () => {
       QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
       ReceiptHandle: 'receipt-1',
     });
+    expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptCount: 1,
+      }),
+    );
+  });
+
+  it('should keep message in queue when ledger entry is still processing', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockResolvedValueOnce({
+      acquired: false,
+      status: 'processing',
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'message-processing',
+      ReceiptHandle: 'receipt-processing',
+      Body: JSON.stringify({
+        version: 2,
+        module: 'volatility',
+        runId: 'run-2',
+        messageKey: 'run-2:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        inferences: [],
+      }),
+    });
+
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
+      ReceiptHandle: 'receipt-processing',
+      VisibilityTimeout: 300,
+    });
+    expect(ledgerService.markSucceeded).not.toHaveBeenCalled();
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+  });
+
+  it('should defer message when user trade lock is busy', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const redlockService = (service as any).redlockService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    redlockService.withLock.mockResolvedValueOnce(undefined);
+
+    await (service as any).handleMessage({
+      MessageId: 'message-lock-busy',
+      ReceiptHandle: 'receipt-lock-busy',
+      Body: JSON.stringify({
+        version: 2,
+        module: 'volatility',
+        runId: 'run-lock-busy',
+        messageKey: 'run-lock-busy:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        inferences: [],
+      }),
+    });
+
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
+      ReceiptHandle: 'receipt-lock-busy',
+      VisibilityTimeout: 300,
+    });
+    expect(ledgerService.markSucceeded).not.toHaveBeenCalled();
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+  });
+
+  it('should process legacy volatility message shape during migration', async () => {
+    const executeSpy = jest.spyOn(service, 'executeVolatilityTradesForUser').mockResolvedValue([]);
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    await (service as any).handleMessage({
+      MessageId: 'legacy-message-1',
+      ReceiptHandle: 'receipt-legacy-1',
+      Body: JSON.stringify({
+        type: 'volatility',
+        user: { id: 'user-1' },
+        inferences: [],
+      }),
+    });
+
+    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), [], expect.any(Function));
+    expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+      }),
+    );
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
+      ReceiptHandle: 'receipt-legacy-1',
+    });
+  });
+
+  it('should use delivery-specific fallback messageKey for legacy volatility messages', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    jest.spyOn(service, 'executeVolatilityTradesForUser').mockResolvedValue([]);
+    jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    const legacyBody = JSON.stringify({
+      type: 'volatility',
+      user: { id: 'user-1' },
+      inferences: [],
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'legacy-delivery-1',
+      ReceiptHandle: 'receipt-legacy-1',
+      Body: legacyBody,
+    });
+    await (service as any).handleMessage({
+      MessageId: 'legacy-delivery-2',
+      ReceiptHandle: 'receipt-legacy-2',
+      Body: legacyBody,
+    });
+
+    const firstAcquireInput = ledgerService.acquire.mock.calls[0][0];
+    const secondAcquireInput = ledgerService.acquire.mock.calls[1][0];
+
+    expect(firstAcquireInput.messageKey).not.toBe(secondAcquireInput.messageKey);
+    expect(firstAcquireInput.messageKey).toContain('legacy-delivery-1');
+    expect(secondAcquireInput.messageKey).toContain('legacy-delivery-2');
+  });
+
+  it('should not mark failed ledger status when acquire throws before attempt is assigned', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockRejectedValueOnce(new Error('acquire failed'));
+
+    await expect(
+      (service as any).handleMessage({
+        MessageId: 'message-acquire-fail',
+        ReceiptHandle: 'receipt-acquire-fail',
+        Body: JSON.stringify({
+          version: 2,
+          module: 'volatility',
+          runId: 'run-acquire-fail',
+          messageKey: 'run-acquire-fail:user-1',
+          userId: 'user-1',
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          inferences: [],
+        }),
+      }),
+    ).rejects.toThrow('acquire failed');
+
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+    expect(ledgerService.markNonRetryableFailed).not.toHaveBeenCalled();
+    expect(sqsSendMock).not.toHaveBeenCalled();
+  });
+
+  it('should not mark malformed message as non-retryable when ledger is already processing', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockResolvedValueOnce({
+      acquired: false,
+      status: 'processing',
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'malformed-message-1',
+      ReceiptHandle: 'receipt-malformed-1',
+      Body: JSON.stringify({
+        version: 1,
+        module: 'volatility',
+        messageKey: 'run-malformed:user-1',
+        userId: 'user-1',
+      }),
+    });
+
+    expect(ledgerService.markNonRetryableFailed).not.toHaveBeenCalled();
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_VOLATILITY,
+      ReceiptHandle: 'receipt-malformed-1',
+    });
+  });
+
+  it('should not downgrade succeeded ledger status when delete message fails', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    jest.spyOn(service, 'executeVolatilityTradesForUser').mockResolvedValue([]);
+    jest.spyOn((service as any).sqs, 'send').mockRejectedValueOnce(new Error('delete failed'));
+
+    await expect(
+      (service as any).handleMessage({
+        MessageId: 'message-delete-fail',
+        ReceiptHandle: 'receipt-delete-fail',
+        Body: JSON.stringify({
+          version: 2,
+          module: 'volatility',
+          runId: 'run-3',
+          messageKey: 'run-3:user-1',
+          userId: 'user-1',
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          inferences: [],
+        }),
+      }),
+    ).rejects.toThrow('delete failed');
+
+    expect(ledgerService.markSucceeded).toHaveBeenCalledTimes(1);
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
   });
 });

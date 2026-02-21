@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import {
+  ChangeMessageVisibilityCommand,
   DeleteMessageCommand,
   Message,
   ReceiveMessageCommand,
@@ -18,6 +19,7 @@ import { ErrorService } from '@/modules/error/error.service';
 import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
 import { FeargreedService } from '@/modules/feargreed/feargreed.service';
 import { FeatureService } from '@/modules/feature/feature.service';
+import { HistoryRemoveItem } from '@/modules/history/history.interface';
 import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 import { NewsTypes } from '@/modules/news/news.enum';
 import { CompactNews } from '@/modules/news/news.interface';
@@ -40,14 +42,22 @@ import {
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
+import { RedlockService } from '../redlock/redlock.service';
 import { ReportValidationService } from '../report-validation/report-validation.service';
 import { ScheduleService } from '../schedule/schedule.service';
+import {
+  TradeExecutionLedgerStatus,
+  TradeExecutionModule,
+} from '../trade-execution-ledger/trade-execution-ledger.enum';
+import { TradeExecutionLedgerService } from '../trade-execution-ledger/trade-execution-ledger.service';
 import { Trade } from '../trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '../trade/trade.interface';
 import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { MarketFeatures } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
+import { UserService } from '../user/user.service';
 import { BalanceRecommendationDto } from './dto/balance-recommendation.dto';
 import { GetBalanceRecommendationsCursorDto } from './dto/get-balance-recommendations-cursor.dto';
 import { GetBalanceRecommendationsPaginationDto } from './dto/get-balance-recommendations-pagination.dto';
@@ -58,7 +68,13 @@ import {
   UPBIT_BALANCE_RECOMMENDATION_RESPONSE_SCHEMA,
 } from './prompts/balance-recommendation.prompt';
 import { ScheduleExpression } from './rebalance.enum';
-import { BalanceRecommendationAction, BalanceRecommendationData, RecommendationItem } from './rebalance.interface';
+import {
+  BalanceRecommendationAction,
+  BalanceRecommendationData,
+  RebalancePortfolioMode,
+  RecommendationItem,
+  TradeExecutionMessageV2,
+} from './rebalance.interface';
 
 /**
  * 리밸런싱 모듈의 핵심 서비스.
@@ -88,10 +104,16 @@ export class RebalanceService implements OnModuleInit {
   private readonly COST_GUARD_MULTIPLIER = 2;
   private readonly MIN_RECOMMEND_WEIGHT = 0.05;
   private readonly MIN_RECOMMEND_CONFIDENCE = 0.45;
+  private readonly MIN_BALANCE_CONFIDENCE = 0.35;
+  private readonly QUEUE_MESSAGE_VERSION = 2 as const;
+  private readonly MESSAGE_TTL_MS = 30 * 60 * 1000;
+  private readonly USER_TRADE_LOCK_DURATION_MS = 5 * 60 * 1000;
+  private readonly PROCESSING_HEARTBEAT_INTERVAL_MS = 60 * 1000;
   private readonly COIN_MAJOR_ITEM_COUNT = 2;
   private readonly COIN_MINOR_ITEM_COUNT = 5;
   private readonly NASDAQ_ITEM_COUNT = 0;
   private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
+  private readonly DEFAULT_REBALANCE_PORTFOLIO_MODE: RebalancePortfolioMode = 'new';
 
   // Amazon SQS
   private readonly sqs = new SQSClient({
@@ -120,6 +142,9 @@ export class RebalanceService implements OnModuleInit {
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
     private readonly reportValidationService: ReportValidationService,
+    private readonly userService: UserService,
+    private readonly redlockService: RedlockService,
+    private readonly tradeExecutionLedgerService: TradeExecutionLedgerService,
   ) {
     if (!this.queueUrl) {
       throw new Error('AWS_SQS_QUEUE_URL_REBALANCE environment variable is required');
@@ -208,51 +233,522 @@ export class RebalanceService implements OnModuleInit {
     const messageId = message.MessageId;
     this.logger.log(this.i18n.t('logging.sqs.message.start', { args: { id: messageId } }));
 
+    let parsedMessage: TradeExecutionMessageV2;
     try {
-      // 메시지 본문 파싱: 사용자 정보, 추론 결과, 매수 가능 여부 추출
-      const messageBody = JSON.parse(message.Body);
-      const { user, inferences, buyAvailable } = messageBody;
+      parsedMessage = this.parseRebalanceMessage(message.Body, message.MessageId);
+    } catch (error) {
+      await this.markMalformedMessageAsNonRetryable(message, error);
+      return;
+    }
 
-      // Rebalance 전용 큐이므로 모든 메시지를 처리
-      // 사용자별 리밸런싱 거래 실행
-      const trades = await this.executeRebalanceForUser(user, inferences, buyAvailable ?? true);
+    const ledgerContext = {
+      module: TradeExecutionModule.REBALANCE,
+      messageKey: parsedMessage.messageKey,
+      userId: parsedMessage.userId,
+    };
+    let processingLedgerContext: {
+      module: TradeExecutionModule;
+      messageKey: string;
+      userId: string;
+      attemptCount?: number;
+    } = ledgerContext;
 
-      this.logger.debug(trades);
+    let succeeded = false;
 
-      // 실행된 거래가 있을 때만 수익금 알림 전송
-      if (trades.length > 0) {
-        const profitData = await this.profitService.getProfit(user);
+    try {
+      const acquired = await this.tradeExecutionLedgerService.acquire({
+        ...ledgerContext,
+        payloadHash: this.tradeExecutionLedgerService.hashPayload(parsedMessage),
+        generatedAt: new Date(parsedMessage.generatedAt),
+        expiresAt: new Date(parsedMessage.expiresAt),
+      });
 
-        await this.notifyService.notify(
-          user,
-          this.i18n.t('notify.profit.result', {
+      if (!acquired.acquired) {
+        if (acquired.status === TradeExecutionLedgerStatus.PROCESSING) {
+          this.logger.warn(
+            this.i18n.t('logging.sqs.message.skipped_processing', {
+              args: {
+                module: TradeExecutionModule.REBALANCE,
+                messageKey: parsedMessage.messageKey,
+              },
+            }),
+          );
+          await this.deferMessageWhileProcessing(message);
+          return;
+        }
+
+        await this.deleteMessage(message);
+        return;
+      }
+
+      processingLedgerContext = {
+        ...ledgerContext,
+        attemptCount: acquired.attemptCount,
+      };
+
+      if (this.isExpired(parsedMessage.expiresAt)) {
+        await this.tradeExecutionLedgerService.markStaleSkipped({
+          ...processingLedgerContext,
+          error: 'Message expired',
+        });
+        await this.deleteMessage(message);
+        return;
+      }
+
+      const lockResult = await this.redlockService.withLock(
+        `trade:user:${parsedMessage.userId}`,
+        this.USER_TRADE_LOCK_DURATION_MS,
+        async (lockContext) =>
+          this.withProcessingHeartbeat(processingLedgerContext, async () => {
+            const assertLockOrThrow = () => {
+              lockContext?.assertLockOrThrow();
+            };
+            assertLockOrThrow();
+            const user = await this.userService.findById(parsedMessage.userId);
+            assertLockOrThrow();
+            const trades = await this.executeRebalanceForUser(
+              user,
+              parsedMessage.inferences,
+              parsedMessage.portfolioMode ?? this.DEFAULT_REBALANCE_PORTFOLIO_MODE,
+              assertLockOrThrow,
+            );
+            assertLockOrThrow();
+
+            this.logger.debug(trades);
+
+            if (trades.length > 0) {
+              assertLockOrThrow();
+              const profitData = await this.profitService.getProfit(user);
+              assertLockOrThrow();
+              await this.notifyService.notify(
+                user,
+                this.i18n.t('notify.profit.result', {
+                  args: {
+                    profit: formatNumber(profitData.profit),
+                  },
+                }),
+              );
+            }
+
+            return true;
+          }),
+      );
+
+      if (!lockResult) {
+        this.logger.warn(
+          this.i18n.t('logging.sqs.message.skipped_processing', {
             args: {
-              profit: formatNumber(profitData.profit),
+              module: TradeExecutionModule.REBALANCE,
+              messageKey: parsedMessage.messageKey,
             },
           }),
         );
+        await this.deferMessageWhileProcessing(message);
+        return;
       }
 
+      await this.tradeExecutionLedgerService.markSucceeded(processingLedgerContext);
+      succeeded = true;
       this.logger.log(this.i18n.t('logging.sqs.message.complete', { args: { id: messageId } }));
-
-      // 처리 완료된 메시지를 큐에서 삭제 (중복 처리 방지)
-      await this.sqs.send(
-        new DeleteMessageCommand({
-          QueueUrl: this.queueUrl,
-          ReceiptHandle: message.ReceiptHandle,
-        }),
-      );
-
-      this.logger.log(this.i18n.t('logging.sqs.message.delete', { args: { id: messageId } }));
+      await this.deleteMessage(message);
     } catch (error) {
-      // 오류 발생 시 로그 기록 후 예외 재발생 (메시지가 다시 큐로 돌아가도록)
       this.logger.error(
         this.i18n.t('logging.sqs.message.error', {
           args: { id: messageId, error },
         }),
       );
+
+      if (succeeded) {
+        throw error;
+      }
+
+      if (!this.hasAttemptCount(processingLedgerContext)) {
+        throw error;
+      }
+
+      if (this.isNonRetryableExecutionError(error)) {
+        await this.tradeExecutionLedgerService.markNonRetryableFailed({
+          ...processingLedgerContext,
+          error: this.stringifyError(error),
+        });
+        await this.deleteMessage(message);
+        return;
+      }
+
+      await this.tradeExecutionLedgerService.markRetryableFailed({
+        ...processingLedgerContext,
+        error: this.stringifyError(error),
+      });
       throw error;
     }
+  }
+
+  private parseRebalanceMessage(
+    messageBody: string | undefined,
+    fallbackDeliveryId?: string,
+  ): TradeExecutionMessageV2 {
+    if (!messageBody) {
+      throw new Error('Empty SQS message body');
+    }
+
+    const parsed = JSON.parse(messageBody) as Partial<TradeExecutionMessageV2> & Record<string, unknown>;
+
+    if (parsed.version === this.QUEUE_MESSAGE_VERSION) {
+      return this.parseRebalanceMessageV2(parsed);
+    }
+
+    if (parsed.version != null && parsed.version !== 1) {
+      throw new Error('Unsupported rebalance message version');
+    }
+
+    return this.parseLegacyRebalanceMessage(parsed, fallbackDeliveryId);
+  }
+
+  private parseRebalanceMessageV2(parsed: Partial<TradeExecutionMessageV2>): TradeExecutionMessageV2 {
+    if (parsed.module !== TradeExecutionModule.REBALANCE) {
+      throw new Error('Unsupported rebalance message module');
+    }
+    if (!this.isNonEmptyString(parsed.runId)) {
+      throw new Error('Invalid runId');
+    }
+    if (!this.isNonEmptyString(parsed.messageKey)) {
+      throw new Error('Invalid messageKey');
+    }
+    if (!this.isNonEmptyString(parsed.userId)) {
+      throw new Error('Invalid userId');
+    }
+    if (!this.isValidDateString(parsed.generatedAt)) {
+      throw new Error('Invalid generatedAt');
+    }
+    if (!this.isValidDateString(parsed.expiresAt)) {
+      throw new Error('Invalid expiresAt');
+    }
+    const portfolioMode = this.parsePortfolioMode(parsed.portfolioMode);
+    if (!Array.isArray(parsed.inferences)) {
+      throw new Error('Invalid inferences');
+    }
+
+    return {
+      version: this.QUEUE_MESSAGE_VERSION,
+      module: TradeExecutionModule.REBALANCE,
+      runId: parsed.runId,
+      messageKey: parsed.messageKey,
+      userId: parsed.userId,
+      generatedAt: parsed.generatedAt,
+      expiresAt: parsed.expiresAt,
+      portfolioMode,
+      inferences: parsed.inferences.map((inference) => this.parseQueuedInference(inference)),
+    };
+  }
+
+  private parseLegacyRebalanceMessage(
+    parsed: Record<string, unknown>,
+    fallbackDeliveryId?: string,
+  ): TradeExecutionMessageV2 {
+    const legacyModule = this.readString(parsed, 'module');
+    const legacyType = this.readString(parsed, 'type');
+
+    if (legacyModule && legacyModule !== TradeExecutionModule.REBALANCE) {
+      throw new Error('Unsupported rebalance message module');
+    }
+    if (!legacyModule && legacyType !== TradeExecutionModule.REBALANCE) {
+      throw new Error('Unsupported rebalance message module');
+    }
+
+    const legacyUser = parsed.user;
+    const legacyUserRecord =
+      legacyUser && typeof legacyUser === 'object' ? (legacyUser as Record<string, unknown>) : null;
+    const userId = this.readString(parsed, 'userId') ?? this.readString(legacyUserRecord, 'id');
+    if (!userId) {
+      throw new Error('Invalid userId');
+    }
+
+    if (!Array.isArray(parsed.inferences)) {
+      throw new Error('Invalid inferences');
+    }
+
+    const deliveryId = this.isNonEmptyString(fallbackDeliveryId) ? fallbackDeliveryId : null;
+    const payloadHash = this.tradeExecutionLedgerService.hashPayload(parsed);
+    const runId = this.readString(parsed, 'runId') ?? `legacy:${deliveryId ?? payloadHash.slice(0, 16)}`;
+    const messageKey = this.readString(parsed, 'messageKey') ?? `${runId}:${userId}:${deliveryId ?? 'legacy'}`;
+    const generatedAtInput = this.readString(parsed, 'generatedAt');
+    const expiresAtInput = this.readString(parsed, 'expiresAt');
+    const generatedAt = this.isValidDateString(generatedAtInput) ? new Date(generatedAtInput) : new Date();
+    const expiresAt = this.isValidDateString(expiresAtInput)
+      ? new Date(expiresAtInput)
+      : new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+    const portfolioMode = this.parsePortfolioMode(parsed.portfolioMode);
+
+    return {
+      version: this.QUEUE_MESSAGE_VERSION,
+      module: TradeExecutionModule.REBALANCE,
+      runId,
+      messageKey,
+      userId,
+      generatedAt: generatedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      portfolioMode,
+      inferences: parsed.inferences.map((inference, index) =>
+        this.parseQueuedInference(inference, {
+          allowMissingIdentity: true,
+          fallbackBatchId: runId,
+          fallbackIndex: index,
+        }),
+      ),
+    };
+  }
+
+  private parseQueuedInference(
+    inference: unknown,
+    options?: {
+      allowMissingIdentity?: boolean;
+      fallbackBatchId?: string;
+      fallbackIndex?: number;
+    },
+  ): BalanceRecommendationData {
+    if (!inference || typeof inference !== 'object') {
+      throw new Error('Invalid inference item');
+    }
+
+    const candidate = inference as Partial<BalanceRecommendationData>;
+    const category = candidate.category as Category;
+    if (!Object.values(Category).includes(category)) {
+      throw new Error('Invalid inference category');
+    }
+
+    const identityId = this.isNonEmptyString(candidate.id) ? candidate.id : null;
+    const identityBatchId = this.isNonEmptyString(candidate.batchId) ? candidate.batchId : null;
+    if ((!identityId || !identityBatchId) && !options?.allowMissingIdentity) {
+      throw new Error('Invalid inference identity');
+    }
+    if (!this.isNonEmptyString(candidate.symbol)) {
+      throw new Error('Invalid inference symbol');
+    }
+
+    const fallbackBatchId = options?.fallbackBatchId ?? 'legacy';
+    const fallbackIndex =
+      typeof options?.fallbackIndex === 'number' && Number.isFinite(options.fallbackIndex)
+        ? Math.floor(options.fallbackIndex)
+        : 0;
+
+    return {
+      id: identityId ?? `${fallbackBatchId}:${fallbackIndex}`,
+      batchId: identityBatchId ?? fallbackBatchId,
+      symbol: candidate.symbol,
+      category,
+      intensity: Number.isFinite(candidate.intensity) ? Number(candidate.intensity) : 0,
+      reason: typeof candidate.reason === 'string' ? candidate.reason : null,
+      prevIntensity: Number.isFinite(candidate.prevIntensity) ? Number(candidate.prevIntensity) : null,
+      prevModelTargetWeight: Number.isFinite(candidate.prevModelTargetWeight)
+        ? Number(candidate.prevModelTargetWeight)
+        : null,
+      buyScore: Number.isFinite(candidate.buyScore) ? Number(candidate.buyScore) : undefined,
+      sellScore: Number.isFinite(candidate.sellScore) ? Number(candidate.sellScore) : undefined,
+      modelTargetWeight: Number.isFinite(candidate.modelTargetWeight) ? Number(candidate.modelTargetWeight) : undefined,
+      action: this.normalizeAction(candidate.action),
+      hasStock: Boolean(candidate.hasStock),
+      weight: Number.isFinite(candidate.weight) ? Number(candidate.weight) : undefined,
+      confidence: Number.isFinite(candidate.confidence) ? Number(candidate.confidence) : undefined,
+      decisionConfidence: Number.isFinite(candidate.decisionConfidence)
+        ? Number(candidate.decisionConfidence)
+        : undefined,
+      expectedVolatilityPct: Number.isFinite(candidate.expectedVolatilityPct)
+        ? Number(candidate.expectedVolatilityPct)
+        : undefined,
+      riskFlags: Array.isArray(candidate.riskFlags)
+        ? candidate.riskFlags.filter((item): item is string => typeof item === 'string')
+        : [],
+    };
+  }
+
+  private async markMalformedMessageAsNonRetryable(message: Message, error: unknown): Promise<void> {
+    const parsed = this.tryParseJson(message.Body);
+    const messageKey =
+      this.readString(parsed, 'messageKey') ?? message.MessageId ?? `malformed:${Date.now()}:${randomUUID()}`;
+    const userId = this.readString(parsed, 'userId') ?? 'unknown';
+    const generatedAt = new Date();
+    const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+
+    const acquireResult = await this.tradeExecutionLedgerService.acquire({
+      module: TradeExecutionModule.REBALANCE,
+      messageKey,
+      userId,
+      payloadHash: this.tradeExecutionLedgerService.hashPayload(parsed ?? message.Body),
+      generatedAt,
+      expiresAt,
+    });
+
+    if (acquireResult.acquired) {
+      await this.tradeExecutionLedgerService.markNonRetryableFailed({
+        module: TradeExecutionModule.REBALANCE,
+        messageKey,
+        userId,
+        attemptCount: acquireResult.attemptCount,
+        error: this.stringifyError(error),
+      });
+    }
+
+    await this.deleteMessage(message);
+    this.logger.warn(
+      this.i18n.t('logging.sqs.message.dropped_malformed', {
+        args: {
+          module: TradeExecutionModule.REBALANCE,
+          error: this.stringifyError(error),
+        },
+      }),
+    );
+  }
+
+  private async deleteMessage(message: Message): Promise<void> {
+    if (!message.ReceiptHandle) {
+      return;
+    }
+
+    await this.sqs.send(
+      new DeleteMessageCommand({
+        QueueUrl: this.queueUrl,
+        ReceiptHandle: message.ReceiptHandle,
+      }),
+    );
+  }
+
+  private async deferMessageWhileProcessing(message: Message): Promise<void> {
+    if (!message.ReceiptHandle) {
+      return;
+    }
+
+    const visibilityTimeout = Math.max(1, Math.ceil(this.tradeExecutionLedgerService.getProcessingStaleMs() / 1000));
+
+    try {
+      await this.sqs.send(
+        new ChangeMessageVisibilityCommand({
+          QueueUrl: this.queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: visibilityTimeout,
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        this.i18n.t('logging.sqs.message.visibility_extend_failed', {
+          args: {
+            id: message.MessageId ?? 'unknown',
+          },
+        }),
+        error,
+      );
+    }
+  }
+
+  private async withProcessingHeartbeat<T>(
+    context: { module: TradeExecutionModule; messageKey: string; userId: string; attemptCount?: number },
+    callback: () => Promise<T>,
+  ): Promise<T> {
+    await this.tradeExecutionLedgerService.heartbeatProcessing(context);
+
+    const heartbeatTimer = setInterval(() => {
+      void this.tradeExecutionLedgerService.heartbeatProcessing(context).catch((error) => {
+        this.logger.warn(
+          this.i18n.t('logging.sqs.message.ledger_heartbeat_failed', {
+            args: {
+              module: context.module,
+              messageKey: context.messageKey,
+              userId: context.userId,
+            },
+          }),
+          error,
+        );
+      });
+    }, this.PROCESSING_HEARTBEAT_INTERVAL_MS);
+    heartbeatTimer.unref?.();
+
+    try {
+      return await callback();
+    } finally {
+      clearInterval(heartbeatTimer);
+    }
+  }
+
+  private isExpired(expiresAt: string): boolean {
+    const expiresAtTs = new Date(expiresAt).getTime();
+    return Number.isFinite(expiresAtTs) && expiresAtTs <= Date.now();
+  }
+
+  private isNonRetryableExecutionError(error: unknown): boolean {
+    return (error as { name?: string } | null)?.name === 'NotFoundException';
+  }
+
+  private tryParseJson(value: string | undefined): Record<string, unknown> | null {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private readString(payload: Record<string, unknown> | null, key: string): string | null {
+    const value = payload?.[key];
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private stringifyError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.stack || error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  private isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  private isValidDateString(value: unknown): value is string {
+    if (typeof value !== 'string') {
+      return false;
+    }
+
+    return Number.isFinite(new Date(value).getTime());
+  }
+
+  private hasAttemptCount(
+    context: { attemptCount?: number },
+  ): context is {
+    attemptCount: number;
+  } {
+    return (
+      typeof context.attemptCount === 'number' &&
+      Number.isFinite(context.attemptCount) &&
+      context.attemptCount > 0
+    );
+  }
+
+  private parsePortfolioMode(value: unknown): RebalancePortfolioMode {
+    if (value == null) {
+      return this.DEFAULT_REBALANCE_PORTFOLIO_MODE;
+    }
+
+    if (value === 'new' || value === 'existing') {
+      return value;
+    }
+
+    throw new Error('Invalid portfolioMode');
   }
 
   /**
@@ -279,22 +775,28 @@ export class RebalanceService implements OnModuleInit {
 
     // 스케줄 활성화된 사용자 목록 조회
     const users = await this.scheduleService.getUsers();
+    if (users.length < 1) {
+      this.clearClients();
+      this.logger.log(this.i18n.t('logging.schedule.end'));
+      return;
+    }
 
-    // 기존 보유 항목 재추론: 히스토리에 저장된 종목들
-    const historyItems = await this.historyService.fetchHistory();
-
-    // 새로운 종목 추가: 메이저 코인(BTC/ETH) 및 시장 추천 종목
+    // 공통 후보군: 메이저 코인(BTC/ETH) 및 시장 추천 종목
     const majorCoinItems = await this.fetchMajorCoinItems();
     const recommendItems = await this.fetchRecommendItems();
 
-    // 우선 순위를 반영해 추론 종목 목록 정리
-    // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
-    const allItems = [...historyItems, ...majorCoinItems, ...recommendItems];
-    // 중복 제거 및 블랙리스트 필터링
-    const items = await this.filterBalanceRecommendations(allItems);
+    for (const user of users) {
+      const historyItems = await this.historyService.fetchHistoryByUser(user);
 
-    // 추론 실행 → SQS 메시지 전송 → 히스토리 저장
-    await this.scheduleRebalance(users, items, true);
+      // 우선 순위를 반영해 추론 종목 목록 정리
+      // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
+      const allItems = [...historyItems, ...majorCoinItems, ...recommendItems];
+      // 중복 제거 및 블랙리스트 필터링
+      const items = await this.filterBalanceRecommendations(allItems);
+
+      // 추론 실행 → SQS 메시지 전송
+      await this.scheduleRebalance([user], items, 'new');
+    }
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
@@ -323,50 +825,53 @@ export class RebalanceService implements OnModuleInit {
 
     // 스케줄 활성화된 사용자 목록 조회
     const users = await this.scheduleService.getUsers();
+    if (users.length < 1) {
+      this.clearClients();
+      this.logger.log(this.i18n.t('logging.schedule.end'));
+      return;
+    }
 
-    // 기존 보유 항목만 재추론: 히스토리에 저장된 종목들만 대상
-    const historyItems = await this.historyService.fetchHistory();
+    for (const user of users) {
+      // 기존 보유 항목만 재추론: 사용자별 히스토리에 저장된 종목들만 대상
+      const historyItems = await this.historyService.fetchHistoryByUser(user);
 
-    // 중복 제거 및 블랙리스트 필터링
-    const items = await this.filterBalanceRecommendations(historyItems);
+      // 중복 제거 및 블랙리스트 필터링
+      const items = await this.filterBalanceRecommendations(historyItems);
 
-    // 추론 실행 → SQS 메시지 전송 → 히스토리 저장
-    await this.scheduleRebalance(users, items, true);
+      // 추론 실행 → SQS 메시지 전송
+      await this.scheduleRebalance([user], items, 'existing');
+    }
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
   /**
-   * 리밸런싱 스케줄 실행: 추론 실행 + SQS 메시지 전송 + 히스토리 저장
+   * 리밸런싱 스케줄 실행: 추론 실행 + SQS 메시지 전송
    *
    * - 주기적으로 실행되는 리밸런싱 작업의 전체 프로세스를 처리합니다.
-   * - 추론 실행 → SQS 메시지 전송 → 히스토리 저장 순서로 진행됩니다.
+   * - 추론 실행 → SQS 메시지 전송 순서로 진행됩니다.
    * - SQS를 통해 비동기로 사용자별 거래를 처리하여 동시성 문제를 방지합니다.
    *
    * @param users 스케줄 활성화된 사용자 목록
    * @param items 추론 대상 종목 목록 (기존 보유 종목 + 새로운 추천 종목)
-   * @param buyAvailable 매수 가능 여부 (false인 경우 매도만 수행)
    */
   public async scheduleRebalance(
     users: User[],
     items: RecommendationItem[],
-    buyAvailable: boolean = true,
+    portfolioMode: RebalancePortfolioMode,
   ): Promise<void> {
+    if (users.length < 1 || items.length < 1) {
+      this.clearClients();
+      return;
+    }
+
     // 1. 추론 실행: 종목별 잔고 추천 비율 계산
     const inferences = await this.balanceRecommendation(items);
 
     // 2. SQS 메시지 전송: 각 사용자별로 리밸런싱 작업을 큐에 등록
-    await this.publishRebalanceMessage(users, inferences, buyAvailable);
+    await this.publishRebalanceMessage(users, inferences, portfolioMode);
 
-    // 3. 현재 포트폴리오 저장: 편입된 종목들을 히스토리에 저장
-    await this.historyService.saveHistory(
-      this.filterIncludedBalanceRecommendations(inferences).map((inference, index) => ({
-        ...inference,
-        index,
-      })),
-    );
-
-    // 4. 클라이언트 초기화: Upbit 및 Notify 클라이언트 캐시 초기화
+    // 3. 클라이언트 초기화: Upbit 및 Notify 클라이언트 캐시 초기화
     this.clearClients();
   }
 
@@ -379,12 +884,11 @@ export class RebalanceService implements OnModuleInit {
    *
    * @param users 스케줄 활성화된 사용자 목록
    * @param inferences 추론 결과 (종목별 잔고 추천 비율)
-   * @param buyAvailable 매수 가능 여부
    */
   private async publishRebalanceMessage(
     users: User[],
     inferences: BalanceRecommendationData[],
-    buyAvailable: boolean = true,
+    portfolioMode: RebalancePortfolioMode,
   ): Promise<void> {
     this.logger.log(
       this.i18n.t('logging.sqs.producer.start', {
@@ -393,13 +897,27 @@ export class RebalanceService implements OnModuleInit {
     );
 
     try {
+      const runId = randomUUID();
+      const generatedAt = new Date();
+      const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+
       // 각 사용자별로 리밸런싱 메시지 생성
-      // 메시지 본문에 사용자 정보, 추론 결과, 매수 가능 여부 포함
+      // 메시지 본문에 사용자 정보, 추론 결과 포함
       const messages = users.map(
         (user) =>
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
-            MessageBody: JSON.stringify({ type: 'rebalance', user, inferences, buyAvailable }),
+            MessageBody: JSON.stringify({
+              version: this.QUEUE_MESSAGE_VERSION,
+              module: TradeExecutionModule.REBALANCE,
+              runId,
+              messageKey: `${runId}:${user.id}`,
+              userId: user.id,
+              generatedAt: generatedAt.toISOString(),
+              expiresAt: expiresAt.toISOString(),
+              portfolioMode,
+              inferences,
+            } satisfies TradeExecutionMessageV2),
           }),
       );
 
@@ -427,16 +945,26 @@ export class RebalanceService implements OnModuleInit {
    *
    * @param user 거래를 실행할 사용자
    * @param inferences 추론 결과 (종목별 잔고 추천 비율)
-   * @param buyAvailable 매수 가능 여부 (false인 경우 매도만 수행)
    * @returns 실행된 거래 목록
    */
   public async executeRebalanceForUser(
     user: User,
     inferences: BalanceRecommendationData[],
-    buyAvailable: boolean = true,
+    portfolioMode: RebalancePortfolioMode = this.DEFAULT_REBALANCE_PORTFOLIO_MODE,
+    lockGuard?: (() => void) | null,
   ): Promise<Trade[]> {
+    const assertLockOrThrow = typeof lockGuard === 'function' ? lockGuard : () => undefined;
+    assertLockOrThrow();
+
+    const userScopedInferences = await this.applyUserHistoryContext(user, inferences);
+    assertLockOrThrow();
+
     // 권한이 있는 추론만 필터링: 사용자가 거래할 수 있는 카테고리만 포함
-    const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(user, inferences);
+    const authorizedBalanceRecommendations = await this.filterUserAuthorizedBalanceRecommendations(
+      user,
+      userScopedInferences,
+    );
+    assertLockOrThrow();
 
     // 권한이 있는 추론이 없으면 리포트/알림 없이 종료
     if (authorizedBalanceRecommendations.length === 0) {
@@ -464,27 +992,41 @@ export class RebalanceService implements OnModuleInit {
         },
       }),
     );
+    assertLockOrThrow();
 
     // 사용자별 최대 편입 종목 수 계산 (카테고리별 제한 고려)
     const count = await this.getItemCount(user);
+    assertLockOrThrow();
+    const allowBackfill = portfolioMode === 'new';
+    const slotCount = this.resolveSlotCountForRebalance(authorizedBalanceRecommendations, count, allowBackfill);
 
     // 유저 계좌 조회: 현재 보유 종목 및 잔고 정보
     const balances = await this.upbitService.getBalances(user);
+    assertLockOrThrow();
 
     // 계좌 정보가 없으면 거래 불가
-    if (!balances) return [];
+    if (!balances) {
+      // 계좌 스냅샷이 없으면 포트폴리오 히스토리를 갱신하지 않는다.
+      this.clearClients();
+      return [];
+    }
 
     const orderableSymbols = await this.buildOrderableSymbolSet([
       ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
       ...balances.info.map((item) => `${item.currency}/${item.unit_currency}`),
     ]);
+    assertLockOrThrow();
     // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
     const marketPrice = await this.upbitService.calculateTradableMarketValue(balances, orderableSymbols);
+    assertLockOrThrow();
     // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
     const regimeMultiplier = await this.getMarketRegimeMultiplier();
+    assertLockOrThrow();
     // 현재가 기준 포트폴리오 비중 맵 (심볼 -> 현재 비중)
     const currentWeights = await this.buildCurrentWeightMap(balances, marketPrice, orderableSymbols);
+    assertLockOrThrow();
     const tradableMarketValueMap = await this.buildTradableMarketValueMap(balances, orderableSymbols);
+    assertLockOrThrow();
 
     // 편입/편출 결정 분리
     // 1. 추론에 없는 기존 보유 종목 매도 요청 (완전 매도)
@@ -500,47 +1042,89 @@ export class RebalanceService implements OnModuleInit {
     const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
-      count,
+      slotCount,
       marketPrice,
       orderableSymbols,
       tradableMarketValueMap,
+      allowBackfill,
     );
 
     // 3. 편입 대상 종목 매수/매도 요청 (목표 비율 조정)
-    let includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
+    const includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
       balances,
       authorizedBalanceRecommendations,
-      count,
+      slotCount,
       regimeMultiplier,
       currentWeights,
       marketPrice,
       orderableSymbols,
       tradableMarketValueMap,
+      allowBackfill,
     );
+    const includedSellRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    const sellRequests = [...nonBalanceRecommendationTradeRequests, ...excludedTradeRequests, ...includedSellRequests];
 
-    // 매수 불가능한 경우 매도만 수행 (diff < 0인 것만 필터링)
-    if (!buyAvailable) {
-      includedTradeRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    // 주문 정책: 매도 순차 실행
+    const sellExecutions = await this.executeTradesSequentiallyWithRequests(user, sellRequests, assertLockOrThrow);
+    assertLockOrThrow();
+    const sellTrades = sellExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
+
+    // 주문 정책: 매도 완료 후 잔고 재조회
+    const refreshedBalances = await this.upbitService.getBalances(user);
+    assertLockOrThrow();
+
+    let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
+    if (refreshedBalances) {
+      const refreshedOrderableSymbols = await this.buildOrderableSymbolSet([
+        ...authorizedBalanceRecommendations.map((inference) => inference.symbol),
+        ...refreshedBalances.info.map((item) => `${item.currency}/${item.unit_currency}`),
+      ]);
+      assertLockOrThrow();
+      const refreshedMarketPrice = await this.upbitService.calculateTradableMarketValue(
+        refreshedBalances,
+        refreshedOrderableSymbols,
+      );
+      assertLockOrThrow();
+      const refreshedCurrentWeights = await this.buildCurrentWeightMap(
+        refreshedBalances,
+        refreshedMarketPrice,
+        refreshedOrderableSymbols,
+      );
+      assertLockOrThrow();
+      const refreshedTradableMarketValueMap = await this.buildTradableMarketValueMap(
+        refreshedBalances,
+        refreshedOrderableSymbols,
+      );
+      assertLockOrThrow();
+
+      const refreshedIncludedTradeRequests = this.generateIncludedTradeRequests(
+        refreshedBalances,
+        authorizedBalanceRecommendations,
+        slotCount,
+        regimeMultiplier,
+        refreshedCurrentWeights,
+        refreshedMarketPrice,
+        refreshedOrderableSymbols,
+        refreshedTradableMarketValueMap,
+        allowBackfill,
+      );
+      const buyRequests = refreshedIncludedTradeRequests.filter((item) => item.diff > 0);
+
+      // 주문 정책: 매수 순차 실행
+      buyExecutions = await this.executeTradesSequentiallyWithRequests(user, buyRequests, assertLockOrThrow);
+      assertLockOrThrow();
     }
 
-    // 편출 처리: 병렬로 모든 매도 주문 실행
-    const nonBalanceRecommendationTrades: Trade[] = await Promise.all(
-      nonBalanceRecommendationTradeRequests.map((request) => this.executeTrade(user, request)),
-    );
-
-    const excludedTrades: Trade[] = await Promise.all(
-      excludedTradeRequests.map((request) => this.executeTrade(user, request)),
-    );
-
-    // 편입 처리: 병렬로 모든 매수/매도 주문 실행
-    const includedTrades: Trade[] = await Promise.all(
-      includedTradeRequests.map((request) => this.executeTrade(user, request)),
-    );
+    const buyTrades = buyExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
+    const existingHistory = await this.historyService.fetchHistoryByUser(user);
+    assertLockOrThrow();
+    const liquidatedItems = this.collectLiquidatedHistoryItems(sellExecutions, existingHistory);
+    const executedBuyItems = this.collectExecutedBuyHistoryItems(buyExecutions);
+    await this.saveRebalanceHistoryForUser(user, liquidatedItems, executedBuyItems, existingHistory);
+    assertLockOrThrow();
 
     // 실행된 거래 중 null 제거 (주문이 생성되지 않은 경우)
-    const allTrades: Trade[] = [...nonBalanceRecommendationTrades, ...excludedTrades, ...includedTrades].filter(
-      (item) => item !== null,
-    );
+    const allTrades: Trade[] = [...sellTrades, ...buyTrades];
 
     // 거래가 실행된 경우 사용자에게 알림 전송
     if (allTrades.length > 0) {
@@ -563,6 +1147,7 @@ export class RebalanceService implements OnModuleInit {
           },
         }),
       );
+      assertLockOrThrow();
     }
 
     // 클라이언트 캐시 초기화 (메모리 누수 방지)
@@ -665,6 +1250,19 @@ export class RebalanceService implements OnModuleInit {
     );
   }
 
+  private async applyUserHistoryContext(
+    user: User,
+    inferences: BalanceRecommendationData[],
+  ): Promise<BalanceRecommendationData[]> {
+    const historyItems = await this.historyService.fetchHistoryByUser(user);
+    const heldSymbolSet = new Set(historyItems.map((item) => `${item.symbol}:${item.category}`));
+
+    return inferences.map((inference) => ({
+      ...inference,
+      hasStock: heldSymbolSet.has(`${inference.symbol}:${inference.category}`),
+    }));
+  }
+
   /**
    * 카테고리별 편입 대상 선정
    *
@@ -707,7 +1305,7 @@ export class RebalanceService implements OnModuleInit {
     );
     // 편입 대상에 포함되지 않은 종목들을 편출 대상으로 선정
     return this.sortBalanceRecommendations(categoryBalanceRecommendations).filter(
-      (item) => !includedBalanceRecommendations.includes(item),
+      (item) => !includedBalanceRecommendations.includes(item) && !this.isNoTradeRecommendation(item),
     );
   }
 
@@ -837,9 +1435,12 @@ export class RebalanceService implements OnModuleInit {
     marketPrice: number,
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
+    allowBackfill: boolean = true,
   ): TradeRequest[] {
     // 편입 대상 종목 선정 (최대 count개)
-    const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).slice(0, count);
+    const filteredBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences)
+      .filter((inference) => allowBackfill || inference.hasStock)
+      .slice(0, count);
     const topK = Math.max(1, count);
 
     // 편입 거래 요청 생성
@@ -939,12 +1540,17 @@ export class RebalanceService implements OnModuleInit {
     marketPrice: number,
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
+    allowBackfill: boolean = true,
   ): TradeRequest[] {
+    const includedBalanceRecommendations = this.filterIncludedBalanceRecommendations(inferences).filter(
+      (inference) => allowBackfill || inference.hasStock,
+    );
+
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
     // 2. 편출 대상 종목들 (편입 대상에 포함되지 않은 종목)
     const filteredBalanceRecommendations = [
-      ...this.filterIncludedBalanceRecommendations(inferences).slice(count),
+      ...includedBalanceRecommendations.slice(count),
       ...this.filterExcludedBalanceRecommendations(inferences),
     ];
 
@@ -992,11 +1598,88 @@ export class RebalanceService implements OnModuleInit {
   }
 
   private isIncludedRecommendation(inference: BalanceRecommendationData): boolean {
+    if (this.isNoTradeRecommendation(inference)) {
+      return false;
+    }
+
     if (inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)) {
       return this.clamp01(inference.modelTargetWeight) > 0;
     }
 
     return inference.intensity > this.MINIMUM_TRADE_INTENSITY;
+  }
+
+  private isNoTradeRecommendation(inference: BalanceRecommendationData): boolean {
+    if (inference.action === 'no_trade' || inference.action === 'hold') {
+      return true;
+    }
+
+    if (inference.decisionConfidence != null && Number.isFinite(inference.decisionConfidence)) {
+      return inference.decisionConfidence < this.MIN_BALANCE_CONFIDENCE;
+    }
+
+    return false;
+  }
+
+  private normalizeAction(action: unknown): BalanceRecommendationAction {
+    if (action === 'buy' || action === 'sell' || action === 'hold' || action === 'no_trade') {
+      return action;
+    }
+
+    return 'hold';
+  }
+
+  private normalizeBalanceRecommendationResponse(
+    response: unknown,
+    expectedSymbol: string,
+  ): {
+    action: BalanceRecommendationAction;
+    intensity: number;
+    confidence: number;
+    expectedVolatilityPct: number;
+    riskFlags: string[];
+    reason: string;
+  } | null {
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+
+    const parsed = response as {
+      symbol?: unknown;
+      action?: unknown;
+      intensity?: unknown;
+      confidence?: unknown;
+      expectedVolatilityPct?: unknown;
+      riskFlags?: unknown;
+      reason?: unknown;
+    };
+    const outputSymbol = typeof parsed.symbol === 'string' ? parsed.symbol.trim() : '';
+    if (outputSymbol !== expectedSymbol) {
+      this.logger.warn(
+        this.i18n.t('logging.inference.balanceRecommendation.symbol_mismatch_fallback', {
+          args: {
+            outputSymbol,
+            expectedSymbol,
+          },
+        }),
+      );
+    }
+
+    const intensity = Number(parsed.intensity);
+    const confidence = Number(parsed.confidence);
+    const expectedVolatilityPct = Number(parsed.expectedVolatilityPct);
+    const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
+
+    return {
+      action: this.normalizeAction(parsed.action),
+      intensity: Number.isFinite(intensity) ? this.clamp(intensity, -1, 1) : 0,
+      confidence: Number.isFinite(confidence) ? this.clamp01(confidence) : 0,
+      expectedVolatilityPct: Number.isFinite(expectedVolatilityPct) ? Math.max(0, expectedVolatilityPct) : 0,
+      riskFlags: Array.isArray(parsed.riskFlags)
+        ? parsed.riskFlags.filter((item): item is string => typeof item === 'string').slice(0, 10)
+        : [],
+      reason,
+    };
   }
 
   private calculateFeatureScore(marketFeatures: MarketFeatures | null): number {
@@ -1075,6 +1758,30 @@ export class RebalanceService implements OnModuleInit {
       modelTargetWeight,
       action,
     };
+  }
+
+  private resolveNeutralModelTargetWeight(
+    previousModelTargetWeight: number | null | undefined,
+    suggestedWeight: number | null | undefined,
+    fallbackModelTargetWeight: number,
+    hasStock: boolean,
+  ): number {
+    const candidates = [previousModelTargetWeight, suggestedWeight, fallbackModelTargetWeight];
+
+    for (const candidate of candidates) {
+      if (!Number.isFinite(candidate)) {
+        continue;
+      }
+
+      const clamped = this.clamp01(Number(candidate));
+      if (hasStock && clamped <= 0) {
+        continue;
+      }
+
+      return clamped;
+    }
+
+    return hasStock ? this.MIN_RECOMMEND_WEIGHT : 0;
   }
 
   private calculateTargetWeight(inference: BalanceRecommendationData, regimeMultiplier: number): number {
@@ -1361,6 +2068,149 @@ export class RebalanceService implements OnModuleInit {
     this.notifyService.clearClients();
   }
 
+  private async executeTradesSequentiallyWithRequests(
+    user: User,
+    requests: TradeRequest[],
+    lockGuard?: (() => void) | null,
+  ): Promise<Array<{ request: TradeRequest; trade: Trade | null }>> {
+    const assertLockOrThrow = typeof lockGuard === 'function' ? lockGuard : () => undefined;
+    const executions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
+
+    for (const request of requests) {
+      assertLockOrThrow();
+      const trade = await this.executeTrade(user, request);
+      assertLockOrThrow();
+      executions.push({ request, trade });
+    }
+
+    return executions;
+  }
+
+  private collectLiquidatedHistoryItems(
+    executions: Array<{ request: TradeRequest; trade: Trade | null }>,
+    existingHistory: RecommendationItem[],
+  ): HistoryRemoveItem[] {
+    const removedMap = new Map<string, HistoryRemoveItem>();
+    const categoryBySymbol = new Map<string, Set<Category>>();
+
+    existingHistory.forEach((item) => {
+      const categories = categoryBySymbol.get(item.symbol) ?? new Set<Category>();
+      categories.add(item.category);
+      categoryBySymbol.set(item.symbol, categories);
+    });
+
+    executions.forEach(({ request, trade }) => {
+      if (!trade || trade.type !== OrderTypes.SELL) {
+        return;
+      }
+
+      // diff = -1 인 경우를 "전량 매도"로 간주해 포트폴리오 히스토리에서 제거한다.
+      if (request.diff > -1 + Number.EPSILON) {
+        return;
+      }
+
+      if (request.inference) {
+        const key = `${request.symbol}:${request.inference.category}`;
+        removedMap.set(key, {
+          symbol: request.symbol,
+          category: request.inference.category,
+        });
+        return;
+      }
+
+      const categories = categoryBySymbol.get(request.symbol);
+      if (!categories || categories.size < 1) {
+        return;
+      }
+
+      categories.forEach((category) => {
+        const key = `${request.symbol}:${category}`;
+        removedMap.set(key, {
+          symbol: request.symbol,
+          category,
+        });
+      });
+    });
+
+    return Array.from(removedMap.values());
+  }
+
+  private collectExecutedBuyHistoryItems(
+    executions: Array<{ request: TradeRequest; trade: Trade | null }>,
+  ): HistoryRemoveItem[] {
+    const boughtMap = new Map<string, HistoryRemoveItem>();
+
+    executions.forEach(({ request, trade }) => {
+      if (!trade || !request.inference || trade.type !== OrderTypes.BUY) {
+        return;
+      }
+
+      const key = `${request.symbol}:${request.inference.category}`;
+      boughtMap.set(key, {
+        symbol: request.symbol,
+        category: request.inference.category,
+      });
+    });
+
+    return Array.from(boughtMap.values());
+  }
+
+  private async saveRebalanceHistoryForUser(
+    user: User,
+    liquidatedItems: HistoryRemoveItem[],
+    executedBuyItems: HistoryRemoveItem[],
+    existingHistory?: RecommendationItem[],
+  ): Promise<void> {
+    const historyItems = existingHistory ?? (await this.historyService.fetchHistoryByUser(user));
+    const removedKeySet = new Set(liquidatedItems.map((item) => `${item.symbol}:${item.category}`));
+
+    const merged = new Map<string, RecommendationItem>();
+    historyItems.forEach((item) => {
+      const key = `${item.symbol}:${item.category}`;
+      if (!removedKeySet.has(key)) {
+        merged.set(key, item);
+      }
+    });
+
+    executedBuyItems.forEach((item) => {
+      const key = `${item.symbol}:${item.category}`;
+      if (!removedKeySet.has(key)) {
+        merged.set(key, {
+          symbol: item.symbol,
+          category: item.category,
+          hasStock: true,
+        });
+      }
+    });
+
+    await this.historyService.saveHistoryForUser(
+      user,
+      Array.from(merged.values()).map((item, index) => ({
+        symbol: item.symbol,
+        category: item.category,
+        index,
+      })),
+    );
+  }
+
+  private resolveSlotCountForRebalance(
+    inferences: BalanceRecommendationData[],
+    defaultSlotCount: number,
+    allowBackfill: boolean,
+  ): number {
+    if (allowBackfill) {
+      return defaultSlotCount;
+    }
+
+    const heldCount = new Set(
+      inferences
+        .filter((inference) => inference.hasStock)
+        .map((inference) => `${inference.symbol}:${inference.category}`),
+    ).size;
+
+    return Math.min(defaultSlotCount, heldCount);
+  }
+
   private toPercent(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(value)) {
       return '-';
@@ -1589,7 +2439,14 @@ export class RebalanceService implements OnModuleInit {
       }
       return this.clamp01(tunedConfidence);
     } catch (error) {
-      this.logger.warn('Failed to resolve tuned minimum recommendation confidence', error);
+      this.logger.warn(
+        this.i18n.t('logging.schedule.balanceRecommendation.minimum_confidence_resolve_failed', {
+          args: {
+            error: this.stringifyError(error),
+          },
+        }),
+        error,
+      );
       return this.MIN_RECOMMEND_CONFIDENCE;
     }
   }
@@ -1699,11 +2556,44 @@ export class RebalanceService implements OnModuleInit {
             return null;
           }
           const responseData = JSON.parse(outputText);
-          const intensity = Number(responseData?.intensity);
-          const safeIntensity = Number.isFinite(intensity) ? intensity : 0;
-          const reason = typeof responseData?.reason === 'string' ? responseData.reason.trim() : '';
+          const normalizedResponse = this.normalizeBalanceRecommendationResponse(responseData, targetSymbol);
+          if (!normalizedResponse) {
+            return null;
+          }
+
+          const safeIntensity = normalizedResponse.intensity;
+          const reason = normalizedResponse.reason;
           const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, targetSymbol);
           const previousMetricsBySymbol = previousMetrics.get(targetSymbol) ?? previousMetrics.get(item.symbol);
+          const decisionConfidence = normalizedResponse.confidence;
+
+          let action: BalanceRecommendationAction = modelSignals.action;
+          let modelTargetWeight = this.clamp01(modelSignals.modelTargetWeight);
+          const neutralModelTargetWeight = this.resolveNeutralModelTargetWeight(
+            previousMetricsBySymbol?.modelTargetWeight ?? null,
+            item?.weight,
+            modelTargetWeight,
+            item?.hasStock || false,
+          );
+
+          if (normalizedResponse.action === 'sell') {
+            action = 'sell';
+            modelTargetWeight = 0;
+          } else if (normalizedResponse.action === 'buy') {
+            action = 'buy';
+            modelTargetWeight = Math.max(modelTargetWeight, this.clamp01(safeIntensity));
+          } else if (normalizedResponse.action === 'hold') {
+            action = 'hold';
+            modelTargetWeight = neutralModelTargetWeight;
+          } else if (normalizedResponse.action === 'no_trade') {
+            action = 'no_trade';
+            modelTargetWeight = neutralModelTargetWeight;
+          }
+
+          if (decisionConfidence < this.MIN_BALANCE_CONFIDENCE) {
+            action = 'no_trade';
+            modelTargetWeight = neutralModelTargetWeight;
+          }
 
           // 추론 결과와 아이템 병합
           return {
@@ -1717,10 +2607,13 @@ export class RebalanceService implements OnModuleInit {
             prevModelTargetWeight: previousMetricsBySymbol?.modelTargetWeight ?? null,
             weight: item?.weight,
             confidence: item?.confidence,
+            decisionConfidence,
+            expectedVolatilityPct: normalizedResponse.expectedVolatilityPct,
+            riskFlags: normalizedResponse.riskFlags,
             buyScore: modelSignals.buyScore,
             sellScore: modelSignals.sellScore,
-            modelTargetWeight: modelSignals.modelTargetWeight,
-            action: modelSignals.action,
+            modelTargetWeight,
+            action,
           };
         });
       }),
@@ -1771,6 +2664,9 @@ export class RebalanceService implements OnModuleInit {
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
       confidence: validResults[index].confidence,
+      decisionConfidence: validResults[index].decisionConfidence,
+      expectedVolatilityPct: validResults[index].expectedVolatilityPct,
+      riskFlags: validResults[index].riskFlags,
     }));
   }
 

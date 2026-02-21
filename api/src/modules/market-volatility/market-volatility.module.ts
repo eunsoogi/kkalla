@@ -14,7 +14,9 @@ import { RedlockModule } from '../redlock/redlock.module';
 import { ReportValidationModule } from '../report-validation/report-validation.module';
 import { ScheduleModule } from '../schedule/schedule.module';
 import { SlackModule } from '../slack/slack.module';
+import { TradeExecutionLedgerModule } from '../trade-execution-ledger/trade-execution-ledger.module';
 import { UpbitModule } from '../upbit/upbit.module';
+import { UserModule } from '../user/user.module';
 import { MarketVolatilityService } from './market-volatility.service';
 
 @Module({
@@ -34,6 +36,8 @@ import { MarketVolatilityService } from './market-volatility.service';
     FeatureModule,
     ErrorModule,
     ReportValidationModule,
+    UserModule,
+    TradeExecutionLedgerModule,
   ],
   providers: [MarketVolatilityService],
 })

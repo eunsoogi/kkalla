@@ -1,6 +1,7 @@
 import { Category } from '../category/category.enum';
 import { MarketRecommendation } from '../market-research/entities/market-recommendation.entity';
 import { MARKET_RECOMMENDATION_STATE_MAX_AGE_MS } from '../market-research/market-research.interface';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { BalanceRecommendation } from './entities/balance-recommendation.entity';
 import { RebalanceService } from './rebalance.service';
 
@@ -38,8 +39,9 @@ describe('RebalanceService', () => {
         findAll: jest.fn().mockResolvedValue([]),
       } as any,
       {
-        fetchHistory: jest.fn().mockResolvedValue([]),
-        saveHistory: jest.fn().mockResolvedValue(undefined),
+        fetchHistoryByUsers: jest.fn().mockResolvedValue([]),
+        fetchHistoryByUser: jest.fn().mockResolvedValue([]),
+        saveHistoryForUser: jest.fn().mockResolvedValue(undefined),
       } as any,
       {
         getPrice: jest.fn(),
@@ -88,6 +90,24 @@ describe('RebalanceService', () => {
         buildPortfolioValidationGuardrailText: jest.fn().mockResolvedValue(null),
         getPortfolioValidationBadgeMap: jest.fn().mockResolvedValue(new Map()),
         getRecommendedMarketMinConfidenceForPortfolio: jest.fn().mockResolvedValue(0.55),
+      } as any,
+      {
+        findById: jest.fn().mockResolvedValue({ id: 'user-1', roles: [] }),
+      } as any,
+      {
+        withLock: jest.fn(async (_resourceName: string, _duration: number, callback: () => Promise<unknown>) =>
+          callback(),
+        ),
+      } as any,
+      {
+        hashPayload: jest.fn().mockReturnValue('payload-hash'),
+        acquire: jest.fn().mockResolvedValue({ acquired: true, status: 'processing', attemptCount: 1 }),
+        getProcessingStaleMs: jest.fn().mockReturnValue(5 * 60 * 1000),
+        heartbeatProcessing: jest.fn().mockResolvedValue(undefined),
+        markSucceeded: jest.fn().mockResolvedValue(undefined),
+        markRetryableFailed: jest.fn().mockResolvedValue(undefined),
+        markNonRetryableFailed: jest.fn().mockResolvedValue(undefined),
+        markStaleSkipped: jest.fn().mockResolvedValue(undefined),
       } as any,
     );
   });
@@ -218,6 +238,131 @@ describe('RebalanceService', () => {
         confidence: 0.7,
       },
     ]);
+  });
+
+  it('should schedule new rebalance per user with user-scoped history', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER2_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ]);
+
+    jest.spyOn(service as any, 'fetchMajorCoinItems').mockResolvedValue([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: false,
+      },
+    ]);
+    jest.spyOn(service as any, 'fetchRecommendItems').mockResolvedValue([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+        hasStock: false,
+      },
+    ]);
+    jest
+      .spyOn(service as any, 'filterBalanceRecommendations')
+      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationNewTask();
+
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
+
+    expect(scheduleSpy).toHaveBeenCalledTimes(2);
+    expect(scheduleSpy).toHaveBeenNthCalledWith(
+      1,
+      [users[0]],
+      expect.arrayContaining([expect.objectContaining({ symbol: 'USER1_ONLY/KRW' })]),
+      'new',
+    );
+    expect(scheduleSpy).toHaveBeenNthCalledWith(
+      2,
+      [users[1]],
+      expect.arrayContaining([expect.objectContaining({ symbol: 'USER2_ONLY/KRW' })]),
+      'new',
+    );
+    const firstSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    const secondSymbols = scheduleSpy.mock.calls[1][1].map((item: { symbol: string }) => item.symbol);
+    expect(firstSymbols).not.toContain('USER2_ONLY/KRW');
+    expect(secondSymbols).not.toContain('USER1_ONLY/KRW');
+  });
+
+  it('should schedule existing rebalance per user with user-scoped history', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER2_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ]);
+
+    jest
+      .spyOn(service as any, 'filterBalanceRecommendations')
+      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationExistingTask();
+
+    expect(historyService.fetchHistoryByUsers).not.toHaveBeenCalled();
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
+
+    expect(scheduleSpy).toHaveBeenCalledTimes(2);
+    expect(scheduleSpy).toHaveBeenNthCalledWith(
+      1,
+      [users[0]],
+      expect.arrayContaining([expect.objectContaining({ symbol: 'USER1_ONLY/KRW' })]),
+      'existing',
+    );
+    expect(scheduleSpy).toHaveBeenNthCalledWith(
+      2,
+      [users[1]],
+      expect.arrayContaining([expect.objectContaining({ symbol: 'USER2_ONLY/KRW' })]),
+      'existing',
+    );
+    const firstSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    const secondSymbols = scheduleSpy.mock.calls[1][1].map((item: { symbol: string }) => item.symbol);
+    expect(firstSymbols).not.toContain('USER2_ONLY/KRW');
+    expect(secondSymbols).not.toContain('USER1_ONLY/KRW');
   });
 
   it('should build included trade requests from target-weight delta and skip low-signal symbols', () => {
@@ -500,6 +645,7 @@ describe('RebalanceService', () => {
   it('should skip inference notify when no authorized recommendations are available', async () => {
     const notifyService = (service as any).notifyService;
     const upbitService = (service as any).upbitService;
+    const historyService = (service as any).historyService;
 
     jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue([]);
 
@@ -513,11 +659,219 @@ describe('RebalanceService', () => {
     expect(result).toEqual([]);
     expect(notifyService.notify).not.toHaveBeenCalled();
     expect(upbitService.getBalances).not.toHaveBeenCalled();
+    expect(historyService.saveHistoryForUser).not.toHaveBeenCalled();
     expect(upbitService.clearClients).toHaveBeenCalledTimes(1);
     expect(notifyService.clearClients).toHaveBeenCalledTimes(1);
   });
 
-  it('should persist normalized target symbol even when AI returns malformed symbol', async () => {
+  it('should override hasStock flag using the requesting user history', async () => {
+    const historyService = (service as any).historyService;
+    const filterSpy = jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue([]);
+
+    historyService.fetchHistoryByUser.mockResolvedValueOnce([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    await service.executeRebalanceForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+        },
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: false,
+        },
+      ] as any,
+    );
+
+    const passedInferences = filterSpy.mock.calls[0][1];
+    expect(passedInferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbol: 'BTC/KRW', hasStock: false }),
+        expect.objectContaining({ symbol: 'ETH/KRW', hasStock: true }),
+      ]),
+    );
+  });
+
+  it('should not rewrite history when balances are unavailable', async () => {
+    const upbitService = (service as any).upbitService;
+    const historyService = (service as any).historyService;
+
+    const authorizedInferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.5,
+        modelTargetWeight: 0.5,
+        action: 'buy',
+        hasStock: true,
+      },
+    ];
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(authorizedInferences);
+    upbitService.getBalances.mockResolvedValue(null);
+
+    const result = await service.executeRebalanceForUser(
+      { id: 'user-1', roles: [] } as any,
+      authorizedInferences as any,
+      'new',
+    );
+
+    expect(result).toEqual([]);
+    expect(historyService.saveHistoryForUser).not.toHaveBeenCalled();
+    expect(upbitService.clearClients).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not persist inferred buys when buy execution fails', async () => {
+    const upbitService = (service as any).upbitService;
+    const historyService = (service as any).historyService;
+    const balances: any = { info: [] };
+    const user: any = { id: 'user-1', roles: [] };
+
+    const inferences = [
+      {
+        id: 'inference-1',
+        batchId: 'batch-1',
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.7,
+        modelTargetWeight: 0.7,
+        action: 'buy',
+        hasStock: false,
+      },
+    ];
+
+    historyService.fetchHistoryByUser.mockResolvedValue([]);
+    upbitService.getBalances.mockResolvedValue(balances);
+    upbitService.calculateTradableMarketValue = jest.fn().mockResolvedValue(1_000_000);
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
+    jest.spyOn(service as any, 'getItemCount').mockResolvedValue(1);
+    jest.spyOn(service as any, 'getMarketRegimeMultiplier').mockResolvedValue(1);
+    jest.spyOn(service as any, 'buildCurrentWeightMap').mockResolvedValue(new Map());
+    jest.spyOn(service as any, 'generateNonBalanceRecommendationTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    jest
+      .spyOn(service as any, 'generateIncludedTradeRequests')
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([
+        {
+          symbol: 'ETH/KRW',
+          diff: 0.4,
+          balances,
+          marketPrice: 1_000_000,
+          inference: inferences[0],
+        },
+      ]);
+    jest.spyOn(service as any, 'executeTrade').mockResolvedValue(null);
+
+    await service.executeRebalanceForUser(user, inferences as any, 'new');
+
+    expect(historyService.saveHistoryForUser).toHaveBeenCalledWith(user, []);
+  });
+
+  it('should persist history using executed buys and full liquidations', async () => {
+    const historyService = (service as any).historyService;
+
+    historyService.fetchHistoryByUser.mockResolvedValueOnce([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    await (service as any).saveRebalanceHistoryForUser(
+      { id: 'user-1' } as any,
+      [{ symbol: 'ETH/KRW', category: Category.COIN_MAJOR }],
+      [{ symbol: 'XRP/KRW', category: Category.COIN_MINOR }],
+    );
+
+    const [, savedItems] = historyService.saveHistoryForUser.mock.calls[0];
+    expect(savedItems).toHaveLength(2);
+    expect(savedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }),
+        expect.objectContaining({ symbol: 'XRP/KRW', category: Category.COIN_MINOR }),
+      ]),
+    );
+    expect(savedItems.some((item: { symbol: string }) => item.symbol === 'ETH/KRW')).toBe(false);
+  });
+
+  it('should collect full liquidation items without inference using existing history', () => {
+    const liquidatedItems = (service as any).collectLiquidatedHistoryItems(
+      [
+        {
+          request: {
+            symbol: 'XRP/KRW',
+            diff: -1,
+            balances: { info: [] },
+          },
+          trade: {
+            type: OrderTypes.SELL,
+          },
+        },
+      ],
+      [
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ],
+    );
+
+    expect(liquidatedItems).toEqual([{ symbol: 'XRP/KRW', category: Category.COIN_MINOR }]);
+  });
+
+  it('should block trade-request backfill in existing portfolio mode', () => {
+    const requests = (service as any).generateIncludedTradeRequests(
+      { info: [] } as any,
+      [
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.8,
+          modelTargetWeight: 0.8,
+          action: 'buy',
+          hasStock: true,
+        },
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          intensity: 0.9,
+          modelTargetWeight: 0.9,
+          action: 'buy',
+          hasStock: false,
+        },
+      ] as any,
+      5,
+      1,
+      new Map(),
+      1_000_000,
+      undefined,
+      undefined,
+      false,
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('ETH/KRW');
+  });
+
+  it('should fallback to target symbol when AI returns symbol mismatch', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -597,6 +951,58 @@ describe('RebalanceService', () => {
     expect(result[0].reason).toBe('근거 문장');
   });
 
+  it('should keep hold action as non-trading and carry forward target weight', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(BalanceRecommendation, 'find').mockResolvedValue([
+      {
+        modelTargetWeight: 0.27,
+        intensity: 0,
+      } as any,
+    ]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        action: 'hold',
+        intensity: -0.8,
+        confidence: 0.95,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveBalanceRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-hold-1',
+        seq: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.balanceRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'hold',
+        modelTargetWeight: 0.27,
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('hold');
+    expect(result[0].modelTargetWeight).toBeCloseTo(0.27, 10);
+  });
+
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {
     const profitService = (service as any).profitService;
     const notifyService = (service as any).notifyService;
@@ -608,9 +1014,14 @@ describe('RebalanceService', () => {
       MessageId: 'message-1',
       ReceiptHandle: 'receipt-1',
       Body: JSON.stringify({
-        user: { id: 'user-1' },
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-1',
+        messageKey: 'run-1:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
         inferences: [],
-        buyAvailable: true,
       }),
     });
 
@@ -621,5 +1032,211 @@ describe('RebalanceService', () => {
       QueueUrl: process.env.AWS_SQS_QUEUE_URL_REBALANCE,
       ReceiptHandle: 'receipt-1',
     });
+    expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptCount: 1,
+      }),
+    );
+  });
+
+  it('should keep message in queue when ledger entry is still processing', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockResolvedValueOnce({
+      acquired: false,
+      status: 'processing',
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'message-processing',
+      ReceiptHandle: 'receipt-processing',
+      Body: JSON.stringify({
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-2',
+        messageKey: 'run-2:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        inferences: [],
+      }),
+    });
+
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_REBALANCE,
+      ReceiptHandle: 'receipt-processing',
+      VisibilityTimeout: 300,
+    });
+    expect(ledgerService.markSucceeded).not.toHaveBeenCalled();
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+  });
+
+  it('should defer message when user trade lock is busy', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const redlockService = (service as any).redlockService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    redlockService.withLock.mockResolvedValueOnce(undefined);
+
+    await (service as any).handleMessage({
+      MessageId: 'message-lock-busy',
+      ReceiptHandle: 'receipt-lock-busy',
+      Body: JSON.stringify({
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-lock-busy',
+        messageKey: 'run-lock-busy:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        inferences: [],
+      }),
+    });
+
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_REBALANCE,
+      ReceiptHandle: 'receipt-lock-busy',
+      VisibilityTimeout: 300,
+    });
+    expect(ledgerService.markSucceeded).not.toHaveBeenCalled();
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+  });
+
+  it('should not mark failed ledger status when acquire throws before attempt is assigned', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockRejectedValueOnce(new Error('acquire failed'));
+
+    await expect(
+      (service as any).handleMessage({
+        MessageId: 'message-acquire-fail',
+        ReceiptHandle: 'receipt-acquire-fail',
+        Body: JSON.stringify({
+          version: 2,
+          module: 'rebalance',
+          runId: 'run-acquire-fail',
+          messageKey: 'run-acquire-fail:user-1',
+          userId: 'user-1',
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          inferences: [],
+        }),
+      }),
+    ).rejects.toThrow('acquire failed');
+
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
+    expect(ledgerService.markNonRetryableFailed).not.toHaveBeenCalled();
+    expect(sqsSendMock).not.toHaveBeenCalled();
+  });
+
+  it('should process legacy rebalance message shape during migration', async () => {
+    const executeSpy = jest.spyOn(service, 'executeRebalanceForUser').mockResolvedValue([]);
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    await (service as any).handleMessage({
+      MessageId: 'legacy-message-1',
+      ReceiptHandle: 'receipt-legacy-1',
+      Body: JSON.stringify({
+        type: 'rebalance',
+        user: { id: 'user-1' },
+        inferences: [],
+      }),
+    });
+
+    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }), [], 'new', expect.any(Function));
+    expect((service as any).tradeExecutionLedgerService.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+      }),
+    );
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_REBALANCE,
+      ReceiptHandle: 'receipt-legacy-1',
+    });
+  });
+
+  it('should use delivery-specific fallback messageKey for legacy rebalance messages', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    jest.spyOn(service, 'executeRebalanceForUser').mockResolvedValue([]);
+    jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    const legacyBody = JSON.stringify({
+      type: 'rebalance',
+      user: { id: 'user-1' },
+      inferences: [],
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'legacy-delivery-1',
+      ReceiptHandle: 'receipt-legacy-1',
+      Body: legacyBody,
+    });
+    await (service as any).handleMessage({
+      MessageId: 'legacy-delivery-2',
+      ReceiptHandle: 'receipt-legacy-2',
+      Body: legacyBody,
+    });
+
+    const firstAcquireInput = ledgerService.acquire.mock.calls[0][0];
+    const secondAcquireInput = ledgerService.acquire.mock.calls[1][0];
+
+    expect(firstAcquireInput.messageKey).not.toBe(secondAcquireInput.messageKey);
+    expect(firstAcquireInput.messageKey).toContain('legacy-delivery-1');
+    expect(secondAcquireInput.messageKey).toContain('legacy-delivery-2');
+  });
+
+  it('should not mark malformed message as non-retryable when ledger is already processing', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+    ledgerService.acquire.mockResolvedValueOnce({
+      acquired: false,
+      status: 'processing',
+    });
+
+    await (service as any).handleMessage({
+      MessageId: 'malformed-message-1',
+      ReceiptHandle: 'receipt-malformed-1',
+      Body: JSON.stringify({
+        version: 1,
+        module: 'rebalance',
+        messageKey: 'run-malformed:user-1',
+        userId: 'user-1',
+      }),
+    });
+
+    expect(ledgerService.markNonRetryableFailed).not.toHaveBeenCalled();
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    expect((sqsSendMock.mock.calls[0][0] as any).input).toMatchObject({
+      QueueUrl: process.env.AWS_SQS_QUEUE_URL_REBALANCE,
+      ReceiptHandle: 'receipt-malformed-1',
+    });
+  });
+
+  it('should not downgrade succeeded ledger status when delete message fails', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    jest.spyOn(service, 'executeRebalanceForUser').mockResolvedValue([]);
+    jest.spyOn((service as any).sqs, 'send').mockRejectedValueOnce(new Error('delete failed'));
+
+    await expect(
+      (service as any).handleMessage({
+        MessageId: 'message-delete-fail',
+        ReceiptHandle: 'receipt-delete-fail',
+        Body: JSON.stringify({
+          version: 2,
+          module: 'rebalance',
+          runId: 'run-3',
+          messageKey: 'run-3:user-1',
+          userId: 'user-1',
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          inferences: [],
+        }),
+      }),
+    ).rejects.toThrow('delete failed');
+
+    expect(ledgerService.markSucceeded).toHaveBeenCalledTimes(1);
+    expect(ledgerService.markRetryableFailed).not.toHaveBeenCalled();
   });
 });

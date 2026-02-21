@@ -14,7 +14,9 @@ import { ProfitModule } from '../profit/profit.module';
 import { RedlockModule } from '../redlock/redlock.module';
 import { ReportValidationModule } from '../report-validation/report-validation.module';
 import { ScheduleModule } from '../schedule/schedule.module';
+import { TradeExecutionLedgerModule } from '../trade-execution-ledger/trade-execution-ledger.module';
 import { UpbitModule } from '../upbit/upbit.module';
+import { UserModule } from '../user/user.module';
 import { BalanceRecommendationSubscriber } from './entities/balance-recommendation.subscriber';
 import { RebalanceController } from './rebalance.controller';
 import { RebalanceService } from './rebalance.service';
@@ -36,6 +38,8 @@ import { RebalanceService } from './rebalance.service';
     FeatureModule,
     ErrorModule,
     ReportValidationModule,
+    UserModule,
+    TradeExecutionLedgerModule,
   ],
   controllers: [RebalanceController],
   providers: [RebalanceService, BalanceRecommendationSubscriber],

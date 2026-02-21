@@ -39,7 +39,7 @@ export class BalanceRecommendationDto {
   modelTargetWeight: number;
 
   @ApiProperty({
-    enum: ['buy', 'sell', 'hold'],
+    enum: ['buy', 'sell', 'hold', 'no_trade'],
   })
   action: BalanceRecommendationAction;
 

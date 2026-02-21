@@ -79,6 +79,8 @@
       "skip_rebalance_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
       "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}",
       "symbol_normalized": "심볼 형식을 정규화했습니다. from={from}, to={to}",
+      "symbol_mismatch_fallback": "심볼 불일치 응답을 대상 심볼로 보정합니다. output={outputSymbol}, expected={expectedSymbol}",
+      "symbol_mismatch_dropped": "심볼 불일치로 포트폴리오 추천 결과를 폐기합니다. output={outputSymbol}, expected={expectedSymbol}",
       "enqueue_validation_failed": "포트폴리오 리포트 사후 검증 큐 등록에 실패했습니다.",
       "validation_guardrail_load_failed": "포트폴리오 리포트 사후 검증 가드레일 요약 로드에 실패했습니다. symbol={symbol}",
       "validation_badges_load_failed": "포트폴리오 리포트 사후 검증 배지 로드에 실패했습니다."
@@ -104,6 +106,7 @@
     "balanceRecommendation": {
       "state_cache_read_failed": "마켓 리포트 상태 캐시 조회에 실패했습니다. 최신 추천으로 대체합니다.",
       "state_stale_fallback": "마켓 리포트 상태가 없거나 오래되어 최신 추천으로 대체합니다.",
+      "minimum_confidence_resolve_failed": "튜닝된 최소 추천 신뢰도 계산에 실패했습니다. 기본값을 사용합니다. error={error}",
       "minimum_filtered": "최소 기준으로 {count}개 종목이 제외되었습니다. symbols={symbols}",
       "blacklist_filtered": "블랙리스트로 {count}개 종목이 제외되었습니다. symbols={symbols}"
     },
@@ -169,7 +172,11 @@
       "start": "메시지 처리 시작: {id}",
       "complete": "메시지 처리 완료: {id}",
       "error": "메시지 처리 실패: {id}, 오류: {error}",
-      "delete": "메시지 삭제 완료: {id}"
+      "delete": "메시지 삭제 완료: {id}",
+      "skipped_processing": "이전 시도가 처리 중이어서 {module} 메시지를 건너뜁니다. messageKey={messageKey}",
+      "dropped_malformed": "파싱 불가한 {module} 메시지를 폐기했습니다. error={error}",
+      "visibility_extend_failed": "처리 중인 메시지의 가시성 타임아웃 연장에 실패했습니다. id={id}",
+      "ledger_heartbeat_failed": "거래 실행 ledger heartbeat 갱신에 실패했습니다. module={module}, messageKey={messageKey}, userId={userId}"
     }
   },
   "redlock": {
@@ -177,6 +184,8 @@
       "not_acquired": "{resourceName}에 대한 락 획득 실패",
       "acquired": "{resourceName}에 대한 락 획득 성공",
       "released": "{resourceName}에 대한 락 해제 완료",
+      "background_task_error": "{resourceName}에 대한 백그라운드 작업 실행 중 오류 발생",
+      "extend_error": "{resourceName}에 대한 락 연장 중 오류 발생",
       "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
     }
   },

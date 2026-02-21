@@ -1084,6 +1084,9 @@ export class ReportValidationService {
 
   private resolvePortfolioAction(item: ReportValidationItem): 'buy' | 'sell' | 'hold' {
     const action = (item.recommendationAction ?? '').toLowerCase();
+    if (action === 'no_trade') {
+      return 'hold';
+    }
     if (action === 'buy' || action === 'sell' || action === 'hold') {
       return action;
     }

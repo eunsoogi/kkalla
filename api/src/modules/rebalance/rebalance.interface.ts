@@ -27,7 +27,8 @@ export interface RecommendationItem {
   confidence?: number;
 }
 
-export type BalanceRecommendationAction = 'buy' | 'sell' | 'hold';
+export type BalanceRecommendationAction = 'buy' | 'sell' | 'hold' | 'no_trade';
+export type RebalancePortfolioMode = 'new' | 'existing';
 
 export interface BalanceRecommendationData {
   id: string;
@@ -45,4 +46,19 @@ export interface BalanceRecommendationData {
   hasStock: boolean;
   weight?: number;
   confidence?: number;
+  decisionConfidence?: number;
+  expectedVolatilityPct?: number;
+  riskFlags?: string[];
+}
+
+export interface TradeExecutionMessageV2 {
+  version: 2;
+  module: 'rebalance' | 'volatility';
+  runId: string;
+  messageKey: string;
+  userId: string;
+  generatedAt: string;
+  expiresAt: string;
+  portfolioMode?: RebalancePortfolioMode;
+  inferences: BalanceRecommendationData[];
 }
