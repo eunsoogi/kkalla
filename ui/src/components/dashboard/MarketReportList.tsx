@@ -174,6 +174,7 @@ export function MarketReportList({ items = [], isLoading = false }: MarketReport
           show={openId === item.id}
           onClose={() => setOpenId(null)}
           title={t('dashboard.columnReason')}
+          renderMarkdown
         >
           {item.reason}
         </ContentModal>

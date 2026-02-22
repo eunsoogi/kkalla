@@ -6,6 +6,8 @@ import { Icon } from '@iconify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Badge, Dropdown } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { CursorItem } from '@/interfaces/item.interface';
 import { Notify } from '@/interfaces/notify.interface';
@@ -15,6 +17,7 @@ import { ContentModal } from '@/components/dashboard/ContentModal';
 import { getNotifyCursorAction } from './actions';
 
 const MS_1H = 60 * 60 * 1000;
+const NOTIFICATION_PREVIEW_ALLOWED_ELEMENTS = ['a', 'br', 'code', 'del', 'em', 'li', 'ol', 'p', 'strong', 'ul'] as const;
 
 const NotificationContent: React.FC<{ enabled: boolean }> = ({ enabled }) => {
   const t = useTranslations();
@@ -96,6 +99,7 @@ const NotificationContent: React.FC<{ enabled: boolean }> = ({ enabled }) => {
         show={selectedItem !== null}
         onClose={() => setOpenId(null)}
         title={t('dashboard.columnMessage')}
+        renderMarkdown
       >
         {selectedItem?.message ?? ''}
       </ContentModal>
@@ -126,7 +130,43 @@ const NotificationItem: React.FC<Notify & { now: number; onOpen: () => void }> =
         )}
       </span>
       <div className='min-w-0 flex-1'>
-        <p className='line-clamp-2 break-words text-sm text-gray-800 dark:text-gray-200'>{item.message}</p>
+        <div className='line-clamp-2 break-words text-sm text-gray-800 dark:text-gray-200'>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            allowedElements={NOTIFICATION_PREVIEW_ALLOWED_ELEMENTS}
+            unwrapDisallowed
+            components={{
+              p: ({ children }) => (
+                <>
+                  {children}{' '}
+                </>
+              ),
+              ul: ({ children }) => (
+                <>
+                  {children}{' '}
+                </>
+              ),
+              ol: ({ children }) => (
+                <>
+                  {children}{' '}
+                </>
+              ),
+              li: ({ children }) => (
+                <>
+                  • {children}{' '}
+                </>
+              ),
+              a: ({ children }) => <span className='underline decoration-dotted'>{children}</span>,
+              code: ({ children }) => (
+                <code className='rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800'>
+                  {children}
+                </code>
+              ),
+            }}
+          >
+            {item.message}
+          </ReactMarkdown>
+        </div>
         <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>{formatDate(new Date(item.createdAt))}</p>
       </div>
     </button>
