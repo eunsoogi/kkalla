@@ -240,7 +240,7 @@ describe('RebalanceService', () => {
     ]);
   });
 
-  it('should schedule new rebalance once with merged user history', async () => {
+  it('should schedule new rebalance once with user-scoped history symbols', async () => {
     const scheduleService = (service as any).scheduleService;
     const historyService = (service as any).historyService;
     const users = [
@@ -249,18 +249,21 @@ describe('RebalanceService', () => {
     ];
 
     scheduleService.getUsers.mockResolvedValue(users);
-    historyService.fetchHistoryByUsers.mockResolvedValue([
-      {
-        symbol: 'USER1_ONLY/KRW',
-        category: Category.COIN_MINOR,
-        hasStock: true,
-      },
-      {
-        symbol: 'USER2_ONLY/KRW',
-        category: Category.COIN_MINOR,
-        hasStock: true,
-      },
-    ]);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER2_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ]);
 
     jest.spyOn(service as any, 'fetchMajorCoinItems').mockResolvedValue([
       {
@@ -280,15 +283,28 @@ describe('RebalanceService', () => {
 
     await service.executeBalanceRecommendationNewTask();
 
-    expect(historyService.fetchHistoryByUsers).toHaveBeenCalledTimes(1);
-    expect(historyService.fetchHistoryByUsers).toHaveBeenCalledWith(users);
-    expect(historyService.fetchHistoryByUser).not.toHaveBeenCalled();
+    expect(historyService.fetchHistoryByUsers).not.toHaveBeenCalled();
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
     const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
     expect(scheduledSymbols).toEqual(
       expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW', 'BTC/KRW', 'ETH/KRW']),
     );
-    expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'new');
+    expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'new', expect.any(Map));
+
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[1].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[0].id)?.has('USER2_ONLY/KRW')).toBe(false);
+    expect(scopeByUser.get(users[1].id)?.has('USER2_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('USER1_ONLY/KRW')).toBe(false);
+    expect(scopeByUser.get(users[0].id)?.has('BTC/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('BTC/KRW')).toBe(true);
+    expect(scopeByUser.get(users[0].id)?.has('ETH/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('ETH/KRW')).toBe(true);
   });
 
   it('should schedule existing rebalance once with merged user history', async () => {

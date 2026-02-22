@@ -778,16 +778,30 @@ export class RebalanceService implements OnModuleInit {
     const majorCoinItems = await this.fetchMajorCoinItems();
     const recommendItems = await this.fetchRecommendItems();
 
-    // 전체 사용자 history를 합산한 뒤 중복 제거하여 1회 추론 대상으로 사용
-    const historyItems = await this.historyService.fetchHistoryByUsers(users);
+    const userHistoryPairs = await Promise.all(
+      users.map(async (user) => ({
+        user,
+        items: await this.historyService.fetchHistoryByUser(user),
+      })),
+    );
+    const mergedHistoryItems = userHistoryPairs.flatMap((pair) => pair.items);
     // 우선 순위를 반영해 추론 종목 목록 정리
     // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
-    const allItems = [...historyItems, ...majorCoinItems, ...recommendItems];
+    const allItems = [...mergedHistoryItems, ...majorCoinItems, ...recommendItems];
     // 중복 제거 및 블랙리스트 필터링
     const items = await this.filterBalanceRecommendations(allItems);
 
+    // new 모드는 사용자별 history 후보를 유지하되, 공통 후보(메이저/추천)는 모든 사용자에 공유한다.
+    const commonSymbols = new Set([...majorCoinItems, ...recommendItems].map((item) => item.symbol));
+    const inferenceSymbolsByUserId = new Map<string, Set<string>>(
+      userHistoryPairs.map(({ user, items: historyItems }) => [
+        user.id,
+        new Set([...commonSymbols, ...historyItems.map((item) => item.symbol)]),
+      ]),
+    );
+
     // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
-    await this.scheduleRebalance(users, items, 'new');
+    await this.scheduleRebalance(users, items, 'new', inferenceSymbolsByUserId);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
@@ -859,6 +873,7 @@ export class RebalanceService implements OnModuleInit {
     users: User[],
     items: RecommendationItem[],
     portfolioMode: RebalancePortfolioMode,
+    inferenceSymbolsByUserId?: Map<string, Set<string>>,
   ): Promise<void> {
     if (users.length < 1 || items.length < 1) {
       this.clearClients();
@@ -869,7 +884,7 @@ export class RebalanceService implements OnModuleInit {
     const inferences = await this.balanceRecommendation(items);
 
     // 2. SQS 메시지 전송: 각 사용자별로 리밸런싱 작업을 큐에 등록
-    await this.publishRebalanceMessage(users, inferences, portfolioMode);
+    await this.publishRebalanceMessage(users, inferences, portfolioMode, inferenceSymbolsByUserId);
 
     // 3. 클라이언트 초기화: Upbit 및 Notify 클라이언트 캐시 초기화
     this.clearClients();
@@ -889,22 +904,33 @@ export class RebalanceService implements OnModuleInit {
     users: User[],
     inferences: BalanceRecommendationData[],
     portfolioMode: RebalancePortfolioMode,
+    inferenceSymbolsByUserId?: Map<string, Set<string>>,
   ): Promise<void> {
-    this.logger.log(
-      this.i18n.t('logging.sqs.producer.start', {
-        args: { count: users.length },
-      }),
-    );
-
     try {
       const runId = randomUUID();
       const generatedAt = new Date();
       const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+      const targets = users
+        .map((user) => ({
+          user,
+          inferences: this.scopeInferencesForUser(user, inferences, inferenceSymbolsByUserId),
+        }))
+        .filter((target) => target.inferences.length > 0);
+      this.logger.log(
+        this.i18n.t('logging.sqs.producer.start', {
+          args: { count: targets.length },
+        }),
+      );
+
+      if (targets.length < 1) {
+        this.logger.log(this.i18n.t('logging.sqs.producer.complete'));
+        return;
+      }
 
       // 각 사용자별로 리밸런싱 메시지 생성
       // 메시지 본문에 사용자 정보, 추론 결과 포함
-      const messages = users.map(
-        (user) =>
+      const messages = targets.map(
+        ({ user, inferences: scopedInferences }) =>
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
             MessageBody: JSON.stringify({
@@ -916,7 +942,7 @@ export class RebalanceService implements OnModuleInit {
               generatedAt: generatedAt.toISOString(),
               expiresAt: expiresAt.toISOString(),
               portfolioMode,
-              inferences,
+              inferences: scopedInferences,
             } satisfies TradeExecutionMessageV2),
           }),
       );
@@ -930,6 +956,23 @@ export class RebalanceService implements OnModuleInit {
       this.logger.error(this.i18n.t('logging.sqs.producer.error', { args: { error } }));
       throw error;
     }
+  }
+
+  private scopeInferencesForUser(
+    user: User,
+    inferences: BalanceRecommendationData[],
+    inferenceSymbolsByUserId?: Map<string, Set<string>>,
+  ): BalanceRecommendationData[] {
+    if (!inferenceSymbolsByUserId) {
+      return inferences;
+    }
+
+    const allowedSymbols = inferenceSymbolsByUserId.get(user.id);
+    if (!allowedSymbols || allowedSymbols.size < 1) {
+      return [];
+    }
+
+    return inferences.filter((inference) => allowedSymbols.has(inference.symbol));
   }
 
   /**
