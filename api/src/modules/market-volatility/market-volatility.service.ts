@@ -1228,11 +1228,11 @@ export class MarketVolatilityService implements OnModuleInit {
     // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
     await this.notifyService.notify(
       user,
-      this.i18n.t('notify.inference.result', {
+      this.i18n.t('notify.balanceRecommendation.result', {
         args: {
           transactions: heldBalanceRecommendations
             .map((recommendation) =>
-              this.i18n.t('notify.inference.transaction', {
+              this.i18n.t('notify.balanceRecommendation.transaction', {
                 args: {
                   symbol: recommendation.symbol,
                   prevModelTargetWeight: this.toPercent(recommendation.prevModelTargetWeight),

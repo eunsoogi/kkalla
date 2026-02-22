@@ -8,8 +8,8 @@
   "balance": {
     "fail": "계좌 조회에 실패했습니다."
   },
-  "inference": {
-    "transaction": "> {symbol} ({prevModelTargetWeight} -> {modelTargetWeight})\n> 근거: {reason}",
+  "balanceRecommendation": {
+    "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight})\n> 근거: {reason}",
     "result": "포트폴리오 리포트가 발행되었습니다.\n\n{transactions}"
   },
   "order": {
@@ -29,7 +29,7 @@
     "partially_failed": "*[시스템 알림]* 리포트 사후 검증 일부 실패\n> run={runId}\n> reportType={reportType}\n> batch={sourceBatchId}\n> horizon={horizonHours}\n> failed={failedCount}"
   },
   "marketRecommendation": {
-    "transaction": "*{symbol}*\n> 이유: {reason}",
+    "transaction": "*{symbol}*\n> 근거: {reason}",
     "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}"
   },
   "volatility": {
