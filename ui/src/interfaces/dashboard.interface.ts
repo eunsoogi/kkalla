@@ -26,11 +26,3 @@ export interface HoldingWithDailyChange {
   dailyChangePct?: number;
   dailyChangeAbs?: number;
 }
-
-/** 알림 로그 한 건 */
-export interface NotifyLogItem {
-  id: string;
-  message: string;
-  createdAt: string;
-  updatedAt: string;
-}

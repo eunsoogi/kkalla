@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react';
@@ -11,6 +10,7 @@ import { useTranslations } from 'next-intl';
 import { CursorItem } from '@/interfaces/item.interface';
 import { Notify } from '@/interfaces/notify.interface';
 import { formatDate } from '@/utils/date';
+import { ContentModal } from '@/components/dashboard/ContentModal';
 
 import { getNotifyCursorAction } from './actions';
 
@@ -19,6 +19,7 @@ const MS_1H = 60 * 60 * 1000;
 const NotificationContent: React.FC = () => {
   const t = useTranslations();
   const [now] = React.useState(() => Date.now());
+  const [openId, setOpenId] = React.useState<string | null>(null);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } = useInfiniteQuery<CursorItem<Notify>>({
     queryKey: ['notify', 'cursor'],
@@ -38,6 +39,7 @@ const NotificationContent: React.FC = () => {
   );
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const selectedItem = openId ? items.find((item) => item.id === openId) : null;
   const isEmpty = items.length === 0 && !data?.pages.some((p) => p.items.length > 0);
 
   if (isPending) {
@@ -71,7 +73,7 @@ const NotificationContent: React.FC = () => {
           data?.pages.map((page, i) => (
             <Fragment key={i}>
               {page.items.map((item) => (
-                <NotificationItem key={item.id} now={now} {...item} />
+                <NotificationItem key={item.id} now={now} onOpen={() => setOpenId(item.id)} {...item} />
               ))}
             </Fragment>
           ))
@@ -89,18 +91,26 @@ const NotificationContent: React.FC = () => {
           </button>
         </div>
       )}
+      <ContentModal
+        show={selectedItem !== null}
+        onClose={() => setOpenId(null)}
+        title={t('dashboard.columnMessage')}
+      >
+        {selectedItem?.message ?? ''}
+      </ContentModal>
     </div>
   );
 };
 
-const NotificationItem: React.FC<Notify & { now: number }> = ({ now, ...item }) => {
+const NotificationItem: React.FC<Notify & { now: number; onOpen: () => void }> = ({ now, onOpen, ...item }) => {
   const createdAt = new Date(item.createdAt).getTime();
   const isNew = now - createdAt <= MS_1H;
 
   return (
-    <Link
-      href='#'
-      className='flex gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors'
+    <button
+      type='button'
+      onClick={onOpen}
+      className='cursor-pointer flex gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors'
     >
       <span className='flex shrink-0 items-start pt-0.5 w-8 justify-center'>
         {isNew ? (
@@ -118,7 +128,7 @@ const NotificationItem: React.FC<Notify & { now: number }> = ({ now, ...item }) 
         <p className='text-sm text-gray-800 dark:text-gray-200 line-clamp-2 wrap-break-word'>{item.message}</p>
         <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>{formatDate(new Date(item.createdAt))}</p>
       </div>
-    </Link>
+    </button>
   );
 };
 
