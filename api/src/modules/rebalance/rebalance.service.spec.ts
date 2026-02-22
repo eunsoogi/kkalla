@@ -292,6 +292,14 @@ describe('RebalanceService', () => {
     expect(scheduledSymbols).toEqual(
       expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW', 'BTC/KRW', 'ETH/KRW']),
     );
+    const user1Item = scheduleSpy.mock.calls[0][1].find(
+      (item: { symbol: string; hasStock: boolean }) => item.symbol === 'USER1_ONLY/KRW',
+    );
+    const user2Item = scheduleSpy.mock.calls[0][1].find(
+      (item: { symbol: string; hasStock: boolean }) => item.symbol === 'USER2_ONLY/KRW',
+    );
+    expect(user1Item?.hasStock).toBe(false);
+    expect(user2Item?.hasStock).toBe(false);
     expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'new', expect.any(Map));
 
     const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;

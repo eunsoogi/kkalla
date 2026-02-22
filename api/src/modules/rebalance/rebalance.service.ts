@@ -784,7 +784,14 @@ export class RebalanceService implements OnModuleInit {
         items: await this.historyService.fetchHistoryByUser(user),
       })),
     );
-    const mergedHistoryItems = userHistoryPairs.flatMap((pair) => pair.items);
+    const mergedHistoryItems = userHistoryPairs.flatMap((pair) =>
+      pair.items.map((item) => ({
+        ...item,
+        // 공통 추론 입력에서는 사용자별 보유 여부가 섞이지 않도록 중립값으로 정규화한다.
+        // 실제 사용자별 보유 컨텍스트는 executeRebalanceForUser -> applyUserHistoryContext에서 다시 적용된다.
+        hasStock: false,
+      })),
+    );
     // 우선 순위를 반영해 추론 종목 목록 정리
     // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
     const allItems = [...mergedHistoryItems, ...majorCoinItems, ...recommendItems];
