@@ -17,7 +17,6 @@ const Page: React.FC = () => {
     queryKey: ['dashboard-summary'],
     queryFn: getDashboardSummary,
     staleTime: 30_000,
-    refetchOnMount: false,
   });
 
   const marketReports = data?.marketReports ?? [];
