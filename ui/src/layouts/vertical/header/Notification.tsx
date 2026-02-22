@@ -110,7 +110,7 @@ const NotificationItem: React.FC<Notify & { now: number; onOpen: () => void }> =
     <button
       type='button'
       onClick={onOpen}
-      className='cursor-pointer flex gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors'
+      className='cursor-pointer flex w-full min-w-0 items-start gap-3 whitespace-normal px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors'
     >
       <span className='flex shrink-0 items-start pt-0.5 w-8 justify-center'>
         {isNew ? (
@@ -125,7 +125,7 @@ const NotificationItem: React.FC<Notify & { now: number; onOpen: () => void }> =
         )}
       </span>
       <div className='min-w-0 flex-1'>
-        <p className='text-sm text-gray-800 dark:text-gray-200 line-clamp-2 wrap-break-word'>{item.message}</p>
+        <p className='line-clamp-2 break-words text-sm text-gray-800 dark:text-gray-200'>{item.message}</p>
         <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>{formatDate(new Date(item.createdAt))}</p>
       </div>
     </button>
