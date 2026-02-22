@@ -2,7 +2,6 @@
 
 import React from 'react';
 
-import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
@@ -10,9 +9,8 @@ import SimpleBar from 'simplebar-react';
 import { FeargreedHistory } from '@/interfaces/feargreed.interface';
 
 import { FeargreedTableItem } from './FeargreedTableItem';
-import { getFeargreedHistoryAction } from './action';
 
-const FeargreedTableSkeletonBlock = () => (
+export const FeargreedTableSkeletonBlock = () => (
   <div className='min-h-[120px] animate-pulse px-4 py-6 space-y-3' role='status' aria-label='loading'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2' />
@@ -20,19 +18,19 @@ const FeargreedTableSkeletonBlock = () => (
   </div>
 );
 
-export const FeargreedTable = () => {
-  const t = useTranslations();
-  const { data, isPending } = useQuery<FeargreedHistory | null>({
-    queryKey: ['feargreeds-history'],
-    queryFn: () => getFeargreedHistoryAction(7),
-    refetchOnMount: 'always',
-  });
+interface FeargreedTableProps {
+  history?: FeargreedHistory | null;
+  isLoading?: boolean;
+}
 
-  if (isPending) {
+export const FeargreedTable = ({ history = null, isLoading = false }: FeargreedTableProps) => {
+  const t = useTranslations();
+
+  if (isLoading) {
     return <FeargreedTableSkeletonBlock />;
   }
 
-  if (!data?.data?.length) {
+  if (!history?.data?.length) {
     return null;
   }
 
@@ -50,7 +48,7 @@ export const FeargreedTable = () => {
             </TableRow>
           </TableHead>
           <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
-            {data.data.map((item, index) => (
+            {history.data.map((item, index) => (
               <FeargreedTableItem key={`${item.timestamp}-${index}`} {...item} />
             ))}
           </TableBody>

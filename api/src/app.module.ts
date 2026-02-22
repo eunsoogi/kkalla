@@ -5,6 +5,7 @@ import { TypeOrmModule } from './databases/typeorm.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlacklistModule } from './modules/blacklist/blacklist.module';
 import { CategoryModule } from './modules/category/category.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ErrorModule } from './modules/error/error.module';
 import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { FeatureModule } from './modules/feature/feature.module';
@@ -49,6 +50,7 @@ import { UserModule } from './modules/user/user.module';
     AuthModule,
     BlacklistModule,
     CategoryModule,
+    DashboardModule,
     ErrorModule,
     FeargreedModule,
     FeatureModule,

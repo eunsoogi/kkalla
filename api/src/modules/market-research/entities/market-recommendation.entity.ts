@@ -69,6 +69,12 @@ export class MarketRecommendation extends BaseEntity {
   })
   batchId: string;
 
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  recommendationPrice: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

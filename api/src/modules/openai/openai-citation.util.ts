@@ -14,10 +14,7 @@ const CITATION_MARKER_PATTERNS: RegExp[] = [
   /\[(?:출처|source|sources)\s*:[^\]]+\]/gi,
 ];
 
-const RAW_URL_PATTERNS: RegExp[] = [
-  /\(\s*https?:\/\/[^\s)]+\s*\)/gi,
-  /https?:\/\/[^\s)]+/gi,
-];
+const RAW_URL_PATTERNS: RegExp[] = [/\(\s*https?:\/\/[^\s)]+\s*\)/gi, /https?:\/\/[^\s)]+/gi];
 
 const CITATION_LINE_PATTERNS: RegExp[] = [
   /^\s*(?:출처|sources?)\s*:\s*https?:\/\/\S+\s*$/gim,

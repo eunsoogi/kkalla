@@ -320,11 +320,7 @@ export class MarketVolatilityService implements OnModuleInit {
             assertLockOrThrow();
             const user = await this.userService.findById(parsedMessage.userId);
             assertLockOrThrow();
-            const trades = await this.executeVolatilityTradesForUser(
-              user,
-              parsedMessage.inferences,
-              assertLockOrThrow,
-            );
+            const trades = await this.executeVolatilityTradesForUser(user, parsedMessage.inferences, assertLockOrThrow);
             assertLockOrThrow();
 
             this.logger.debug(trades);
@@ -737,15 +733,11 @@ export class MarketVolatilityService implements OnModuleInit {
     return Number.isFinite(new Date(value).getTime());
   }
 
-  private hasAttemptCount(
-    context: { attemptCount?: number },
-  ): context is {
+  private hasAttemptCount(context: { attemptCount?: number }): context is {
     attemptCount: number;
   } {
     return (
-      typeof context.attemptCount === 'number' &&
-      Number.isFinite(context.attemptCount) &&
-      context.attemptCount > 0
+      typeof context.attemptCount === 'number' && Number.isFinite(context.attemptCount) && context.attemptCount > 0
     );
   }
 
@@ -1220,7 +1212,9 @@ export class MarketVolatilityService implements OnModuleInit {
     }
 
     // 변동성 감시는 보유 종목 기준이므로, 미보유 추천은 실행 대상에서 제외한다.
-    const heldBalanceRecommendations = authorizedBalanceRecommendations.filter((recommendation) => recommendation.hasStock);
+    const heldBalanceRecommendations = authorizedBalanceRecommendations.filter(
+      (recommendation) => recommendation.hasStock,
+    );
     if (heldBalanceRecommendations.length === 0) {
       return [];
     }

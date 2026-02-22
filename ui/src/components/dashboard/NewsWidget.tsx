@@ -4,7 +4,6 @@ import React from 'react';
 
 import { Icon } from '@iconify/react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
@@ -15,7 +14,6 @@ import { formatDate } from '@/utils/date';
 import { NEWS_STYLES } from '@/components/news/style';
 
 import { ContentModal } from './ContentModal';
-import { getDashboardNewsAction } from './action';
 
 const MS_1H = 60 * 60 * 1000;
 
@@ -27,18 +25,18 @@ export const NewsWidgetSkeleton = () => (
   </div>
 );
 
-export function NewsWidget() {
+interface NewsWidgetProps {
+  items?: News[];
+  isLoading?: boolean;
+}
+
+export function NewsWidget({ items = [], isLoading = false }: NewsWidgetProps) {
   const t = useTranslations();
   const router = useRouter();
   const [now] = React.useState(() => Date.now());
   const [openId, setOpenId] = React.useState<string | null>(null);
-  const { data, isPending } = useQuery({
-    queryKey: ['dashboard', 'news'],
-    queryFn: () => getDashboardNewsAction(10),
-    refetchOnMount: 'always',
-  });
 
-  if (isPending) {
+  if (isLoading) {
     return (
       <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
         <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
@@ -55,8 +53,6 @@ export function NewsWidget() {
       </div>
     );
   }
-
-  const items: News[] = data?.items ?? [];
 
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
@@ -150,4 +146,3 @@ export function NewsWidget() {
     </div>
   );
 }
-

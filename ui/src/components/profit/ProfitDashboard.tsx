@@ -2,13 +2,16 @@
 
 import React from 'react';
 
-import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatNumber } from '@/utils/number';
 
-import { getMyProfitAction } from './action';
+interface ProfitDashboardProps {
+  isLoading?: boolean;
+  profit?: number;
+  todayProfit?: number;
+}
 
 export const ProfitDashboardSkeleton = () => (
   <div className='animate-pulse px-4 py-6 space-y-3'>
@@ -19,20 +22,12 @@ export const ProfitDashboardSkeleton = () => (
   </div>
 );
 
-export function ProfitDashboard() {
+export function ProfitDashboard({ isLoading = false, profit = 0, todayProfit = 0 }: ProfitDashboardProps) {
   const t = useTranslations();
-  const { data, isPending } = useQuery({
-    queryKey: ['profit'],
-    queryFn: getMyProfitAction,
-    refetchOnMount: 'always',
-  });
 
-  if (isPending) {
+  if (isLoading) {
     return <ProfitDashboardSkeleton />;
   }
-
-  const profit = data?.data?.profit ?? 0;
-  const todayProfit = data?.data?.todayProfit ?? 0;
 
   return (
     <div className='flex flex-col gap-4 p-4 sm:p-6'>

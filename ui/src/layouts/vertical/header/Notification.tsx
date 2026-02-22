@@ -16,7 +16,7 @@ import { getNotifyCursorAction } from './actions';
 
 const MS_1H = 60 * 60 * 1000;
 
-const NotificationContent: React.FC = () => {
+const NotificationContent: React.FC<{ enabled: boolean }> = ({ enabled }) => {
   const t = useTranslations();
   const [now] = React.useState(() => Date.now());
   const [openId, setOpenId] = React.useState<string | null>(null);
@@ -26,6 +26,7 @@ const NotificationContent: React.FC = () => {
     queryFn: ({ pageParam = null }) => getNotifyCursorAction(pageParam as string),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null,
+    enabled,
   });
 
   const handleLoad = useCallback(
@@ -42,7 +43,7 @@ const NotificationContent: React.FC = () => {
   const selectedItem = openId ? items.find((item) => item.id === openId) : null;
   const isEmpty = items.length === 0 && !data?.pages.some((p) => p.items.length > 0);
 
-  if (isPending) {
+  if (!enabled || isPending) {
     return (
       <div className='flex flex-col h-[min(70vh,420px)]'>
         <div className='shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark px-4 py-3'>
@@ -158,6 +159,13 @@ const notificationDropdownTheme = {
 
 const Notification = () => {
   const t = useTranslations();
+  const [enabled, setEnabled] = React.useState(false);
+
+  const handleOpen = React.useCallback(() => {
+    if (!enabled) {
+      setEnabled(true);
+    }
+  }, [enabled]);
 
   return (
     <div className='relative group/menu'>
@@ -170,6 +178,8 @@ const Notification = () => {
           <span
             className='h-10 w-10 hover:text-primary hover:bg-lightprimary rounded-full flex justify-center items-center cursor-pointer relative'
             aria-label='Notifications'
+            onPointerDown={handleOpen}
+            onFocus={handleOpen}
           >
             <Icon icon='solar:bell-linear' height={20} />
             <Badge className='h-2 w-2 rounded-full absolute end-2 top-1 bg-primary p-0' />
@@ -190,7 +200,7 @@ const Notification = () => {
             </div>
           }
         >
-          <NotificationContent />
+          <NotificationContent enabled={enabled} />
         </Suspense>
       </Dropdown>
     </div>

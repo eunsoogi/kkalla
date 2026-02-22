@@ -383,10 +383,7 @@ export class RebalanceService implements OnModuleInit {
     }
   }
 
-  private parseRebalanceMessage(
-    messageBody: string | undefined,
-    fallbackDeliveryId?: string,
-  ): TradeExecutionMessageV2 {
+  private parseRebalanceMessage(messageBody: string | undefined, fallbackDeliveryId?: string): TradeExecutionMessageV2 {
     if (!messageBody) {
       throw new Error('Empty SQS message body');
     }
@@ -727,15 +724,11 @@ export class RebalanceService implements OnModuleInit {
     return Number.isFinite(new Date(value).getTime());
   }
 
-  private hasAttemptCount(
-    context: { attemptCount?: number },
-  ): context is {
+  private hasAttemptCount(context: { attemptCount?: number }): context is {
     attemptCount: number;
   } {
     return (
-      typeof context.attemptCount === 'number' &&
-      Number.isFinite(context.attemptCount) &&
-      context.attemptCount > 0
+      typeof context.attemptCount === 'number' && Number.isFinite(context.attemptCount) && context.attemptCount > 0
     );
   }
 

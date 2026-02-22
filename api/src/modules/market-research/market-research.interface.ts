@@ -27,12 +27,13 @@ export interface MarketRecommendationResponse {
 }
 
 export interface MarketRecommendationData {
-  id: string;
+  id?: string;
   batchId: string;
   symbol: string;
   weight: number;
   reason: string;
   confidence: number;
+  recommendationPrice?: number | null;
   cashWeight?: number;
   regime?: 'risk_on' | 'neutral' | 'risk_off';
   riskFlags?: string[];

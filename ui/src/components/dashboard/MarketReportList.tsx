@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import React from 'react';
 
-import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
@@ -14,7 +13,6 @@ import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
 
 import { ContentModal } from './ContentModal';
-import { getLatestMarketReportsAction } from './action';
 
 const MarketReportRow = ({
   item,
@@ -98,17 +96,17 @@ export const MarketReportListSkeleton = () => (
   </div>
 );
 
-export function MarketReportList() {
+interface MarketReportListProps {
+  items?: MarketReportWithChange[];
+  isLoading?: boolean;
+}
+
+export function MarketReportList({ items = [], isLoading = false }: MarketReportListProps) {
   const t = useTranslations();
   const router = useRouter();
   const [openId, setOpenId] = React.useState<string | null>(null);
-  const { data, isPending } = useQuery({
-    queryKey: ['dashboard', 'market-reports'],
-    queryFn: () => getLatestMarketReportsAction(10),
-    refetchOnMount: 'always',
-  });
 
-  if (isPending) {
+  if (isLoading) {
     return (
       <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
         <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
@@ -125,8 +123,6 @@ export function MarketReportList() {
       </div>
     );
   }
-
-  const items = data?.items ?? [];
 
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>

@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -12,6 +13,7 @@ import { User } from '../../user/entities/user.entity';
 import { Category } from '../category.enum';
 
 @Entity()
+@Index('idx_user_category_user_enabled_category', ['user', 'enabled', 'category'])
 export class UserCategory extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
