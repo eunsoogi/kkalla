@@ -2,9 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
+import remarkGfm from 'remark-gfm';
 import SimpleBar from 'simplebar-react';
 
 import { getConfidenceColor, getWeightColor } from '@/components/inference/style';
@@ -13,6 +15,8 @@ import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
 
 import { ContentModal } from './ContentModal';
+
+const MARKET_REPORT_PREVIEW_ALLOWED_ELEMENTS = ['a', 'br', 'code', 'del', 'em', 'li', 'ol', 'p', 'strong', 'ul'] as const;
 
 const MarketReportRow = ({
   item,
@@ -64,7 +68,41 @@ const MarketReportRow = ({
               overflow: 'hidden',
             }}
           >
-            {item.reason}
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              allowedElements={MARKET_REPORT_PREVIEW_ALLOWED_ELEMENTS}
+              unwrapDisallowed
+              components={{
+                p: ({ children }) => (
+                  <>
+                    {children}{' '}
+                  </>
+                ),
+                ul: ({ children }) => (
+                  <>
+                    {children}{' '}
+                  </>
+                ),
+                ol: ({ children }) => (
+                  <>
+                    {children}{' '}
+                  </>
+                ),
+                li: ({ children }) => (
+                  <>
+                    • {children}{' '}
+                  </>
+                ),
+                a: ({ children }) => <span className='underline decoration-dotted'>{children}</span>,
+                code: ({ children }) => (
+                  <code className='rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800'>
+                    {children}
+                  </code>
+                ),
+              }}
+            >
+              {item.reason}
+            </ReactMarkdown>
           </span>
         </div>
       </TableCell>
@@ -174,6 +212,7 @@ export function MarketReportList({ items = [], isLoading = false }: MarketReport
           show={openId === item.id}
           onClose={() => setOpenId(null)}
           title={t('dashboard.columnReason')}
+          renderMarkdown
         >
           {item.reason}
         </ContentModal>
