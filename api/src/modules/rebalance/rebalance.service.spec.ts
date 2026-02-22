@@ -344,9 +344,17 @@ describe('RebalanceService', () => {
     expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
     expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
-    expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'existing');
+    expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'existing', expect.any(Map));
     const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
     expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW']));
+
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[1].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[0].id)?.has('USER2_ONLY/KRW')).toBe(false);
+    expect(scopeByUser.get(users[1].id)?.has('USER2_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('USER1_ONLY/KRW')).toBe(false);
   });
 
   it('should skip users without history in existing rebalance mode', async () => {
@@ -376,9 +384,12 @@ describe('RebalanceService', () => {
     await service.executeBalanceRecommendationExistingTask();
 
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
-    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing');
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing', expect.any(Map));
     const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
     expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW']));
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.has(users[1].id)).toBe(false);
   });
 
   it('should build included trade requests from target-weight delta and skip low-signal symbols', () => {
