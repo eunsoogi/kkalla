@@ -822,12 +822,25 @@ export class RebalanceService implements OnModuleInit {
       return;
     }
 
-    // 기존 보유 항목만 재추론: 전체 사용자 history를 합산해 중복 제거 후 1회 추론
-    const historyItems = await this.historyService.fetchHistoryByUsers(users);
-    const items = await this.filterBalanceRecommendations(historyItems);
+    const userHistoryPairs = await Promise.all(
+      users.map(async (user) => ({
+        user,
+        items: await this.historyService.fetchHistoryByUser(user),
+      })),
+    );
+    const usersWithHistory = userHistoryPairs.filter((pair) => pair.items.length > 0).map((pair) => pair.user);
+    if (usersWithHistory.length < 1) {
+      this.clearClients();
+      this.logger.log(this.i18n.t('logging.schedule.end'));
+      return;
+    }
+
+    // 기존 보유 항목만 재추론: 개인 history가 있는 사용자들의 항목만 합산해 중복 제거 후 1회 추론
+    const mergedHistoryItems = userHistoryPairs.flatMap((pair) => pair.items);
+    const items = await this.filterBalanceRecommendations(mergedHistoryItems);
 
     // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
-    await this.scheduleRebalance(users, items, 'existing');
+    await this.scheduleRebalance(usersWithHistory, items, 'existing');
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }

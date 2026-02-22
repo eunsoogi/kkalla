@@ -300,18 +300,21 @@ describe('RebalanceService', () => {
     ];
 
     scheduleService.getUsers.mockResolvedValue(users);
-    historyService.fetchHistoryByUsers.mockResolvedValue([
-      {
-        symbol: 'USER1_ONLY/KRW',
-        category: Category.COIN_MINOR,
-        hasStock: true,
-      },
-      {
-        symbol: 'USER2_ONLY/KRW',
-        category: Category.COIN_MINOR,
-        hasStock: true,
-      },
-    ]);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER2_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ]);
 
     jest
       .spyOn(service as any, 'filterBalanceRecommendations')
@@ -320,13 +323,46 @@ describe('RebalanceService', () => {
 
     await service.executeBalanceRecommendationExistingTask();
 
-    expect(historyService.fetchHistoryByUsers).toHaveBeenCalledTimes(1);
-    expect(historyService.fetchHistoryByUsers).toHaveBeenCalledWith(users);
-    expect(historyService.fetchHistoryByUser).not.toHaveBeenCalled();
+    expect(historyService.fetchHistoryByUsers).not.toHaveBeenCalled();
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
     expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'existing');
     const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
     expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW']));
+  });
+
+  it('should skip users without history in existing rebalance mode', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    jest
+      .spyOn(service as any, 'filterBalanceRecommendations')
+      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationExistingTask();
+
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing');
+    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW']));
   });
 
   it('should build included trade requests from target-weight delta and skip low-signal symbols', () => {
