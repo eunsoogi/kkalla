@@ -781,12 +781,13 @@ export class RebalanceService implements OnModuleInit {
       recommendItems.map((item) => [item.symbol, { weight: item.weight, confidence: item.confidence }]),
     );
 
-    const userHistoryPairs = await Promise.all(
-      users.map(async (user) => ({
-        user,
-        items: await this.historyService.fetchHistoryByUser(user),
-      })),
-    );
+    const userHistoryPairs = await this.fetchUserHistoryPairsSafely(users);
+    const usersWithHistoryFetchSuccess = userHistoryPairs.map((pair) => pair.user);
+    if (usersWithHistoryFetchSuccess.length < 1) {
+      this.clearClients();
+      this.logger.log(this.i18n.t('logging.schedule.end'));
+      return;
+    }
     const mergedHistoryItems = userHistoryPairs.flatMap((pair) =>
       pair.items.map((item) => {
         const recommendMetadata = recommendMetadataBySymbol.get(item.symbol);
@@ -817,7 +818,7 @@ export class RebalanceService implements OnModuleInit {
     );
 
     // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
-    await this.scheduleRebalance(users, items, 'new', inferenceSymbolsByUserId);
+    await this.scheduleRebalance(usersWithHistoryFetchSuccess, items, 'new', inferenceSymbolsByUserId);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
@@ -852,12 +853,7 @@ export class RebalanceService implements OnModuleInit {
       return;
     }
 
-    const userHistoryPairs = await Promise.all(
-      users.map(async (user) => ({
-        user,
-        items: await this.historyService.fetchHistoryByUser(user),
-      })),
-    );
+    const userHistoryPairs = await this.fetchUserHistoryPairsSafely(users);
     const usersWithHistoryPairs = userHistoryPairs.filter((pair) => pair.items.length > 0);
     const usersWithHistory = usersWithHistoryPairs.map((pair) => pair.user);
     if (usersWithHistory.length < 1) {
@@ -880,6 +876,33 @@ export class RebalanceService implements OnModuleInit {
     await this.scheduleRebalance(usersWithHistory, items, 'existing', inferenceSymbolsByUserId);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
+  }
+
+  private async fetchUserHistoryPairsSafely(
+    users: User[],
+  ): Promise<Array<{ user: User; items: RecommendationItem[] }>> {
+    const settledResults = await Promise.allSettled(
+      users.map(async (user) => ({
+        user,
+        items: await this.historyService.fetchHistoryByUser(user),
+      })),
+    );
+    const pairs: Array<{ user: User; items: RecommendationItem[] }> = [];
+
+    settledResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        pairs.push(result.value);
+        return;
+      }
+
+      const user = users[index];
+      this.logger.warn(
+        `Failed to fetch history for user(${user?.id ?? 'unknown'}): ${this.stringifyError(result.reason)}`,
+        result.reason,
+      );
+    });
+
+    return pairs;
   }
 
   /**

@@ -315,6 +315,39 @@ describe('RebalanceService', () => {
     expect(scopeByUser.get(users[1].id)?.has('ETH/KRW')).toBe(true);
   });
 
+  it('should skip users with history fetch failure in new rebalance mode', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockRejectedValueOnce(new Error('history fetch failed'));
+
+    jest.spyOn(service as any, 'fetchMajorCoinItems').mockResolvedValue([]);
+    jest.spyOn(service as any, 'fetchRecommendItems').mockResolvedValue([]);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationNewTask();
+
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'new', expect.any(Map));
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.has(users[0].id)).toBe(true);
+    expect(scopeByUser.has(users[1].id)).toBe(false);
+  });
+
   it('should schedule existing rebalance once with merged user history', async () => {
     const scheduleService = (service as any).scheduleService;
     const historyService = (service as any).historyService;
@@ -457,6 +490,40 @@ describe('RebalanceService', () => {
     expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW']));
     const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
     expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.has(users[1].id)).toBe(false);
+  });
+
+  it('should keep existing rebalance running when one user history fetch fails', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockRejectedValueOnce(new Error('history fetch failed'));
+
+    jest
+      .spyOn(service as any, 'filterBalanceRecommendations')
+      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationExistingTask();
+
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing', expect.any(Map));
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.has(users[0].id)).toBe(true);
     expect(scopeByUser.has(users[1].id)).toBe(false);
   });
 
