@@ -15,6 +15,7 @@ import { CompactNews } from '@/modules/news/news.interface';
 import { NewsService } from '@/modules/news/news.service';
 import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
+import type { KrwTickerDailyData } from '@/modules/upbit/upbit.interface';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
@@ -41,6 +42,20 @@ import {
   UPBIT_MARKET_RECOMMENDATION_PROMPT,
   UPBIT_MARKET_RECOMMENDATION_RESPONSE_SCHEMA,
 } from './prompts/market-recommendation.prompt';
+
+interface LatestPriceChangeOptions {
+  mode?: 'exact' | 'mixed' | 'approx';
+}
+
+interface SaveMarketRecommendationOptions {
+  recommendationTime?: Date;
+  marketData?: KrwTickerDailyData | null;
+}
+
+interface RecommendationPriceResolution {
+  price?: number;
+  source: 'minute' | 'fallback' | 'none';
+}
 
 /**
  * 시장 조사 모듈의 핵심 서비스.
@@ -240,9 +255,19 @@ export class MarketResearchService {
       }),
     );
 
+    const recommendationTime = new Date();
+    const marketDataMap = await this.upbitService.getTickerAndDailyDataBatch(
+      normalizedRecommendations.map((recommendation) => recommendation.symbol),
+    );
     const recommendationResults = await Promise.all(
       normalizedRecommendations.map((recommendation) =>
-        this.saveMarketRecommendation({ ...recommendation, batchId: inferenceResult.batchId }),
+        this.saveMarketRecommendation(
+          { ...recommendation, batchId: inferenceResult.batchId },
+          {
+            recommendationTime,
+            marketData: marketDataMap.get(recommendation.symbol),
+          },
+        ),
       ),
     );
 
@@ -447,51 +472,69 @@ export class MarketResearchService {
    * @param recommendation 시장 추천 데이터
    * @returns 저장된 시장 추천 엔티티
    */
-  public async saveMarketRecommendation(recommendation: MarketRecommendationData): Promise<MarketRecommendation> {
+  public async saveMarketRecommendation(
+    recommendation: MarketRecommendationData,
+    options?: SaveMarketRecommendationOptions,
+  ): Promise<MarketRecommendation> {
     const normalizedSymbol = normalizeKrwSymbol(recommendation.symbol);
     if (!normalizedSymbol) {
       throw new Error(`Invalid market recommendation symbol: ${recommendation.symbol}`);
     }
 
+    const recommendationTime = options?.recommendationTime ?? new Date();
+    const recommendationPrice = await this.resolveRecommendationPriceAtTime(
+      normalizedSymbol,
+      recommendationTime,
+      options?.marketData,
+      true,
+    );
+
     const marketRecommendation = new MarketRecommendation();
     Object.assign(marketRecommendation, recommendation, { symbol: normalizedSymbol });
+    marketRecommendation.recommendationPrice = recommendationPrice ?? null;
     return marketRecommendation.save();
   }
 
   /**
    * 최신 마켓 추천 배치를 조회하고, 추천 시점 대비 현재가 변동률을 계산하여 반환 (메인 대시보드용)
    */
-  public async getLatestWithPriceChange(limit = 10): Promise<MarketRecommendationWithChangeDto[]> {
+  public async getLatestWithPriceChange(
+    limit = 10,
+    options?: LatestPriceChangeOptions,
+  ): Promise<MarketRecommendationWithChangeDto[]> {
     const latest = await MarketRecommendation.getLatestRecommends();
+    if (latest.length < 1) {
+      return [];
+    }
+
+    const mode = options?.mode ?? 'exact';
+    const backfilledPriceMap = await this.backfillLatestBatchRecommendationPrices(latest, mode);
+
     const items = [...latest].sort((a, b) => Number(b.confidence) - Number(a.confidence)).slice(0, limit);
     const badgeMap = await this.getMarketValidationBadgeMapSafe(items.map((entity) => entity.id));
+    const marketDataMap = await this.upbitService.getTickerAndDailyDataBatch(items.map((item) => item.symbol));
+
+    const recentCandidateSet = this.buildMinuteLookupCandidateSet(items, mode);
 
     const result: MarketRecommendationWithChangeDto[] = await Promise.all(
       items.map(async (entity) => {
-        let recommendationPrice: number | undefined;
+        let recommendationPrice: number | undefined =
+          this.toPositiveNumber(entity.recommendationPrice) ?? backfilledPriceMap.get(entity.id);
         let currentPrice: number | undefined;
         let priceChangePct: number | undefined;
 
         try {
-          const marketData = await this.upbitService.getMarketData(entity.symbol);
-          currentPrice = marketData?.ticker?.last;
+          const marketData = marketDataMap.get(entity.symbol);
+          currentPrice = this.toFiniteNumber(marketData?.ticker?.last);
 
-          // 추천 시점 가격: 분봉(해당 분 시가) 우선, 없으면 해당일 종가로 fallback
-          recommendationPrice = await this.upbitService.getMinuteCandleAt(entity.symbol, entity.createdAt);
           if (recommendationPrice == null) {
-            const candles1d = marketData?.candles1d || [];
-            const recDateStr = new Date(entity.createdAt).toISOString().slice(0, 10);
-            const candleSameDay = candles1d.find(
-              (c: number[]) => new Date(c[0]).toISOString().slice(0, 10) === recDateStr,
+            const shouldUseMinutePrice = mode === 'exact' || (mode === 'mixed' && recentCandidateSet.has(entity.id));
+            recommendationPrice = await this.resolveRecommendationPriceAtTime(
+              entity.symbol,
+              entity.createdAt,
+              marketData,
+              shouldUseMinutePrice,
             );
-            if (candleSameDay && candleSameDay.length >= 5) {
-              recommendationPrice = Number(candleSameDay[4]);
-            } else if (candles1d.length > 0) {
-              const last = candles1d[candles1d.length - 1];
-              recommendationPrice = Number(last[4]);
-            } else {
-              recommendationPrice = currentPrice;
-            }
           }
 
           if (recommendationPrice != null && recommendationPrice > 0 && currentPrice != null) {
@@ -520,6 +563,168 @@ export class MarketResearchService {
     );
 
     return result;
+  }
+
+  private async backfillLatestBatchRecommendationPrices(
+    latestBatchItems: MarketRecommendation[],
+    mode: 'exact' | 'mixed' | 'approx',
+  ): Promise<Map<string, number>> {
+    const targets = latestBatchItems.filter((item) => this.toPositiveNumber(item.recommendationPrice) == null);
+    if (targets.length < 1) {
+      return new Map();
+    }
+
+    const marketDataMap = await this.upbitService.getTickerAndDailyDataBatch(targets.map((item) => item.symbol));
+    const recentCandidateSet = this.buildMinuteLookupCandidateSet(targets, mode);
+
+    const entries = await Promise.all(
+      targets.map(async (item): Promise<[string, number] | null> => {
+        const shouldUseMinutePrice = mode === 'exact' || (mode === 'mixed' && recentCandidateSet.has(item.id));
+        const resolution = await this.resolveRecommendationPriceAtTimeWithSource(
+          item.symbol,
+          item.createdAt,
+          marketDataMap.get(item.symbol),
+          shouldUseMinutePrice,
+        );
+        const recommendationPrice = resolution.price;
+
+        if (recommendationPrice == null) {
+          return null;
+        }
+
+        // mixed 모드에서는 분봉을 실제로 조회해 얻은 가격만 영속화한다.
+        const shouldPersist =
+          mode === 'exact' || (mode === 'mixed' && resolution.source === 'minute');
+        if (shouldPersist) {
+          await this.persistRecommendationPriceIfMissing(item.id, recommendationPrice);
+          item.recommendationPrice = recommendationPrice;
+        }
+
+        return [item.id, recommendationPrice];
+      }),
+    );
+
+    return new Map(entries.filter((entry): entry is [string, number] => entry != null));
+  }
+
+  private async persistRecommendationPriceIfMissing(id: string, recommendationPrice: number): Promise<void> {
+    if (!Number.isFinite(recommendationPrice) || recommendationPrice <= 0) {
+      return;
+    }
+
+    try {
+      await MarketRecommendation.createQueryBuilder()
+        .update(MarketRecommendation)
+        .set({ recommendationPrice })
+        .where('id = :id', { id })
+        .andWhere('recommendation_price IS NULL')
+        .execute();
+    } catch (error) {
+      this.logger.warn(`Failed to persist recommendation_price for market recommendation: ${id}`, error);
+    }
+  }
+
+  private buildMinuteLookupCandidateSet(
+    items: Array<Pick<MarketRecommendation, 'id' | 'createdAt'>>,
+    mode: 'exact' | 'mixed' | 'approx',
+  ): Set<string> {
+    if (mode === 'exact') {
+      return new Set(items.map((item) => item.id));
+    }
+
+    if (mode !== 'mixed') {
+      return new Set();
+    }
+
+    const now = Date.now();
+    return new Set(
+      items
+        .filter((item) => now - new Date(item.createdAt).getTime() <= 24 * 60 * 60 * 1000)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 3)
+        .map((item) => item.id),
+    );
+  }
+
+  private async resolveRecommendationPriceAtTime(
+    symbol: string,
+    createdAt: Date,
+    marketData?: KrwTickerDailyData | null,
+    allowMinuteLookup = true,
+  ): Promise<number | undefined> {
+    const resolution = await this.resolveRecommendationPriceAtTimeWithSource(
+      symbol,
+      createdAt,
+      marketData,
+      allowMinuteLookup,
+    );
+    return resolution.price;
+  }
+
+  private async resolveRecommendationPriceAtTimeWithSource(
+    symbol: string,
+    createdAt: Date,
+    marketData?: KrwTickerDailyData | null,
+    allowMinuteLookup = true,
+  ): Promise<RecommendationPriceResolution> {
+    if (allowMinuteLookup) {
+      const minutePrice = this.toPositiveNumber(await this.upbitService.getMinuteCandleAt(symbol, createdAt));
+      if (minutePrice != null) {
+        return { price: minutePrice, source: 'minute' };
+      }
+    }
+
+    let marketDataRef = marketData;
+    if (!marketDataRef) {
+      try {
+        marketDataRef = await this.upbitService.getTickerAndDailyData(symbol);
+      } catch {
+        marketDataRef = null;
+      }
+    }
+
+    const currentPrice = this.toFiniteNumber(marketDataRef?.ticker?.last);
+    const fallbackPrice = this.toPositiveNumber(
+      this.resolveDailyFallbackPrice(marketDataRef?.candles1d || [], createdAt, currentPrice),
+    );
+    if (fallbackPrice != null) {
+      return { price: fallbackPrice, source: 'fallback' };
+    }
+
+    return { source: 'none' };
+  }
+
+  private resolveDailyFallbackPrice(candles1d: number[][], createdAt: Date, currentPrice?: number): number | undefined {
+    if (candles1d.length < 1) {
+      return currentPrice;
+    }
+
+    const recDateStr = new Date(createdAt).toISOString().slice(0, 10);
+    const candleSameDay = candles1d.find((candle) => new Date(candle[0]).toISOString().slice(0, 10) === recDateStr);
+
+    if (candleSameDay && candleSameDay.length >= 5) {
+      return Number(candleSameDay[4]);
+    }
+
+    const lastCandle = candles1d[candles1d.length - 1];
+    if (lastCandle && lastCandle.length >= 5) {
+      return Number(lastCandle[4]);
+    }
+
+    return currentPrice;
+  }
+
+  private toFiniteNumber(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private toPositiveNumber(value: unknown): number | undefined {
+    const parsed = this.toFiniteNumber(value);
+    if (parsed == null || parsed <= 0) {
+      return undefined;
+    }
+    return parsed;
   }
 
   private async getMarketValidationBadgeMapSafe(ids: string[]) {

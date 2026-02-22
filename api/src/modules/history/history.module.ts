@@ -10,6 +10,6 @@ import { HoldingsService } from './holdings.service';
   imports: [UpbitModule, CategoryModule],
   controllers: [HoldingsController],
   providers: [HistoryService, HoldingsService],
-  exports: [HistoryService],
+  exports: [HistoryService, HoldingsService],
 })
 export class HistoryModule {}

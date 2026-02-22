@@ -172,3 +172,9 @@ export interface KrwMarketData {
   candles1d: any[]; // 일봉
   candles1w?: any[]; // 주봉
 }
+
+export interface KrwTickerDailyData {
+  symbol: string;
+  ticker: any;
+  candles1d: any[];
+}

@@ -21,7 +21,7 @@ export class TradeService {
    * @param request 페이지네이션 요청
    * @returns 페이지네이션된 거래 목록
    */
-  public async paginateTrades(user: User, request: ItemRequest): Promise<PaginatedItem<Trade>> {
+  public async paginateTrades(user: User, request: ItemRequest & TradeFilter): Promise<PaginatedItem<Trade>> {
     return Trade.paginate(user, request);
   }
 

@@ -13,7 +13,13 @@ import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
 import { OrderTypes } from './upbit.enum';
-import { AdjustOrderRequest, KrwMarketData, OrderRequest, UpbitConfigData } from './upbit.interface';
+import {
+  AdjustOrderRequest,
+  KrwMarketData,
+  KrwTickerDailyData,
+  OrderRequest,
+  UpbitConfigData,
+} from './upbit.interface';
 
 @Injectable()
 export class UpbitService {
@@ -21,6 +27,8 @@ export class UpbitService {
   private serverClient: upbit;
   private client: upbit[] = [];
   private readonly MAX_PRECISION = 8;
+  private readonly MINUTE_OPEN_VALUE_CACHE_TTL_SECONDS = 60 * 60 * 24;
+  private readonly MINUTE_OPEN_NULL_CACHE_TTL_SECONDS = 60;
 
   // API 호출에 대한 2단계 재시도 옵션
   private readonly retryOptions: TwoPhaseRetryOptions = {
@@ -488,6 +496,56 @@ export class UpbitService {
   }
 
   /**
+   * 대시보드용 경량 시장 데이터(현재가 + 일봉) 조회
+   */
+  public async getTickerAndDailyData(symbol: string): Promise<KrwTickerDailyData> {
+    const cacheKey = `upbit:market-lite:${symbol}`;
+    const cached = await this.cacheService.get<KrwTickerDailyData>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const client = await this.getServerClient();
+
+    const [ticker, candles1d] = await Promise.all([
+      this.errorService.retryWithFallback(async () => {
+        return await client.fetchTicker(symbol);
+      }, this.retryOptions),
+      this.errorService.retryWithFallback(async () => {
+        return await client.fetchOHLCV(symbol, '1d', undefined, 200);
+      }, this.retryOptions),
+    ]);
+
+    const data: KrwTickerDailyData = {
+      symbol,
+      ticker,
+      candles1d,
+    };
+    await this.cacheService.set(cacheKey, data, 60);
+
+    return data;
+  }
+
+  /**
+   * 대시보드용 경량 시장 데이터를 심볼 단위로 일괄 조회
+   */
+  public async getTickerAndDailyDataBatch(symbols: string[]): Promise<Map<string, KrwTickerDailyData>> {
+    const uniqueSymbols = Array.from(new Set(symbols.filter((symbol) => !!symbol)));
+    const entries = await Promise.all(
+      uniqueSymbols.map(async (symbol): Promise<[string, KrwTickerDailyData | null]> => {
+        try {
+          const data = await this.getTickerAndDailyData(symbol);
+          return [symbol, data];
+        } catch {
+          return [symbol, null];
+        }
+      }),
+    );
+
+    return new Map(entries.filter((entry): entry is [string, KrwTickerDailyData] => entry[1] != null));
+  }
+
+  /**
    * 특정 종목의 최근 1분봉 캔들을 가져옵니다.
    * 변동성 계산용으로 기본 6개를 조회합니다.
    */
@@ -516,6 +574,11 @@ export class UpbitService {
   public async getMinuteCandleAt(symbol: string, time: Date): Promise<number | undefined> {
     const client = await this.getServerClient();
     const minuteStartMs = Math.floor(new Date(time).getTime() / 60_000) * 60_000;
+    const cacheKey = `upbit:minute-open:${symbol}:${minuteStartMs}`;
+    const cached = await this.cacheService.get<{ value: number | null }>(cacheKey);
+    if (cached !== null) {
+      return cached.value ?? undefined;
+    }
 
     try {
       const candles = await this.errorService.retryWithFallback(async () => {
@@ -523,10 +586,17 @@ export class UpbitService {
       }, this.retryOptions);
 
       const candle = candles?.[0];
-      if (!candle || candle.length < 5) return undefined;
+      if (!candle || candle.length < 5) {
+        await this.cacheService.set(cacheKey, { value: null }, this.MINUTE_OPEN_NULL_CACHE_TTL_SECONDS);
+        return undefined;
+      }
       const open = Number(candle[1]);
-      return Number.isFinite(open) && open > 0 ? open : undefined;
+      const value = Number.isFinite(open) && open > 0 ? open : null;
+      const ttl = value == null ? this.MINUTE_OPEN_NULL_CACHE_TTL_SECONDS : this.MINUTE_OPEN_VALUE_CACHE_TTL_SECONDS;
+      await this.cacheService.set(cacheKey, { value }, ttl);
+      return value ?? undefined;
     } catch {
+      await this.cacheService.set(cacheKey, { value: null }, this.MINUTE_OPEN_NULL_CACHE_TTL_SECONDS);
       return undefined;
     }
   }

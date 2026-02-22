@@ -1,4 +1,8 @@
 import { ReportValidationBadge } from './inference.interface';
+import { News } from './news.interface';
+import { ProfitData } from './profit.interface';
+import { Feargreed, FeargreedHistory } from './feargreed.interface';
+import { Trade } from './trade.interface';
 
 /** 최신 마켓 리포트 (추천 시점 대비 변동률 포함) */
 export interface MarketReportWithChange {
@@ -25,4 +29,25 @@ export interface HoldingWithDailyChange {
   currentPrice?: number;
   dailyChangePct?: number;
   dailyChangeAbs?: number;
+}
+
+export type DashboardSummarySectionKey =
+  | 'marketReports'
+  | 'news'
+  | 'feargreed'
+  | 'feargreedHistory'
+  | 'holdings'
+  | 'trades24h'
+  | 'profit';
+
+export interface DashboardSummaryResponse {
+  generatedAt: string;
+  marketReports: MarketReportWithChange[];
+  news: News[];
+  feargreed: Feargreed | null;
+  feargreedHistory: FeargreedHistory;
+  holdings: HoldingWithDailyChange[];
+  trades24h: Trade[];
+  profit: ProfitData | null;
+  errors?: Partial<Record<DashboardSummarySectionKey, string>>;
 }

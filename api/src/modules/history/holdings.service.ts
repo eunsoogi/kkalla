@@ -32,33 +32,35 @@ export class HoldingsService {
 
     const enabledSet = new Set(enabledCategories.map((uc) => uc.category));
     const filtered = items.filter((item) => enabledSet.has(item.category));
+    const krwSymbols = filtered.filter((item) => item.symbol.endsWith('/KRW')).map((item) => item.symbol);
+    const marketDataMap = await this.upbitService.getTickerAndDailyDataBatch(krwSymbols);
 
-    const result: HoldingDto[] = await Promise.all(
-      filtered.map(async (item) => {
-        const dto: HoldingDto = {
-          symbol: item.symbol,
-          category: item.category,
-        };
-        if (item.symbol.endsWith('/KRW')) {
-          try {
-            const marketData = await this.upbitService.getMarketData(item.symbol);
-            const currentPrice = marketData?.ticker?.last;
-            dto.currentPrice = currentPrice;
-            const candles1d = marketData?.candles1d || [];
-            if (candles1d.length >= 2 && currentPrice != null) {
-              const prevClose = Number(candles1d[candles1d.length - 2][4]);
-              if (prevClose > 0) {
-                dto.dailyChangePct = Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2));
-                dto.dailyChangeAbs = Number((currentPrice - prevClose).toFixed(2));
-              }
-            }
-          } catch {
-            // 가격 조회 실패 시 currentPrice/dailyChange 비움
-          }
-        }
+    return filtered.map((item) => {
+      const dto: HoldingDto = {
+        symbol: item.symbol,
+        category: item.category,
+      };
+      if (!item.symbol.endsWith('/KRW')) {
         return dto;
-      }),
-    );
-    return result;
+      }
+
+      const marketData = marketDataMap.get(item.symbol);
+      if (!marketData) {
+        return dto;
+      }
+
+      const currentPrice = marketData.ticker?.last;
+      dto.currentPrice = currentPrice;
+      const candles1d = marketData.candles1d || [];
+      if (candles1d.length >= 2 && currentPrice != null) {
+        const prevClose = Number(candles1d[candles1d.length - 2][4]);
+        if (prevClose > 0) {
+          dto.dailyChangePct = Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2));
+          dto.dailyChangeAbs = Number((currentPrice - prevClose).toFixed(2));
+        }
+      }
+
+      return dto;
+    });
   }
 }

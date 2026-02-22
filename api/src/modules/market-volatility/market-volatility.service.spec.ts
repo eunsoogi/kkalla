@@ -632,10 +632,7 @@ describe('MarketVolatilityService', () => {
 
     jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
 
-    const result = await service.executeVolatilityTradesForUser(
-      { id: 'user-1', roles: [] } as any,
-      inferences as any,
-    );
+    const result = await service.executeVolatilityTradesForUser({ id: 'user-1', roles: [] } as any, inferences as any);
 
     expect(result).toEqual([]);
     expect(notifyService.notify).not.toHaveBeenCalled();

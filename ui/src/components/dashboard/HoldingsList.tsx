@@ -2,7 +2,6 @@
 
 import React from 'react';
 
-import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
@@ -11,8 +10,6 @@ import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
 
 import type { HoldingWithDailyChange } from '@/interfaces/dashboard.interface';
-
-import { getHoldingsAction } from './action';
 
 const HoldingRow = ({ item }: { item: HoldingWithDailyChange }) => (
   <TableRow className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
@@ -41,15 +38,15 @@ export const HoldingsListSkeleton = () => (
   </div>
 );
 
-export function HoldingsList() {
-  const t = useTranslations();
-  const { data, isPending } = useQuery({
-    queryKey: ['dashboard', 'holdings'],
-    queryFn: getHoldingsAction,
-    refetchOnMount: 'always',
-  });
+interface HoldingsListProps {
+  items?: HoldingWithDailyChange[];
+  isLoading?: boolean;
+}
 
-  if (isPending) {
+export function HoldingsList({ items = [], isLoading = false }: HoldingsListProps) {
+  const t = useTranslations();
+
+  if (isLoading) {
     return (
       <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
         <div className='px-4 sm:px-6'>
@@ -59,8 +56,6 @@ export function HoldingsList() {
       </div>
     );
   }
-
-  const items = data?.items ?? [];
 
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>

@@ -3,18 +3,15 @@
 import React from 'react';
 
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
-import { PaginatedItem } from '@/interfaces/item.interface';
 import { Trade } from '@/interfaces/trade.interface';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber } from '@/utils/number';
 
-import { getTradeAction } from '@/components/trade/action';
 import { TRADE_STYLES } from '@/components/trade/style';
 
 export const TradeList24hSkeleton = () => (
@@ -25,16 +22,16 @@ export const TradeList24hSkeleton = () => (
   </div>
 );
 
-export function TradeList24h() {
+interface TradeList24hProps {
+  items?: Trade[];
+  isLoading?: boolean;
+}
+
+export function TradeList24h({ items = [], isLoading = false }: TradeList24hProps) {
   const t = useTranslations();
   const router = useRouter();
-  const { data, isPending } = useQuery<PaginatedItem<Trade>>({
-    queryKey: ['trades', 'last24h'],
-    queryFn: () => getTradeAction({ lastHours: 24, perPage: 50 }),
-    refetchOnMount: 'always',
-  });
 
-  if (isPending) {
+  if (isLoading) {
     return (
       <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
         <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
@@ -51,8 +48,6 @@ export function TradeList24h() {
       </div>
     );
   }
-
-  const items = data?.items ?? [];
 
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>

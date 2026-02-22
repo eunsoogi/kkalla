@@ -2,27 +2,23 @@
 
 import React from 'react';
 
-import { useQuery } from '@tanstack/react-query';
-
 import { Feargreed } from '@/interfaces/feargreed.interface';
 
 import { FeargreedGuageItem, FeargreedGuageSkeleton } from './FeargreedGuageItem';
-import { getFeargreedAction } from './action';
 
-export const FeargreedGauge = () => {
-  const { data, isPending } = useQuery<Feargreed | null>({
-    queryKey: ['feargreeds'],
-    queryFn: () => getFeargreedAction(),
-    refetchOnMount: 'always',
-  });
+interface FeargreedGaugeProps {
+  item?: Feargreed | null;
+  isLoading?: boolean;
+}
 
-  if (isPending) {
+export const FeargreedGauge = ({ item = null, isLoading = false }: FeargreedGaugeProps) => {
+  if (isLoading) {
     return <FeargreedGuageSkeleton />;
   }
 
-  if (!data) {
+  if (!item) {
     return null;
   }
 
-  return <FeargreedGuageItem {...data} />;
+  return <FeargreedGuageItem {...item} />;
 };
