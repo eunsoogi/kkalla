@@ -240,7 +240,7 @@ describe('RebalanceService', () => {
     ]);
   });
 
-  it('should schedule new rebalance per user with user-scoped history', async () => {
+  it('should schedule new rebalance once with user-scoped history symbols', async () => {
     const scheduleService = (service as any).scheduleService;
     const historyService = (service as any).historyService;
     const users = [
@@ -279,37 +279,76 @@ describe('RebalanceService', () => {
         hasStock: false,
       },
     ]);
-    jest
-      .spyOn(service as any, 'filterBalanceRecommendations')
-      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationNewTask();
+
+    expect(historyService.fetchHistoryByUsers).not.toHaveBeenCalled();
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
+    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    expect(scheduledSymbols).toEqual(
+      expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW', 'BTC/KRW', 'ETH/KRW']),
+    );
+    const user1Item = scheduleSpy.mock.calls[0][1].find(
+      (item: { symbol: string; hasStock: boolean }) => item.symbol === 'USER1_ONLY/KRW',
+    );
+    const user2Item = scheduleSpy.mock.calls[0][1].find(
+      (item: { symbol: string; hasStock: boolean }) => item.symbol === 'USER2_ONLY/KRW',
+    );
+    expect(user1Item?.hasStock).toBe(false);
+    expect(user2Item?.hasStock).toBe(false);
+    expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'new', expect.any(Map));
+
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[1].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[0].id)?.has('USER2_ONLY/KRW')).toBe(false);
+    expect(scopeByUser.get(users[1].id)?.has('USER2_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('USER1_ONLY/KRW')).toBe(false);
+    expect(scopeByUser.get(users[0].id)?.has('BTC/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('BTC/KRW')).toBe(true);
+    expect(scopeByUser.get(users[0].id)?.has('ETH/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('ETH/KRW')).toBe(true);
+  });
+
+  it('should skip users with history fetch failure in new rebalance mode', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockRejectedValueOnce(new Error('history fetch failed'));
+
+    jest.spyOn(service as any, 'fetchMajorCoinItems').mockResolvedValue([]);
+    jest.spyOn(service as any, 'fetchRecommendItems').mockResolvedValue([]);
     const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
 
     await service.executeBalanceRecommendationNewTask();
 
     expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
-    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
-    expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
-
-    expect(scheduleSpy).toHaveBeenCalledTimes(2);
-    expect(scheduleSpy).toHaveBeenNthCalledWith(
-      1,
-      [users[0]],
-      expect.arrayContaining([expect.objectContaining({ symbol: 'USER1_ONLY/KRW' })]),
-      'new',
-    );
-    expect(scheduleSpy).toHaveBeenNthCalledWith(
-      2,
-      [users[1]],
-      expect.arrayContaining([expect.objectContaining({ symbol: 'USER2_ONLY/KRW' })]),
-      'new',
-    );
-    const firstSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
-    const secondSymbols = scheduleSpy.mock.calls[1][1].map((item: { symbol: string }) => item.symbol);
-    expect(firstSymbols).not.toContain('USER2_ONLY/KRW');
-    expect(secondSymbols).not.toContain('USER1_ONLY/KRW');
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'new', expect.any(Map));
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.has(users[0].id)).toBe(true);
+    expect(scopeByUser.has(users[1].id)).toBe(false);
   });
 
-  it('should schedule existing rebalance per user with user-scoped history', async () => {
+  it('should schedule existing rebalance once with merged user history', async () => {
     const scheduleService = (service as any).scheduleService;
     const historyService = (service as any).historyService;
     const users = [
@@ -345,24 +384,147 @@ describe('RebalanceService', () => {
     expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
     expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(1, users[0]);
     expect(historyService.fetchHistoryByUser).toHaveBeenNthCalledWith(2, users[1]);
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'existing', expect.any(Map));
+    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW']));
 
-    expect(scheduleSpy).toHaveBeenCalledTimes(2);
-    expect(scheduleSpy).toHaveBeenNthCalledWith(
-      1,
-      [users[0]],
-      expect.arrayContaining([expect.objectContaining({ symbol: 'USER1_ONLY/KRW' })]),
-      'existing',
-    );
-    expect(scheduleSpy).toHaveBeenNthCalledWith(
-      2,
-      [users[1]],
-      expect.arrayContaining([expect.objectContaining({ symbol: 'USER2_ONLY/KRW' })]),
-      'existing',
-    );
-    const firstSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
-    const secondSymbols = scheduleSpy.mock.calls[1][1].map((item: { symbol: string }) => item.symbol);
-    expect(firstSymbols).not.toContain('USER2_ONLY/KRW');
-    expect(secondSymbols).not.toContain('USER1_ONLY/KRW');
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[1].id)).toEqual(expect.any(Set));
+    expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[0].id)?.has('USER2_ONLY/KRW')).toBe(false);
+    expect(scopeByUser.get(users[1].id)?.has('USER2_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('USER1_ONLY/KRW')).toBe(false);
+  });
+
+  it('should retain recommend metadata when history overlaps in new rebalance mode', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER2_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ]);
+
+    jest.spyOn(service as any, 'fetchMajorCoinItems').mockResolvedValue([]);
+    jest.spyOn(service as any, 'fetchRecommendItems').mockResolvedValue([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+        hasStock: false,
+        weight: 0.22,
+        confidence: 0.88,
+      },
+    ]);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationNewTask();
+
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{
+      symbol: string;
+      hasStock: boolean;
+      weight?: number;
+      confidence?: number;
+    }>;
+    const overlappingEthItems = scheduledItems.filter((item) => item.symbol === 'ETH/KRW');
+    expect(overlappingEthItems).toHaveLength(1);
+    expect(overlappingEthItems[0]).toMatchObject({
+      symbol: 'ETH/KRW',
+      hasStock: false,
+      weight: 0.22,
+      confidence: 0.88,
+    });
+
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)?.has('ETH/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('ETH/KRW')).toBe(true);
+  });
+
+  it('should skip users without history in existing rebalance mode', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    jest
+      .spyOn(service as any, 'filterBalanceRecommendations')
+      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationExistingTask();
+
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing', expect.any(Map));
+    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW']));
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
+    expect(scopeByUser.has(users[1].id)).toBe(false);
+  });
+
+  it('should keep existing rebalance running when one user history fetch fails', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER1_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockRejectedValueOnce(new Error('history fetch failed'));
+
+    jest
+      .spyOn(service as any, 'filterBalanceRecommendations')
+      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationExistingTask();
+
+    expect(historyService.fetchHistoryByUser).toHaveBeenCalledTimes(2);
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing', expect.any(Map));
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.has(users[0].id)).toBe(true);
+    expect(scopeByUser.has(users[1].id)).toBe(false);
   });
 
   it('should build included trade requests from target-weight delta and skip low-signal symbols', () => {

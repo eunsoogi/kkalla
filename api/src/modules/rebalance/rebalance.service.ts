@@ -777,19 +777,48 @@ export class RebalanceService implements OnModuleInit {
     // 공통 후보군: 메이저 코인(BTC/ETH) 및 시장 추천 종목
     const majorCoinItems = await this.fetchMajorCoinItems();
     const recommendItems = await this.fetchRecommendItems();
+    const recommendMetadataBySymbol = new Map(
+      recommendItems.map((item) => [item.symbol, { weight: item.weight, confidence: item.confidence }]),
+    );
 
-    for (const user of users) {
-      const historyItems = await this.historyService.fetchHistoryByUser(user);
-
-      // 우선 순위를 반영해 추론 종목 목록 정리
-      // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
-      const allItems = [...historyItems, ...majorCoinItems, ...recommendItems];
-      // 중복 제거 및 블랙리스트 필터링
-      const items = await this.filterBalanceRecommendations(allItems);
-
-      // 추론 실행 → SQS 메시지 전송
-      await this.scheduleRebalance([user], items, 'new');
+    const userHistoryPairs = await this.fetchUserHistoryPairsSafely(users);
+    const usersWithHistoryFetchSuccess = userHistoryPairs.map((pair) => pair.user);
+    if (usersWithHistoryFetchSuccess.length < 1) {
+      this.clearClients();
+      this.logger.log(this.i18n.t('logging.schedule.end'));
+      return;
     }
+    const mergedHistoryItems = userHistoryPairs.flatMap((pair) =>
+      pair.items.map((item) => {
+        const recommendMetadata = recommendMetadataBySymbol.get(item.symbol);
+        return {
+          ...item,
+          // 공통 추론 입력에서는 사용자별 보유 여부가 섞이지 않도록 중립값으로 정규화한다.
+          // 실제 사용자별 보유 컨텍스트는 executeRebalanceForUser -> applyUserHistoryContext에서 다시 적용된다.
+          hasStock: false,
+          // history/recommend 심볼이 겹치면 recommend의 weight/confidence를 유지한다.
+          weight: recommendMetadata?.weight ?? item.weight,
+          confidence: recommendMetadata?.confidence ?? item.confidence,
+        };
+      }),
+    );
+    // 우선 순위를 반영해 추론 종목 목록 정리
+    // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
+    const allItems = [...mergedHistoryItems, ...majorCoinItems, ...recommendItems];
+    // 중복 제거 및 블랙리스트 필터링
+    const items = await this.filterBalanceRecommendations(allItems);
+
+    // new 모드는 사용자별 history 후보를 유지하되, 공통 후보(메이저/추천)는 모든 사용자에 공유한다.
+    const commonSymbols = new Set([...majorCoinItems, ...recommendItems].map((item) => item.symbol));
+    const inferenceSymbolsByUserId = new Map<string, Set<string>>(
+      userHistoryPairs.map(({ user, items: historyItems }) => [
+        user.id,
+        new Set([...commonSymbols, ...historyItems.map((item) => item.symbol)]),
+      ]),
+    );
+
+    // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
+    await this.scheduleRebalance(usersWithHistoryFetchSuccess, items, 'new', inferenceSymbolsByUserId);
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
@@ -824,18 +853,56 @@ export class RebalanceService implements OnModuleInit {
       return;
     }
 
-    for (const user of users) {
-      // 기존 보유 항목만 재추론: 사용자별 히스토리에 저장된 종목들만 대상
-      const historyItems = await this.historyService.fetchHistoryByUser(user);
-
-      // 중복 제거 및 블랙리스트 필터링
-      const items = await this.filterBalanceRecommendations(historyItems);
-
-      // 추론 실행 → SQS 메시지 전송
-      await this.scheduleRebalance([user], items, 'existing');
+    const userHistoryPairs = await this.fetchUserHistoryPairsSafely(users);
+    const usersWithHistoryPairs = userHistoryPairs.filter((pair) => pair.items.length > 0);
+    const usersWithHistory = usersWithHistoryPairs.map((pair) => pair.user);
+    if (usersWithHistory.length < 1) {
+      this.clearClients();
+      this.logger.log(this.i18n.t('logging.schedule.end'));
+      return;
     }
 
+    // 기존 보유 항목만 재추론: 개인 history가 있는 사용자들의 항목만 합산해 중복 제거 후 1회 추론
+    const mergedHistoryItems = usersWithHistoryPairs.flatMap((pair) => pair.items);
+    const items = await this.filterBalanceRecommendations(mergedHistoryItems);
+    const inferenceSymbolsByUserId = new Map<string, Set<string>>(
+      usersWithHistoryPairs.map(({ user, items: historyItems }) => [
+        user.id,
+        new Set(historyItems.map((item) => item.symbol)),
+      ]),
+    );
+
+    // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
+    await this.scheduleRebalance(usersWithHistory, items, 'existing', inferenceSymbolsByUserId);
+
     this.logger.log(this.i18n.t('logging.schedule.end'));
+  }
+
+  private async fetchUserHistoryPairsSafely(
+    users: User[],
+  ): Promise<Array<{ user: User; items: RecommendationItem[] }>> {
+    const settledResults = await Promise.allSettled(
+      users.map(async (user) => ({
+        user,
+        items: await this.historyService.fetchHistoryByUser(user),
+      })),
+    );
+    const pairs: Array<{ user: User; items: RecommendationItem[] }> = [];
+
+    settledResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        pairs.push(result.value);
+        return;
+      }
+
+      const user = users[index];
+      this.logger.warn(
+        `Failed to fetch history for user(${user?.id ?? 'unknown'}): ${this.stringifyError(result.reason)}`,
+        result.reason,
+      );
+    });
+
+    return pairs;
   }
 
   /**
@@ -852,6 +919,7 @@ export class RebalanceService implements OnModuleInit {
     users: User[],
     items: RecommendationItem[],
     portfolioMode: RebalancePortfolioMode,
+    inferenceSymbolsByUserId?: Map<string, Set<string>>,
   ): Promise<void> {
     if (users.length < 1 || items.length < 1) {
       this.clearClients();
@@ -862,7 +930,7 @@ export class RebalanceService implements OnModuleInit {
     const inferences = await this.balanceRecommendation(items);
 
     // 2. SQS 메시지 전송: 각 사용자별로 리밸런싱 작업을 큐에 등록
-    await this.publishRebalanceMessage(users, inferences, portfolioMode);
+    await this.publishRebalanceMessage(users, inferences, portfolioMode, inferenceSymbolsByUserId);
 
     // 3. 클라이언트 초기화: Upbit 및 Notify 클라이언트 캐시 초기화
     this.clearClients();
@@ -882,22 +950,33 @@ export class RebalanceService implements OnModuleInit {
     users: User[],
     inferences: BalanceRecommendationData[],
     portfolioMode: RebalancePortfolioMode,
+    inferenceSymbolsByUserId?: Map<string, Set<string>>,
   ): Promise<void> {
-    this.logger.log(
-      this.i18n.t('logging.sqs.producer.start', {
-        args: { count: users.length },
-      }),
-    );
-
     try {
       const runId = randomUUID();
       const generatedAt = new Date();
       const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+      const targets = users
+        .map((user) => ({
+          user,
+          inferences: this.scopeInferencesForUser(user, inferences, inferenceSymbolsByUserId),
+        }))
+        .filter((target) => target.inferences.length > 0);
+      this.logger.log(
+        this.i18n.t('logging.sqs.producer.start', {
+          args: { count: targets.length },
+        }),
+      );
+
+      if (targets.length < 1) {
+        this.logger.log(this.i18n.t('logging.sqs.producer.complete'));
+        return;
+      }
 
       // 각 사용자별로 리밸런싱 메시지 생성
       // 메시지 본문에 사용자 정보, 추론 결과 포함
-      const messages = users.map(
-        (user) =>
+      const messages = targets.map(
+        ({ user, inferences: scopedInferences }) =>
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
             MessageBody: JSON.stringify({
@@ -909,7 +988,7 @@ export class RebalanceService implements OnModuleInit {
               generatedAt: generatedAt.toISOString(),
               expiresAt: expiresAt.toISOString(),
               portfolioMode,
-              inferences,
+              inferences: scopedInferences,
             } satisfies TradeExecutionMessageV2),
           }),
       );
@@ -923,6 +1002,23 @@ export class RebalanceService implements OnModuleInit {
       this.logger.error(this.i18n.t('logging.sqs.producer.error', { args: { error } }));
       throw error;
     }
+  }
+
+  private scopeInferencesForUser(
+    user: User,
+    inferences: BalanceRecommendationData[],
+    inferenceSymbolsByUserId?: Map<string, Set<string>>,
+  ): BalanceRecommendationData[] {
+    if (!inferenceSymbolsByUserId) {
+      return inferences;
+    }
+
+    const allowedSymbols = inferenceSymbolsByUserId.get(user.id);
+    if (!allowedSymbols || allowedSymbols.size < 1) {
+      return [];
+    }
+
+    return inferences.filter((inference) => allowedSymbols.has(inference.symbol));
   }
 
   /**
