@@ -134,6 +134,8 @@ export function ContentModal({ show, onClose, title, children, actionLink, rende
                 remarkPlugins={[remarkGfm]}
                 components={{
                   a: ({ href, className, ...props }) => {
+                    const { node, ...anchorProps } = props;
+                    void node;
                     const isExternal = typeof href === 'string' && /^https?:\/\//.test(href);
                     const linkClassName = `text-primary-600 hover:underline dark:text-primary-400${className ? ` ${className}` : ''}`;
                     return (
@@ -142,7 +144,7 @@ export function ContentModal({ show, onClose, title, children, actionLink, rende
                         target={isExternal ? '_blank' : undefined}
                         rel={isExternal ? 'noreferrer noopener' : undefined}
                         className={linkClassName}
-                        {...props}
+                        {...anchorProps}
                       />
                     );
                   },
