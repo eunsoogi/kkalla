@@ -12,15 +12,17 @@ describe('MarketResearchService', () => {
   };
 
   let service: MarketResearchService;
+  let persistExecuteMock: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    persistExecuteMock = jest.fn().mockResolvedValue({ affected: 1 });
     jest.spyOn(MarketRecommendation, 'createQueryBuilder').mockReturnValue({
       update: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      execute: persistExecuteMock,
     } as any);
     service = new MarketResearchService(
       { t: jest.fn((key: string) => key) } as any,
@@ -176,5 +178,82 @@ describe('MarketResearchService', () => {
     expect(upbitService.getMinuteCandleAt).toHaveBeenCalledWith('BTC/KRW', createdAt);
     expect(saved.recommendationPrice).toBe(101);
     expect(saveSpy).toHaveBeenCalled();
+  });
+
+  it('should not persist mixed-mode fallback prices', async () => {
+    const now = Date.now();
+    const recommendations = [
+      {
+        id: 'id-1',
+        seq: 1,
+        symbol: 'AAA/KRW',
+        weight: 0.2,
+        reason: 'reason-1',
+        confidence: 0.95,
+        batchId: 'batch-1',
+        createdAt: new Date(now - 60_000),
+        updatedAt: new Date(now - 60_000),
+      },
+      {
+        id: 'id-2',
+        seq: 2,
+        symbol: 'BBB/KRW',
+        weight: 0.2,
+        reason: 'reason-2',
+        confidence: 0.9,
+        batchId: 'batch-1',
+        createdAt: new Date(now - 120_000),
+        updatedAt: new Date(now - 120_000),
+      },
+      {
+        id: 'id-3',
+        seq: 3,
+        symbol: 'CCC/KRW',
+        weight: 0.2,
+        reason: 'reason-3',
+        confidence: 0.85,
+        batchId: 'batch-1',
+        createdAt: new Date(now - 180_000),
+        updatedAt: new Date(now - 180_000),
+      },
+      {
+        id: 'id-4',
+        seq: 4,
+        symbol: 'DDD/KRW',
+        weight: 0.2,
+        reason: 'reason-4',
+        confidence: 0.8,
+        batchId: 'batch-1',
+        createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+      },
+    ];
+    jest.spyOn(MarketRecommendation, 'getLatestRecommends').mockResolvedValue(recommendations as any);
+
+    upbitService.getTickerAndDailyDataBatch.mockResolvedValue(
+      new Map(
+        recommendations.map((item) => [
+          item.symbol,
+          {
+            ticker: { last: 110 },
+            candles1d: [[new Date(item.createdAt).getTime(), 0, 0, 0, 90]],
+          },
+        ]),
+      ),
+    );
+    upbitService.getMinuteCandleAt.mockImplementation(async (symbol: string) => {
+      if (symbol === 'AAA/KRW') {
+        return undefined; // fallback path on recent symbol
+      }
+      return 100;
+    });
+
+    const result = await service.getLatestWithPriceChange(10, { mode: 'mixed' });
+
+    expect(upbitService.getMinuteCandleAt).toHaveBeenCalledTimes(3);
+    expect(result).toHaveLength(4);
+    expect(result.find((item) => item.symbol === 'AAA/KRW')?.recommendationPrice).toBe(90);
+    expect(result.find((item) => item.symbol === 'DDD/KRW')?.recommendationPrice).toBe(90);
+    expect(persistExecuteMock).toHaveBeenCalledTimes(2);
   });
 });

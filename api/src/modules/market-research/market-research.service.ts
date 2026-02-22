@@ -52,6 +52,11 @@ interface SaveMarketRecommendationOptions {
   marketData?: KrwTickerDailyData | null;
 }
 
+interface RecommendationPriceResolution {
+  price?: number;
+  source: 'minute' | 'fallback' | 'none';
+}
+
 /**
  * 시장 조사 모듈의 핵심 서비스.
  *
@@ -575,19 +580,26 @@ export class MarketResearchService {
     const entries = await Promise.all(
       targets.map(async (item): Promise<[string, number] | null> => {
         const shouldUseMinutePrice = mode === 'exact' || (mode === 'mixed' && recentCandidateSet.has(item.id));
-        const recommendationPrice = await this.resolveRecommendationPriceAtTime(
+        const resolution = await this.resolveRecommendationPriceAtTimeWithSource(
           item.symbol,
           item.createdAt,
           marketDataMap.get(item.symbol),
           shouldUseMinutePrice,
         );
+        const recommendationPrice = resolution.price;
 
         if (recommendationPrice == null) {
           return null;
         }
 
-        await this.persistRecommendationPriceIfMissing(item.id, recommendationPrice);
-        item.recommendationPrice = recommendationPrice;
+        // mixed 모드에서는 분봉을 실제로 조회해 얻은 가격만 영속화한다.
+        const shouldPersist =
+          mode === 'exact' || (mode === 'mixed' && resolution.source === 'minute');
+        if (shouldPersist) {
+          await this.persistRecommendationPriceIfMissing(item.id, recommendationPrice);
+          item.recommendationPrice = recommendationPrice;
+        }
+
         return [item.id, recommendationPrice];
       }),
     );
@@ -640,14 +652,30 @@ export class MarketResearchService {
     marketData?: KrwTickerDailyData | null,
     allowMinuteLookup = true,
   ): Promise<number | undefined> {
-    let recommendationPrice: number | undefined;
+    const resolution = await this.resolveRecommendationPriceAtTimeWithSource(
+      symbol,
+      createdAt,
+      marketData,
+      allowMinuteLookup,
+    );
+    return resolution.price;
+  }
 
+  private async resolveRecommendationPriceAtTimeWithSource(
+    symbol: string,
+    createdAt: Date,
+    marketData?: KrwTickerDailyData | null,
+    allowMinuteLookup = true,
+  ): Promise<RecommendationPriceResolution> {
     if (allowMinuteLookup) {
-      recommendationPrice = await this.upbitService.getMinuteCandleAt(symbol, createdAt);
+      const minutePrice = this.toPositiveNumber(await this.upbitService.getMinuteCandleAt(symbol, createdAt));
+      if (minutePrice != null) {
+        return { price: minutePrice, source: 'minute' };
+      }
     }
 
     let marketDataRef = marketData;
-    if (recommendationPrice == null && !marketDataRef) {
+    if (!marketDataRef) {
       try {
         marketDataRef = await this.upbitService.getTickerAndDailyData(symbol);
       } catch {
@@ -655,12 +683,15 @@ export class MarketResearchService {
       }
     }
 
-    if (recommendationPrice == null) {
-      const currentPrice = this.toFiniteNumber(marketDataRef?.ticker?.last);
-      recommendationPrice = this.resolveDailyFallbackPrice(marketDataRef?.candles1d || [], createdAt, currentPrice);
+    const currentPrice = this.toFiniteNumber(marketDataRef?.ticker?.last);
+    const fallbackPrice = this.toPositiveNumber(
+      this.resolveDailyFallbackPrice(marketDataRef?.candles1d || [], createdAt, currentPrice),
+    );
+    if (fallbackPrice != null) {
+      return { price: fallbackPrice, source: 'fallback' };
     }
 
-    return this.toPositiveNumber(recommendationPrice);
+    return { source: 'none' };
   }
 
   private resolveDailyFallbackPrice(candles1d: number[][], createdAt: Date, currentPrice?: number): number | undefined {

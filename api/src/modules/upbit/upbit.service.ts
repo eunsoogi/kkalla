@@ -27,6 +27,8 @@ export class UpbitService {
   private serverClient: upbit;
   private client: upbit[] = [];
   private readonly MAX_PRECISION = 8;
+  private readonly MINUTE_OPEN_VALUE_CACHE_TTL_SECONDS = 60 * 60 * 24;
+  private readonly MINUTE_OPEN_NULL_CACHE_TTL_SECONDS = 60;
 
   // API 호출에 대한 2단계 재시도 옵션
   private readonly retryOptions: TwoPhaseRetryOptions = {
@@ -585,15 +587,16 @@ export class UpbitService {
 
       const candle = candles?.[0];
       if (!candle || candle.length < 5) {
-        await this.cacheService.set(cacheKey, { value: null }, 60 * 60 * 24);
+        await this.cacheService.set(cacheKey, { value: null }, this.MINUTE_OPEN_NULL_CACHE_TTL_SECONDS);
         return undefined;
       }
       const open = Number(candle[1]);
       const value = Number.isFinite(open) && open > 0 ? open : null;
-      await this.cacheService.set(cacheKey, { value }, 60 * 60 * 24);
+      const ttl = value == null ? this.MINUTE_OPEN_NULL_CACHE_TTL_SECONDS : this.MINUTE_OPEN_VALUE_CACHE_TTL_SECONDS;
+      await this.cacheService.set(cacheKey, { value }, ttl);
       return value ?? undefined;
     } catch {
-      await this.cacheService.set(cacheKey, { value: null }, 60);
+      await this.cacheService.set(cacheKey, { value: null }, this.MINUTE_OPEN_NULL_CACHE_TTL_SECONDS);
       return undefined;
     }
   }

@@ -3,8 +3,14 @@ import { UpbitService } from './upbit.service';
 
 describe('UpbitService', () => {
   let service: UpbitService;
+  const cacheService = {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(() => {
+    cacheService.get.mockResolvedValue(null);
+    cacheService.set.mockResolvedValue(undefined);
     service = new UpbitService(
       {
         t: jest.fn((key: string) => key),
@@ -17,10 +23,7 @@ describe('UpbitService', () => {
         notify: jest.fn().mockResolvedValue(undefined),
         notifyServer: jest.fn().mockResolvedValue(undefined),
       } as any,
-      {
-        get: jest.fn().mockResolvedValue(null),
-        set: jest.fn().mockResolvedValue(undefined),
-      } as any,
+      cacheService as any,
     );
   });
 
@@ -122,5 +125,39 @@ describe('UpbitService', () => {
 
     expect(getPriceSpy).not.toHaveBeenCalled();
     expect(marketValue).toBe(10_000);
+  });
+
+  it('should cache missing minute candle with short ttl', async () => {
+    const time = new Date('2026-02-22T12:34:56.000Z');
+    const minuteStartMs = Math.floor(time.getTime() / 60_000) * 60_000;
+    const cacheKey = `upbit:minute-open:BTC/KRW:${minuteStartMs}`;
+    const client = {
+      fetchOHLCV: jest.fn().mockResolvedValue([]),
+    };
+
+    jest.spyOn(service, 'getServerClient').mockResolvedValue(client as any);
+    cacheService.get.mockResolvedValue(null);
+
+    const result = await service.getMinuteCandleAt('BTC/KRW', time);
+
+    expect(result).toBeUndefined();
+    expect(cacheService.set).toHaveBeenCalledWith(cacheKey, { value: null }, 60);
+  });
+
+  it('should cache minute candle open with long ttl', async () => {
+    const time = new Date('2026-02-22T12:34:56.000Z');
+    const minuteStartMs = Math.floor(time.getTime() / 60_000) * 60_000;
+    const cacheKey = `upbit:minute-open:BTC/KRW:${minuteStartMs}`;
+    const client = {
+      fetchOHLCV: jest.fn().mockResolvedValue([[minuteStartMs, 123, 0, 0, 0]]),
+    };
+
+    jest.spyOn(service, 'getServerClient').mockResolvedValue(client as any);
+    cacheService.get.mockResolvedValue(null);
+
+    const result = await service.getMinuteCandleAt('BTC/KRW', time);
+
+    expect(result).toBe(123);
+    expect(cacheService.set).toHaveBeenCalledWith(cacheKey, { value: 123 }, 60 * 60 * 24);
   });
 });
