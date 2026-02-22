@@ -778,18 +778,16 @@ export class RebalanceService implements OnModuleInit {
     const majorCoinItems = await this.fetchMajorCoinItems();
     const recommendItems = await this.fetchRecommendItems();
 
-    for (const user of users) {
-      const historyItems = await this.historyService.fetchHistoryByUser(user);
+    // 전체 사용자 history를 합산한 뒤 중복 제거하여 1회 추론 대상으로 사용
+    const historyItems = await this.historyService.fetchHistoryByUsers(users);
+    // 우선 순위를 반영해 추론 종목 목록 정리
+    // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
+    const allItems = [...historyItems, ...majorCoinItems, ...recommendItems];
+    // 중복 제거 및 블랙리스트 필터링
+    const items = await this.filterBalanceRecommendations(allItems);
 
-      // 우선 순위를 반영해 추론 종목 목록 정리
-      // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)
-      const allItems = [...historyItems, ...majorCoinItems, ...recommendItems];
-      // 중복 제거 및 블랙리스트 필터링
-      const items = await this.filterBalanceRecommendations(allItems);
-
-      // 추론 실행 → SQS 메시지 전송
-      await this.scheduleRebalance([user], items, 'new');
-    }
+    // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
+    await this.scheduleRebalance(users, items, 'new');
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
@@ -824,16 +822,12 @@ export class RebalanceService implements OnModuleInit {
       return;
     }
 
-    for (const user of users) {
-      // 기존 보유 항목만 재추론: 사용자별 히스토리에 저장된 종목들만 대상
-      const historyItems = await this.historyService.fetchHistoryByUser(user);
+    // 기존 보유 항목만 재추론: 전체 사용자 history를 합산해 중복 제거 후 1회 추론
+    const historyItems = await this.historyService.fetchHistoryByUsers(users);
+    const items = await this.filterBalanceRecommendations(historyItems);
 
-      // 중복 제거 및 블랙리스트 필터링
-      const items = await this.filterBalanceRecommendations(historyItems);
-
-      // 추론 실행 → SQS 메시지 전송
-      await this.scheduleRebalance([user], items, 'existing');
-    }
+    // 단 1회 추론 후 결과를 사용자별 주문 실행에 재사용
+    await this.scheduleRebalance(users, items, 'existing');
 
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
