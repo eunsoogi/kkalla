@@ -777,6 +777,9 @@ export class RebalanceService implements OnModuleInit {
     // 공통 후보군: 메이저 코인(BTC/ETH) 및 시장 추천 종목
     const majorCoinItems = await this.fetchMajorCoinItems();
     const recommendItems = await this.fetchRecommendItems();
+    const recommendMetadataBySymbol = new Map(
+      recommendItems.map((item) => [item.symbol, { weight: item.weight, confidence: item.confidence }]),
+    );
 
     const userHistoryPairs = await Promise.all(
       users.map(async (user) => ({
@@ -785,12 +788,18 @@ export class RebalanceService implements OnModuleInit {
       })),
     );
     const mergedHistoryItems = userHistoryPairs.flatMap((pair) =>
-      pair.items.map((item) => ({
-        ...item,
-        // 공통 추론 입력에서는 사용자별 보유 여부가 섞이지 않도록 중립값으로 정규화한다.
-        // 실제 사용자별 보유 컨텍스트는 executeRebalanceForUser -> applyUserHistoryContext에서 다시 적용된다.
-        hasStock: false,
-      })),
+      pair.items.map((item) => {
+        const recommendMetadata = recommendMetadataBySymbol.get(item.symbol);
+        return {
+          ...item,
+          // 공통 추론 입력에서는 사용자별 보유 여부가 섞이지 않도록 중립값으로 정규화한다.
+          // 실제 사용자별 보유 컨텍스트는 executeRebalanceForUser -> applyUserHistoryContext에서 다시 적용된다.
+          hasStock: false,
+          // history/recommend 심볼이 겹치면 recommend의 weight/confidence를 유지한다.
+          weight: recommendMetadata?.weight ?? item.weight,
+          confidence: recommendMetadata?.confidence ?? item.confidence,
+        };
+      }),
     );
     // 우선 순위를 반영해 추론 종목 목록 정리
     // 순서: 기존 보유 > 메이저 코인 > 시장 추천 (앞에 있는 것이 우선순위 높음)

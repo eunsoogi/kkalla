@@ -365,6 +365,66 @@ describe('RebalanceService', () => {
     expect(scopeByUser.get(users[1].id)?.has('USER1_ONLY/KRW')).toBe(false);
   });
 
+  it('should retain recommend metadata when history overlaps in new rebalance mode', async () => {
+    const scheduleService = (service as any).scheduleService;
+    const historyService = (service as any).historyService;
+    const users = [
+      { id: 'user-1', roles: [] },
+      { id: 'user-2', roles: [] },
+    ];
+
+    scheduleService.getUsers.mockResolvedValue(users);
+    historyService.fetchHistoryByUser
+      .mockResolvedValueOnce([
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'USER2_ONLY/KRW',
+          category: Category.COIN_MINOR,
+          hasStock: true,
+        },
+      ]);
+
+    jest.spyOn(service as any, 'fetchMajorCoinItems').mockResolvedValue([]);
+    jest.spyOn(service as any, 'fetchRecommendItems').mockResolvedValue([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MINOR,
+        hasStock: false,
+        weight: 0.22,
+        confidence: 0.88,
+      },
+    ]);
+    const scheduleSpy = jest.spyOn(service as any, 'scheduleRebalance').mockResolvedValue(undefined);
+
+    await service.executeBalanceRecommendationNewTask();
+
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{
+      symbol: string;
+      hasStock: boolean;
+      weight?: number;
+      confidence?: number;
+    }>;
+    const overlappingEthItems = scheduledItems.filter((item) => item.symbol === 'ETH/KRW');
+    expect(overlappingEthItems).toHaveLength(1);
+    expect(overlappingEthItems[0]).toMatchObject({
+      symbol: 'ETH/KRW',
+      hasStock: false,
+      weight: 0.22,
+      confidence: 0.88,
+    });
+
+    const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
+    expect(scopeByUser.get(users[0].id)?.has('ETH/KRW')).toBe(true);
+    expect(scopeByUser.get(users[1].id)?.has('ETH/KRW')).toBe(true);
+  });
+
   it('should skip users without history in existing rebalance mode', async () => {
     const scheduleService = (service as any).scheduleService;
     const historyService = (service as any).historyService;
