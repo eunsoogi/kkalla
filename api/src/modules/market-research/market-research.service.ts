@@ -593,8 +593,7 @@ export class MarketResearchService {
         }
 
         // mixed 모드에서는 분봉을 실제로 조회해 얻은 가격만 영속화한다.
-        const shouldPersist =
-          mode === 'exact' || (mode === 'mixed' && resolution.source === 'minute');
+        const shouldPersist = mode === 'exact' || (mode === 'mixed' && resolution.source === 'minute');
         if (shouldPersist) {
           await this.persistRecommendationPriceIfMissing(item.id, recommendationPrice);
           item.recommendationPrice = recommendationPrice;
