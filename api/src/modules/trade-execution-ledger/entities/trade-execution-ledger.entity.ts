@@ -1,6 +1,6 @@
 import {
-  BeforeInsert,
   BaseEntity,
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -9,8 +9,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { TradeExecutionLedgerStatus } from '../trade-execution-ledger.enum';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
+
+import { TradeExecutionLedgerStatus } from '../trade-execution-ledger.enum';
 
 @Entity()
 @Index('idx_trade_execution_ledger_module_message_user', ['module', 'messageKey', 'userId'], { unique: true })
@@ -40,8 +41,7 @@ export class TradeExecutionLedger extends BaseEntity {
   messageKey: string;
 
   @Column({
-    type: 'varchar',
-    length: 191,
+    ...ULID_COLUMN_OPTIONS,
     nullable: false,
   })
   userId: string;

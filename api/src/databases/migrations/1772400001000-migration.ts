@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey, TableIndex } from 'typeorm';
 import { monotonicFactory } from 'ulid';
 
+import { normalizeIdentifierToUlid } from '../../utils/id';
+
 interface UlidLinkColumn {
   table: string;
   oldColumn: string;
@@ -59,6 +61,7 @@ export class Migration1772400001000 implements MigrationInterface {
     },
     { table: 'user_roles_role', oldColumn: 'user_id', newColumn: 'user_id_ulid', nullable: false },
     { table: 'user_roles_role', oldColumn: 'role_id', newColumn: 'role_id_ulid', nullable: false },
+    { table: 'trade_execution_ledger', oldColumn: 'user_id', newColumn: 'user_id_ulid', nullable: false },
   ];
 
   private readonly fkCapturePlans: ForeignKeyCapturePlan[] = [
@@ -89,6 +92,7 @@ export class Migration1772400001000 implements MigrationInterface {
       newColumn: 'source_recommendation_id_ulid',
       nullable: false,
     },
+    { table: 'trade_execution_ledger', oldColumn: 'user_id', newColumn: 'user_id_ulid', nullable: false },
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -114,8 +118,16 @@ export class Migration1772400001000 implements MigrationInterface {
       capturedForeignKeys.set(plan.table, await this.captureAndDropForeignKeys(queryRunner, plan.table, plan.columns));
     }
 
-    await this.dropIndexIfExists(queryRunner, 'trade_execution_ledger', 'idx_trade_execution_ledger_module_message_user');
-    await this.dropIndexIfExists(queryRunner, 'allocation_recommendation', 'idx_allocation_recommendation_batch_id_symbol');
+    await this.dropIndexIfExists(
+      queryRunner,
+      'trade_execution_ledger',
+      'idx_trade_execution_ledger_module_message_user',
+    );
+    await this.dropIndexIfExists(
+      queryRunner,
+      'allocation_recommendation',
+      'idx_allocation_recommendation_batch_id_symbol',
+    );
 
     await queryRunner.query(`
       UPDATE allocation_audit_run r
@@ -154,8 +166,17 @@ export class Migration1772400001000 implements MigrationInterface {
     await this.dropSeqColumn(queryRunner, 'allocation_audit_run');
     await this.dropSeqColumn(queryRunner, 'allocation_audit_item');
 
-    await this.ensureIndex(queryRunner, 'allocation_recommendation', 'idx_allocation_recommendation_batch_id_symbol', ['batch_id', 'symbol'], true);
-    await this.ensureIndex(queryRunner, 'allocation_recommendation', 'idx_allocation_recommendation_category_id', ['category', 'id']);
+    await this.ensureIndex(
+      queryRunner,
+      'allocation_recommendation',
+      'idx_allocation_recommendation_batch_id_symbol',
+      ['batch_id', 'symbol'],
+      true,
+    );
+    await this.ensureIndex(queryRunner, 'allocation_recommendation', 'idx_allocation_recommendation_category_id', [
+      'category',
+      'id',
+    ]);
     await this.ensureIndex(
       queryRunner,
       'allocation_recommendation',
@@ -172,7 +193,11 @@ export class Migration1772400001000 implements MigrationInterface {
     await this.ensureIndex(queryRunner, 'upbit_config', 'uq_upbit_config_user_id', ['user_id'], true);
     await this.ensureIndex(queryRunner, 'slack_config', 'uq_slack_config_user_id', ['user_id'], true);
 
-    await this.ensureIndex(queryRunner, 'user_category', 'idx_user_category_user_enabled_category', ['user_id', 'enabled', 'category']);
+    await this.ensureIndex(queryRunner, 'user_category', 'idx_user_category_user_enabled_category', [
+      'user_id',
+      'enabled',
+      'category',
+    ]);
     await this.ensureIndex(queryRunner, 'user_roles_role', 'idx_user_roles_role_user_id', ['user_id']);
     await this.ensureIndex(queryRunner, 'user_roles_role', 'idx_user_roles_role_role_id', ['role_id']);
 
@@ -362,6 +387,25 @@ export class Migration1772400001000 implements MigrationInterface {
       WHERE urr.role_id_ulid IS NULL
     `);
 
+    await this.backfillTradeExecutionLedgerUserUlids(queryRunner);
+  }
+
+  private async backfillTradeExecutionLedgerUserUlids(queryRunner: QueryRunner): Promise<void> {
+    const rows: Array<{ user_id: string; created_at: Date | string | null }> = await queryRunner.query(`
+      SELECT user_id, MIN(created_at) AS created_at
+      FROM trade_execution_ledger
+      WHERE user_id_ulid IS NULL
+      GROUP BY user_id
+      ORDER BY created_at ASC, user_id ASC
+    `);
+
+    for (const row of rows) {
+      const normalizedUserId = normalizeIdentifierToUlid(row.user_id);
+      await queryRunner.query(
+        `UPDATE trade_execution_ledger SET user_id_ulid = ? WHERE user_id = ? AND user_id_ulid IS NULL`,
+        [normalizedUserId, row.user_id],
+      );
+    }
   }
 
   private async backfillBatchUlids(queryRunner: QueryRunner): Promise<void> {
@@ -408,9 +452,7 @@ export class Migration1772400001000 implements MigrationInterface {
     );
 
     if (Number(rows[0]?.count ?? 0) > 0) {
-      throw new Error(
-        `[ulid cutover] ${tableName}.source_batch_id still has non-ULID values for allocation rows`,
-      );
+      throw new Error(`[ulid cutover] ${tableName}.source_batch_id still has non-ULID values for allocation rows`);
     }
   }
 

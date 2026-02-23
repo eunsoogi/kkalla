@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { IsNull } from 'typeorm';
 
+import { normalizeIdentifierToUlid } from '@/utils/id';
+
 import { TradeExecutionLedger } from './entities/trade-execution-ledger.entity';
 import { TradeExecutionLedgerStatus } from './trade-execution-ledger.enum';
 import {
@@ -31,21 +33,22 @@ export class TradeExecutionLedgerService {
   }
 
   public async acquire(input: TradeExecutionLedgerAcquireInput): Promise<TradeExecutionLedgerAcquireResult> {
-    const existing = await this.findByUniqueKey(input);
+    const normalizedInput = this.normalizeAcquireInput(input);
+    const existing = await this.findByUniqueKey(normalizedInput);
 
     if (existing) {
-      return this.resolveExistingAcquire(input, existing);
+      return this.resolveExistingAcquire(normalizedInput, existing);
     }
 
     const row = new TradeExecutionLedger();
-    row.module = input.module;
-    row.messageKey = input.messageKey;
-    row.userId = input.userId;
+    row.module = normalizedInput.module;
+    row.messageKey = normalizedInput.messageKey;
+    row.userId = normalizedInput.userId;
     row.status = TradeExecutionLedgerStatus.PROCESSING;
     row.attemptCount = 1;
-    row.payloadHash = input.payloadHash;
-    row.generatedAt = input.generatedAt ?? null;
-    row.expiresAt = input.expiresAt ?? null;
+    row.payloadHash = normalizedInput.payloadHash;
+    row.generatedAt = normalizedInput.generatedAt ?? null;
+    row.expiresAt = normalizedInput.expiresAt ?? null;
     row.startedAt = new Date();
     row.finishedAt = null;
     row.error = null;
@@ -64,9 +67,9 @@ export class TradeExecutionLedgerService {
 
       // A concurrent worker may have inserted PROCESSING first. Re-read and preserve
       // the winner's state instead of forcing it to DUPLICATE.
-      const raced = await this.findByUniqueKey(input);
+      const raced = await this.findByUniqueKey(normalizedInput);
       if (raced) {
-        return this.resolveExistingAcquire(input, raced);
+        return this.resolveExistingAcquire(normalizedInput, raced);
       }
 
       // If we still cannot read the row, keep the message retriable.
@@ -97,6 +100,7 @@ export class TradeExecutionLedgerService {
   public async heartbeatProcessing(
     input: Pick<TradeExecutionLedgerMarkInput, 'module' | 'messageKey' | 'userId' | 'attemptCount'>,
   ): Promise<void> {
+    const normalizedUserId = this.normalizeUserId(input.userId);
     const whereCondition: {
       module: string;
       messageKey: string;
@@ -106,7 +110,7 @@ export class TradeExecutionLedgerService {
     } = {
       module: input.module,
       messageKey: input.messageKey,
-      userId: input.userId,
+      userId: normalizedUserId,
       status: TradeExecutionLedgerStatus.PROCESSING,
     };
 
@@ -120,11 +124,12 @@ export class TradeExecutionLedgerService {
   }
 
   private async findByUniqueKey(input: Pick<TradeExecutionLedgerAcquireInput, 'module' | 'messageKey' | 'userId'>) {
+    const normalizedUserId = this.normalizeUserId(input.userId);
     return TradeExecutionLedger.findOne({
       where: {
         module: input.module,
         messageKey: input.messageKey,
-        userId: input.userId,
+        userId: normalizedUserId,
       },
     });
   }
@@ -210,6 +215,7 @@ export class TradeExecutionLedgerService {
     status: TradeExecutionLedgerStatus,
     error?: string | null,
   ): Promise<void> {
+    const normalizedUserId = this.normalizeUserId(input.userId);
     const whereCondition: {
       module: string;
       messageKey: string;
@@ -219,7 +225,7 @@ export class TradeExecutionLedgerService {
     } = {
       module: input.module,
       messageKey: input.messageKey,
-      userId: input.userId,
+      userId: normalizedUserId,
       status: TradeExecutionLedgerStatus.PROCESSING,
     };
 
@@ -236,5 +242,16 @@ export class TradeExecutionLedgerService {
 
   private isValidAttemptCount(attemptCount: unknown): attemptCount is number {
     return typeof attemptCount === 'number' && Number.isFinite(attemptCount) && attemptCount > 0;
+  }
+
+  private normalizeAcquireInput(input: TradeExecutionLedgerAcquireInput): TradeExecutionLedgerAcquireInput {
+    return {
+      ...input,
+      userId: this.normalizeUserId(input.userId),
+    };
+  }
+
+  private normalizeUserId(userId: string): string {
+    return normalizeIdentifierToUlid(userId);
   }
 }
