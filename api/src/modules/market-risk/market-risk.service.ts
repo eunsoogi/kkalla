@@ -67,6 +67,7 @@ import { processTradeExecutionMessage } from '@/modules/trade-execution-ledger/h
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { User } from '@/modules/user/entities/user.entity';
+import { generateMonotonicUlid } from '@/utils/id';
 import { formatNumber } from '@/utils/number';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
@@ -88,7 +89,6 @@ import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { MarketFeatures } from '../upbit/upbit.interface';
 import { UserService } from '../user/user.service';
-import { generateMonotonicUlid } from '@/utils/id';
 import { SymbolVolatility } from './market-risk.interface';
 import {
   UPBIT_ALLOCATION_RECOMMENDATION_CONFIG,

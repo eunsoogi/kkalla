@@ -1,6 +1,6 @@
 import {
-  BeforeInsert,
   BaseEntity,
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -10,9 +10,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
+
 import { User } from '../../user/entities/user.entity';
 import { Category } from '../category.enum';
-import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity()
 @Index('idx_user_category_user_enabled_category', ['user', 'enabled', 'category'])

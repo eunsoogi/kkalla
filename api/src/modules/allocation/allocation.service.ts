@@ -59,8 +59,8 @@ import { parseQueuedInference } from '@/modules/trade-execution-ledger/helpers/t
 import { parseTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-parser';
 import { processTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-pipeline';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
-import { formatNumber } from '@/utils/number';
 import { generateMonotonicUlid } from '@/utils/id';
+import { formatNumber } from '@/utils/number';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';

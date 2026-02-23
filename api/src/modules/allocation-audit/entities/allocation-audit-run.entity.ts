@@ -1,6 +1,6 @@
 import {
-  BeforeInsert,
   BaseEntity,
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -10,9 +10,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
+
 import { AllocationAuditStatus, ReportType } from '../allocation-audit.interface';
 import { AllocationAuditItem } from './allocation-audit-item.entity';
-import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity('allocation_audit_run')
 @Index('idx_allocation_audit_run_report_type_batch_horizon', ['reportType', 'sourceBatchId', 'horizonHours'], {
