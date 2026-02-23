@@ -101,6 +101,9 @@ export class Migration1772400001000 implements MigrationInterface {
       await this.addUniqueIndexIfMissing(queryRunner, table, `ux_${table}_id_ulid`, ['id_ulid']);
     }
 
+    await this.addUserLegacyIdColumnIfMissing(queryRunner);
+    await this.addUniqueIndexIfMissing(queryRunner, 'user', 'ux_user_legacy_id', ['legacy_id']);
+
     await this.addUlidColumnIfMissing(queryRunner, 'allocation_recommendation', 'batch_id_ulid');
 
     for (const link of this.linkColumns) {
@@ -108,6 +111,7 @@ export class Migration1772400001000 implements MigrationInterface {
     }
 
     await this.backfillPrimaryUlids(queryRunner);
+    await this.backfillUserLegacyIds(queryRunner);
     await this.backfillRelationUlids(queryRunner);
     await this.backfillBatchUlids(queryRunner);
     await this.runPreflightChecks(queryRunner);
@@ -252,6 +256,25 @@ export class Migration1772400001000 implements MigrationInterface {
     );
   }
 
+  private async addUserLegacyIdColumnIfMissing(queryRunner: QueryRunner): Promise<void> {
+    const hasColumn = await queryRunner.hasColumn('user', 'legacy_id');
+    if (hasColumn) {
+      return;
+    }
+
+    await queryRunner.addColumn(
+      'user',
+      new TableColumn({
+        name: 'legacy_id',
+        type: 'char',
+        length: '36',
+        charset: 'ascii',
+        collation: 'ascii_bin',
+        isNullable: true,
+      }),
+    );
+  }
+
   private async addUniqueIndexIfMissing(
     queryRunner: QueryRunner,
     tableName: string,
@@ -290,6 +313,15 @@ export class Migration1772400001000 implements MigrationInterface {
         await queryRunner.query(`UPDATE \`${table}\` SET id_ulid = ? WHERE id = ?`, [this.ulid(timeMs), row.id]);
       }
     }
+  }
+
+  private async backfillUserLegacyIds(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      UPDATE user
+      SET legacy_id = id
+      WHERE id IS NOT NULL
+        AND legacy_id IS NULL
+    `);
   }
 
   private async backfillRelationUlids(queryRunner: QueryRunner): Promise<void> {
@@ -434,6 +466,8 @@ export class Migration1772400001000 implements MigrationInterface {
     }
 
     await this.assertNoNullWhenOldNotNull(queryRunner, 'allocation_recommendation', 'batch_id', 'batch_id_ulid');
+    await this.assertNoNullWhenOldNotNull(queryRunner, 'user', 'id', 'legacy_id');
+    await this.assertNoDuplicates(queryRunner, 'user', 'legacy_id');
 
     for (const plan of this.swapColumnPlans) {
       await this.assertNoNullWhenOldNotNull(queryRunner, plan.table, plan.oldColumn, plan.newColumn);

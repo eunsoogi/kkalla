@@ -35,6 +35,17 @@ export class User extends BaseEntity {
   }
 
   @Column({
+    name: 'legacy_id',
+    type: 'char',
+    length: 36,
+    charset: 'ascii',
+    collation: 'ascii_bin',
+    nullable: true,
+    unique: true,
+  })
+  legacyId: string | null;
+
+  @Column({
     type: 'varchar',
     length: 255,
     nullable: false,
