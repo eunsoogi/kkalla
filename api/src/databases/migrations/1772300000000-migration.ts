@@ -139,9 +139,6 @@ export class Migration1772300000000 implements MigrationInterface {
       'idx_allocation_audit_item_source_batch_horizon',
     );
 
-    await this.updateTradeExecutionModuleValue(queryRunner, 'rebalance', 'allocation');
-    await this.updateTradeExecutionModuleValue(queryRunner, 'volatility', 'risk');
-
     for (const rename of this.permissionRenames) {
       await this.renameRolePermission(queryRunner, rename.from, rename.to);
     }
@@ -152,8 +149,6 @@ export class Migration1772300000000 implements MigrationInterface {
       await this.renameRolePermission(queryRunner, rename.to, rename.from);
     }
 
-    await this.updateTradeExecutionModuleValue(queryRunner, 'allocation', 'rebalance');
-    await this.updateTradeExecutionModuleValue(queryRunner, 'risk', 'volatility');
     await this.migrateReportTypeToPortfolio(queryRunner, 'allocation_audit_run');
     await this.migrateReportTypeToPortfolio(queryRunner, 'allocation_audit_item');
 
@@ -329,19 +324,6 @@ export class Migration1772300000000 implements MigrationInterface {
     }
 
     await queryRunner.query(`ALTER TABLE \`${tableName}\` RENAME INDEX \`${oldIndexName}\` TO \`${newIndexName}\``);
-  }
-
-  private async updateTradeExecutionModuleValue(
-    queryRunner: QueryRunner,
-    fromValue: string,
-    toValue: string,
-  ): Promise<void> {
-    const hasLedgerTable = await queryRunner.hasTable('trade_execution_ledger');
-    if (!hasLedgerTable) {
-      return;
-    }
-
-    await queryRunner.query(`UPDATE trade_execution_ledger SET module = ? WHERE module = ?`, [toValue, fromValue]);
   }
 
   private async renameRolePermission(queryRunner: QueryRunner, from: string, to: string): Promise<void> {
