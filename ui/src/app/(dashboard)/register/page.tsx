@@ -1,11 +1,11 @@
 import React from 'react';
 import { getTranslations } from 'next-intl/server';
 
-import CategoryForm from '@/components/category/CategoryForm';
-import ScheduleForm from '@/components/config/ScheduleForm';
-import UpbitForm from '@/components/config/UpbitForm';
-import UpbitGuide from '@/components/config/UpbitGuide';
-import RegisterProgressPanel from '@/components/register/RegisterProgressPanel';
+import CategoryForm from '@/app/(dashboard)/register/_components/CategoryForm';
+import ScheduleForm from '@/app/(dashboard)/register/_components/ScheduleForm';
+import UpbitForm from '@/app/(dashboard)/register/_components/UpbitForm';
+import UpbitGuide from '@/app/(dashboard)/register/_components/UpbitGuide';
+import RegisterProgressPanel from '@/app/(dashboard)/register/_components/RegisterProgressPanel';
 
 const Page = async () => {
   const t = await getTranslations();

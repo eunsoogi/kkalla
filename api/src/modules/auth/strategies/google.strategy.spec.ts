@@ -9,12 +9,15 @@ describe('GoogleTokenStrategy', () => {
     get: jest.fn(),
     set: jest.fn().mockResolvedValue(undefined),
   };
+  const i18n = {
+    t: jest.fn((key: string) => key),
+  };
 
   let strategy: GoogleTokenStrategy;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    strategy = new GoogleTokenStrategy(userService as any, cacheService as any);
+    strategy = new GoogleTokenStrategy(userService as any, cacheService as any, i18n as any);
   });
 
   it('should reuse cached token info and skip google token validation', async () => {

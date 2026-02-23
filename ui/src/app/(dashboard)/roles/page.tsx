@@ -6,10 +6,10 @@ import React from 'react';
 import { Button } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { ForbiddenError } from '@/components/error/403';
-import { RoleTable } from '@/components/role/RoleTable';
-import { Permission } from '@/interfaces/permission.interface';
+import { PermissionGuard } from '@/app/(dashboard)/_shared/auth/PermissionGuard';
+import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError';
+import { RoleTable } from '@/app/(dashboard)/roles/_components/RoleTable';
+import { Permission } from '@/shared/types/permission.types';
 
 const Page: React.FC = () => {
   const t = useTranslations();

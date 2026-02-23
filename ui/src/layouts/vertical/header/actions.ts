@@ -1,5 +1,5 @@
-import { CursorItem } from '@/interfaces/item.interface';
-import { Notify, initialCursorState } from '@/interfaces/notify.interface';
+import { CursorItem } from '@/shared/types/pagination.types';
+import { Notify, initialCursorState } from '@/layouts/vertical/header/_types/notify.types';
 
 export const getNotifyCursorAction = async (cursor?: string): Promise<CursorItem<Notify>> => {
   const params = new URLSearchParams();

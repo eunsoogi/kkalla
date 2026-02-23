@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
 import { Seeder } from 'typeorm-extension';
 
+import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { Category } from '@/modules/category/category.enum';
 import { UserCategory } from '@/modules/category/entities/user-category.entity';
-import { History } from '@/modules/history/entities/history.entity';
+import { HoldingLedger } from '@/modules/holding-ledger/entities/holding-ledger.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
-import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
 import { Role } from '@/modules/role/entities/role.entity';
 import { Sequence } from '@/modules/sequence/entities/sequence.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';
@@ -31,16 +31,16 @@ export class UserSeeder implements Seeder {
   }
 }
 
-export class BalanceRecommendationSeeder implements Seeder {
+export class AllocationRecommendationSeeder implements Seeder {
   public async run(): Promise<void> {
-    await BalanceRecommendation.createQueryBuilder().delete().execute();
+    await AllocationRecommendation.createQueryBuilder().delete().execute();
 
     for (let i = 0; i < 11; i++) {
       const batchId = randomUUID();
       const majorPrevIntensity = i < 6 ? 0.7 + (i % 3) * 0.05 : null;
       const minorPrevIntensity = i < 4 ? -0.3 + (i % 2) * 0.1 : null;
 
-      await BalanceRecommendation.save([
+      await AllocationRecommendation.save([
         {
           batchId,
           seq: (await new Sequence().save()).value,
@@ -78,7 +78,7 @@ export class BalanceRecommendationSeeder implements Seeder {
 export class TradeSeeder implements Seeder {
   async run(): Promise<void> {
     const users = await User.find();
-    const inferences = await BalanceRecommendation.find();
+    const inferences = await AllocationRecommendation.find();
     await Trade.createQueryBuilder().delete().execute();
 
     await Trade.save([
@@ -127,10 +127,10 @@ export class NotifySeeder implements Seeder {
 }
 
 /**
- * 보유 종목(History) 개발용 시드 - 대시보드 위젯에서 목록 표시용
+ * 보유 종목(HoldingLedger) 개발용 시드 - 대시보드 위젯에서 목록 표시용
  * 카테고리별 다양한 종목으로 매매 카테고리 필터 테스트 가능
  */
-export class HistorySeeder implements Seeder {
+export class HoldingLedgerSeeder implements Seeder {
   async run(): Promise<void> {
     const users = await User.find();
     const user = users[0];
@@ -138,9 +138,9 @@ export class HistorySeeder implements Seeder {
       return;
     }
 
-    await History.createQueryBuilder().delete().execute();
+    await HoldingLedger.createQueryBuilder().delete().execute();
 
-    await History.save([
+    await HoldingLedger.save([
       // 메이저 코인
       { user, symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
       { user, symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
@@ -196,8 +196,8 @@ export class UserCategorySeeder implements Seeder {
 export const seeders = [
   UserSeeder,
   UserCategorySeeder,
-  BalanceRecommendationSeeder,
+  AllocationRecommendationSeeder,
   TradeSeeder,
   NotifySeeder,
-  HistorySeeder,
+  HoldingLedgerSeeder,
 ];

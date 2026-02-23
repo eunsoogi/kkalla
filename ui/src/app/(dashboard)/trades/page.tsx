@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Datepicker, Label, Select, TextInput } from 'flowbite-react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { TradeDetail } from '@/components/trade/TradeDetail';
+import { TradeDetail } from '@/app/(dashboard)/trades/_components/TradeDetail';
 import { SortDirection } from '@/enums/sort.enum';
 import { TradeTypes } from '@/enums/trade.enum';
 
@@ -23,7 +23,12 @@ const Page: React.FC = () => {
       <div className='grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-4 mb-4'>
         <div className='col-span-2 flex flex-col gap-2'>
           <Label htmlFor='symbol'>{t('symbol')}</Label>
-          <TextInput id='symbol' value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder='BTC/KRW' />
+          <TextInput
+            id='symbol'
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value)}
+            placeholder={t('symbolPlaceholder')}
+          />
         </div>
 
         <div className='col-span-2 flex flex-col gap-2'>

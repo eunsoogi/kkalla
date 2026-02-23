@@ -1,263 +1,288 @@
 {
-  "cache": {
-    "get_failed": "캐시 조회 실패 (키: {key}). 캐시 없이 계속합니다.",
-    "set_failed": "캐시 저장 실패 (키: {key}). 무시하고 계속합니다.",
-    "del_failed": "캐시 삭제 실패 (키: {key}). 무시합니다.",
-    "quit_failed": "모듈 종료 시 Redis 클라이언트 종료에 실패했습니다."
-  },
-  "upbit": {
-    "apikey": {
-      "server_expired": "서버 API 키가 만료되었거나 유효하지 않습니다.",
-      "user_expired": "사용자 {id}의 API 키가 만료되었거나 유효하지 않습니다.",
-      "schedule_disabled": "사용자 {id}의 스케줄을 비활성화했습니다."
+  "allocationAudit": {
+    "summary": {
+      "accuracy": "accuracy={ratio}% ({hit}/{total})",
+      "avg_overall": "avgOverall={value}",
+      "avg_return": "avgReturn={value}",
+      "guardrails": "guardrails={value}",
+      "low_score": "lowScore={count}",
+      "min_confidence_load_failed": "요약용 최소 추천 신뢰도 로드에 실패했습니다.",
+      "na": "N/A",
+      "no_valid_items": "유효한 항목이 없습니다.",
+      "none": "none"
     },
-    "markets": {
-      "found": "{count}개 KRW 마켓을 발견했습니다.",
-      "load_failed": "KRW 마켓 로드에 실패했습니다."
-    },
-    "features": {
-      "start_all": "{count}개 종목의 특성 추출을 시작합니다.",
-      "success_all": "{count}개 종목의 특성 추출을 완료했습니다.",
-      "failed_all": "모든 KRW 마켓 특성 추출에 실패했습니다.",
-      "start_one": "{symbol} 종목의 특성 추출을 시작합니다.",
-      "success_one": "{symbol} 종목의 특성 추출을 완료했습니다.",
-      "failed_one": "{symbol} 종목의 특성 추출에 실패했습니다.",
-      "market_data_failed": "{symbol}의 마켓 데이터 가져오기에 실패했습니다.",
-      "extract_failed": "{symbol}의 특성 추출에 실패했습니다.",
-      "skipping": "오류로 인해 {symbol}을 건너뜁니다.",
-      "recent_recommendations_failed": "{symbol}의 이전 추론 데이터 가져오기에 실패했습니다."
+    "task": {
+      "cleanup_failed": "자산 배분 감사 데이터 정리에 실패했습니다.",
+      "execute_failed": "자산 배분 감사 작업 실행에 실패했습니다.",
+      "insert_partial_failed": "자산 배분 감사 항목 저장 중 일부 실패했습니다. reportType={reportType}, batch={batchId}, horizonHours={horizonHours}",
+      "notify_failed": "자산 배분 감사 서버 알림 전송에 실패했습니다."
     }
   },
-  "news": {
-    "loading": "{category} 뉴스 불러오는 중...",
-    "load_failed": "뉴스 데이터 로드에 실패했습니다."
-  },
-  "feargreed": {
-    "loading": "공포탐욕지수 불러오는 중...",
-    "load_failed": "공포탐욕지수 데이터 로드에 실패했습니다."
-  },
-  "category": {
-    "access_denied": "카테고리에 대한 접근 권한이 없습니다.",
-    "unknown": "알 수 없는 카테고리: {category}"
-  },
-  "inference": {
-    "caching": "{category} 메시지 캐싱 중...",
-    "loading": "{symbol} 추론 중...",
-    "start": "{symbol} 추론 시작...",
-    "fail": "{symbol} 추론 실패.",
-    "recent_recommendations_failed": "이전 추천 데이터 로드에 실패했습니다.",
-    "marketRecommendation": {
-      "start": "상위 10개 종목 추천 분석을 시작합니다...",
-      "build_msg_start": "추론 메시지 빌드를 시작합니다...",
-      "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
-      "batch_start": "배치 요청 처리를 시작합니다...",
-      "batch_complete": "배치 요청 처리를 완료했습니다.",
-      "complete": "상위 10개 종목 추천 분석을 완료했습니다.",
-      "presave": "상위 10개 종목 추천 데이터 {count}개를 저장합니다...",
-      "save": "상위 10개 종목 추천 데이터 {count}개를 저장했습니다.",
-      "enqueue_validation_failed": "마켓 리포트 사후 검증 큐 등록에 실패했습니다.",
-      "validation_guardrail_load_failed": "마켓 리포트 사후 검증 가드레일 요약 로드에 실패했습니다.",
-      "validation_badges_load_failed": "마켓 리포트 사후 검증 배지 로드에 실패했습니다.",
-      "invalid_symbol_skipped": "잘못된 마켓 추천 심볼을 건너뜁니다. symbol={symbol}",
-      "out_of_market_symbol_skipped": "입력된 KRW 마켓 범위를 벗어난 추천 심볼을 건너뜁니다. symbol={symbol}"
+  "auth": {
+    "google": {
+      "token_info_failed": "Google 토큰 검증에 실패했습니다."
     },
-    "balanceRecommendation": {
-      "start": "포트폴리오 추천 분석을 시작합니다...",
-      "build_msg_start": "추론 메시지 빌드를 시작합니다...",
-      "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
-      "batch_start": "배치 요청 처리를 시작합니다...",
-      "batch_complete": "배치 요청 처리를 완료했습니다.",
-      "complete": "포트폴리오 추천 분석을 완료했습니다.",
-      "presave": "포트폴리오 추천 데이터 {count}개를 저장합니다...",
-      "save": "포트폴리오 추천 데이터 {count}개를 저장했습니다.",
-      "orderable_symbol_check_failed": "주문 가능 심볼 검증에 실패했습니다. KRW 심볼 필터만 사용합니다.",
-      "orderable_symbol_check_partial": "일부 주문 가능 심볼 검증에 실패했습니다. 미검증 심볼은 안전상 포함합니다.",
-      "model_signal": "[모델 시그널] symbol={symbol}, category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
-      "target_weight": "[최종 비중] symbol={symbol}, baseTargetWeight={baseTargetWeight}, regimeMultiplier={regimeMultiplier}, modelTargetWeight={modelTargetWeight}",
-      "prev_target_weight_failed": "[이전 최종 비중 조회 실패] symbol={symbol}, seq={seq}",
-      "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
-      "skip_rebalance_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
-      "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}",
-      "no_trade_trim": "[비거래 트림] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
-      "no_trade_trim_skipped": "[비거래 트림 스킵] symbol={symbol}, reason={reason}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}, minEdge={minEdge}, diff={diff}",
-      "buy_budget_scaled": "[매수 예산 축소] availableKrw={availableKrw}, totalEstimated={totalEstimated}, scale={scale}, requestedCount={requestedCount}",
-      "buy_budget_insufficient": "[매수 예산 부족] availableKrw={availableKrw}, totalEstimated={totalEstimated}, requestedCount={requestedCount}",
-      "symbol_normalized": "심볼 형식을 정규화했습니다. from={from}, to={to}",
-      "symbol_mismatch_fallback": "심볼 불일치 응답을 대상 심볼로 보정합니다. output={outputSymbol}, expected={expectedSymbol}",
-      "symbol_mismatch_dropped": "심볼 불일치로 포트폴리오 추천 결과를 폐기합니다. output={outputSymbol}, expected={expectedSymbol}",
-      "enqueue_validation_failed": "포트폴리오 리포트 사후 검증 큐 등록에 실패했습니다.",
-      "validation_guardrail_load_failed": "포트폴리오 리포트 사후 검증 가드레일 요약 로드에 실패했습니다. symbol={symbol}",
-      "validation_badges_load_failed": "포트폴리오 리포트 사후 검증 배지 로드에 실패했습니다."
+    "permission": {
+      "insufficient_permissions": "필요한 권한이 없습니다: {permissions}",
+      "no_user": "요청에서 사용자를 찾을 수 없습니다."
     }
   },
   "blacklist": {
     "not_found": "ID가 {id}인 블랙리스트를 찾을 수 없습니다."
   },
-  "auth": {
-    "permission": {
-      "no_user": "요청에서 사용자를 찾을 수 없습니다.",
-      "insufficient_permissions": "필요한 권한이 없습니다: {permissions}"
+  "cache": {
+    "del_failed": "캐시 삭제 실패 (키: {key}). 무시합니다.",
+    "get_failed": "캐시 조회 실패 (키: {key}). 캐시 없이 계속합니다.",
+    "quit_failed": "모듈 종료 시 Redis 클라이언트 종료에 실패했습니다.",
+    "set_failed": "캐시 저장 실패 (키: {key}). 무시하고 계속합니다."
+  },
+  "category": {
+    "access_denied": "카테고리에 대한 접근 권한이 없습니다.",
+    "unknown": "알 수 없는 카테고리: {category}"
+  },
+  "feargreed": {
+    "load_failed": "공포탐욕지수 데이터 로드에 실패했습니다.",
+    "loading": "공포탐욕지수 불러오는 중..."
+  },
+  "inference": {
+    "allocationRecommendation": {
+      "batch_complete": "배치 요청 처리를 완료했습니다.",
+      "batch_start": "배치 요청 처리를 시작합니다...",
+      "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
+      "build_msg_start": "추론 메시지 빌드를 시작합니다...",
+      "buy_budget_insufficient": "[매수 예산 부족] availableKrw={availableKrw}, totalEstimated={totalEstimated}, requestedCount={requestedCount}",
+      "buy_budget_scaled": "[매수 예산 축소] availableKrw={availableKrw}, totalEstimated={totalEstimated}, scale={scale}, requestedCount={requestedCount}",
+      "complete": "자산 배분 추천 분석을 완료했습니다.",
+      "enqueue_validation_failed": "자산 배분 감사 사후 검증 큐 등록에 실패했습니다.",
+      "model_signal": "[모델 시그널] symbol={symbol}, category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
+      "no_trade_trim": "[비거래 트림] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
+      "no_trade_trim_skipped": "[비거래 트림 스킵] symbol={symbol}, reason={reason}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}, minEdge={minEdge}, diff={diff}",
+      "orderable_symbol_check_failed": "주문 가능 심볼 검증에 실패했습니다. KRW 심볼 필터만 사용합니다.",
+      "orderable_symbol_check_partial": "일부 주문 가능 심볼 검증에 실패했습니다. 미검증 심볼은 안전상 포함합니다.",
+      "presave": "자산 배분 추천 데이터 {count}개를 저장합니다...",
+      "prev_target_weight_failed": "[이전 최종 비중 조회 실패] symbol={symbol}, seq={seq}",
+      "save": "자산 배분 추천 데이터 {count}개를 저장했습니다.",
+      "skip_allocation_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
+      "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}",
+      "start": "자산 배분 추천 분석을 시작합니다...",
+      "symbol_mismatch_dropped": "심볼 불일치로 자산 배분 추천 결과를 폐기합니다. output={outputSymbol}, expected={expectedSymbol}",
+      "symbol_mismatch_fallback": "심볼 불일치 응답을 대상 심볼로 보정합니다. output={outputSymbol}, expected={expectedSymbol}",
+      "symbol_normalized": "심볼 형식을 정규화했습니다. from={from}, to={to}",
+      "target_weight": "[최종 비중] symbol={symbol}, baseTargetWeight={baseTargetWeight}, regimeMultiplier={regimeMultiplier}, modelTargetWeight={modelTargetWeight}",
+      "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
+      "validation_badges_load_failed": "자산 배분 감사 사후 검증 배지 로드에 실패했습니다.",
+      "validation_guardrail_load_failed": "자산 배분 감사 사후 검증 가드레일 요약 로드에 실패했습니다. symbol={symbol}"
+    },
+    "caching": "{category} 메시지 캐싱 중...",
+    "fail": "{symbol} 추론 실패.",
+    "loading": "{symbol} 추론 중...",
+    "marketSignal": {
+      "batch_complete": "배치 요청 처리를 완료했습니다.",
+      "batch_start": "배치 요청 처리를 시작합니다...",
+      "build_msg_complete": "추론 메시지 빌드를 완료했습니다.",
+      "build_msg_start": "추론 메시지 빌드를 시작합니다...",
+      "complete": "상위 10개 종목 추천 분석을 완료했습니다.",
+      "enqueue_validation_failed": "마켓 리포트 사후 검증 큐 등록에 실패했습니다.",
+      "invalid_symbol_skipped": "잘못된 마켓 추천 심볼을 건너뜁니다. symbol={symbol}",
+      "out_of_market_symbol_skipped": "입력된 KRW 마켓 범위를 벗어난 추천 심볼을 건너뜁니다. symbol={symbol}",
+      "presave": "상위 10개 종목 추천 데이터 {count}개를 저장합니다...",
+      "recommendation_price_persist_failed": "마켓 추천 기준가 저장에 실패했습니다. id={id}",
+      "save": "상위 10개 종목 추천 데이터 {count}개를 저장했습니다.",
+      "start": "상위 10개 종목 추천 분석을 시작합니다...",
+      "validation_badges_load_failed": "마켓 리포트 사후 검증 배지 로드에 실패했습니다.",
+      "validation_guardrail_load_failed": "마켓 리포트 사후 검증 가드레일 요약 로드에 실패했습니다."
+    },
+    "recent_recommendations_failed": "이전 추천 데이터 로드에 실패했습니다.",
+    "start": "{symbol} 추론 시작..."
+  },
+  "market": {
+    "analysis": {
+      "batch_completed": "Batch API를 통해 총 {count}개 종목 분석 완료",
+      "batch_fallback": "Batch API 실패, 병렬 처리로 폴백합니다: {error}",
+      "batch_processing": "{start}~{end}번째 종목 분석 중...",
+      "batch_trying": "Batch API를 시도합니다...",
+      "completed": "총 {successCount}개 종목 분석 완료 (전체 {totalCount}개 중)",
+      "features_extracted": "{count}개 종목의 특성을 추출했습니다.",
+      "llm_start": "시장 특성 분석을 위한 LLM 추론을 시작합니다...",
+      "parallel_forced": "병렬 처리 모드로 강제 실행합니다...",
+      "start_all": "모든 KRW 마켓 종목에 대한 {mode} 분석을 시작합니다...",
+      "symbol_batch_failed": "{symbol} 분석 실패",
+      "symbol_failed": "{symbol} 분석 실패: {error}"
+    },
+    "risk": {
+      "bucket_increased": "{symbol} 변동 구간 상승: 이전 {prevPercent}% (버킷 {prevBucket}%), 현재 {currPercent}% (버킷 {currBucket}%)",
+      "check_failed": "{symbol} 변동성 계산 중 오류가 발생했습니다.",
+      "cooldown_read_failed": "쿨다운 캐시 조회에 실패했습니다. symbol={symbol}, 쿨다운 미적용으로 계속 진행합니다.",
+      "cooldown_write_failed": "쿨다운 캐시 저장에 실패했습니다. symbol={symbol}, 쿨다운 없이 계속 진행합니다.",
+      "no_holdings": "모니터링할 보유 종목이 없습니다.",
+      "no_trigger": "이번 틱에서 새로운 변동 구간에 진입한 종목이 없습니다.",
+      "no_users": "스케줄이 활성화된 사용자가 없습니다.",
+      "not_enough_candles": "{symbol}의 1분봉 캔들이 부족하여 변동성을 계산하지 않습니다.",
+      "trade_failed": "사용자 {userId}의 변동성 기반 거래 실행 중 오류가 발생했습니다.",
+      "trigger_start": "{count}개 종목에 대해 변동성 기반 잔고 추천을 실행합니다."
+    }
+  },
+  "news": {
+    "load_failed": "뉴스 데이터 로드에 실패했습니다.",
+    "loading": "{category} 뉴스 불러오는 중..."
+  },
+  "openai": {
+    "batch": {
+      "cancel_failed": "배치 작업 {batchId} 취소에 실패했습니다.",
+      "cancelled": "배치 작업 {batchId}가 취소되었습니다.",
+      "completed": "배치 작업 완료",
+      "downloading": "배치 결과 파일을 다운로드합니다...",
+      "error_details": "배치 오류 상세 내역",
+      "failed": "Batch 작업 {batchId} 실패: {status}",
+      "failed_with_errors": "오류가 포함된 배치 작업이 실패했습니다.",
+      "has_errors": "배치 작업에 오류가 포함되어 있습니다.",
+      "job_created": "Batch 작업 생성 완료: {batchId}",
+      "no_files": "배치 작업 완료 후 결과 또는 오류 파일을 찾을 수 없습니다.",
+      "no_output_file": "배치 작업 결과 파일이 없습니다. 빈 결과를 반환합니다.",
+      "parse_error": "Batch 결과 파싱 오류",
+      "raw_results_debug": "Batch 원본 결과 디버그: lineCount={count}",
+      "request_failed": "Batch 요청 실패: {customId}, 오류: {error}",
+      "results_processed": "{count}개의 성공적인 분석 결과를 처리했습니다.",
+      "status": "Batch 상태: {status}",
+      "timeout": "Batch 작업 {batchId} 타임아웃",
+      "timeout_cancelling": "타임아웃으로 인해 배치 작업 {batchId}를 취소합니다...",
+      "upload_complete": "파일 업로드 완료: {fileId}",
+      "upload_start": "Batch 요청 파일을 업로드합니다...",
+      "waiting": "Batch 작업 {batchId} 완료를 대기합니다..."
+    },
+    "response": {
+      "complete": "Responses API 호출을 완료했습니다.",
+      "start": "Responses API 호출을 시작합니다..."
     }
   },
   "order": {
-    "start": "사용자 {id} 주문 시작...",
-    "fail": "사용자 {id} 주문 실패."
+    "fail": "사용자 {id} 주문 실패.",
+    "start": "사용자 {id} 주문 시작..."
   },
-  "schedule": {
-    "start": "포트폴리오 조정 스케줄 시작...",
-    "end": "포트폴리오 조정 스케줄 종료.",
-    "skip": "개발 환경에서는 스케줄이 실행되지 않습니다.",
-    "balanceRecommendation": {
-      "state_cache_read_failed": "마켓 리포트 상태 캐시 조회에 실패했습니다. 최신 추천으로 대체합니다.",
-      "state_stale_fallback": "마켓 리포트 상태가 없거나 오래되어 최신 추천으로 대체합니다.",
-      "minimum_confidence_resolve_failed": "튜닝된 최소 추천 신뢰도 계산에 실패했습니다. 기본값을 사용합니다. error={error}",
-      "minimum_filtered": "최소 기준으로 {count}개 종목이 제외되었습니다. symbols={symbols}",
-      "blacklist_filtered": "블랙리스트로 {count}개 종목이 제외되었습니다. symbols={symbols}"
-    },
-    "marketRecommendation": {
-      "start": "일일 상위 10개 종목 추천 분석을 시작합니다...",
-      "filtered": "추천을 위해 {count}개 종목을 필터링했습니다.",
-      "completed": "{count}개 종목에 대한 일일 상위 10개 추천을 완료했습니다.",
-      "failed": "일일 상위 10개 종목 추천 분석에 실패했습니다."
-    }
-  },
-  "reportValidation": {
-    "task": {
-      "execute_failed": "리포트 사후 검증 작업 실행에 실패했습니다.",
-      "cleanup_failed": "리포트 사후 검증 데이터 정리에 실패했습니다.",
-      "insert_partial_failed": "리포트 사후 검증 항목 저장 중 일부 실패했습니다. reportType={reportType}, batch={batchId}, horizonHours={horizonHours}",
-      "notify_failed": "리포트 사후 검증 서버 알림 전송에 실패했습니다."
-    },
-    "summary": {
-      "no_valid_items": "유효한 항목이 없습니다.",
-      "accuracy": "accuracy={ratio}% ({hit}/{total})",
-      "avg_return": "avgReturn={value}",
-      "avg_overall": "avgOverall={value}",
-      "low_score": "lowScore={count}",
-      "guardrails": "guardrails={value}",
-      "na": "N/A",
-      "none": "none"
+  "redlock": {
+    "lock": {
+      "acquired": "{resourceName}에 대한 락 획득 성공",
+      "background_task_error": "{resourceName}에 대한 백그라운드 작업 실행 중 오류 발생",
+      "extend_error": "{resourceName}에 대한 락 연장 중 오류 발생",
+      "not_acquired": "{resourceName}에 대한 락 획득 실패",
+      "release_error": "{resourceName}에 대한 락 해제 중 오류 발생",
+      "released": "{resourceName}에 대한 락 해제 완료"
     }
   },
   "retry": {
     "attempt": "{maxRetries}번 중 {attempt}번째 재시도 중... 오류: {message}",
-    "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {message}",
-    "failed": "재시도 실패."
-  },
-  "user": {
-    "error": {
-      "not_found": "ID가 \"{id}\"인 사용자를 찾을 수 없습니다.",
-      "email_exists": "이메일 \"{email}\"이(가) 이미 존재합니다."
-    },
-    "success": {
-      "created": "사용자가 생성되었습니다.",
-      "updated": "사용자 정보가 업데이트되었습니다.",
-      "deleted": "사용자가 삭제되었습니다."
-    }
+    "failed": "재시도 실패.",
+    "fallback": "1차 재시도 실패. 2차 재시도로 전환합니다. 오류: {message}"
   },
   "role": {
     "error": {
       "not_found": "역할을 찾을 수 없습니다."
     }
   },
-  "sqs": {
-    "producer": {
-      "start": "{count}명의 사용자에 대한 메시지 발행 중...",
-      "complete": "메시지 발행 완료",
-      "error": "메시지 발행 실패: {error}"
+  "schedule": {
+    "allocationRecommendation": {
+      "blacklist_filtered": "블랙리스트로 {count}개 종목이 제외되었습니다. symbols={symbols}",
+      "holdings_load_failed": "사용자 보유 원장 조회에 실패했습니다. userId={id}, error={error}",
+      "minimum_confidence_resolve_failed": "튜닝된 최소 추천 신뢰도 계산에 실패했습니다. 기본값을 사용합니다. error={error}",
+      "minimum_filtered": "최소 기준으로 {count}개 종목이 제외되었습니다. symbols={symbols}",
+      "state_cache_read_failed": "마켓 리포트 상태 캐시 조회에 실패했습니다. 최신 추천으로 대체합니다.",
+      "state_stale_fallback": "마켓 리포트 상태가 없거나 오래되어 최신 추천으로 대체합니다."
     },
+    "end": "자산 배분 조정 스케줄 종료.",
+    "marketSignal": {
+      "completed": "{count}개 종목에 대한 일일 상위 10개 추천을 완료했습니다.",
+      "failed": "일일 상위 10개 종목 추천 분석에 실패했습니다.",
+      "filtered": "추천을 위해 {count}개 종목을 필터링했습니다.",
+      "start": "일일 상위 10개 종목 추천 분석을 시작합니다..."
+    },
+    "skip": "개발 환경에서는 스케줄이 실행되지 않습니다.",
+    "start": "자산 배분 조정 스케줄 시작..."
+  },
+  "seed": {
+    "complete": "시딩을 완료했습니다.",
+    "failed": "시딩 실행 중 오류가 발생했습니다.",
+    "role": {
+      "start": "RoleSeeder를 실행합니다.",
+      "success": "RoleSeeder 실행을 완료했습니다."
+    },
+    "seeder": {
+      "success": "Seeder 실행을 완료했습니다. name={name}"
+    },
+    "skip_locked": "시딩을 건너뜁니다. 다른 인스턴스가 seed lock을 보유하고 있습니다.",
+    "start": "{env} 환경 시딩을 시작합니다."
+  },
+  "sqs": {
     "consumer": {
-      "start": "SQS 컨슈머 시작...",
       "error": "SQS 컨슈머 오류: {error}",
+      "processing": "{count}개의 메시지 처리 중...",
       "restart": "5초 후 SQS 컨슈머를 재시작합니다...",
-      "processing": "{count}개의 메시지 처리 중..."
+      "start": "SQS 컨슈머 시작..."
     },
     "message": {
-      "start": "메시지 처리 시작: {id}",
       "complete": "메시지 처리 완료: {id}",
-      "error": "메시지 처리 실패: {id}, 오류: {error}",
       "delete": "메시지 삭제 완료: {id}",
-      "skipped_processing": "이전 시도가 처리 중이어서 {module} 메시지를 건너뜁니다. messageKey={messageKey}",
       "dropped_malformed": "파싱 불가한 {module} 메시지를 폐기했습니다. error={error}",
-      "visibility_extend_failed": "처리 중인 메시지의 가시성 타임아웃 연장에 실패했습니다. id={id}",
-      "ledger_heartbeat_failed": "거래 실행 ledger heartbeat 갱신에 실패했습니다. module={module}, messageKey={messageKey}, userId={userId}"
-    }
-  },
-  "redlock": {
-    "lock": {
-      "not_acquired": "{resourceName}에 대한 락 획득 실패",
-      "acquired": "{resourceName}에 대한 락 획득 성공",
-      "released": "{resourceName}에 대한 락 해제 완료",
-      "background_task_error": "{resourceName}에 대한 백그라운드 작업 실행 중 오류 발생",
-      "extend_error": "{resourceName}에 대한 락 연장 중 오류 발생",
-      "release_error": "{resourceName}에 대한 락 해제 중 오류 발생"
-    }
-  },
-  "openai": {
-    "response": {
-      "start": "Responses API 호출을 시작합니다...",
-      "complete": "Responses API 호출을 완료했습니다."
+      "error": "메시지 처리 실패: {id}, 오류: {error}",
+      "executed_trades_debug": "SQS 거래 실행 디버그: module={module}, messageKey={messageKey}, trades={count}",
+      "ledger_heartbeat_failed": "거래 실행 ledger heartbeat 갱신에 실패했습니다. module={module}, messageKey={messageKey}, userId={userId}",
+      "skipped_processing": "이전 시도가 처리 중이어서 {module} 메시지를 건너뜁니다. messageKey={messageKey}",
+      "start": "메시지 처리 시작: {id}",
+      "visibility_extend_failed": "처리 중인 메시지의 가시성 타임아웃 연장에 실패했습니다. id={id}"
     },
-    "batch": {
-      "upload_start": "Batch 요청 파일을 업로드합니다...",
-      "upload_complete": "파일 업로드 완료: {fileId}",
-      "job_created": "Batch 작업 생성 완료: {batchId}",
-      "waiting": "Batch 작업 {batchId} 완료를 대기합니다...",
-      "status": "Batch 상태: {status}",
-      "completed": "배치 작업 완료",
-      "downloading": "배치 결과 파일을 다운로드합니다...",
-      "failed": "Batch 작업 {batchId} 실패: {status}",
-      "timeout": "Batch 작업 {batchId} 타임아웃",
-      "request_failed": "Batch 요청 실패: {customId}, 오류: {error}",
-      "parse_error": "Batch 결과 파싱 오류",
-      "results_processed": "{count}개의 성공적인 분석 결과를 처리했습니다.",
-      "no_output_file": "배치 작업 결과 파일이 없습니다. 빈 결과를 반환합니다.",
-      "has_errors": "배치 작업에 오류가 포함되어 있습니다.",
-      "error_details": "배치 오류 상세 내역",
-      "failed_with_errors": "오류가 포함된 배치 작업이 실패했습니다.",
-      "no_files": "배치 작업 완료 후 결과 또는 오류 파일을 찾을 수 없습니다.",
-      "timeout_cancelling": "타임아웃으로 인해 배치 작업 {batchId}를 취소합니다...",
-      "cancelled": "배치 작업 {batchId}가 취소되었습니다.",
-      "cancel_failed": "배치 작업 {batchId} 취소에 실패했습니다."
-    }
-  },
-  "market": {
-    "analysis": {
-      "start_all": "모든 KRW 마켓 종목에 대한 {mode} 분석을 시작합니다...",
-      "batch_trying": "Batch API를 시도합니다...",
-      "batch_fallback": "Batch API 실패, 병렬 처리로 폴백합니다: {error}",
-      "parallel_forced": "병렬 처리 모드로 강제 실행합니다...",
-      "features_extracted": "{count}개 종목의 특성을 추출했습니다.",
-      "batch_processing": "{start}~{end}번째 종목 분석 중...",
-      "symbol_failed": "{symbol} 분석 실패: {error}",
-      "symbol_batch_failed": "{symbol} 분석 실패",
-      "completed": "총 {successCount}개 종목 분석 완료 (전체 {totalCount}개 중)",
-      "batch_completed": "Batch API를 통해 총 {count}개 종목 분석 완료",
-      "llm_start": "시장 특성 분석을 위한 LLM 추론을 시작합니다..."
-    },
-    "volatility": {
-      "no_history": "모니터링할 히스토리 종목이 없습니다.",
-      "not_enough_candles": "{symbol}의 1분봉 캔들이 부족하여 변동성을 계산하지 않습니다.",
-      "bucket_increased": "{symbol} 변동 구간 상승: 이전 {prevPercent}% (버킷 {prevBucket}%), 현재 {currPercent}% (버킷 {currBucket}%)",
-      "check_failed": "{symbol} 변동성 계산 중 오류가 발생했습니다.",
-      "no_trigger": "이번 틱에서 새로운 변동 구간에 진입한 종목이 없습니다.",
-      "trigger_start": "{count}개 종목에 대해 변동성 기반 잔고 추천을 실행합니다.",
-      "no_users": "스케줄이 활성화된 사용자가 없습니다.",
-      "trade_failed": "사용자 {userId}의 변동성 기반 거래 실행 중 오류가 발생했습니다.",
-      "cooldown_read_failed": "쿨다운 캐시 조회에 실패했습니다. symbol={symbol}, 쿨다운 미적용으로 계속 진행합니다.",
-      "cooldown_write_failed": "쿨다운 캐시 저장에 실패했습니다. symbol={symbol}, 쿨다운 없이 계속 진행합니다."
+    "producer": {
+      "complete": "메시지 발행 완료",
+      "error": "메시지 발행 실패: {error}",
+      "send_results_debug": "SQS 메시지 발행 결과 디버그: module={module}, count={count}",
+      "start": "{count}명의 사용자에 대한 메시지 발행 중..."
     }
   },
   "trade": {
-    "start": "사용자 {id}, {symbol} 주문 시작...",
-    "not_exist": "사용자 {id}, {symbol} 주문 정보가 없습니다.",
     "calculate": {
-      "start": "사용자 {id}, {symbol} 주문 수익 계산 시작...",
-      "end": "사용자 {id}, {symbol} 주문 수익 계산 완료. {symbol} {type}, 거래금: {amount}, 수익금: {profit}"
+      "end": "사용자 {id}, {symbol} 주문 수익 계산 완료. {symbol} {type}, 거래금: {amount}, 수익금: {profit}",
+      "start": "사용자 {id}, {symbol} 주문 수익 계산 시작..."
     },
+    "not_exist": "사용자 {id}, {symbol} 주문 정보가 없습니다.",
     "save": {
-      "start": "사용자 {id}, {symbol} 주문 저장 시작...",
-      "end": "사용자 {id}, {symbol} 주문 저장 완료."
+      "end": "사용자 {id}, {symbol} 주문 저장 완료.",
+      "start": "사용자 {id}, {symbol} 주문 저장 시작..."
+    },
+    "start": "사용자 {id}, {symbol} 주문 시작..."
+  },
+  "upbit": {
+    "apikey": {
+      "schedule_disabled": "사용자 {id}의 스케줄을 비활성화했습니다.",
+      "server_expired": "서버 API 키가 만료되었거나 유효하지 않습니다.",
+      "user_expired": "사용자 {id}의 API 키가 만료되었거나 유효하지 않습니다."
+    },
+    "features": {
+      "extract_failed": "{symbol}의 특성 추출에 실패했습니다.",
+      "failed_all": "모든 KRW 마켓 특성 추출에 실패했습니다.",
+      "failed_one": "{symbol} 종목의 특성 추출에 실패했습니다.",
+      "market_data_failed": "{symbol}의 마켓 데이터 가져오기에 실패했습니다.",
+      "recent_recommendations_failed": "{symbol}의 이전 추론 데이터 가져오기에 실패했습니다.",
+      "skipping": "오류로 인해 {symbol}을 건너뜁니다.",
+      "start_all": "{count}개 종목의 특성 추출을 시작합니다.",
+      "start_one": "{symbol} 종목의 특성 추출을 시작합니다.",
+      "success_all": "{count}개 종목의 특성 추출을 완료했습니다.",
+      "success_one": "{symbol} 종목의 특성 추출을 완료했습니다."
+    },
+    "market": {
+      "load_failed": "{symbol} 마켓 데이터 로드에 실패했습니다."
+    },
+    "markets": {
+      "found": "{count}개 KRW 마켓을 발견했습니다.",
+      "load_failed": "KRW 마켓 로드에 실패했습니다."
+    }
+  },
+  "user": {
+    "error": {
+      "email_exists": "이메일 \"{email}\"이(가) 이미 존재합니다.",
+      "not_found": "ID가 \"{id}\"인 사용자를 찾을 수 없습니다."
+    },
+    "success": {
+      "created": "사용자가 생성되었습니다.",
+      "deleted": "사용자가 삭제되었습니다.",
+      "updated": "사용자 정보가 업데이트되었습니다."
     }
   }
 }

@@ -1,9 +1,9 @@
 import React from 'react';
 
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { ForbiddenError } from '@/components/error/403';
-import { UserForm } from '@/components/user/UserForm';
-import { Permission } from '@/interfaces/permission.interface';
+import { PermissionGuard } from '@/app/(dashboard)/_shared/auth/PermissionGuard';
+import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError';
+import { UserForm } from '@/app/(dashboard)/users/_components/UserForm';
+import { Permission } from '@/shared/types/permission.types';
 
 const Page: React.FC<{ params: Promise<{ id: string }> }> = async ({ params }) => {
   const { id } = await params;

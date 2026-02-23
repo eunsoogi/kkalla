@@ -1,0 +1,4 @@
+export enum ScheduleExpression {
+  DAILY_ALLOCATION_RECOMMENDATION_NEW = '0 35 6 * * *',
+  DAILY_ALLOCATION_RECOMMENDATION_EXISTING = '0 35 0,4,8,12,16,20 * * *',
+}

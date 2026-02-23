@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import React from 'react';
 
-import { NotFoundError } from '@/components/error/404';
+import { NotFoundError } from '@/app/_shared/errors/NotFoundError';
 
 export const metadata: Metadata = {
   title: 'Error-404',

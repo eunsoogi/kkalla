@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Navbar, Drawer, DrawerItems } from 'flowbite-react';
 
-import CopyTokenButton from '@/components/common/CopyTokenButton';
+import CopyTokenButton from '@/shared/components/common/CopyTokenButton';
 
 import MobileSidebar from '../sidebar/MobileSidebar';
 import Notification from './Notification';

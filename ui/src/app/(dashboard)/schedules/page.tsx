@@ -5,38 +5,39 @@ import React, { useEffect, useMemo, useState, useTransition } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
-import { ForbiddenError } from '@/components/error/403';
-import ScheduleExecuteButton from '@/components/schedule/ScheduleExecuteButton';
-import ScheduleWarning from '@/components/schedule/ScheduleWarning';
+import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError';
+import ScheduleExecuteButton from './_components/ScheduleExecuteButton';
+import ScheduleWarning from './_components/ScheduleWarning';
 import {
   ScheduleActionState,
   ScheduleLockActionState,
-  executeBalanceRecommendationWithExistingItemsAction,
-  executeMarketRecommendationAction,
-  executeReportValidationAction,
-  executebalanceRecommendationNewItemsAction,
+  executeAllocationAuditAction,
+  executeAllocationRecommendationNewItemsAction,
+  executeAllocationRecommendationWithExistingItemsAction,
+  executeMarketSignalAction,
   getScheduleExecutionPlansAction,
   getScheduleLockStatesAction,
   releaseScheduleLockAction,
-} from '@/components/schedule/action';
-import { Permission } from '@/interfaces/permission.interface';
+} from './_actions/schedule.actions';
+import { Permission } from '@/shared/types/permission.types';
 import {
   ScheduleExecutionPlanResponse,
   ScheduleExecutionTask,
   ScheduleLockStateResponse,
-} from '@/interfaces/schedule-execution.interface';
+} from './_types/schedule-execution.types';
 
-const LEGACY_SCHEDULE_PERMISSIONS = [
-  Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
-  Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
-  Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+const SCHEDULE_EXECUTION_PERMISSIONS = [
+  Permission.EXEC_SCHEDULE_MARKET_SIGNAL,
+  Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING,
+  Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW,
+  Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT,
 ] as const;
 
 const TASK_PERMISSION_MAP: Record<ScheduleExecutionTask, Permission> = {
-  marketRecommendation: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
-  balanceRecommendationExisting: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
-  balanceRecommendationNew: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
-  reportValidation: Permission.EXEC_SCHEDULE_REPORT_VALIDATION,
+  marketSignal: Permission.EXEC_SCHEDULE_MARKET_SIGNAL,
+  allocationRecommendationExisting: Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING,
+  allocationRecommendationNew: Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW,
+  allocationAudit: Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT,
 };
 
 interface NextRunHighlight {
@@ -162,14 +163,14 @@ const Page: React.FC = () => {
 
   const taskTitle = (task: ScheduleExecutionTask) => {
     switch (task) {
-      case 'marketRecommendation':
-        return t('schedule.execute.marketRecommendation.title');
-      case 'balanceRecommendationExisting':
-        return t('schedule.execute.balanceRecommendationExisting.title');
-      case 'reportValidation':
-        return t('schedule.execute.reportValidation.title');
+      case 'marketSignal':
+        return t('schedule.execute.marketSignal.title');
+      case 'allocationRecommendationExisting':
+        return t('schedule.execute.allocationRecommendationExisting.title');
+      case 'allocationAudit':
+        return t('schedule.execute.allocationAudit.title');
       default:
-        return t('schedule.execute.balanceRecommendationNew.title');
+        return t('schedule.execute.allocationRecommendationNew.title');
     }
   };
 
@@ -272,25 +273,23 @@ const Page: React.FC = () => {
     });
   };
 
-  const handleExecuteMarketRecommendation = () => {
-    execute('marketRecommendation', executeMarketRecommendationAction);
+  const handleExecuteMarketSignal = () => {
+    execute('marketSignal', executeMarketSignalAction);
   };
 
-  const handleExecuteExistItems = () => {
-    execute('balanceRecommendationExisting', executeBalanceRecommendationWithExistingItemsAction);
+  const handleExecuteAllocationRecommendationExisting = () => {
+    execute('allocationRecommendationExisting', executeAllocationRecommendationWithExistingItemsAction);
   };
 
-  const handleExecuteNewItems = () => {
-    execute('balanceRecommendationNew', executebalanceRecommendationNewItemsAction);
+  const handleExecuteAllocationRecommendationNew = () => {
+    execute('allocationRecommendationNew', executeAllocationRecommendationNewItemsAction);
   };
 
-  const handleExecuteReportValidation = () => {
-    execute('reportValidation', executeReportValidationAction);
+  const handleExecuteAllocationAudit = () => {
+    execute('allocationAudit', executeAllocationAuditAction);
   };
 
-  const hasLegacyScheduleAccess = LEGACY_SCHEDULE_PERMISSIONS.every((permission) => permissions.includes(permission));
-  const hasReportValidationAccess = permissions.includes(Permission.EXEC_SCHEDULE_REPORT_VALIDATION);
-  const hasSchedulePageAccess = hasLegacyScheduleAccess || hasReportValidationAccess;
+  const hasSchedulePageAccess = SCHEDULE_EXECUTION_PERMISSIONS.some((permission) => permissions.includes(permission));
 
   if (sessionStatus === 'loading') {
     return null;
@@ -340,69 +339,73 @@ const Page: React.FC = () => {
           </div>
           <div className='divide-y divide-gray-200 dark:divide-gray-700'>
             <ScheduleExecuteButton
-              type='marketRecommendation'
+              type='marketSignal'
               isPending={isExecutePending}
               isReleasePending={isLockPending}
-              onExecute={handleExecuteMarketRecommendation}
-              onReleaseLock={() => releaseLock('marketRecommendation')}
-              result={recentResults.marketRecommendation}
-              lockState={lockStates.marketRecommendation}
-              lockResult={recentLockResults.marketRecommendation}
-              plan={executionPlans.marketRecommendation}
+              onExecute={handleExecuteMarketSignal}
+              onReleaseLock={() => releaseLock('marketSignal')}
+              result={recentResults.marketSignal}
+              lockState={lockStates.marketSignal}
+              lockResult={recentLockResults.marketSignal}
+              plan={executionPlans.marketSignal}
               isPlanLoading={isPlanLoading}
               isLockLoading={isLockLoading}
-              highlightRunAt={nextRunHighlight?.task === 'marketRecommendation' ? nextRunHighlight.time : undefined}
-              highlightRemainingText={nextRunHighlight?.task === 'marketRecommendation' ? nextRunRemainingText : undefined}
+              highlightRunAt={nextRunHighlight?.task === 'marketSignal' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={nextRunHighlight?.task === 'marketSignal' ? nextRunRemainingText : undefined}
             />
 
             <ScheduleExecuteButton
-              type='existItems'
+              type='allocationRecommendationExisting'
               isPending={isExecutePending}
               isReleasePending={isLockPending}
-              onExecute={handleExecuteExistItems}
-              onReleaseLock={() => releaseLock('balanceRecommendationExisting')}
-              result={recentResults.balanceRecommendationExisting}
-              lockState={lockStates.balanceRecommendationExisting}
-              lockResult={recentLockResults.balanceRecommendationExisting}
-              plan={executionPlans.balanceRecommendationExisting}
+              onExecute={handleExecuteAllocationRecommendationExisting}
+              onReleaseLock={() => releaseLock('allocationRecommendationExisting')}
+              result={recentResults.allocationRecommendationExisting}
+              lockState={lockStates.allocationRecommendationExisting}
+              lockResult={recentLockResults.allocationRecommendationExisting}
+              plan={executionPlans.allocationRecommendationExisting}
               isPlanLoading={isPlanLoading}
               isLockLoading={isLockLoading}
-              highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunHighlight.time : undefined}
+              highlightRunAt={
+                nextRunHighlight?.task === 'allocationRecommendationExisting' ? nextRunHighlight.time : undefined
+              }
               highlightRemainingText={
-                nextRunHighlight?.task === 'balanceRecommendationExisting' ? nextRunRemainingText : undefined
+                nextRunHighlight?.task === 'allocationRecommendationExisting' ? nextRunRemainingText : undefined
               }
             />
 
             <ScheduleExecuteButton
-              type='newItems'
+              type='allocationRecommendationNew'
               isPending={isExecutePending}
               isReleasePending={isLockPending}
-              onExecute={handleExecuteNewItems}
-              onReleaseLock={() => releaseLock('balanceRecommendationNew')}
-              result={recentResults.balanceRecommendationNew}
-              lockState={lockStates.balanceRecommendationNew}
-              lockResult={recentLockResults.balanceRecommendationNew}
-              plan={executionPlans.balanceRecommendationNew}
+              onExecute={handleExecuteAllocationRecommendationNew}
+              onReleaseLock={() => releaseLock('allocationRecommendationNew')}
+              result={recentResults.allocationRecommendationNew}
+              lockState={lockStates.allocationRecommendationNew}
+              lockResult={recentLockResults.allocationRecommendationNew}
+              plan={executionPlans.allocationRecommendationNew}
               isPlanLoading={isPlanLoading}
               isLockLoading={isLockLoading}
-              highlightRunAt={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunHighlight.time : undefined}
-              highlightRemainingText={nextRunHighlight?.task === 'balanceRecommendationNew' ? nextRunRemainingText : undefined}
+              highlightRunAt={nextRunHighlight?.task === 'allocationRecommendationNew' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={
+                nextRunHighlight?.task === 'allocationRecommendationNew' ? nextRunRemainingText : undefined
+              }
             />
 
             <ScheduleExecuteButton
-              type='reportValidation'
+              type='allocationAudit'
               isPending={isExecutePending}
               isReleasePending={isLockPending}
-              onExecute={handleExecuteReportValidation}
-              onReleaseLock={() => releaseLock('reportValidation')}
-              result={recentResults.reportValidation}
-              lockState={lockStates.reportValidation}
-              lockResult={recentLockResults.reportValidation}
-              plan={executionPlans.reportValidation}
+              onExecute={handleExecuteAllocationAudit}
+              onReleaseLock={() => releaseLock('allocationAudit')}
+              result={recentResults.allocationAudit}
+              lockState={lockStates.allocationAudit}
+              lockResult={recentLockResults.allocationAudit}
+              plan={executionPlans.allocationAudit}
               isPlanLoading={isPlanLoading}
               isLockLoading={isLockLoading}
-              highlightRunAt={nextRunHighlight?.task === 'reportValidation' ? nextRunHighlight.time : undefined}
-              highlightRemainingText={nextRunHighlight?.task === 'reportValidation' ? nextRunRemainingText : undefined}
+              highlightRunAt={nextRunHighlight?.task === 'allocationAudit' ? nextRunHighlight.time : undefined}
+              highlightRemainingText={nextRunHighlight?.task === 'allocationAudit' ? nextRunRemainingText : undefined}
             />
           </div>
         </div>

@@ -4,7 +4,7 @@ import { NextAuthOptions } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import GoogleProvider from 'next-auth/providers/google';
 
-import { Role } from './interfaces/role.interface';
+import { Role } from '@/shared/types/role.types';
 import { getClientWithAccessToken } from './utils/api';
 
 export const refreshAccessToken = async (token: JWT): Promise<JWT> => {

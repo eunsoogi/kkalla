@@ -15,7 +15,7 @@ describe('TradeExecutionLedgerService', () => {
 
   it('should preserve processing status on duplicate insert race', async () => {
     const input = {
-      module: 'rebalance',
+      module: 'allocation',
       messageKey: 'run-1:user-1',
       userId: 'user-1',
       payloadHash: 'hash-1',
@@ -44,7 +44,7 @@ describe('TradeExecutionLedgerService', () => {
 
   it('should keep duplicate race retriable when row cannot be re-read', async () => {
     const input = {
-      module: 'rebalance',
+      module: 'allocation',
       messageKey: 'run-2:user-1',
       userId: 'user-1',
       payloadHash: 'hash-2',
@@ -67,7 +67,7 @@ describe('TradeExecutionLedgerService', () => {
 
   it('should guard stale processing reacquire with startedAt snapshot', async () => {
     const input = {
-      module: 'rebalance',
+      module: 'allocation',
       messageKey: 'run-3:user-1',
       userId: 'user-1',
       payloadHash: 'hash-3',
@@ -114,7 +114,7 @@ describe('TradeExecutionLedgerService', () => {
 
   it('should preserve succeeded status for duplicate deliveries', async () => {
     const input = {
-      module: 'rebalance',
+      module: 'allocation',
       messageKey: 'run-4:user-1',
       userId: 'user-1',
       payloadHash: 'hash-4',
@@ -142,7 +142,7 @@ describe('TradeExecutionLedgerService', () => {
 
   it('should return attemptCount when a row is newly acquired', async () => {
     const input = {
-      module: 'rebalance',
+      module: 'allocation',
       messageKey: 'run-5:user-1',
       userId: 'user-1',
       payloadHash: 'hash-5',
@@ -166,7 +166,7 @@ describe('TradeExecutionLedgerService', () => {
     const updateSpy = jest.spyOn(TradeExecutionLedger, 'update').mockResolvedValueOnce({ affected: 1 } as any);
 
     await service.markSucceeded({
-      module: 'rebalance',
+      module: 'allocation',
       messageKey: 'run-6:user-1',
       userId: 'user-1',
       attemptCount: 2,
@@ -174,7 +174,7 @@ describe('TradeExecutionLedgerService', () => {
 
     expect(updateSpy).toHaveBeenCalledWith(
       {
-        module: 'rebalance',
+        module: 'allocation',
         messageKey: 'run-6:user-1',
         userId: 'user-1',
         status: TradeExecutionLedgerStatus.PROCESSING,

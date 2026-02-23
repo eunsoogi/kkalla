@@ -241,10 +241,7 @@ export class OpenaiService {
           // 배치 작업에 실패한 경우
           this.logger.error(this.i18n.t('logging.openai.batch.has_errors'));
           const errors = await this.downloadBatchResult(batch.error_file_id);
-          this.logger.error({
-            message: this.i18n.t('logging.openai.batch.error_details'),
-            errors,
-          });
+          this.logger.error(this.i18n.t('logging.openai.batch.error_details'), JSON.stringify(errors));
           throw new Error(this.i18n.t('logging.openai.batch.failed_with_errors'));
         } else {
           // 두 ID가 모두 없는 예외적인 경우
@@ -289,7 +286,10 @@ export class OpenaiService {
     const lines = resultsText.trim().split('\n');
     const results: any[] = [];
 
-    this.logger.debug(resultsText);
+    this.logger.debug(
+      this.i18n.t('logging.openai.batch.raw_results_debug', { args: { count: lines.length } }),
+      resultsText,
+    );
 
     for (const line of lines) {
       if (!line.trim()) continue;

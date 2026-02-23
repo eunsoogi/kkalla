@@ -51,30 +51,44 @@
 
 ## 📁 Project Structure
 
-```
+```text
 kkalla/
-├── api/                    # NestJS backend API
+├── api/                          # NestJS backend API
 │   ├── src/
-│   ├── helm/               # API Helm subchart
+│   │   ├── modules/              # Domain/application modules
+│   │   ├── databases/            # TypeORM config, migrations, seeds
+│   │   ├── i18n/                 # API i18n resources
+│   │   └── utils/
+│   ├── docs/architecture/
+│   │   └── system-structure.md
+│   ├── helm/                     # API Helm subchart
+│   ├── test/
 │   ├── Dockerfile
 │   └── package.json
-├── ui/                     # Next.js frontend
+├── ui/                           # Next.js frontend
 │   ├── src/
-│   │   ├── app/            # App Router (dashboard, auth, news, etc.)
-│   │   ├── components/
-│   │   └── i18n/
-│   ├── helm/               # UI Helm subchart
+│   │   ├── app/                  # App Router routes and route-local modules
+│   │   ├── layouts/              # Layout-specific components
+│   │   ├── shared/               # App-global shared components/types
+│   │   ├── i18n/
+│   │   └── utils/
+│   ├── docs/architecture/
+│   │   └── system-structure.md
+│   ├── helm/                     # UI Helm subchart
 │   ├── Dockerfile
 │   └── package.json
-├── helm/                   # Root Helm chart (api + ui + mariadb + redis)
+├── docs/
+│   └── architecture/
+│       └── README.md             # Architecture index
+├── helm/                         # Root Helm chart (api + ui + mariadb + redis)
 │   ├── values/
 │   │   ├── development.yaml
 │   │   └── production.yaml
 │   └── Chart.yaml
-├── .github/workflows/      # CI/CD (lint-and-build, bake-release, deploy)
-├── docker-bake.hcl        # Docker Buildx multi-image build
-├── Makefile               # Cluster, build, install commands
-├── secrets.yaml.example   # Secrets template
+├── .github/workflows/            # CI/CD (lint-and-build, bake-release, deploy)
+├── docker-bake.hcl               # Docker Buildx multi-image build
+├── Makefile                      # Cluster, build, install commands
+├── secrets.yaml.example          # Secrets template
 └── README.md
 ```
 

@@ -3,8 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
 import { I18nService } from 'nestjs-i18n';
 
-import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
-import { UPBIT_BALANCE_RECOMMENDATION_CONFIG } from '@/modules/rebalance/prompts/balance-recommendation.prompt';
+import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
+import { UPBIT_ALLOCATION_RECOMMENDATION_CONFIG } from '@/modules/allocation/prompts/allocation-recommendation.prompt';
 import { MarketFeatures } from '@/modules/upbit/upbit.interface';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { formatObjectNumbers } from '@/utils/number';
@@ -1159,12 +1159,12 @@ export class FeatureService {
    * @param symbol 종목 심볼
    * @returns 이전 추론 결과 배열
    */
-  private async fetchRecentRecommendations(symbol: string): Promise<BalanceRecommendation[]> {
+  private async fetchRecentRecommendations(symbol: string): Promise<AllocationRecommendation[]> {
     try {
-      return await BalanceRecommendation.getRecent({
+      return await AllocationRecommendation.getRecent({
         symbol,
-        createdAt: new Date(Date.now() - UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recentDateLimit),
-        count: UPBIT_BALANCE_RECOMMENDATION_CONFIG.message.recent,
+        createdAt: new Date(Date.now() - UPBIT_ALLOCATION_RECOMMENDATION_CONFIG.message.recentDateLimit),
+        count: UPBIT_ALLOCATION_RECOMMENDATION_CONFIG.message.recent,
       });
     } catch (error) {
       this.logger.error(

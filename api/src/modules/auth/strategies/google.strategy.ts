@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 
 import { OAuth2Client, TokenInfo } from 'google-auth-library';
+import { I18nService } from 'nestjs-i18n';
 import { createHash } from 'node:crypto';
 import { Strategy } from 'passport-http-bearer';
 
@@ -26,6 +27,7 @@ export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-toke
   constructor(
     private readonly userService: UserService,
     private readonly cacheService: CacheService,
+    private readonly i18n: I18nService,
   ) {
     super();
   }
@@ -43,7 +45,7 @@ export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-toke
     try {
       userInfo = await this.googleClient.getTokenInfo(accessToken);
     } catch (err) {
-      this.logger.error(err);
+      this.logger.error(this.i18n.t('logging.auth.google.token_info_failed'), err);
       throw new UnauthorizedException(err);
     }
 

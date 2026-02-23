@@ -8,6 +8,6 @@ export enum TradeExecutionLedgerStatus {
 }
 
 export enum TradeExecutionModule {
-  REBALANCE = 'rebalance',
-  VOLATILITY = 'volatility',
+  ALLOCATION = 'allocation',
+  RISK = 'risk',
 }

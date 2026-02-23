@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { User } from '@/modules/user/entities/user.entity';
 
 import { FeargreedService } from '../feargreed/feargreed.service';
-import { HoldingsService } from '../history/holdings.service';
-import { MarketResearchService } from '../market-research/market-research.service';
+import { HoldingsService } from '../holding-ledger/holdings.service';
+import { MarketIntelligenceService } from '../market-intelligence/market-intelligence.service';
 import { NewsService } from '../news/news.service';
 import { ProfitService } from '../profit/profit.service';
 import { TradeService } from '../trade/trade.service';
@@ -16,7 +16,7 @@ export class DashboardService {
     private readonly profitService: ProfitService,
     private readonly tradeService: TradeService,
     private readonly holdingsService: HoldingsService,
-    private readonly marketResearchService: MarketResearchService,
+    private readonly marketIntelligenceService: MarketIntelligenceService,
     private readonly newsService: NewsService,
     private readonly feargreedService: FeargreedService,
   ) {}
@@ -44,7 +44,7 @@ export class DashboardService {
         },
       }),
       this.holdingsService.getHoldings(user),
-      this.marketResearchService.getLatestWithPriceChange(10, { mode: 'mixed' }),
+      this.marketIntelligenceService.getLatestWithPriceChange(10, { mode: 'mixed' }),
       this.newsService.getNewsForDashboard(10),
       this.feargreedService.getFeargreed(),
       this.feargreedService.getFeargreedHistory(7),

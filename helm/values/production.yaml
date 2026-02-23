@@ -8,8 +8,8 @@ api:
   aws:
     region: ap-northeast-2
     sqs:
-      queueUrlRebalance: https://sqs.ap-northeast-2.amazonaws.com/889753608001/kkalla-prd-sqs-rebalance
-      queueUrlVolatility: https://sqs.ap-northeast-2.amazonaws.com/889753608001/kkalla-prd-sqs-volatility
+      queueUrlAllocation: https://sqs.ap-northeast-2.amazonaws.com/889753608001/kkalla-prd-sqs-rebalance
+      queueUrlMarketRisk: https://sqs.ap-northeast-2.amazonaws.com/889753608001/kkalla-prd-sqs-volatility
 
 ui:
   autoscaling:

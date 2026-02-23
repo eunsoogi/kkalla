@@ -5,11 +5,11 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
-import { getDashboardSummary } from '@/components/dashboard/client';
-import { HoldingsList, MarketReportList, NewsWidget, TradeList24h } from '@/components/dashboard';
-import { FeargreedGauge } from '@/components/feargreed/FeargreedGauge';
-import { FeargreedTable } from '@/components/feargreed/FeargreedTable';
-import { ProfitDashboard } from '@/components/profit/ProfitDashboard';
+import { getDashboardSummary } from '@/app/(dashboard)/_components/home/dashboard-summary.client';
+import { HoldingsList, MarketReportList, NewsWidget, TradeList24h } from '@/app/(dashboard)/_components/home';
+import { FeargreedGauge } from '@/app/(dashboard)/_components/home/feargreed/FeargreedGauge';
+import { FeargreedTable } from '@/app/(dashboard)/_components/home/feargreed/FeargreedTable';
+import { ProfitDashboard } from '@/app/(dashboard)/_shared/profit/_components/ProfitDashboard';
 
 const Page: React.FC = () => {
   const t = useTranslations();

@@ -4,7 +4,7 @@ describe('DashboardService', () => {
   const profitService = { getProfit: jest.fn() };
   const tradeService = { paginateTrades: jest.fn() };
   const holdingsService = { getHoldings: jest.fn() };
-  const marketResearchService = { getLatestWithPriceChange: jest.fn() };
+  const marketIntelligenceService = { getLatestWithPriceChange: jest.fn() };
   const newsService = { getNewsForDashboard: jest.fn() };
   const feargreedService = {
     getFeargreed: jest.fn(),
@@ -19,7 +19,7 @@ describe('DashboardService', () => {
       profitService as any,
       tradeService as any,
       holdingsService as any,
-      marketResearchService as any,
+      marketIntelligenceService as any,
       newsService as any,
       feargreedService as any,
     );
@@ -35,7 +35,7 @@ describe('DashboardService', () => {
       totalPages: 1,
     });
     holdingsService.getHoldings.mockResolvedValue([{ symbol: 'BTC/KRW' }]);
-    marketResearchService.getLatestWithPriceChange.mockResolvedValue([{ id: 'mr-1' }]);
+    marketIntelligenceService.getLatestWithPriceChange.mockResolvedValue([{ id: 'mr-1' }]);
     newsService.getNewsForDashboard.mockResolvedValue([{ id: 'news-1' }]);
     feargreedService.getFeargreed.mockResolvedValue({ value: 50 });
     feargreedService.getFeargreedHistory.mockResolvedValue({ data: [{ value: 49 }] });
@@ -62,7 +62,7 @@ describe('DashboardService', () => {
         }),
       }),
     );
-    expect(marketResearchService.getLatestWithPriceChange).toHaveBeenCalledWith(10, { mode: 'mixed' });
+    expect(marketIntelligenceService.getLatestWithPriceChange).toHaveBeenCalledWith(10, { mode: 'mixed' });
     expect(newsService.getNewsForDashboard).toHaveBeenCalledWith(10);
     expect(feargreedService.getFeargreedHistory).toHaveBeenCalledWith(7);
   });
@@ -77,7 +77,7 @@ describe('DashboardService', () => {
       totalPages: 1,
     });
     holdingsService.getHoldings.mockRejectedValue(new Error('holdings failed'));
-    marketResearchService.getLatestWithPriceChange.mockRejectedValue(new Error('market failed'));
+    marketIntelligenceService.getLatestWithPriceChange.mockRejectedValue(new Error('market failed'));
     newsService.getNewsForDashboard.mockResolvedValue([{ id: 'news-1' }]);
     feargreedService.getFeargreed.mockResolvedValue({ value: 50 });
     feargreedService.getFeargreedHistory.mockRejectedValue(new Error('fear history failed'));

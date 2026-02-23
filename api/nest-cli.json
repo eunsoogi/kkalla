@@ -5,6 +5,9 @@
   "compilerOptions": {
     "builder": "swc",
     "deleteOutDir": true,
-    "assets": [{ "include": "i18n/**/*", "watchAssets": true }]
+    "assets": [
+      { "include": "i18n/**/*", "watchAssets": true },
+      { "include": "modules/**/prompts/**/*.md", "watchAssets": true }
+    ]
   }
 }

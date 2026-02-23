@@ -6,10 +6,10 @@ import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { TextInput } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { ForbiddenError } from '@/components/error/403';
-import { ProfitTable } from '@/components/profit/ProfitTable';
-import { Permission } from '@/interfaces/permission.interface';
+import { PermissionGuard } from '@/app/(dashboard)/_shared/auth/PermissionGuard';
+import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError';
+import { ProfitTable } from '@/app/(dashboard)/profits/_components/ProfitTable';
+import { Permission } from '@/shared/types/permission.types';
 
 const ProfitPageContent = () => {
   const router = useRouter();

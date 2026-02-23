@@ -146,7 +146,8 @@ aws:
   accessKey: ""
   secretKey: ""
   sqs:
-    queueUrl: ""
+    queueUrlAllocation: ""
+    queueUrlMarketRisk: ""
 
 openai:
   secretKey: ""
