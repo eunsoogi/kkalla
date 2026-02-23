@@ -1,21 +1,30 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { Category } from '@/modules/category/category.enum';
 import { User } from '@/modules/user/entities/user.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity()
 export class HoldingLedger extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
+
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @ManyToOne(() => User, {
     nullable: false,

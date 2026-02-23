@@ -1,4 +1,5 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Between,
   Column,
@@ -8,30 +9,31 @@ import {
   LessThanOrEqual,
   Like,
   MoreThanOrEqual,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { MarketSignalFilter } from '../market-intelligence.interface';
 
 @Entity()
 @Index('idx_market_signal_batch_id', ['batchId'])
-@Index('idx_market_signal_symbol_seq', ['symbol', 'seq'])
+@Index('idx_market_signal_symbol_id', ['symbol', 'id'])
 @Index('idx_market_signal_symbol_created_at', ['symbol', 'createdAt'])
 @Index('idx_market_signal_created_at', ['createdAt'])
 export class MarketSignal extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
 
-  @Column({
-    type: 'bigint',
-    unique: true,
-    nullable: false,
-  })
-  seq: number;
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @Column({
     type: 'varchar',
@@ -116,7 +118,7 @@ export class MarketSignal extends BaseEntity {
     const findOptions = {
       where,
       order: {
-        seq: sortDirection,
+        id: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,
@@ -155,15 +157,15 @@ export class MarketSignal extends BaseEntity {
     if (request.cursor) {
       const cursorEntity = await this.findOne({ where: { id: request.cursor } });
       if (cursorEntity) {
-        where.seq =
-          sortDirection === SortDirection.DESC ? LessThanOrEqual(cursorEntity.seq) : MoreThanOrEqual(cursorEntity.seq);
+        where.id =
+          sortDirection === SortDirection.DESC ? LessThanOrEqual(cursorEntity.id) : MoreThanOrEqual(cursorEntity.id);
       }
     }
 
     const findOptions = {
       where,
       order: {
-        seq: sortDirection,
+        id: sortDirection,
       },
       take: request.limit + 1,
       skip: request.cursor && request.skip ? 1 : 0,

@@ -7,9 +7,6 @@ export class MarketSignalDto {
   id: string;
 
   @ApiProperty()
-  seq: number;
-
-  @ApiProperty()
   symbol: string;
 
   @ApiProperty()

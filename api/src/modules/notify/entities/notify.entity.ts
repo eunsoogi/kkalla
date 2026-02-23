@@ -1,4 +1,5 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Column,
   CreateDateColumn,
@@ -8,25 +9,26 @@ import {
   JoinColumn,
   LessThanOrEqual,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { User } from '@/modules/user/entities/user.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity()
-@Index('idx_notify_user_seq', ['user', 'seq'])
+@Index('idx_notify_user_id', ['user', 'id'])
 export class Notify extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
 
-  @Column({
-    type: 'bigint',
-    unique: true,
-    nullable: false,
-  })
-  seq: number;
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @ManyToOne(() => User, {
     nullable: false,
@@ -74,7 +76,7 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        seq: 'DESC',
+        id: 'DESC',
       },
     });
 
@@ -100,7 +102,7 @@ export class Notify extends BaseEntity {
         },
       },
       order: {
-        seq: 'DESC',
+        id: 'DESC',
       },
     };
 
@@ -114,7 +116,7 @@ export class Notify extends BaseEntity {
       if (cursor) {
         findOptions.where = {
           ...findOptions.where,
-          seq: LessThanOrEqual(cursor.seq),
+          id: LessThanOrEqual(cursor.id),
         };
       }
     }

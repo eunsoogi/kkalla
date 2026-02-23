@@ -1,17 +1,19 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   OneToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { EncryptionTransformer } from 'typeorm-encrypted';
 
 import { typeORMEncryptionConfig } from '@/databases/typeorm.config';
 import { User } from '@/modules/user/entities/user.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity({
   orderBy: {
@@ -19,8 +21,15 @@ import { User } from '@/modules/user/entities/user.entity';
   },
 })
 export class SlackConfig extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
+
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @OneToOne(() => User, {
     nullable: false,

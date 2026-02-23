@@ -88,6 +88,7 @@ import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
 import { OrderTypes } from '../upbit/upbit.enum';
 import { MarketFeatures } from '../upbit/upbit.interface';
 import { UserService } from '../user/user.service';
+import { generateMonotonicUlid } from '@/utils/id';
 import { SymbolVolatility } from './market-risk.interface';
 import {
   UPBIT_ALLOCATION_RECOMMENDATION_CONFIG,
@@ -1830,7 +1831,7 @@ export class MarketRiskService implements OnModuleInit {
       this.i18n.t('logging.inference.allocationRecommendation.presave', { args: { count: validResults.length } }),
     );
 
-    const batchId = randomUUID();
+    const batchId = generateMonotonicUlid();
     const recommendationResults = await Promise.all(
       validResults.map((recommendation) => this.saveAllocationRecommendation({ ...recommendation, batchId })),
     );

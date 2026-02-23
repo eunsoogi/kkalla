@@ -503,7 +503,6 @@ export class AllocationAuditService {
     const response: AllocationAuditRunPage = {
       items: runs.map((run) => ({
         id: run.id,
-        seq: run.seq,
         reportType: run.reportType,
         sourceBatchId: run.sourceBatchId,
         horizonHours: run.horizonHours,
@@ -575,7 +574,6 @@ export class AllocationAuditService {
     const response: AllocationAuditRunItemPage = {
       items: items.map((item) => ({
         id: item.id,
-        seq: item.seq,
         runId: item.run.id,
         reportType: item.reportType,
         sourceRecommendationId: item.sourceRecommendationId,
@@ -728,13 +726,7 @@ export class AllocationAuditService {
    * @returns Result produced by the allocation audit flow.
    */
   private resolveRunSortBy(value: AllocationAuditRunSortBy | undefined): AllocationAuditRunSortBy {
-    if (
-      value === 'createdAt' ||
-      value === 'completedAt' ||
-      value === 'overallScore' ||
-      value === 'status' ||
-      value === 'seq'
-    ) {
+    if (value === 'createdAt' || value === 'completedAt' || value === 'overallScore' || value === 'status') {
       return value;
     }
     return 'createdAt';
@@ -782,7 +774,7 @@ export class AllocationAuditService {
     if (sortBy !== 'createdAt') {
       order.createdAt = 'DESC';
     }
-    order.seq = 'DESC';
+    order.id = 'DESC';
     return order;
   }
 
@@ -798,7 +790,7 @@ export class AllocationAuditService {
     if (sortBy !== 'createdAt') {
       order.createdAt = 'DESC';
     }
-    order.seq = 'DESC';
+    order.id = 'DESC';
     return order;
   }
 

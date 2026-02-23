@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { Seeder } from 'typeorm-extension';
 
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
@@ -7,10 +6,10 @@ import { UserCategory } from '@/modules/category/entities/user-category.entity';
 import { HoldingLedger } from '@/modules/holding-ledger/entities/holding-ledger.entity';
 import { Notify } from '@/modules/notify/entities/notify.entity';
 import { Role } from '@/modules/role/entities/role.entity';
-import { Sequence } from '@/modules/sequence/entities/sequence.entity';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
+import { generateMonotonicUlid } from '@/utils/id';
 
 export class UserSeeder implements Seeder {
   /**
@@ -42,14 +41,14 @@ export class AllocationRecommendationSeeder implements Seeder {
     await AllocationRecommendation.createQueryBuilder().delete().execute();
 
     for (let i = 0; i < 11; i++) {
-      const batchId = randomUUID();
+      const batchId = generateMonotonicUlid();
       const majorPrevIntensity = i < 6 ? 0.7 + (i % 3) * 0.05 : null;
       const minorPrevIntensity = i < 4 ? -0.3 + (i % 2) * 0.1 : null;
 
       await AllocationRecommendation.save([
         {
+          id: generateMonotonicUlid(),
           batchId,
-          seq: (await new Sequence().save()).value,
           category: Category.COIN_MAJOR,
           intensity: 0.8,
           ...(majorPrevIntensity !== null ? { prevIntensity: majorPrevIntensity } : {}),
@@ -58,8 +57,8 @@ export class AllocationRecommendationSeeder implements Seeder {
           symbol: 'BTC/KRW',
         },
         {
+          id: generateMonotonicUlid(),
           batchId,
-          seq: (await new Sequence().save()).value,
           category: Category.COIN_MINOR,
           intensity: -0.5,
           ...(minorPrevIntensity !== null ? { prevIntensity: minorPrevIntensity } : {}),
@@ -68,8 +67,8 @@ export class AllocationRecommendationSeeder implements Seeder {
           symbol: 'XRP/KRW',
         },
         {
+          id: generateMonotonicUlid(),
           batchId,
-          seq: (await new Sequence().save()).value,
           category: Category.NASDAQ,
           intensity: 0,
           modelTargetWeight: 0,
@@ -92,7 +91,7 @@ export class TradeSeeder implements Seeder {
 
     await Trade.save([
       {
-        seq: (await new Sequence().save()).value,
+        id: generateMonotonicUlid(),
         user: users[0],
         type: OrderTypes.BUY,
         symbol: 'BTC/KRW',
@@ -101,7 +100,7 @@ export class TradeSeeder implements Seeder {
         inference: inferences[0],
       },
       {
-        seq: (await new Sequence().save()).value,
+        id: generateMonotonicUlid(),
         user: users[0],
         type: OrderTypes.SELL,
         symbol: 'BTC/KRW',
@@ -123,13 +122,13 @@ export class NotifySeeder implements Seeder {
 
     await Notify.save([
       {
-        seq: (await new Sequence().save()).value,
+        id: generateMonotonicUlid(),
         user: users[0],
         message:
           '`테스트 메시지 1`입니다. *테스트 메시지 1*입니다. 테스트 메시지 1입니다. 테스트 메시지 1입니다. 테스트 메시지 1입니다.',
       },
       {
-        seq: (await new Sequence().save()).value,
+        id: generateMonotonicUlid(),
         user: users[0],
         message:
           '`테스트 메시지 2`입니다. *테스트 메시지 2*입니다. 테스트 메시지 2입니다. 테스트 메시지 2입니다. 테스트 메시지 2입니다.',
@@ -157,17 +156,17 @@ export class HoldingLedgerSeeder implements Seeder {
 
     await HoldingLedger.save([
       // 메이저 코인
-      { user, symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
-      { user, symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
-      { user, symbol: 'SOL/KRW', category: Category.COIN_MAJOR, index: 2 },
+      { id: generateMonotonicUlid(), user, symbol: 'BTC/KRW', category: Category.COIN_MAJOR, index: 0 },
+      { id: generateMonotonicUlid(), user, symbol: 'ETH/KRW', category: Category.COIN_MAJOR, index: 1 },
+      { id: generateMonotonicUlid(), user, symbol: 'SOL/KRW', category: Category.COIN_MAJOR, index: 2 },
       // 마이너 코인
-      { user, symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 3 },
-      { user, symbol: 'ADA/KRW', category: Category.COIN_MINOR, index: 4 },
-      { user, symbol: 'DOGE/KRW', category: Category.COIN_MINOR, index: 5 },
+      { id: generateMonotonicUlid(), user, symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 3 },
+      { id: generateMonotonicUlid(), user, symbol: 'ADA/KRW', category: Category.COIN_MINOR, index: 4 },
+      { id: generateMonotonicUlid(), user, symbol: 'DOGE/KRW', category: Category.COIN_MINOR, index: 5 },
       // 나스닥
-      { user, symbol: 'AAPL', category: Category.NASDAQ, index: 6 },
-      { user, symbol: 'MSFT', category: Category.NASDAQ, index: 7 },
-      { user, symbol: 'NVDA', category: Category.NASDAQ, index: 8 },
+      { id: generateMonotonicUlid(), user, symbol: 'AAPL', category: Category.NASDAQ, index: 6 },
+      { id: generateMonotonicUlid(), user, symbol: 'MSFT', category: Category.NASDAQ, index: 7 },
+      { id: generateMonotonicUlid(), user, symbol: 'NVDA', category: Category.NASDAQ, index: 8 },
     ]);
   }
 }

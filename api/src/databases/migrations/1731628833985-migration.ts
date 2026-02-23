@@ -1,7 +1,5 @@
 import { MigrationInterface, QueryRunner, Table, TableColumn, TableIndex } from 'typeorm';
 
-import { Sequence } from '@/modules/sequence/entities/sequence.entity';
-
 export class Migration1731628833985 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasInferenceSeq = await queryRunner.hasColumn('inference', 'seq');
@@ -57,22 +55,25 @@ export class Migration1731628833985 implements MigrationInterface {
     const inferences = await queryRunner.query(`SELECT id FROM inference ORDER BY created_at ASC`);
 
     for (const inference of inferences) {
-      const sequence = await queryRunner.manager.save(new Sequence());
-      await queryRunner.query(`UPDATE inference SET seq = ? WHERE id = ?`, [sequence.value, inference.id]);
+      await queryRunner.query(`INSERT INTO sequence () VALUES ()`);
+      const sequence = await queryRunner.query(`SELECT value FROM sequence ORDER BY value DESC LIMIT 1`);
+      await queryRunner.query(`UPDATE inference SET seq = ? WHERE id = ?`, [sequence[0].value, inference.id]);
     }
 
     const trades = await queryRunner.query(`SELECT id FROM trade ORDER BY created_at ASC`);
 
     for (const trade of trades) {
-      const sequence = await queryRunner.manager.save(new Sequence());
-      await queryRunner.query(`UPDATE trade SET seq = ? WHERE id = ?`, [sequence.value, trade.id]);
+      await queryRunner.query(`INSERT INTO sequence () VALUES ()`);
+      const sequence = await queryRunner.query(`SELECT value FROM sequence ORDER BY value DESC LIMIT 1`);
+      await queryRunner.query(`UPDATE trade SET seq = ? WHERE id = ?`, [sequence[0].value, trade.id]);
     }
 
     const notifies = await queryRunner.query(`SELECT id FROM notify ORDER BY created_at ASC`);
 
     for (const notify of notifies) {
-      const sequence = await queryRunner.manager.save(new Sequence());
-      await queryRunner.query(`UPDATE notify SET seq = ? WHERE id = ?`, [sequence.value, notify.id]);
+      await queryRunner.query(`INSERT INTO sequence () VALUES ()`);
+      const sequence = await queryRunner.query(`SELECT value FROM sequence ORDER BY value DESC LIMIT 1`);
+      await queryRunner.query(`UPDATE notify SET seq = ? WHERE id = ?`, [sequence[0].value, notify.id]);
     }
 
     await queryRunner.createIndex(

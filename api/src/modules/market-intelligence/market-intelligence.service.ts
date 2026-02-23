@@ -376,7 +376,6 @@ export class MarketIntelligenceService {
       const validation = badgeMap.get(entity.id) ?? {};
       return {
         id: entity.id,
-        seq: entity.seq,
         symbol: entity.symbol,
         weight: Number(entity.weight),
         reason: toUserFacingText(entity.reason),
@@ -407,7 +406,6 @@ export class MarketIntelligenceService {
     const items = cursorResult.items.map((entity) => ({
       ...(badgeMap.get(entity.id) ?? {}),
       id: entity.id,
-      seq: entity.seq,
       symbol: entity.symbol,
       weight: Number(entity.weight),
       reason: toUserFacingText(entity.reason),
@@ -504,7 +502,6 @@ export class MarketIntelligenceService {
         return {
           ...(badgeMap.get(entity.id) ?? {}),
           id: entity.id,
-          seq: entity.seq,
           symbol: entity.symbol,
           weight: Number(entity.weight),
           reason: toUserFacingText(entity.reason),

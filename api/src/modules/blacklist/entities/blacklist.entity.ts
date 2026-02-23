@@ -1,14 +1,31 @@
-import { BaseEntity, Column, CreateDateColumn, Entity, Like, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  BaseEntity,
+  Column,
+  CreateDateColumn,
+  Entity,
+  Like,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 import { Category } from '@/modules/category/category.enum';
 import { PaginatedItem } from '@/modules/item/item.interface';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { GetBlacklistsDto } from '../dto/get-blacklists.dto';
 
 @Entity()
 export class Blacklist extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
+
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @Column({
     type: 'varchar',

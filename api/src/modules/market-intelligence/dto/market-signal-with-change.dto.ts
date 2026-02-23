@@ -10,9 +10,6 @@ export class MarketSignalWithChangeDto {
   id: string;
 
   @ApiProperty()
-  seq: number;
-
-  @ApiProperty()
   symbol: string;
 
   @ApiProperty()

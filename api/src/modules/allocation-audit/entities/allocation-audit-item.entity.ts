@@ -1,4 +1,5 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Column,
   CreateDateColumn,
@@ -6,12 +7,13 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { AllocationAuditStatus, AllocationAuditVerdict, ReportType } from '../allocation-audit.interface';
 import { AllocationAuditRun } from './allocation-audit-run.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity('allocation_audit_item')
 @Index('idx_allocation_audit_item_source_recommendation_horizon', ['sourceRecommendationId', 'horizonHours'], {
@@ -21,14 +23,15 @@ import { AllocationAuditRun } from './allocation-audit-run.entity';
 @Index('idx_allocation_audit_item_report_type_symbol_created_at', ['reportType', 'symbol', 'createdAt'])
 @Index('idx_allocation_audit_item_source_batch_horizon', ['sourceBatchId', 'horizonHours'])
 export class AllocationAuditItem extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
 
-  @Column({
-    type: 'bigint',
-    unique: true,
-  })
-  seq: number;
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @ManyToOne(() => AllocationAuditRun, {
     nullable: false,
@@ -47,7 +50,7 @@ export class AllocationAuditItem extends BaseEntity {
 
   @Column({
     name: 'source_recommendation_id',
-    type: 'uuid',
+    ...ULID_COLUMN_OPTIONS,
     nullable: false,
   })
   sourceRecommendationId: string;

@@ -55,7 +55,8 @@
     "typeorm": "^0.3.28",
     "typeorm-encrypted": "^0.8.0",
     "typeorm-extension": "^3.7.2",
-    "typeorm-naming-strategies": "^4.1.0"
+    "typeorm-naming-strategies": "^4.1.0",
+    "ulid": "^3.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",

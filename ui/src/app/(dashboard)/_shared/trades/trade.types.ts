@@ -4,8 +4,7 @@ import { State } from '@/shared/types/action-state.types';
 import { CursorItem, PaginatedItem } from '@/shared/types/pagination.types';
 
 export interface Trade {
-  id: number;
-  seq: number;
+  id: string;
   type: TradeTypes;
   symbol: string;
   amount: number;

@@ -1,30 +1,33 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Column,
   CreateDateColumn,
   Entity,
   Index,
   OneToMany,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { AllocationAuditStatus, ReportType } from '../allocation-audit.interface';
 import { AllocationAuditItem } from './allocation-audit-item.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 @Entity('allocation_audit_run')
 @Index('idx_allocation_audit_run_report_type_batch_horizon', ['reportType', 'sourceBatchId', 'horizonHours'], {
   unique: true,
 })
 export class AllocationAuditRun extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
 
-  @Column({
-    type: 'bigint',
-    unique: true,
-  })
-  seq: number;
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @Column({
     name: 'report_type',

@@ -1,4 +1,5 @@
 import {
+  BeforeInsert,
   BaseEntity,
   Between,
   Column,
@@ -10,7 +11,7 @@ import {
   Like,
   ManyToOne,
   MoreThanOrEqual,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -19,21 +20,22 @@ import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { TradeFilter } from '../trade.interface';
 
 @Entity()
-@Index('idx_trade_user_seq', ['user', 'seq'])
+@Index('idx_trade_user_id', ['user', 'id'])
 export class Trade extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
 
-  @Column({
-    type: 'bigint',
-    unique: true,
-    nullable: false,
-  })
-  seq: number;
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @ManyToOne(() => User, {
     nullable: false,
@@ -113,7 +115,7 @@ export class Trade extends BaseEntity {
         user: true,
       },
       order: {
-        seq: sortDirection,
+        id: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,
@@ -166,7 +168,7 @@ export class Trade extends BaseEntity {
       });
 
       if (cursor) {
-        where.seq = sortDirection === SortDirection.DESC ? LessThanOrEqual(cursor.seq) : MoreThanOrEqual(cursor.seq);
+        where.id = sortDirection === SortDirection.DESC ? LessThanOrEqual(cursor.id) : MoreThanOrEqual(cursor.id);
       }
     }
 
@@ -176,7 +178,7 @@ export class Trade extends BaseEntity {
         user: true,
       },
       order: {
-        seq: sortDirection,
+        id: sortDirection,
       },
       take: request.limit + 1,
       skip: request.cursor && request.skip ? 1 : 0,
