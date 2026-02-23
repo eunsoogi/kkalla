@@ -139,6 +139,9 @@ export class Migration1772300000000 implements MigrationInterface {
       'idx_allocation_audit_item_source_batch_horizon',
     );
 
+    await this.rewriteTradeExecutionModuleValues(queryRunner, 'rebalance', 'allocation');
+    await this.rewriteTradeExecutionModuleValues(queryRunner, 'volatility', 'risk');
+
     for (const rename of this.permissionRenames) {
       await this.renameRolePermission(queryRunner, rename.from, rename.to);
     }
@@ -148,6 +151,9 @@ export class Migration1772300000000 implements MigrationInterface {
     for (const rename of [...this.permissionRenames].reverse()) {
       await this.renameRolePermission(queryRunner, rename.to, rename.from);
     }
+
+    await this.rewriteTradeExecutionModuleValues(queryRunner, 'allocation', 'rebalance');
+    await this.rewriteTradeExecutionModuleValues(queryRunner, 'risk', 'volatility');
 
     await this.migrateReportTypeToPortfolio(queryRunner, 'allocation_audit_run');
     await this.migrateReportTypeToPortfolio(queryRunner, 'allocation_audit_item');
@@ -324,6 +330,30 @@ export class Migration1772300000000 implements MigrationInterface {
     }
 
     await queryRunner.query(`ALTER TABLE \`${tableName}\` RENAME INDEX \`${oldIndexName}\` TO \`${newIndexName}\``);
+  }
+
+  private async rewriteTradeExecutionModuleValues(
+    queryRunner: QueryRunner,
+    fromValue: string,
+    toValue: string,
+  ): Promise<void> {
+    if (!(await queryRunner.hasTable('trade_execution_ledger'))) {
+      return;
+    }
+
+    await queryRunner.query(
+      `
+      DELETE old_row
+      FROM trade_execution_ledger old_row
+      INNER JOIN trade_execution_ledger new_row
+              ON old_row.message_key = new_row.message_key
+             AND old_row.user_id = new_row.user_id
+             AND old_row.module = ?
+             AND new_row.module = ?
+    `,
+      [fromValue, toValue],
+    );
+    await queryRunner.query(`UPDATE trade_execution_ledger SET module = ? WHERE module = ?`, [toValue, fromValue]);
   }
 
   private async renameRolePermission(queryRunner: QueryRunner, from: string, to: string): Promise<void> {

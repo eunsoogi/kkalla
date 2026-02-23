@@ -161,8 +161,7 @@ export class AllocationService implements OnModuleInit {
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_ALLOCATION;
   private readonly acceptedLegacyQueueModules = ['rebalance'];
-  // Keep producer backward-compatible until all consumers are upgraded.
-  private readonly outboundQueueModuleLabel = 'rebalance' as const;
+  private readonly outboundQueueModuleLabel = 'allocation' as const;
 
   constructor(
     private readonly i18n: I18nService,

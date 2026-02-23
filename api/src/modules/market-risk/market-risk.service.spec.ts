@@ -900,7 +900,7 @@ describe('MarketRiskService', () => {
     );
   });
 
-  it('should keep legacy module key for ledger dedupe when parsing alias message', async () => {
+  it('should normalize legacy module key to canonical ledger module when parsing alias message', async () => {
     const ledgerService = (service as any).tradeExecutionLedgerService;
     jest.spyOn(service, 'executeVolatilityTradesForUser').mockResolvedValue([]);
     jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
@@ -922,14 +922,14 @@ describe('MarketRiskService', () => {
 
     expect(ledgerService.acquire).toHaveBeenCalledWith(
       expect.objectContaining({
-        module: 'volatility',
+        module: 'risk',
         messageKey: 'run-legacy:user-1',
         userId: 'user-1',
       }),
     );
   });
 
-  it('should publish legacy volatility module label for rollout compatibility', async () => {
+  it('should publish canonical risk module label', async () => {
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
 
     await (service as any).publishVolatilityMessage(
@@ -948,7 +948,7 @@ describe('MarketRiskService', () => {
 
     expect(sqsSendMock).toHaveBeenCalledTimes(1);
     const messageBody = JSON.parse((sqsSendMock.mock.calls[0][0] as any).input.MessageBody);
-    expect(messageBody.module).toBe('volatility');
+    expect(messageBody.module).toBe('risk');
   });
 
   it('should keep message in queue when ledger entry is still processing', async () => {

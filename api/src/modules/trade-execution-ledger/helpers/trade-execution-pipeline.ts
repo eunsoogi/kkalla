@@ -206,7 +206,18 @@ function resolveDedupeModuleKey<TMessage extends TradeExecutionMessagePayload>(
 ): string {
   const moduleKey = parsedMessage.moduleKey ?? parsedMessage.module;
   if (typeof moduleKey === 'string' && moduleKey.length > 0) {
-    return moduleKey;
+    return normalizeModuleKey(moduleKey, fallbackModule);
+  }
+
+  return fallbackModule;
+}
+
+function normalizeModuleKey(moduleKey: string, fallbackModule: TradeExecutionModule): TradeExecutionModule {
+  if (moduleKey === TradeExecutionModule.ALLOCATION || moduleKey === 'rebalance') {
+    return TradeExecutionModule.ALLOCATION;
+  }
+  if (moduleKey === TradeExecutionModule.RISK || moduleKey === 'volatility') {
+    return TradeExecutionModule.RISK;
   }
 
   return fallbackModule;

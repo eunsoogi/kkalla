@@ -159,8 +159,7 @@ export class MarketRiskService implements OnModuleInit {
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_MARKET_RISK;
   private readonly acceptedLegacyQueueModules = ['volatility'];
-  // Keep producer backward-compatible until all consumers are upgraded.
-  private readonly outboundQueueModuleLabel = 'volatility' as const;
+  private readonly outboundQueueModuleLabel = 'risk' as const;
 
   /**
    * @param holdingLedgerService   잔고 추천 대상 종목 목록(자산 배분)을 제공
