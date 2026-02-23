@@ -59,7 +59,6 @@ export class Migration1772400001000 implements MigrationInterface {
     },
     { table: 'user_roles_role', oldColumn: 'user_id', newColumn: 'user_id_ulid', nullable: false },
     { table: 'user_roles_role', oldColumn: 'role_id', newColumn: 'role_id_ulid', nullable: false },
-    { table: 'trade_execution_ledger', oldColumn: 'user_id', newColumn: 'user_id_ulid', nullable: false },
   ];
 
   private readonly fkCapturePlans: ForeignKeyCapturePlan[] = [
@@ -147,7 +146,6 @@ export class Migration1772400001000 implements MigrationInterface {
     }
 
     await this.swapUserRolesJoinColumns(queryRunner);
-    await this.swapColumnToUlid(queryRunner, 'trade_execution_ledger', 'user_id', 'user_id_ulid', false);
 
     await this.dropSeqColumn(queryRunner, 'allocation_recommendation');
     await this.dropSeqColumn(queryRunner, 'market_signal');
@@ -364,14 +362,6 @@ export class Migration1772400001000 implements MigrationInterface {
       WHERE urr.role_id_ulid IS NULL
     `);
 
-    await queryRunner.query(`
-      UPDATE trade_execution_ledger l
-      INNER JOIN user u ON u.id = l.user_id
-      SET l.user_id_ulid = u.id_ulid
-      WHERE l.user_id_ulid IS NULL
-    `);
-
-    await this.backfillLedgerOrphanUserUlids(queryRunner);
   }
 
   private async backfillBatchUlids(queryRunner: QueryRunner): Promise<void> {
@@ -393,38 +383,6 @@ export class Migration1772400001000 implements MigrationInterface {
     }
   }
 
-  private async backfillLedgerOrphanUserUlids(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      UPDATE trade_execution_ledger
-      SET user_id_ulid = user_id
-      WHERE user_id_ulid IS NULL
-        AND user_id IS NOT NULL
-        AND CHAR_LENGTH(user_id) = 26
-    `);
-
-    const orphanUserIds: Array<{ user_id: string; created_at: Date | string | null }> = await queryRunner.query(`
-      SELECT user_id, MIN(created_at) AS created_at
-      FROM trade_execution_ledger
-      WHERE user_id_ulid IS NULL
-        AND user_id IS NOT NULL
-      GROUP BY user_id
-      ORDER BY created_at ASC, user_id ASC
-    `);
-
-    for (const orphan of orphanUserIds) {
-      const createdAtMs = orphan.created_at ? new Date(orphan.created_at).getTime() : undefined;
-      const timeMs = createdAtMs != null && Number.isFinite(createdAtMs) ? createdAtMs : undefined;
-      const surrogateUlid = this.ulid(timeMs);
-      await queryRunner.query(
-        `UPDATE trade_execution_ledger
-         SET user_id_ulid = ?
-         WHERE user_id = ?
-           AND user_id_ulid IS NULL`,
-        [surrogateUlid, orphan.user_id],
-      );
-    }
-  }
-
   private async runPreflightChecks(queryRunner: QueryRunner): Promise<void> {
     for (const table of this.idTables) {
       await this.assertNoNull(queryRunner, table, 'id_ulid');
@@ -439,7 +397,6 @@ export class Migration1772400001000 implements MigrationInterface {
 
     await this.assertNoNullWhenOldNotNull(queryRunner, 'user_roles_role', 'user_id', 'user_id_ulid');
     await this.assertNoNullWhenOldNotNull(queryRunner, 'user_roles_role', 'role_id', 'role_id_ulid');
-    await this.assertNoNullWhenOldNotNull(queryRunner, 'trade_execution_ledger', 'user_id', 'user_id_ulid');
   }
 
   private async assertAllocationAuditBatchIdsMigrated(queryRunner: QueryRunner, tableName: string): Promise<void> {

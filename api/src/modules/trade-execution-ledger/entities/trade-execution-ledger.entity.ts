@@ -40,7 +40,8 @@ export class TradeExecutionLedger extends BaseEntity {
   messageKey: string;
 
   @Column({
-    ...ULID_COLUMN_OPTIONS,
+    type: 'varchar',
+    length: 191,
     nullable: false,
   })
   userId: string;
