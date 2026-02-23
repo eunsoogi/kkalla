@@ -1099,6 +1099,72 @@ describe('RebalanceService', () => {
     expect(requests[0].symbol).toBe('ETH/KRW');
   });
 
+  it('should apply category-based 5 slots in new portfolio mode', async () => {
+    const categoryService = (service as any).categoryService;
+    const upbitService = (service as any).upbitService;
+    const balances: any = { info: [] };
+    const user: any = { id: 'user-1', roles: [] };
+    const inferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.8,
+        modelTargetWeight: 0.8,
+        action: 'buy',
+        hasStock: false,
+      },
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.8,
+        modelTargetWeight: 0.8,
+        action: 'buy',
+        hasStock: false,
+      },
+      ...Array.from({ length: 5 }, (_, index) => ({
+        symbol: `MINOR${index + 1}/KRW`,
+        category: Category.COIN_MINOR,
+        intensity: 0.8,
+        modelTargetWeight: 0.8,
+        action: 'buy',
+        hasStock: false,
+      })),
+    ];
+
+    categoryService.findEnabledByUser.mockResolvedValue([
+      { category: Category.COIN_MAJOR },
+      { category: Category.COIN_MINOR },
+    ]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValueOnce(balances).mockResolvedValueOnce(balances);
+    upbitService.calculateTradableMarketValue = jest.fn().mockResolvedValue(1_000_000);
+
+    jest.spyOn(service as any, 'filterUserAuthorizedBalanceRecommendations').mockResolvedValue(inferences);
+    jest.spyOn(service as any, 'getMarketRegimeMultiplier').mockResolvedValue(1);
+    jest.spyOn(service as any, 'buildCurrentWeightMap').mockResolvedValue(new Map());
+    jest.spyOn(service as any, 'generateNonBalanceRecommendationTradeRequests').mockReturnValue([]);
+    const excludedSpy = jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    const includedSpy = jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+
+    const result = await service.executeRebalanceForUser(user, inferences as any, 'new');
+
+    expect(result).toEqual([]);
+    expect(excludedSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      5,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      true,
+    );
+    expect(includedSpy).toHaveBeenCalledTimes(2);
+    expect(includedSpy.mock.calls[0][2]).toBe(5);
+    expect(includedSpy.mock.calls[0][8]).toBe(true);
+    expect(includedSpy.mock.calls[1][2]).toBe(5);
+    expect(includedSpy.mock.calls[1][8]).toBe(true);
+  });
+
   it('should keep category slot count even when existing holdings are fewer', () => {
     const slotCount = (service as any).resolveSlotCountForRebalance(5);
 
