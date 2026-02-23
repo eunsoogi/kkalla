@@ -8,6 +8,7 @@ interface ParseTradeExecutionMessageOptions {
   moduleLabel: 'allocation' | 'risk';
   queueMessageVersion: TradeExecutionMessageV2['version'];
   messageBody: string | undefined;
+  acceptedModuleAliases?: string[];
   parseInference(inference: unknown): TradeExecutionMessageV2['inferences'][number];
   parseAllocationMode?: (value: unknown) => AllocationMode;
 }
@@ -30,7 +31,7 @@ function parseTradeExecutionMessageV2(
   parsed: Partial<TradeExecutionMessageV2>,
   options: ParseTradeExecutionMessageOptions,
 ): TradeExecutionMessageV2 {
-  if (!isSupportedModuleLabel(parsed.module, options.module)) {
+  if (!isSupportedModuleLabel(parsed.module, options.module, options.acceptedModuleAliases)) {
     throw new Error(`Unsupported ${options.moduleLabel} message module`);
   }
   if (!isNonEmptyString(parsed.runId)) {
@@ -70,6 +71,6 @@ function parseTradeExecutionMessageV2(
   return message;
 }
 
-function isSupportedModuleLabel(value: unknown, module: TradeExecutionModule): boolean {
-  return typeof value === 'string' && value === module;
+function isSupportedModuleLabel(value: unknown, module: TradeExecutionModule, aliases: string[] = []): boolean {
+  return typeof value === 'string' && (value === module || aliases.includes(value));
 }

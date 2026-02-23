@@ -155,6 +155,7 @@ export class AllocationService implements OnModuleInit {
   });
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_ALLOCATION;
+  private readonly acceptedLegacyQueueModules = ['rebalance'];
 
   constructor(
     private readonly i18n: I18nService,
@@ -334,6 +335,7 @@ export class AllocationService implements OnModuleInit {
       moduleLabel: 'allocation',
       queueMessageVersion: this.QUEUE_MESSAGE_VERSION,
       messageBody,
+      acceptedModuleAliases: this.acceptedLegacyQueueModules,
       parseInference: parseQueuedInference,
       parseAllocationMode: (value) => this.parseAllocationMode(value),
     });

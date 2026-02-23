@@ -157,6 +157,7 @@ export class MarketRiskService implements OnModuleInit {
   });
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_MARKET_RISK;
+  private readonly acceptedLegacyQueueModules = ['volatility'];
 
   /**
    * @param holdingLedgerService   잔고 추천 대상 종목 목록(자산 배분)을 제공
@@ -342,6 +343,7 @@ export class MarketRiskService implements OnModuleInit {
       moduleLabel: 'risk',
       queueMessageVersion: this.QUEUE_MESSAGE_VERSION,
       messageBody,
+      acceptedModuleAliases: this.acceptedLegacyQueueModules,
       parseInference: parseQueuedInference,
     });
   }

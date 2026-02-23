@@ -8,6 +8,10 @@ interface PermissionRename {
 export class Migration1772300000000 implements MigrationInterface {
   private readonly permissionRenames: PermissionRename[] = [
     {
+      from: 'exec:schedule:market_recommendation',
+      to: 'exec:schedule:market_signal',
+    },
+    {
       from: 'exec:schedule:balance_recommendation_new',
       to: 'exec:schedule:allocation_recommendation_new',
     },

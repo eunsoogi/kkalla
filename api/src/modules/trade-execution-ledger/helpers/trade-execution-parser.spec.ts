@@ -38,6 +38,53 @@ describe('trade-execution-parser utils', () => {
     expect(parseAllocationMode).toHaveBeenCalledWith('existing');
   });
 
+  it('should parse legacy module aliases during rollout', () => {
+    const now = new Date('2026-02-23T00:00:00.000Z').toISOString();
+    const expiresAt = new Date('2026-02-23T00:30:00.000Z').toISOString();
+
+    const allocationMessage = parseTradeExecutionMessage({
+      module: TradeExecutionModule.ALLOCATION,
+      moduleLabel: 'allocation',
+      queueMessageVersion: 2,
+      messageBody: JSON.stringify({
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-1',
+        messageKey: 'key-1',
+        userId: 'user-1',
+        generatedAt: now,
+        expiresAt,
+        allocationMode: 'existing',
+        inferences: [{ id: 'i-1' }],
+      }),
+      acceptedModuleAliases: ['rebalance'],
+      parseInference: (inference) => inference as any,
+      parseAllocationMode: (value) => value as any,
+    });
+
+    expect(allocationMessage.module).toBe(TradeExecutionModule.ALLOCATION);
+
+    const riskMessage = parseTradeExecutionMessage({
+      module: TradeExecutionModule.RISK,
+      moduleLabel: 'risk',
+      queueMessageVersion: 2,
+      messageBody: JSON.stringify({
+        version: 2,
+        module: 'volatility',
+        runId: 'run-2',
+        messageKey: 'key-2',
+        userId: 'user-2',
+        generatedAt: now,
+        expiresAt,
+        inferences: [{ id: 'i-2' }],
+      }),
+      acceptedModuleAliases: ['volatility'],
+      parseInference: (inference) => inference as any,
+    });
+
+    expect(riskMessage.module).toBe(TradeExecutionModule.RISK);
+  });
+
   it('should throw when module or version is unsupported', () => {
     expect(() =>
       parseTradeExecutionMessage({
