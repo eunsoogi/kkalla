@@ -33,6 +33,7 @@ describe('trade-execution-parser utils', () => {
     });
 
     expect(result.module).toBe(TradeExecutionModule.ALLOCATION);
+    expect(result.moduleKey).toBe(TradeExecutionModule.ALLOCATION);
     expect(result.allocationMode).toBe('existing');
     expect(parseInference).toHaveBeenCalledTimes(1);
     expect(parseAllocationMode).toHaveBeenCalledWith('existing');
@@ -63,6 +64,7 @@ describe('trade-execution-parser utils', () => {
     });
 
     expect(allocationMessage.module).toBe(TradeExecutionModule.ALLOCATION);
+    expect(allocationMessage.moduleKey).toBe('rebalance');
 
     const riskMessage = parseTradeExecutionMessage({
       module: TradeExecutionModule.RISK,
@@ -83,6 +85,7 @@ describe('trade-execution-parser utils', () => {
     });
 
     expect(riskMessage.module).toBe(TradeExecutionModule.RISK);
+    expect(riskMessage.moduleKey).toBe('volatility');
   });
 
   it('should fallback to legacy portfolioMode when allocationMode is missing', () => {

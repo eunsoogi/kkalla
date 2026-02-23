@@ -37,6 +37,7 @@ export interface AllocationRecommendationData {
 export interface TradeExecutionMessageV2 {
   version: 2;
   module: TradeExecutionMessageModule;
+  moduleKey?: TradeExecutionQueueModuleLabel;
   runId: string;
   messageKey: string;
   userId: string;

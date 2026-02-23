@@ -1,9 +1,7 @@
 import { ChangeMessageVisibilityCommand, DeleteMessageCommand, Message, SQSClient } from '@aws-sdk/client-sqs';
 
-import { TradeExecutionModule } from '@/modules/trade-execution-ledger/trade-execution-ledger.enum';
-
 export interface ProcessingLedgerContext {
-  module: TradeExecutionModule;
+  module: string;
   messageKey: string;
   userId: string;
   attemptCount?: number;

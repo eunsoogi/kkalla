@@ -57,9 +57,12 @@ function parseTradeExecutionMessageV2(
     throw new Error('Invalid inferences');
   }
 
+  const moduleKey = parsed.module ?? options.module;
+
   const message: TradeExecutionMessageV2 = {
     version: options.queueMessageVersion,
     module: options.module,
+    moduleKey,
     runId: parsed.runId,
     messageKey: parsed.messageKey,
     userId: parsed.userId,

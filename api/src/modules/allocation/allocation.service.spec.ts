@@ -1335,6 +1335,35 @@ describe('AllocationService', () => {
     );
   });
 
+  it('should keep legacy module key for ledger dedupe when parsing alias message', async () => {
+    const ledgerService = (service as any).tradeExecutionLedgerService;
+    jest.spyOn(service, 'executeAllocationForUser').mockResolvedValue([]);
+    jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    await (service as any).handleMessage({
+      MessageId: 'message-legacy-module',
+      ReceiptHandle: 'receipt-legacy-module',
+      Body: JSON.stringify({
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-legacy',
+        messageKey: 'run-legacy:user-1',
+        userId: 'user-1',
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        inferences: [],
+      }),
+    });
+
+    expect(ledgerService.acquire).toHaveBeenCalledWith(
+      expect.objectContaining({
+        module: 'rebalance',
+        messageKey: 'run-legacy:user-1',
+        userId: 'user-1',
+      }),
+    );
+  });
+
   it('should publish legacy rebalance module label for rollout compatibility', async () => {
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
 

@@ -16,6 +16,8 @@ import {
 } from './sqs-processing';
 
 interface TradeExecutionMessagePayload {
+  module?: string;
+  moduleKey?: string;
   messageKey: string;
   userId: string;
   generatedAt: string;
@@ -25,7 +27,7 @@ interface TradeExecutionMessagePayload {
 interface TradeExecutionLedgerLike {
   hashPayload(payload: unknown): string;
   acquire(context: {
-    module: TradeExecutionModule;
+    module: string;
     messageKey: string;
     userId: string;
     payloadHash: string;
@@ -74,8 +76,9 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
     return;
   }
 
+  const dedupeModuleKey = resolveDedupeModuleKey(parsedMessage, options.module);
   const ledgerContext: ProcessingLedgerContext = {
-    module: options.module,
+    module: dedupeModuleKey,
     messageKey: parsedMessage.messageKey,
     userId: parsedMessage.userId,
   };
@@ -195,4 +198,16 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
     });
     throw error;
   }
+}
+
+function resolveDedupeModuleKey<TMessage extends TradeExecutionMessagePayload>(
+  parsedMessage: TMessage,
+  fallbackModule: TradeExecutionModule,
+): string {
+  const moduleKey = parsedMessage.moduleKey ?? parsedMessage.module;
+  if (typeof moduleKey === 'string' && moduleKey.length > 0) {
+    return moduleKey;
+  }
+
+  return fallbackModule;
 }
