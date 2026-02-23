@@ -32,7 +32,7 @@ import { GetMarketSignalsPaginationDto } from './dto/get-market-signals-paginati
 import { MarketSignalWithChangeDto } from './dto/market-signal-with-change.dto';
 import { MarketSignalDto } from './dto/market-signal.dto';
 import { MarketSignal } from './entities/market-signal.entity';
-import { ScheduleExpression } from './market-intelligence.enum';
+import { MARKET_SIGNAL_LOCK, ScheduleExpression } from './market-intelligence.enum';
 import {
   MARKET_SIGNAL_STATE_CACHE_KEY,
   MARKET_SIGNAL_STATE_CACHE_TTL_SECONDS,
@@ -93,7 +93,7 @@ export class MarketIntelligenceService {
    * - 추천된 종목은 MarketSignal 엔티티에 저장되어 Allocation 모듈에서 활용됩니다.
    */
   @Cron(ScheduleExpression.DAILY_MARKET_SIGNAL)
-  @WithRedlock({ duration: 88_200_000 }) // 24시간 30분 동안 실행
+  @WithRedlock(MARKET_SIGNAL_LOCK) // 24시간 30분 동안 실행
   public async executeMarketSignal(): Promise<void> {
     // 개발 환경에서는 스케줄 실행을 건너뜀
     if (process.env.NODE_ENV === 'development') {

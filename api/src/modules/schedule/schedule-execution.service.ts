@@ -5,9 +5,16 @@ import {
   ScheduleExpression as AllocationAuditScheduleExpression,
 } from '../allocation-audit/allocation-audit.enum';
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
-import { ScheduleExpression as AllocationScheduleExpression } from '../allocation/allocation.enum';
+import {
+  ALLOCATION_RECOMMENDATION_EXISTING_LOCK,
+  ALLOCATION_RECOMMENDATION_NEW_LOCK,
+  ScheduleExpression as AllocationScheduleExpression,
+} from '../allocation/allocation.enum';
 import { AllocationService } from '../allocation/allocation.service';
-import { ScheduleExpression as MarketIntelligenceScheduleExpression } from '../market-intelligence/market-intelligence.enum';
+import {
+  MARKET_SIGNAL_LOCK,
+  ScheduleExpression as MarketIntelligenceScheduleExpression,
+} from '../market-intelligence/market-intelligence.enum';
 import { MarketIntelligenceService } from '../market-intelligence/market-intelligence.service';
 import { RedlockService } from '../redlock/redlock.service';
 import {
@@ -30,23 +37,23 @@ export class ScheduleExecutionService {
 
   private readonly lockConfigByTask: Record<ScheduleExecutionTask, LockConfig> = {
     marketSignal: {
-      resourceName: 'MarketIntelligenceService:executeMarketSignal',
-      compatibleResourceNames: ['MarketResearchService:executeMarketRecommendation'],
-      duration: 88_200_000,
+      resourceName: MARKET_SIGNAL_LOCK.resourceName,
+      compatibleResourceNames: [...MARKET_SIGNAL_LOCK.compatibleResourceNames],
+      duration: MARKET_SIGNAL_LOCK.duration,
     },
     allocationRecommendationExisting: {
-      resourceName: 'AllocationService:executeAllocationRecommendationExisting',
-      compatibleResourceNames: ['RebalanceService:executeBalanceRecommendationExisting'],
-      duration: 3_600_000,
+      resourceName: ALLOCATION_RECOMMENDATION_EXISTING_LOCK.resourceName,
+      compatibleResourceNames: [...ALLOCATION_RECOMMENDATION_EXISTING_LOCK.compatibleResourceNames],
+      duration: ALLOCATION_RECOMMENDATION_EXISTING_LOCK.duration,
     },
     allocationRecommendationNew: {
-      resourceName: 'AllocationService:executeAllocationRecommendationNew',
-      compatibleResourceNames: ['RebalanceService:executeBalanceRecommendationNew'],
-      duration: 3_600_000,
+      resourceName: ALLOCATION_RECOMMENDATION_NEW_LOCK.resourceName,
+      compatibleResourceNames: [...ALLOCATION_RECOMMENDATION_NEW_LOCK.compatibleResourceNames],
+      duration: ALLOCATION_RECOMMENDATION_NEW_LOCK.duration,
     },
     allocationAudit: {
       resourceName: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
-      compatibleResourceNames: ['ReportValidationService:executeDueValidations'],
+      compatibleResourceNames: [...ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.compatibleResourceNames],
       duration: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
     },
   };

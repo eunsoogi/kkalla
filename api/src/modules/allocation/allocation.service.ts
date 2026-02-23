@@ -88,7 +88,11 @@ import { MarketFeatures } from '../upbit/upbit.interface';
 import { UpbitService } from '../upbit/upbit.service';
 import { User } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
-import { ScheduleExpression } from './allocation.enum';
+import {
+  ALLOCATION_RECOMMENDATION_EXISTING_LOCK,
+  ALLOCATION_RECOMMENDATION_NEW_LOCK,
+  ScheduleExpression,
+} from './allocation.enum';
 import {
   AllocationMode,
   AllocationRecommendationAction,
@@ -361,7 +365,7 @@ export class AllocationService implements OnModuleInit {
    * - 전체 자산 배분를 재조정하여 새로운 투자 기회를 포착합니다.
    */
   @Cron(ScheduleExpression.DAILY_ALLOCATION_RECOMMENDATION_NEW)
-  @WithRedlock({ duration: 3_600_000 }) // 1시간 동안 실행
+  @WithRedlock(ALLOCATION_RECOMMENDATION_NEW_LOCK) // 1시간 동안 실행
   public async executeAllocationRecommendationNew(): Promise<void> {
     // 개발 환경에서는 스케줄 실행을 건너뜀
     if (process.env.NODE_ENV === 'development') {
@@ -442,7 +446,7 @@ export class AllocationService implements OnModuleInit {
    * - 자산 배분 비율을 재조정하여 최적의 배분을 유지합니다.
    */
   @Cron(ScheduleExpression.DAILY_ALLOCATION_RECOMMENDATION_EXISTING)
-  @WithRedlock({ duration: 3_600_000 }) // 1시간 동안 실행
+  @WithRedlock(ALLOCATION_RECOMMENDATION_EXISTING_LOCK) // 1시간 동안 실행
   public async executeAllocationRecommendationExisting(): Promise<void> {
     // 개발 환경에서는 스케줄 실행을 건너뜀
     if (process.env.NODE_ENV === 'development') {

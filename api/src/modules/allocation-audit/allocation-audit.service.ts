@@ -100,7 +100,7 @@ export class AllocationAuditService {
   ) {}
 
   @Cron(ScheduleExpression.HOURLY_ALLOCATION_AUDIT)
-  @WithRedlock({ duration: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.duration })
+  @WithRedlock(ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK)
   public async executeDueAudits(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(this.i18n.t('logging.schedule.skip'));

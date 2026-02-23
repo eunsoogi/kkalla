@@ -356,7 +356,11 @@ export class MarketRiskService implements OnModuleInit {
    * - 실제 리스크 체크 로직은 `checkMarketRiskEvents`로 위임합니다.
    */
   @Cron(CronExpression.EVERY_MINUTE)
-  @WithRedlock({ duration: 30_000 })
+  @WithRedlock({
+    resourceName: 'MarketRiskService:handleTick',
+    compatibleResourceNames: ['MarketVolatilityService:handleTick'],
+    duration: 30_000,
+  })
   public async handleTick(): Promise<void> {
     // 개발 환경에서는 스케줄 실행을 건너뜀
     if (process.env.NODE_ENV === 'development') {
