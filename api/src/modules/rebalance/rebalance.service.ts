@@ -1087,7 +1087,7 @@ export class RebalanceService implements OnModuleInit {
     const count = await this.getItemCount(user);
     assertLockOrThrow();
     const allowBackfill = portfolioMode === 'new';
-    const slotCount = this.resolveSlotCountForRebalance(authorizedBalanceRecommendations, count, allowBackfill);
+    const slotCount = this.resolveSlotCountForRebalance(count);
 
     // 유저 계좌 조회: 현재 보유 종목 및 잔고 정보
     const balances = await this.upbitService.getBalances(user);
@@ -2282,22 +2282,8 @@ export class RebalanceService implements OnModuleInit {
     );
   }
 
-  private resolveSlotCountForRebalance(
-    inferences: BalanceRecommendationData[],
-    defaultSlotCount: number,
-    allowBackfill: boolean,
-  ): number {
-    if (allowBackfill) {
-      return defaultSlotCount;
-    }
-
-    const heldCount = new Set(
-      inferences
-        .filter((inference) => inference.hasStock)
-        .map((inference) => `${inference.symbol}:${inference.category}`),
-    ).size;
-
-    return Math.min(defaultSlotCount, heldCount);
+  private resolveSlotCountForRebalance(defaultSlotCount: number): number {
+    return defaultSlotCount;
   }
 
   private toPercent(value: number | null | undefined): string {

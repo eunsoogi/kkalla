@@ -637,6 +637,72 @@ describe('RebalanceService', () => {
     expect(requests[0].diff).toBeCloseTo(0.1, 10);
   });
 
+  it('should cap included trade requests to 5 slots when minor recommendations are 7', () => {
+    const balances: any = { info: [] };
+    const currentWeights = new Map<string, number>();
+    const inferences = Array.from({ length: 7 }, (_, index) => ({
+      symbol: `MINOR${index + 1}/KRW`,
+      category: Category.COIN_MINOR,
+      intensity: 0.9,
+      hasStock: false,
+      modelTargetWeight: 1,
+      action: 'buy',
+    }));
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(5);
+  });
+
+  it('should cap included trade requests to 5 slots when merged category recommendations are 7', () => {
+    const balances: any = { info: [] };
+    const currentWeights = new Map<string, number>();
+    const inferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 1,
+        action: 'buy',
+      },
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 1,
+        action: 'buy',
+      },
+      ...Array.from({ length: 5 }, (_, index) => ({
+        symbol: `MINOR${index + 1}/KRW`,
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 1,
+        action: 'buy',
+      })),
+    ];
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(5);
+  });
+
   it('should not create a bullish feature bias when market features are missing', () => {
     const weakSignals = (service as any).calculateModelSignals(0.05, Category.COIN_MINOR, null);
     const neutralSignals = (service as any).calculateModelSignals(0, Category.COIN_MINOR, null);
@@ -1031,6 +1097,12 @@ describe('RebalanceService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('ETH/KRW');
+  });
+
+  it('should keep category slot count even when existing holdings are fewer', () => {
+    const slotCount = (service as any).resolveSlotCountForRebalance(5);
+
+    expect(slotCount).toBe(5);
   });
 
   it('should fallback to target symbol when AI returns symbol mismatch', async () => {
