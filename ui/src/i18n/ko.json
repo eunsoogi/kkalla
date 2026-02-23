@@ -448,6 +448,7 @@
       "view_asset": "자산조회"
     },
     "guide": "업비트 계정 연동 방법",
+    "ip_label": "IP",
     "link": "업비트 계정 연동하러 가기",
     "register": "업비트 계정 연동",
     "secret_key_help": "Secret Key는 민감 정보이므로 안전하게 보관하세요.",

@@ -26,7 +26,7 @@ const UpbitIp: React.FC = () => {
 
   return (
     <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
-      <span className='font-medium'>IP:</span>
+      <span className='font-medium'>{t('upbit.ip_label')}:</span>
       <code className='px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded'>{data}</code>
     </div>
   );
@@ -37,7 +37,7 @@ const UpbitIpSkeleton: React.FC = () => {
 
   return (
     <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
-      <span className='font-medium'>IP:</span>
+      <span className='font-medium'>{t('upbit.ip_label')}:</span>
       <code className='px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded'>{t('status.unknown')}</code>
     </div>
   );
