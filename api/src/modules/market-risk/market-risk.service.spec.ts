@@ -76,8 +76,16 @@ describe('MarketRiskService', () => {
         {
           provide: RedlockService,
           useValue: {
-            withLock: jest.fn(async (_resourceName: string, _duration: number, callback: () => Promise<any>) =>
-              callback(),
+            withLock: jest.fn(
+              async (
+                _resourceName: string,
+                _duration: number,
+                callback: (context: { signal: AbortSignal; assertLockOrThrow: () => void }) => Promise<unknown>,
+              ) =>
+                callback({
+                  signal: new AbortController().signal,
+                  assertLockOrThrow: jest.fn(),
+                }),
             ),
           },
         },
