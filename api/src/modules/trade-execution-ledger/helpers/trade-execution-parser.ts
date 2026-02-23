@@ -1,4 +1,8 @@
-import { AllocationMode, TradeExecutionMessageV2 } from '@/modules/allocation-core/allocation-core.types';
+import {
+  AllocationMode,
+  QueueTradeExecutionMessageV2,
+  TradeExecutionMessageV2,
+} from '@/modules/allocation-core/allocation-core.types';
 import { TradeExecutionModule } from '@/modules/trade-execution-ledger/trade-execution-ledger.enum';
 
 import { isNonEmptyString, isValidDateString } from './sqs-message';
@@ -18,7 +22,7 @@ export function parseTradeExecutionMessage(options: ParseTradeExecutionMessageOp
     throw new Error('Empty SQS message body');
   }
 
-  const parsed = JSON.parse(options.messageBody) as Partial<TradeExecutionMessageV2> & Record<string, unknown>;
+  const parsed = JSON.parse(options.messageBody) as Partial<QueueTradeExecutionMessageV2> & Record<string, unknown>;
 
   if (parsed.version !== options.queueMessageVersion) {
     throw new Error(`Unsupported ${options.moduleLabel} message version`);
@@ -28,7 +32,7 @@ export function parseTradeExecutionMessage(options: ParseTradeExecutionMessageOp
 }
 
 function parseTradeExecutionMessageV2(
-  parsed: Partial<TradeExecutionMessageV2>,
+  parsed: Partial<QueueTradeExecutionMessageV2>,
   options: ParseTradeExecutionMessageOptions,
 ): TradeExecutionMessageV2 {
   if (!isSupportedModuleLabel(parsed.module, options.module, options.acceptedModuleAliases)) {

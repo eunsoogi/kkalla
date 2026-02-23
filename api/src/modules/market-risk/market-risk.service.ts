@@ -9,6 +9,7 @@ import { I18nService } from 'nestjs-i18n';
 import {
   AllocationRecommendationAction,
   AllocationRecommendationData,
+  QueueTradeExecutionMessageV2,
   RecommendationItem,
   TradeExecutionMessageV2,
 } from '@/modules/allocation-core/allocation-core.types';
@@ -158,6 +159,8 @@ export class MarketRiskService implements OnModuleInit {
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_MARKET_RISK;
   private readonly acceptedLegacyQueueModules = ['volatility'];
+  // Keep producer backward-compatible until all consumers are upgraded.
+  private readonly outboundQueueModuleLabel = 'volatility' as const;
 
   /**
    * @param holdingLedgerService   잔고 추천 대상 종목 목록(자산 배분)을 제공
@@ -759,14 +762,14 @@ export class MarketRiskService implements OnModuleInit {
             QueueUrl: this.queueUrl,
             MessageBody: JSON.stringify({
               version: this.QUEUE_MESSAGE_VERSION,
-              module: TradeExecutionModule.RISK,
+              module: this.outboundQueueModuleLabel,
               runId,
               messageKey: `${runId}:${user.id}`,
               userId: user.id,
               generatedAt: generatedAt.toISOString(),
               expiresAt: expiresAt.toISOString(),
               inferences,
-            } satisfies TradeExecutionMessageV2),
+            } satisfies QueueTradeExecutionMessageV2),
           }),
       );
 
@@ -775,7 +778,7 @@ export class MarketRiskService implements OnModuleInit {
       this.logger.debug(
         this.i18n.t('logging.sqs.producer.send_results_debug', {
           args: {
-            module: TradeExecutionModule.RISK,
+            module: this.outboundQueueModuleLabel,
             count: results.length,
           },
         }),

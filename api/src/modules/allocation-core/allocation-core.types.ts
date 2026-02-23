@@ -10,6 +10,8 @@ export interface RecommendationItem {
 
 export type AllocationRecommendationAction = 'buy' | 'sell' | 'hold' | 'no_trade';
 export type AllocationMode = 'new' | 'existing';
+export type TradeExecutionMessageModule = 'allocation' | 'risk';
+export type TradeExecutionQueueModuleLabel = TradeExecutionMessageModule | 'rebalance' | 'volatility';
 
 export interface AllocationRecommendationData {
   id: string;
@@ -34,7 +36,7 @@ export interface AllocationRecommendationData {
 
 export interface TradeExecutionMessageV2 {
   version: 2;
-  module: 'allocation' | 'risk';
+  module: TradeExecutionMessageModule;
   runId: string;
   messageKey: string;
   userId: string;
@@ -42,4 +44,8 @@ export interface TradeExecutionMessageV2 {
   expiresAt: string;
   allocationMode?: AllocationMode;
   inferences: AllocationRecommendationData[];
+}
+
+export interface QueueTradeExecutionMessageV2 extends Omit<TradeExecutionMessageV2, 'module'> {
+  module: TradeExecutionQueueModuleLabel;
 }

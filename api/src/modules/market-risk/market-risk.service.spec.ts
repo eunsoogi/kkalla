@@ -900,6 +900,28 @@ describe('MarketRiskService', () => {
     );
   });
 
+  it('should publish legacy volatility module label for rollout compatibility', async () => {
+    const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);
+
+    await (service as any).publishVolatilityMessage(
+      [{ id: 'user-1' } as any],
+      [
+        {
+          id: 'rec-1',
+          batchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.5,
+          hasStock: false,
+        },
+      ],
+    );
+
+    expect(sqsSendMock).toHaveBeenCalledTimes(1);
+    const messageBody = JSON.parse((sqsSendMock.mock.calls[0][0] as any).input.MessageBody);
+    expect(messageBody.module).toBe('volatility');
+  });
+
   it('should keep message in queue when ledger entry is still processing', async () => {
     const ledgerService = (service as any).tradeExecutionLedgerService;
     const sqsSendMock = jest.spyOn((service as any).sqs, 'send').mockResolvedValue({} as any);

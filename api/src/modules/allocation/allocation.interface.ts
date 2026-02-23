@@ -2,6 +2,7 @@ import type {
   AllocationMode,
   AllocationRecommendationAction,
   AllocationRecommendationData,
+  QueueTradeExecutionMessageV2,
   RecommendationItem,
   TradeExecutionMessageV2,
 } from '../allocation-core/allocation-core.types';
@@ -31,5 +32,6 @@ export type {
   AllocationRecommendationData,
   AllocationMode,
   RecommendationItem,
+  QueueTradeExecutionMessageV2,
   TradeExecutionMessageV2,
 };

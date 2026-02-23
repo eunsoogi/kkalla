@@ -97,6 +97,7 @@ import {
   AllocationMode,
   AllocationRecommendationAction,
   AllocationRecommendationData,
+  QueueTradeExecutionMessageV2,
   RecommendationItem,
   TradeExecutionMessageV2,
 } from './allocation.interface';
@@ -160,6 +161,8 @@ export class AllocationService implements OnModuleInit {
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_ALLOCATION;
   private readonly acceptedLegacyQueueModules = ['rebalance'];
+  // Keep producer backward-compatible until all consumers are upgraded.
+  private readonly outboundQueueModuleLabel = 'rebalance' as const;
 
   constructor(
     private readonly i18n: I18nService,
@@ -605,7 +608,7 @@ export class AllocationService implements OnModuleInit {
             QueueUrl: this.queueUrl,
             MessageBody: JSON.stringify({
               version: this.QUEUE_MESSAGE_VERSION,
-              module: TradeExecutionModule.ALLOCATION,
+              module: this.outboundQueueModuleLabel,
               runId,
               messageKey: `${runId}:${user.id}`,
               userId: user.id,
@@ -613,7 +616,7 @@ export class AllocationService implements OnModuleInit {
               expiresAt: expiresAt.toISOString(),
               allocationMode,
               inferences: scopedInferences,
-            } satisfies TradeExecutionMessageV2),
+            } satisfies QueueTradeExecutionMessageV2),
           }),
       );
 
@@ -622,7 +625,7 @@ export class AllocationService implements OnModuleInit {
       this.logger.debug(
         this.i18n.t('logging.sqs.producer.send_results_debug', {
           args: {
-            module: TradeExecutionModule.ALLOCATION,
+            module: this.outboundQueueModuleLabel,
             count: results.length,
           },
         }),
