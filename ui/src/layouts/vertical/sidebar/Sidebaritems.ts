@@ -2,7 +2,7 @@ import { uniqueId } from 'lodash';
 import { useTranslations } from 'next-intl';
 
 import { usePermissions } from '@/hooks/usePermissions';
-import { Permission } from '@/interfaces/permission.interface';
+import { Permission } from '@/shared/types/permission.types';
 
 export interface ChildItem {
   id?: number | string;
@@ -54,13 +54,13 @@ export const SidebarContent = (): MenuItem[] => {
           name: t('marketReport'),
           icon: 'solar:chart-line-duotone',
           id: uniqueId(),
-          url: '/market-recommendations',
+          url: '/market-signals',
         },
         {
-          name: t('portfolioReport'),
+          name: t('allocationReport'),
           icon: 'solar:chart-line-duotone',
           id: uniqueId(),
-          url: '/balance-recommendations',
+          url: '/allocation-recommendations',
         },
         {
           name: t('tradeList'),
@@ -126,14 +126,14 @@ export const SidebarContent = (): MenuItem[] => {
     });
   }
 
-  const hasLegacyScheduleAccess = hasPermission([
-    Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
-    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
-    Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
+  const hasScheduleAccess = hasPermission([
+    Permission.EXEC_SCHEDULE_MARKET_SIGNAL,
+    Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING,
+    Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW,
+    Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT,
   ]);
-  const hasReportValidationAccess = hasPermission([Permission.EXEC_SCHEDULE_REPORT_VALIDATION]);
 
-  if (hasLegacyScheduleAccess || hasReportValidationAccess) {
+  if (hasScheduleAccess) {
     adminChildren.push({
       name: t('scheduleManagement'),
       icon: 'solar:calendar-mark-line-duotone',
@@ -142,12 +142,12 @@ export const SidebarContent = (): MenuItem[] => {
     });
   }
 
-  if (hasPermission([Permission.EXEC_SCHEDULE_REPORT_VALIDATION])) {
+  if (hasPermission([Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT])) {
     adminChildren.push({
-      name: t('reportValidation'),
+      name: t('allocationAudit'),
       icon: 'solar:checklist-minimalistic-line-duotone',
       id: uniqueId(),
-      url: '/report-validations',
+      url: '/allocation-audits',
     });
   }
 

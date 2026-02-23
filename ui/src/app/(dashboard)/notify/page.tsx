@@ -1,9 +1,9 @@
 import React from 'react';
 import { getTranslations } from 'next-intl/server';
 
-import SlackForm from '@/components/config/SlackForm';
-import SlackGuide from '@/components/config/SlackGuide';
-import SlackProgressPanel from '@/components/notify/SlackProgressPanel';
+import SlackForm from '@/app/(dashboard)/notify/_components/SlackForm';
+import SlackGuide from '@/app/(dashboard)/notify/_components/SlackGuide';
+import SlackProgressPanel from '@/app/(dashboard)/notify/_components/SlackProgressPanel';
 
 const Page = async () => {
   const t = await getTranslations();

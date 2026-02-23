@@ -1,5 +1,5 @@
 import { Category } from '@/enums/category.enum';
-import { Permission } from '@/interfaces/permission.interface';
+import { Permission } from '@/shared/types/permission.types';
 
 export const getCategoryText = (category: string, t: (key: string) => string) => {
   switch (category) {

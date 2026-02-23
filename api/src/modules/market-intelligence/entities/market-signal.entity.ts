@@ -1,0 +1,191 @@
+import {
+  BaseEntity,
+  Between,
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  LessThanOrEqual,
+  Like,
+  MoreThanOrEqual,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+import { SortDirection } from '@/modules/item/item.enum';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+
+import { MarketSignalFilter } from '../market-intelligence.interface';
+
+@Entity()
+@Index('idx_market_signal_batch_id', ['batchId'])
+@Index('idx_market_signal_symbol_seq', ['symbol', 'seq'])
+@Index('idx_market_signal_symbol_created_at', ['symbol', 'createdAt'])
+@Index('idx_market_signal_created_at', ['createdAt'])
+export class MarketSignal extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({
+    type: 'bigint',
+    unique: true,
+    nullable: false,
+  })
+  seq: number;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  symbol: string;
+
+  @Column({
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    nullable: false,
+  })
+  weight: number;
+
+  @Column({
+    type: 'text',
+    nullable: false,
+  })
+  reason: string;
+
+  @Column({
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    nullable: false,
+  })
+  confidence: number;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
+  batchId: string;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  recommendationPrice: number | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  /**
+   * 최신 추천 종목들을 조회
+   */
+  static async getLatestSignals(): Promise<MarketSignal[]> {
+    const latest = await this.find({
+      order: { createdAt: 'DESC' },
+      take: 1,
+    });
+
+    if (!latest.length) {
+      return [];
+    }
+
+    return this.find({ where: { batchId: latest[0].batchId } });
+  }
+
+  /**
+   * 페이지네이션
+   */
+  static async paginate(request: ItemRequest & MarketSignalFilter): Promise<PaginatedItem<MarketSignal>> {
+    const where: any = {};
+
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
+    }
+
+    if (request.createdAt) {
+      where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
+    }
+
+    const sortDirection = request.sortDirection ?? SortDirection.DESC;
+
+    const findOptions = {
+      where,
+      order: {
+        seq: sortDirection,
+      },
+      skip: (request.page - 1) * request.perPage,
+      take: request.perPage,
+    };
+
+    const [items, total] = await this.findAndCount(findOptions);
+
+    return {
+      items,
+      total,
+      page: request.page,
+      perPage: request.perPage,
+      totalPages: Math.ceil(total / request.perPage),
+    };
+  }
+
+  /**
+   * 커서 페이지네이션
+   */
+  static async cursor(request: CursorRequest<string> & MarketSignalFilter): Promise<CursorItem<MarketSignal, string>> {
+    const where: any = {};
+
+    if (request.symbol) {
+      where.symbol = Like(`%${request.symbol}%`);
+    }
+
+    // startDate/endDate 또는 createdAt 처리
+    if (request.startDate || request.endDate) {
+      where.createdAt = Between(request.startDate ?? new Date(0), request.endDate ?? new Date());
+    } else if (request.createdAt) {
+      where.createdAt = Between(request.createdAt?.gte ?? new Date(0), request.createdAt?.lte ?? new Date());
+    }
+
+    const sortDirection = request.sortDirection ?? SortDirection.DESC;
+
+    if (request.cursor) {
+      const cursorEntity = await this.findOne({ where: { id: request.cursor } });
+      if (cursorEntity) {
+        where.seq =
+          sortDirection === SortDirection.DESC ? LessThanOrEqual(cursorEntity.seq) : MoreThanOrEqual(cursorEntity.seq);
+      }
+    }
+
+    const findOptions = {
+      where,
+      order: {
+        seq: sortDirection,
+      },
+      take: request.limit + 1,
+      skip: request.cursor && request.skip ? 1 : 0,
+    };
+
+    const items = await this.find(findOptions);
+
+    let total = items.length;
+    const hasNextPage = total > request.limit;
+
+    if (hasNextPage) {
+      items.pop();
+      total--;
+    }
+
+    const nextCursor = hasNextPage ? items[total - 1].id : null;
+
+    return {
+      items,
+      hasNextPage,
+      nextCursor,
+      total,
+    };
+  }
+}

@@ -1,7 +1,7 @@
 import { Balances } from 'ccxt';
 
+import { AllocationRecommendationData } from '../allocation-core/allocation-core.types';
 import { SortDirection } from '../item/item.enum';
-import { BalanceRecommendationData } from '../rebalance/rebalance.interface';
 import { OrderTypes } from '../upbit/upbit.enum';
 
 export interface TradeFilter {
@@ -19,7 +19,7 @@ export interface TradeRequest {
   diff: number;
   balances: Balances;
   marketPrice?: number;
-  inference?: BalanceRecommendationData;
+  inference?: AllocationRecommendationData;
 }
 
 export interface TradeData {
@@ -27,5 +27,5 @@ export interface TradeData {
   type: OrderTypes;
   amount: number;
   profit: number;
-  inference?: BalanceRecommendationData;
+  inference?: AllocationRecommendationData;
 }

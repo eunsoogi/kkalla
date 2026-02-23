@@ -9,10 +9,10 @@ import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { CursorItem } from '@/interfaces/item.interface';
-import { Notify } from '@/interfaces/notify.interface';
+import { CursorItem } from '@/shared/types/pagination.types';
+import { Notify } from '@/layouts/vertical/header/_types/notify.types';
 import { formatDate } from '@/utils/date';
-import { ContentModal } from '@/components/dashboard/ContentModal';
+import { ContentModal } from '@/app/(dashboard)/_shared/ui/ContentModal';
 
 import { getNotifyCursorAction } from './actions';
 

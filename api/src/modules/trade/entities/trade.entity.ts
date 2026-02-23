@@ -14,9 +14,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
-import { BalanceRecommendation } from '@/modules/rebalance/entities/balance-recommendation.entity';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
 
@@ -69,9 +69,9 @@ export class Trade extends BaseEntity {
   })
   profit: number = 0;
 
-  @ManyToOne(() => BalanceRecommendation, { nullable: true, cascade: true, eager: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => AllocationRecommendation, { nullable: true, cascade: true, eager: true, onDelete: 'SET NULL' })
   @JoinColumn()
-  inference: BalanceRecommendation;
+  inference: AllocationRecommendation;
 
   @CreateDateColumn()
   createdAt: Date;

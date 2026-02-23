@@ -1,21 +1,24 @@
 {
-  "upbit": {
-    "apikey": {
-      "server_expired": "서버용 API 키가 만료되었거나 유효하지 않습니다.",
-      "user_expired": "API 키가 만료되었거나 유효하지 않아 매매를 중지합니다."
-    }
+  "allocationAudit": {
+    "cleanup_failed": "*[시스템 알림]* 자산 배분 감사 정리 작업 실패\n> {message}",
+    "partially_failed": "*[시스템 알림]* 자산 배분 감사 일부 실패\n> run={runId}\n> reportType={reportType}\n> batch={sourceBatchId}\n> horizon={horizonHours}\n> failed={failedCount}",
+    "task_failed": "*[시스템 알림]* 자산 배분 감사 작업 실패\n> {message}"
+  },
+  "allocationRecommendation": {
+    "result": "자산 배분 추천이 생성되었습니다.\n\n{transactions}",
+    "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight})\n> 근거: {reason}"
   },
   "balance": {
     "fail": "계좌 조회에 실패했습니다."
   },
-  "balanceRecommendation": {
-    "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight})\n> 근거: {reason}",
-    "result": "포트폴리오 리포트가 발행되었습니다.\n\n{transactions}"
+  "marketSignal": {
+    "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}",
+    "transaction": "*{symbol}*\n> 근거: {reason}"
   },
   "order": {
-    "transaction": "> {symbol} {type}, 거래금: {amount}, 수익금: {profit}",
+    "fail": "{symbol} 주문에 실패했습니다.",
     "result": "다음과 같이 매매했습니다.\n\n{transactions}",
-    "fail": "{symbol} 주문에 실패했습니다."
+    "transaction": "> {symbol} {type}, 거래금: {amount}, 수익금: {profit}"
   },
   "profit": {
     "result": "수익금: {profit}"
@@ -23,16 +26,13 @@
   "retry": {
     "failed": "*[시스템 알림]* 재시도에 실패했습니다.\n\n상세 정보\n> 함수명: {functionName}\n> 1차 시도: {firstMaxRetries}회 ({firstRetryDelay}ms 간격)\n> 2차 시도: {secondMaxRetries}회 ({secondRetryDelay}ms 간격)\n> 최종 오류: {message}"
   },
-  "reportValidation": {
-    "task_failed": "*[시스템 알림]* 리포트 사후 검증 작업 실패\n> {message}",
-    "cleanup_failed": "*[시스템 알림]* 리포트 사후 검증 정리 작업 실패\n> {message}",
-    "partially_failed": "*[시스템 알림]* 리포트 사후 검증 일부 실패\n> run={runId}\n> reportType={reportType}\n> batch={sourceBatchId}\n> horizon={horizonHours}\n> failed={failedCount}"
-  },
-  "marketRecommendation": {
-    "transaction": "*{symbol}*\n> 근거: {reason}",
-    "result": "마켓 리포트가 발행되었습니다.\n\n{transactions}"
-  },
-  "volatility": {
+  "risk": {
     "result": "다음 종목에서 {threshold}%p 이상의 변동성이 발생했습니다.\n\n{symbols}"
+  },
+  "upbit": {
+    "apikey": {
+      "server_expired": "서버용 API 키가 만료되었거나 유효하지 않습니다.",
+      "user_expired": "API 키가 만료되었거나 유효하지 않아 매매를 중지합니다."
+    }
   }
 }

@@ -30,10 +30,10 @@ describe('ScheduleController', () => {
             getExecutionPlans: jest.fn(),
             getLockStates: jest.fn(),
             releaseLock: jest.fn(),
-            executeMarketRecommendation: jest.fn(),
-            executeBalanceRecommendationExisting: jest.fn(),
-            executeBalanceRecommendationNew: jest.fn(),
-            executeReportValidation: jest.fn(),
+            executeMarketSignal: jest.fn(),
+            executeAllocationRecommendationExisting: jest.fn(),
+            executeAllocationRecommendationNew: jest.fn(),
+            executeAllocationAudit: jest.fn(),
           },
         },
       ],
@@ -81,7 +81,7 @@ describe('ScheduleController', () => {
   it('should return execution plans', () => {
     scheduleExecutionService.getExecutionPlans.mockReturnValue([
       {
-        task: 'marketRecommendation',
+        task: 'marketSignal',
         cronExpression: '0 0 0 * * *',
         timezone: 'Asia/Seoul',
         runAt: ['00:00'],
@@ -96,12 +96,12 @@ describe('ScheduleController', () => {
 
   it('should return lock states for authorized tasks', async () => {
     const user = {
-      roles: [{ permissions: [Permission.EXEC_SCHEDULE_REPORT_VALIDATION] }],
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT] }],
     } as any;
 
     scheduleExecutionService.getLockStates.mockResolvedValue([
       {
-        task: 'reportValidation',
+        task: 'allocationAudit',
         locked: true,
         ttlMs: 30_000,
         checkedAt: '2026-01-01T00:00:00.000Z',
@@ -110,95 +110,95 @@ describe('ScheduleController', () => {
 
     const result = await controller.getLockStates(user);
 
-    expect(scheduleExecutionService.getLockStates).toHaveBeenCalledWith(['reportValidation']);
+    expect(scheduleExecutionService.getLockStates).toHaveBeenCalledWith(['allocationAudit']);
     expect(result).toHaveLength(1);
-    expect(result[0]?.task).toBe('reportValidation');
+    expect(result[0]?.task).toBe('allocationAudit');
   });
 
   it('should release task lock when user has permission', async () => {
     const user = {
-      roles: [{ permissions: [Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING] }],
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING] }],
     } as any;
 
     scheduleExecutionService.releaseLock.mockResolvedValue({
-      task: 'balanceRecommendationExisting',
+      task: 'allocationRecommendationExisting',
       released: true,
       locked: false,
       releasedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const result = await controller.releaseLock(user, 'balanceRecommendationExisting');
+    const result = await controller.releaseLock(user, 'allocationRecommendationExisting');
 
-    expect(scheduleExecutionService.releaseLock).toHaveBeenCalledWith('balanceRecommendationExisting');
+    expect(scheduleExecutionService.releaseLock).toHaveBeenCalledWith('allocationRecommendationExisting');
     expect(result.released).toBe(true);
   });
 
   it('should throw forbidden when lock release permission is missing', async () => {
     const user = {
-      roles: [{ permissions: [Permission.EXEC_SCHEDULE_REPORT_VALIDATION] }],
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT] }],
     } as any;
 
-    await expect(controller.releaseLock(user, 'marketRecommendation')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.releaseLock(user, 'marketSignal')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('should throw bad request for unknown lock release task', async () => {
     const user = {
-      roles: [{ permissions: [Permission.EXEC_SCHEDULE_REPORT_VALIDATION] }],
+      roles: [{ permissions: [Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT] }],
     } as any;
 
     await expect(controller.releaseLock(user, 'unknownTask')).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('should execute market recommendation and return execution status', async () => {
-    scheduleExecutionService.executeMarketRecommendation.mockResolvedValue({
-      task: 'marketRecommendation',
+    scheduleExecutionService.executeMarketSignal.mockResolvedValue({
+      task: 'marketSignal',
       status: 'started',
       requestedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const result = await controller.executeMarketRecommendation();
+    const result = await controller.executeMarketSignal();
 
-    expect(scheduleExecutionService.executeMarketRecommendation).toHaveBeenCalledTimes(1);
+    expect(scheduleExecutionService.executeMarketSignal).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('started');
   });
 
-  it('should execute existing-item rebalance and return execution status', async () => {
-    scheduleExecutionService.executeBalanceRecommendationExisting.mockResolvedValue({
-      task: 'balanceRecommendationExisting',
+  it('should execute existing-item allocation and return execution status', async () => {
+    scheduleExecutionService.executeAllocationRecommendationExisting.mockResolvedValue({
+      task: 'allocationRecommendationExisting',
       status: 'skipped_lock',
       requestedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const result = await controller.executeBalanceRecommendationWithExistingItems();
+    const result = await controller.executeAllocationRecommendationWithExistingItems();
 
-    expect(scheduleExecutionService.executeBalanceRecommendationExisting).toHaveBeenCalledTimes(1);
+    expect(scheduleExecutionService.executeAllocationRecommendationExisting).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('skipped_lock');
   });
 
-  it('should execute new-item rebalance and return execution status', async () => {
-    scheduleExecutionService.executeBalanceRecommendationNew.mockResolvedValue({
-      task: 'balanceRecommendationNew',
+  it('should execute new-item allocation and return execution status', async () => {
+    scheduleExecutionService.executeAllocationRecommendationNew.mockResolvedValue({
+      task: 'allocationRecommendationNew',
       status: 'started',
       requestedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const result = await controller.executebalanceRecommendationNewItems();
+    const result = await controller.executeAllocationRecommendationNewItems();
 
-    expect(scheduleExecutionService.executeBalanceRecommendationNew).toHaveBeenCalledTimes(1);
+    expect(scheduleExecutionService.executeAllocationRecommendationNew).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('started');
   });
 
-  it('should execute report validation and return execution status', async () => {
-    scheduleExecutionService.executeReportValidation.mockResolvedValue({
-      task: 'reportValidation',
+  it('should execute allocation audit and return execution status', async () => {
+    scheduleExecutionService.executeAllocationAudit.mockResolvedValue({
+      task: 'allocationAudit',
       status: 'started',
       requestedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const result = await controller.executeReportValidation();
+    const result = await controller.executeAllocationAudit();
 
-    expect(scheduleExecutionService.executeReportValidation).toHaveBeenCalledTimes(1);
-    expect(result.task).toBe('reportValidation');
+    expect(scheduleExecutionService.executeAllocationAudit).toHaveBeenCalledTimes(1);
+    expect(result.task).toBe('allocationAudit');
     expect(result.status).toBe('started');
   });
 });

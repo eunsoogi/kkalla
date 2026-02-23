@@ -43,4 +43,15 @@ export default [
       '@typescript-eslint/no-unused-vars': 2,
     },
   },
+  {
+    files: ['src/utils/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['@/modules/*', '../modules/*', '../../modules/*', '../../../modules/*', '../../../../modules/*'],
+        },
+      ],
+    },
+  },
 ];

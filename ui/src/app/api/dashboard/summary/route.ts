@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { getTranslations } from 'next-intl/server';
 
 import { authOptions } from '@/auth';
 
@@ -14,7 +15,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const accessToken = session?.accessToken;
 
   if (!accessToken) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    const t = await getTranslations();
+    return NextResponse.json({ message: t('error.unauthorized') }, { status: 401 });
   }
 
   const response = await fetch(buildApiUrl('/api/v1/dashboard/summary'), {

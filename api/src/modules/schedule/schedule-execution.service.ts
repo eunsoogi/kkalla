@@ -1,15 +1,22 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
 
-import { ScheduleExpression as MarketResearchScheduleExpression } from '../market-research/market-research.enum';
-import { MarketResearchService } from '../market-research/market-research.service';
-import { ScheduleExpression as RebalanceScheduleExpression } from '../rebalance/rebalance.enum';
-import { RebalanceService } from '../rebalance/rebalance.service';
-import { RedlockService } from '../redlock/redlock.service';
 import {
-  REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK,
-  ScheduleExpression as ReportValidationScheduleExpression,
-} from '../report-validation/report-validation.enum';
-import { ReportValidationService } from '../report-validation/report-validation.service';
+  ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK,
+  ScheduleExpression as AllocationAuditScheduleExpression,
+} from '../allocation-audit/allocation-audit.enum';
+import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
+import {
+  ALLOCATION_RECOMMENDATION_EXISTING_LOCK,
+  ALLOCATION_RECOMMENDATION_NEW_LOCK,
+  ScheduleExpression as AllocationScheduleExpression,
+} from '../allocation/allocation.enum';
+import { AllocationService } from '../allocation/allocation.service';
+import {
+  MARKET_SIGNAL_LOCK,
+  ScheduleExpression as MarketIntelligenceScheduleExpression,
+} from '../market-intelligence/market-intelligence.enum';
+import { MarketIntelligenceService } from '../market-intelligence/market-intelligence.service';
+import { RedlockService } from '../redlock/redlock.service';
 import {
   ScheduleExecutionResponse,
   ScheduleExecutionTask,
@@ -20,6 +27,7 @@ import { SchedulePlanResponse } from './schedule-plan.interface';
 
 interface LockConfig {
   resourceName: string;
+  compatibleResourceNames?: string[];
   duration: number;
 }
 
@@ -28,49 +36,53 @@ export class ScheduleExecutionService {
   private readonly timezone = 'Asia/Seoul';
 
   private readonly lockConfigByTask: Record<ScheduleExecutionTask, LockConfig> = {
-    marketRecommendation: {
-      resourceName: 'MarketResearchService:executeMarketRecommendation',
-      duration: 88_200_000,
+    marketSignal: {
+      resourceName: MARKET_SIGNAL_LOCK.resourceName,
+      compatibleResourceNames: [...MARKET_SIGNAL_LOCK.compatibleResourceNames],
+      duration: MARKET_SIGNAL_LOCK.duration,
     },
-    balanceRecommendationExisting: {
-      resourceName: 'RebalanceService:executeBalanceRecommendationExisting',
-      duration: 3_600_000,
+    allocationRecommendationExisting: {
+      resourceName: ALLOCATION_RECOMMENDATION_EXISTING_LOCK.resourceName,
+      compatibleResourceNames: [...ALLOCATION_RECOMMENDATION_EXISTING_LOCK.compatibleResourceNames],
+      duration: ALLOCATION_RECOMMENDATION_EXISTING_LOCK.duration,
     },
-    balanceRecommendationNew: {
-      resourceName: 'RebalanceService:executeBalanceRecommendationNew',
-      duration: 3_600_000,
+    allocationRecommendationNew: {
+      resourceName: ALLOCATION_RECOMMENDATION_NEW_LOCK.resourceName,
+      compatibleResourceNames: [...ALLOCATION_RECOMMENDATION_NEW_LOCK.compatibleResourceNames],
+      duration: ALLOCATION_RECOMMENDATION_NEW_LOCK.duration,
     },
-    reportValidation: {
-      resourceName: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
-      duration: REPORT_VALIDATION_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
+    allocationAudit: {
+      resourceName: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
+      compatibleResourceNames: [...ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.compatibleResourceNames],
+      duration: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
     },
   };
 
   private readonly executionPlans: Array<{ task: ScheduleExecutionTask; cronExpression: string }> = [
     {
-      task: 'marketRecommendation',
-      cronExpression: MarketResearchScheduleExpression.DAILY_MARKET_RECOMMENDATION,
+      task: 'marketSignal',
+      cronExpression: MarketIntelligenceScheduleExpression.DAILY_MARKET_SIGNAL,
     },
     {
-      task: 'balanceRecommendationExisting',
-      cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_EXISTING,
+      task: 'allocationRecommendationExisting',
+      cronExpression: AllocationScheduleExpression.DAILY_ALLOCATION_RECOMMENDATION_EXISTING,
     },
     {
-      task: 'balanceRecommendationNew',
-      cronExpression: RebalanceScheduleExpression.DAILY_BALANCE_RECOMMENDATION_NEW,
+      task: 'allocationRecommendationNew',
+      cronExpression: AllocationScheduleExpression.DAILY_ALLOCATION_RECOMMENDATION_NEW,
     },
     {
-      task: 'reportValidation',
-      cronExpression: ReportValidationScheduleExpression.HOURLY_REPORT_VALIDATION,
+      task: 'allocationAudit',
+      cronExpression: AllocationAuditScheduleExpression.HOURLY_ALLOCATION_AUDIT,
     },
   ];
 
   constructor(
-    @Inject(forwardRef(() => MarketResearchService))
-    private readonly marketResearchService: MarketResearchService,
-    @Inject(forwardRef(() => RebalanceService))
-    private readonly rebalanceService: RebalanceService,
-    private readonly reportValidationService: ReportValidationService,
+    @Inject(forwardRef(() => MarketIntelligenceService))
+    private readonly marketIntelligenceService: MarketIntelligenceService,
+    @Inject(forwardRef(() => AllocationService))
+    private readonly allocationService: AllocationService,
+    private readonly allocationAuditService: AllocationAuditService,
     private readonly redlockService: RedlockService,
   ) {}
 
@@ -88,7 +100,7 @@ export class ScheduleExecutionService {
     const lockStateEntries = await Promise.all(
       tasks.map(async (task) => {
         const lock = this.getLockConfig(task);
-        const lockStatus = await this.redlockService.getLockStatus(lock.resourceName);
+        const lockStatus = await this.getAggregatedLockStatus(lock);
 
         return {
           task,
@@ -107,11 +119,14 @@ export class ScheduleExecutionService {
 
   public async releaseLock(task: ScheduleExecutionTask): Promise<ScheduleLockReleaseResponse> {
     const lock = this.getLockConfig(task);
-    const released = await this.redlockService.forceReleaseLock(lock.resourceName);
-    const lockStatus = await this.redlockService.getLockStatus(lock.resourceName);
+    const releaseResults = await Promise.all(
+      this.getLockResourceNames(lock).map((resourceName) => this.redlockService.forceReleaseLock(resourceName)),
+    );
+    const released = releaseResults.some((result) => result);
+    const lockStatus = await this.getAggregatedLockStatus(lock);
     const recoveredRunningCount =
-      task === 'reportValidation' && !lockStatus.locked
-        ? await this.reportValidationService.requeueRunningValidationsToPending()
+      task === 'allocationAudit' && !lockStatus.locked
+        ? await this.allocationAuditService.requeueRunningAuditsToPending()
         : undefined;
 
     return {
@@ -123,29 +138,29 @@ export class ScheduleExecutionService {
     };
   }
 
-  public async executeMarketRecommendation(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('marketRecommendation', this.getLockConfig('marketRecommendation'), () =>
-      this.marketResearchService.executeMarketRecommendationTask(),
+  public async executeMarketSignal(): Promise<ScheduleExecutionResponse> {
+    return this.executeWithLock('marketSignal', this.getLockConfig('marketSignal'), () =>
+      this.marketIntelligenceService.executeMarketSignalTask(),
     );
   }
 
-  public async executeBalanceRecommendationExisting(): Promise<ScheduleExecutionResponse> {
+  public async executeAllocationRecommendationExisting(): Promise<ScheduleExecutionResponse> {
     return this.executeWithLock(
-      'balanceRecommendationExisting',
-      this.getLockConfig('balanceRecommendationExisting'),
-      () => this.rebalanceService.executeBalanceRecommendationExistingTask(),
+      'allocationRecommendationExisting',
+      this.getLockConfig('allocationRecommendationExisting'),
+      () => this.allocationService.executeAllocationRecommendationExistingTask(),
     );
   }
 
-  public async executeBalanceRecommendationNew(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('balanceRecommendationNew', this.getLockConfig('balanceRecommendationNew'), () =>
-      this.rebalanceService.executeBalanceRecommendationNewTask(),
+  public async executeAllocationRecommendationNew(): Promise<ScheduleExecutionResponse> {
+    return this.executeWithLock('allocationRecommendationNew', this.getLockConfig('allocationRecommendationNew'), () =>
+      this.allocationService.executeAllocationRecommendationNewTask(),
     );
   }
 
-  public async executeReportValidation(): Promise<ScheduleExecutionResponse> {
-    return this.executeWithLock('reportValidation', this.getLockConfig('reportValidation'), () =>
-      this.reportValidationService.executeDueValidationsTask(),
+  public async executeAllocationAudit(): Promise<ScheduleExecutionResponse> {
+    return this.executeWithLock('allocationAudit', this.getLockConfig('allocationAudit'), () =>
+      this.allocationAuditService.executeDueAuditsTask(),
     );
   }
 
@@ -155,8 +170,7 @@ export class ScheduleExecutionService {
     callback: () => Promise<void>,
   ): Promise<ScheduleExecutionResponse> {
     const requestedAt = new Date().toISOString();
-
-    const started = await this.redlockService.startWithLock(lock.resourceName, lock.duration, callback);
+    const started = await this.redlockService.startWithLocks(this.getLockResourceNames(lock), lock.duration, callback);
 
     return {
       task,
@@ -167,6 +181,37 @@ export class ScheduleExecutionService {
 
   private getLockConfig(task: ScheduleExecutionTask): LockConfig {
     return this.lockConfigByTask[task];
+  }
+
+  private getLockResourceNames(lock: LockConfig): string[] {
+    return [lock.resourceName, ...(lock.compatibleResourceNames ?? [])];
+  }
+
+  private async getAggregatedLockStatus(lock: LockConfig): Promise<{ locked: boolean; ttlMs: number | null }> {
+    const statuses = await Promise.all(
+      this.getLockResourceNames(lock).map((resourceName) => this.redlockService.getLockStatus(resourceName)),
+    );
+
+    const lockedStatuses = statuses.filter((status) => status.locked);
+    if (lockedStatuses.length < 1) {
+      return {
+        locked: false,
+        ttlMs: null,
+      };
+    }
+
+    const hasUnknownTtl = lockedStatuses.some((status) => status.ttlMs == null);
+    if (hasUnknownTtl) {
+      return {
+        locked: true,
+        ttlMs: null,
+      };
+    }
+
+    return {
+      locked: true,
+      ttlMs: Math.max(...lockedStatuses.map((status) => status.ttlMs ?? 0)),
+    };
   }
 
   private extractRunAtTimes(cronExpression: string): string[] {

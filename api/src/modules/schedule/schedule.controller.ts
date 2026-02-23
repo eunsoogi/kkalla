@@ -18,17 +18,17 @@ import { SchedulePlanResponse } from './schedule-plan.interface';
 import { ScheduleService } from './schedule.service';
 
 const EXECUTION_TASKS: ScheduleExecutionTask[] = [
-  'marketRecommendation',
-  'balanceRecommendationExisting',
-  'balanceRecommendationNew',
-  'reportValidation',
+  'marketSignal',
+  'allocationRecommendationExisting',
+  'allocationRecommendationNew',
+  'allocationAudit',
 ];
 
 const TASK_PERMISSION_MAP: Record<ScheduleExecutionTask, Permission> = {
-  marketRecommendation: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
-  balanceRecommendationExisting: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING,
-  balanceRecommendationNew: Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW,
-  reportValidation: Permission.EXEC_SCHEDULE_REPORT_VALIDATION,
+  marketSignal: Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION,
+  allocationRecommendationExisting: Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING,
+  allocationRecommendationNew: Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW,
+  allocationAudit: Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT,
 };
 
 @Controller('api/v1/schedules')
@@ -73,32 +73,32 @@ export class ScheduleController {
     return this.scheduleExecutionService.releaseLock(task);
   }
 
-  @Post('execute/market-recommendation')
+  @Post('execute/market-signal')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
   @RequirePermissions(Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION)
-  public async executeMarketRecommendation(): Promise<ScheduleExecutionResponse> {
-    return this.scheduleExecutionService.executeMarketRecommendation();
+  public async executeMarketSignal(): Promise<ScheduleExecutionResponse> {
+    return this.scheduleExecutionService.executeMarketSignal();
   }
 
-  @Post('execute/balance-recommendation/existing')
+  @Post('execute/allocation-recommendation/existing')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
-  @RequirePermissions(Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_EXISTING)
-  public async executeBalanceRecommendationWithExistingItems(): Promise<ScheduleExecutionResponse> {
-    return this.scheduleExecutionService.executeBalanceRecommendationExisting();
+  @RequirePermissions(Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING)
+  public async executeAllocationRecommendationWithExistingItems(): Promise<ScheduleExecutionResponse> {
+    return this.scheduleExecutionService.executeAllocationRecommendationExisting();
   }
 
-  @Post('execute/balance-recommendation/new')
+  @Post('execute/allocation-recommendation/new')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
-  @RequirePermissions(Permission.EXEC_SCHEDULE_BALANCE_RECOMMENDATION_NEW)
-  public async executebalanceRecommendationNewItems(): Promise<ScheduleExecutionResponse> {
-    return this.scheduleExecutionService.executeBalanceRecommendationNew();
+  @RequirePermissions(Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW)
+  public async executeAllocationRecommendationNewItems(): Promise<ScheduleExecutionResponse> {
+    return this.scheduleExecutionService.executeAllocationRecommendationNew();
   }
 
-  @Post('execute/report-validation')
+  @Post('execute/allocation-audit')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
-  @RequirePermissions(Permission.EXEC_SCHEDULE_REPORT_VALIDATION)
-  public async executeReportValidation(): Promise<ScheduleExecutionResponse> {
-    return this.scheduleExecutionService.executeReportValidation();
+  @RequirePermissions(Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT)
+  public async executeAllocationAudit(): Promise<ScheduleExecutionResponse> {
+    return this.scheduleExecutionService.executeAllocationAudit();
   }
 
   private parseTask(taskRaw: string): ScheduleExecutionTask {

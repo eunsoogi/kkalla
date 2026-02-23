@@ -14,5 +14,5 @@ data:
   REDIS_PORT: {{ .Values.redis.port | quote }}
   ADMIN_EMAIL: {{ .Values.admin.email | quote }}
   AWS_REGION: {{ .Values.aws.region | quote }}
-  AWS_SQS_QUEUE_URL_REBALANCE: {{ .Values.aws.sqs.queueUrlRebalance | quote }}
-  AWS_SQS_QUEUE_URL_VOLATILITY: {{ .Values.aws.sqs.queueUrlVolatility | quote }}
+  AWS_SQS_QUEUE_URL_ALLOCATION: {{ .Values.aws.sqs.queueUrlAllocation | quote }}
+  AWS_SQS_QUEUE_URL_MARKET_RISK: {{ .Values.aws.sqs.queueUrlMarketRisk | quote }}

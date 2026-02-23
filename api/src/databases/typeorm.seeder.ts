@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 
+import { I18nService } from 'nestjs-i18n';
 import { DataSource } from 'typeorm';
 import { runSeeder } from 'typeorm-extension';
 
@@ -23,12 +24,13 @@ export class TypeOrmSeeder implements OnModuleInit {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly redlockService: RedlockService,
+    private readonly i18n: I18nService,
   ) {}
 
   async onModuleInit(): Promise<void> {
     const ran = await this.redlockService.withLock(SEED_LOCK_RESOURCE, SEED_LOCK_DURATION_MS, () => this.seedAll());
     if (ran === undefined) {
-      this.logger.log('Seeding skipped: another instance holds the seed lock');
+      this.logger.log(this.i18n.t('logging.seed.skip_locked'));
     }
   }
 
@@ -49,23 +51,23 @@ export class TypeOrmSeeder implements OnModuleInit {
         break;
     }
 
-    this.logger.log(`Running seeders for ${env} environment...`);
+    this.logger.log(this.i18n.t('logging.seed.start', { args: { env } }));
 
     try {
-      this.logger.log('Running RoleSeeder...');
+      this.logger.log(this.i18n.t('logging.seed.role.start'));
 
       await runSeeder(this.dataSource, RoleSeeder);
 
-      this.logger.log('Successfully ran RoleSeeder');
+      this.logger.log(this.i18n.t('logging.seed.role.success'));
 
       for (const seeder of seeders) {
         await runSeeder(this.dataSource, seeder);
-        this.logger.log(`Successfully ran seeder: ${seeder.name}`);
+        this.logger.log(this.i18n.t('logging.seed.seeder.success', { args: { name: seeder.name } }));
       }
-      this.logger.log('Seeding completed successfully');
+      this.logger.log(this.i18n.t('logging.seed.complete'));
       return true;
     } catch (error) {
-      this.logger.error(error);
+      this.logger.error(this.i18n.t('logging.seed.failed'), error);
       throw error;
     }
   }

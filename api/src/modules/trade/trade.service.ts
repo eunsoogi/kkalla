@@ -9,7 +9,7 @@ import { TradeFilter } from './trade.interface';
 /**
  * 거래 조회 전용 서비스.
  *
- * - 거래 실행 로직은 Rebalance 및 Volatility 모듈로 이동됨
+ * - 거래 실행 로직은 Allocation 및 Volatility 모듈로 이동됨
  * - 거래 조회 기능만 제공 (페이지네이션 및 커서 기반 조회)
  */
 @Injectable()

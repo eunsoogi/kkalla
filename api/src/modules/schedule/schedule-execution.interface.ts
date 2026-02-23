@@ -1,8 +1,8 @@
 export type ScheduleExecutionTask =
-  | 'marketRecommendation'
-  | 'balanceRecommendationExisting'
-  | 'balanceRecommendationNew'
-  | 'reportValidation';
+  | 'marketSignal'
+  | 'allocationRecommendationExisting'
+  | 'allocationRecommendationNew'
+  | 'allocationAudit';
 
 export type ScheduleExecutionStatus = 'started' | 'skipped_lock';
 

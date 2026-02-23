@@ -1,124 +1,226 @@
 {
+  "activate": "활성화",
+  "all": "전체",
+  "allocationAudit": {
+    "actions": {
+      "refresh": "새로고침"
+    },
+    "columns": {
+      "completedAt": "완료 시각",
+      "horizon": "Horizon",
+      "overallScore": "종합 점수",
+      "progress": "진행률",
+      "seq": "번호",
+      "status": "상태",
+      "type": "유형"
+    },
+    "description": "발행된 마켓/자산 배분 리포트의 사후 성과를 검토하고 다음 가드레일 품질을 점검합니다.",
+    "detail": {
+      "avgItemScore": "평균 항목 점수",
+      "avgReturn": "평균 수익률",
+      "batchId": "Batch ID",
+      "emptyDescription": "실행 이력을 선택하면 상세 항목을 확인할 수 있습니다.",
+      "error": "오류",
+      "invalidCount": "무효 항목",
+      "itemCount": "항목 수",
+      "summary": "요약",
+      "title": "실행 상세",
+      "verdictBreakdown": "판정 분포"
+    },
+    "emptyItems": "표시할 상세 항목이 없습니다.",
+    "emptyRuns": "표시할 실행 이력이 없습니다.",
+    "filters": {
+      "all": "전체",
+      "reportType": "리포트 유형",
+      "status": "상태"
+    },
+    "items": {
+      "aiScore": "AI 점수",
+      "description": "선택한 실행 배치의 개별 평가 결과입니다.",
+      "deterministicScore": "결정론 점수",
+      "evaluatedAt": "평가 시각",
+      "nextGuardrail": "다음 가드레일",
+      "overallScore": "점수",
+      "returnPct": "수익률",
+      "status": "상태",
+      "symbol": "종목",
+      "title": "평가 항목",
+      "verdict": "판정"
+    },
+    "runs": {
+      "description": "최근 배치 실행 결과입니다. 행을 선택하면 아래 상세 항목이 갱신됩니다.",
+      "title": "실행 이력"
+    },
+    "sort": {
+      "asc": "오름차순",
+      "by": "정렬 기준",
+      "desc": "내림차순",
+      "order": "정렬 순서"
+    },
+    "stats": {
+      "activeRuns": "진행/대기",
+      "avgScore": "평균 점수",
+      "completedRuns": "완료",
+      "recommendedMinConfidence": "기준 신뢰도",
+      "totalRuns": "전체 실행"
+    },
+    "status": {
+      "completed": "완료",
+      "failed": "실패",
+      "pending": "대기",
+      "running": "진행중"
+    },
+    "title": "리포트 사후 검증",
+    "type": {
+      "allocation": "자산 배분",
+      "market": "마켓"
+    },
+    "verdict": {
+      "bad": "나쁨",
+      "good": "좋음",
+      "invalid": "무효",
+      "mixed": "혼합"
+    }
+  },
   "auth": {
     "signin": {
       "google": "구글로 로그인"
     },
     "signout": "로그아웃"
   },
-  "menu": {
-    "home": "홈",
-    "service": "서비스",
-    "dashboard": "대시보드",
-    "newsList": "뉴스 목록",
-    "portfolioReport": "포트폴리오 리포트",
-    "marketReport": "마켓 리포트",
-    "tradeList": "거래 목록",
-    "config": "설정",
-    "register": "서비스 등록",
-    "notify": "알림 설정",
-    "admin": "관리",
-    "userManagement": "사용자 관리",
-    "roleManagement": "권한 관리",
-    "profitManagement": "수익 관리",
-    "blacklistManagement": "블랙리스트 관리",
-    "scheduleManagement": "스케줄 관리",
-    "reportValidation": "사후 검증"
+  "blacklist": {
+    "create": "블랙리스트 추가",
+    "delete_confirm": "정말로 이 블랙리스트를 삭제하시겠습니까?",
+    "update": "블랙리스트 수정"
   },
-  "title": {
-    "coin": "코인"
-  },
-  "symbol": "종목",
   "category": {
-    "label": "카테고리",
-    "title": "카테고리 설정",
-    "description": "매매를 원하는 카테고리를 선택할 수 있습니다.",
     "coin": {
       "major": "메이저 코인",
       "minor": "마이너 코인"
     },
+    "create_success": "카테고리가 생성되었습니다.",
+    "delete_success": "카테고리가 삭제되었습니다.",
+    "description": "매매를 원하는 카테고리를 선택할 수 있습니다.",
+    "label": "카테고리",
     "nasdaq": "나스닥",
     "select": "카테고리 선택",
-    "update_success": "카테고리가 업데이트되었습니다.",
-    "update_error": "카테고리 업데이트에 실패했습니다.",
     "selected_count": "{count}개 선택됨",
-    "selected_empty": "선택된 카테고리가 없습니다."
+    "selected_empty": "선택된 카테고리가 없습니다.",
+    "title": "카테고리 설정",
+    "update_error": "카테고리 업데이트에 실패했습니다.",
+    "update_success": "카테고리가 업데이트되었습니다."
   },
-  "user": {
-    "email": "이메일",
-    "role": "권한",
-    "settings": "사용자 설정",
-    "permissions": "권한 목록"
+  "channel": "채널",
+  "close": "닫기",
+  "config": "설정",
+  "copy": {
+    "complete": "복사되었습니다.",
+    "error": "복사에 실패했습니다.",
+    "link": "링크 복사",
+    "notFound": "복사할 값이 없습니다.",
+    "token": "토큰 복사"
   },
-  "role": {
-    "name": "권한 이름",
-    "description": "설명",
-    "permissions": "권한 목록",
-    "create": "권한 추가",
-    "update": "권한 수정",
-    "delete_confirm": "정말로 이 권한을 삭제하시겠습니까?"
+  "created": "성공적으로 생성되었습니다.",
+  "createdAt": "생성일",
+  "dashboard": {
+    "columnChangePct": "변동률",
+    "columnCurrentPrice": "현재가",
+    "columnDailyChange": "당일 변동",
+    "columnMessage": "메시지",
+    "columnReason": "근거",
+    "columnRecommendationPrice": "추천 시점 가격",
+    "columnSymbol": "종목",
+    "columnTime": "시각",
+    "columnTitle": "제목",
+    "columnValidation24h": "검증 24h",
+    "columnValidation72h": "검증 72h",
+    "currencyKrw": "KRW",
+    "emptyHoldings": "보유 종목이 없습니다.",
+    "emptyMarketReport": "최신 마켓 리포트가 없습니다.",
+    "emptyNews": "표시할 뉴스가 없습니다.",
+    "emptyNotificationLog": "알림 내역이 없습니다.",
+    "emptyTrades24h": "최근 24시간 내 거래가 없습니다.",
+    "holdings": "보유 종목",
+    "marketReport": "최신 마켓 리포트",
+    "news": "뉴스",
+    "notificationLog": "알림 로그",
+    "openArticle": "기사 보기",
+    "todayProfit": "오늘 손익",
+    "totalProfit": "총 수익금",
+    "trades24h": "최근 24시간 거래",
+    "viewAll": "전체 보기"
+  },
+  "date": {
+    "clear": "초기화",
+    "end": "종료일",
+    "start": "시작일",
+    "today": "오늘"
+  },
+  "delete": "삭제",
+  "deleted": "성공적으로 삭제되었습니다.",
+  "error": {
+    "create_failed": "생성에 실패했습니다: {error}",
+    "delete_failed": "삭제에 실패했습니다: {error}",
+    "fetch_failed": "데이터를 불러오는 데 실패했습니다: {error}",
+    "forbidden": {
+      "description": "이 페이지에 접근할 수 있는 권한이 없습니다. 관리자에게 문의해주세요.",
+      "title": "접근 권한이 없습니다"
+    },
+    "notFound": {
+      "description": "요청하신 페이지를 찾을 수 없습니다.",
+      "home": "홈으로 이동",
+      "title": "페이지를 찾을 수 없습니다"
+    },
+    "unauthorized": "인증 정보가 없습니다.",
+    "update_failed": "업데이트에 실패했습니다: {error}"
   },
   "feargreed": {
-    "title": "공포 탐욕 지수",
-    "date": "날짜",
-    "score": "점수",
     "change": "변화",
+    "date": "날짜",
+    "history": "히스토리",
+    "score": "점수",
     "stage": "단계",
-    "history": "히스토리"
+    "title": "공포 탐욕 지수"
   },
   "inference": {
+    "confidence": "신뢰도",
     "list": "추론 목록",
     "mine": "내 추론만 보기",
     "rate": "비율",
-    "weight": "가중치",
-    "confidence": "신뢰도",
     "reason": "근거",
     "validation24h": "검증 24h",
     "validation72h": "검증 72h",
-    "validationPending": "대기",
-    "validationRunning": "진행중",
+    "validationBad": "나쁨",
     "validationCompleted": "완료",
     "validationFailed": "실패",
-    "validationInvalid": "무효"
+    "validationGood": "좋음",
+    "validationInvalid": "무효",
+    "validationMixed": "혼합",
+    "validationPending": "대기",
+    "validationRunning": "진행중",
+    "weight": "가중치"
   },
-  "trade": {
-    "list": "거래 목록",
-    "type": "거래",
-    "date": "날짜",
-    "amount": "거래금",
-    "profit": "수익금",
-    "types": {
-      "buy": "매수",
-      "sell": "매도"
-    }
+  "loading": "로딩 중...",
+  "menu": {
+    "admin": "관리",
+    "allocationAudit": "사후 검증",
+    "allocationReport": "자산 배분 리포트",
+    "blacklistManagement": "블랙리스트 관리",
+    "config": "설정",
+    "dashboard": "대시보드",
+    "home": "홈",
+    "marketReport": "마켓 리포트",
+    "newsList": "뉴스 목록",
+    "notify": "알림 설정",
+    "profitManagement": "수익 관리",
+    "register": "서비스 등록",
+    "roleManagement": "권한 관리",
+    "scheduleManagement": "스케줄 관리",
+    "service": "서비스",
+    "tradeList": "거래 목록",
+    "userManagement": "사용자 관리"
   },
-  "dashboard": {
-    "marketReport": "최신 마켓 리포트",
-    "holdings": "보유 종목",
-    "trades24h": "최근 24시간 거래",
-    "notificationLog": "알림 로그",
-    "news": "뉴스",
-    "totalProfit": "총 수익금",
-    "todayProfit": "오늘 손익",
-    "currencyKrw": "KRW",
-    "viewAll": "전체 보기",
-    "emptyHoldings": "보유 종목이 없습니다.",
-    "emptyMarketReport": "최신 마켓 리포트가 없습니다.",
-    "emptyTrades24h": "최근 24시간 내 거래가 없습니다.",
-    "emptyNotificationLog": "알림 내역이 없습니다.",
-    "emptyNews": "표시할 뉴스가 없습니다.",
-    "columnSymbol": "종목",
-    "columnReason": "근거",
-    "columnRecommendationPrice": "추천 시점 가격",
-    "columnCurrentPrice": "현재가",
-    "columnChangePct": "변동률",
-    "columnValidation24h": "검증 24h",
-    "columnValidation72h": "검증 72h",
-    "columnDailyChange": "당일 변동",
-    "columnTime": "시각",
-    "columnMessage": "메시지",
-    "columnTitle": "제목",
-    "openArticle": "기사 보기"
-  },
+  "more": "더 보기",
   "news": {
     "importance": {
       "0": "일반",
@@ -127,330 +229,238 @@
       "3": "중요"
     }
   },
-  "blacklist": {
-    "create": "블랙리스트 추가",
-    "update": "블랙리스트 수정",
-    "delete_confirm": "정말로 이 블랙리스트를 삭제하시겠습니까?"
+  "nothing": "없음",
+  "notify": {
+    "registerFlow": {
+      "channel_missing": "채널 미입력",
+      "channel_set": "채널이 입력됨",
+      "checklist_channel": "채널 입력",
+      "checklist_done": "완료",
+      "checklist_pending": "대기",
+      "checklist_token": "Slack 앱 연동",
+      "completed": "{done}/{total} 완료",
+      "description": "Slack 연동을 완료하고 알림 채널을 설정하면 즉시 알림을 받을 수 있습니다.",
+      "headline": "알림 연동 설정",
+      "next_action": "다음으로 할 일",
+      "next_channel": "알림을 받을 채널을 입력하고 저장하세요.",
+      "next_complete": "알림 설정이 완료되었습니다. 알림을 수신할 수 있습니다.",
+      "next_token": "Slack 토큰을 저장해 앱 연동 상태를 활성화해 주세요.",
+      "progress_description": "완료된 항목이 늘수록 알림 전송이 가능한 상태에 가까워집니다.",
+      "progress_title": "설정 진행 상태",
+      "step1Description": "채널에 메시지를 전송할 수 있도록 앱 발급 및 권한을 확인하세요.",
+      "step1Label": "1단계",
+      "step1Title": "Slack 연동 가이드",
+      "step2Description": "토큰과 채널을 입력해 알림 발송 대상을 지정하세요.",
+      "step2Label": "2단계",
+      "step2Title": "Slack 설정 저장",
+      "stepHintForm": "2) 채널과 토큰을 저장하세요.",
+      "stepHintGuide": "1) Slack 앱을 준비하세요.",
+      "stepHintTitle": "권장 순서"
+    },
+    "title": "알림 등록"
   },
-  "upbit": {
-    "title": "업비트",
-    "guide": "업비트 계정 연동 방법",
-    "link": "업비트 계정 연동하러 가기",
-    "register": "업비트 계정 연동",
-    "description": "업비트 계정 연동을 위해서는 계정의 API 키를 발급 받아야 합니다. 다음 가이드를 따라서 서비스를 이용할 업비트 계정의 API 키를 발급 받아주세요.",
-    "grant": "필요한 권한",
-    "access_key_help": "업비트 Open API에서 발급한 Access Key를 입력하세요.",
-    "secret_key_help": "Secret Key는 민감 정보이므로 안전하게 보관하세요.",
-    "grants": {
-      "view_asset": "자산조회",
-      "order": "주문하기"
+  "pagination": "{total}개 중 {start}부터 {end}까지 결과 표시",
+  "profile": "프로필",
+  "role": {
+    "create": "권한 추가",
+    "delete_confirm": "정말로 이 권한을 삭제하시겠습니까?",
+    "description": "설명",
+    "name": "권한 이름",
+    "permissions": "권한 목록",
+    "update": "권한 수정"
+  },
+  "save": "저장",
+  "schedule": {
+    "execute": {
+      "allocationAudit": {
+        "button": "실행",
+        "description": "발행된 마켓/자산 배분 리포트를 사후 평가해 다음 리포트 가드레일을 갱신합니다.",
+        "title": "리포트 사후 검증"
+      },
+      "allocationRecommendationExisting": {
+        "button": "실행",
+        "description": "기존에 보유한 종목들에 대한 AI 추론을 실행합니다.",
+        "title": "기존 보유 자산 배분 분석"
+      },
+      "allocationRecommendationNew": {
+        "button": "실행",
+        "description": "신규 종목들을 포함한 전체 AI 추론을 실행합니다.",
+        "title": "신규 포함 자산 배분 분석"
+      },
+      "auto": {
+        "label": "자동 실행 시각",
+        "loading": "스케줄 정보를 불러오는 중...",
+        "nextRunBadge": "다음",
+        "nextRunIn": "다음 실행까지 {remaining}",
+        "nextRunSummary": "가장 가까운 자동 실행: {task} · {time} ({timezone}) · {remaining}",
+        "nextRunUnavailable": "다음 자동 실행 정보를 계산할 수 없습니다.",
+        "remainingHours": "{hours}시간 후",
+        "remainingHoursMinutes": "{hours}시간 {minutes}분 후",
+        "remainingMinutes": "{minutes}분 후",
+        "remainingSoon": "곧 실행",
+        "timezone": "기준 시간대: {timezone}",
+        "unavailable": "스케줄 정보를 가져오지 못했습니다."
+      },
+      "column": {
+        "action": "실행",
+        "auto": "자동 실행(서버)",
+        "status": "최근 수동 실행",
+        "task": "작업"
+      },
+      "executing": "실행 중...",
+      "label": "수동 실행",
+      "lock": {
+        "checkedAt": "확인 시각: {at}",
+        "label": "Lock 상태",
+        "loading": "락 상태를 확인하는 중...",
+        "locked": "잠김",
+        "recoveredRunningCount": "진행중에서 대기로 복구: {count}건",
+        "releaseButton": "락 강제 해제",
+        "releaseStatus": {
+          "alreadyUnlocked": "이미 해제된 락입니다.",
+          "failed": "락 해제 요청에 실패했습니다.",
+          "released": "락을 해제했습니다."
+        },
+        "releasing": "해제 중...",
+        "ttl": "남은 만료 시간: {value}",
+        "ttlMinutesSeconds": "{minutes}분 {seconds}초",
+        "ttlSeconds": "{seconds}초",
+        "ttlUnknown": "만료 시간 정보를 확인할 수 없습니다.",
+        "unavailable": "락 상태 정보를 가져오지 못했습니다.",
+        "unlocked": "해제됨"
+      },
+      "marketSignal": {
+        "button": "실행",
+        "description": "상위 10개 종목 추천 분석을 실행하여 마켓 리포트를 생성합니다.",
+        "title": "마켓 리포트 생성"
+      },
+      "recent": {
+        "description": "현재 페이지 세션에서 요청한 마지막 실행 상태입니다.",
+        "empty": "아직 실행 이력이 없습니다.",
+        "lastRunAt": "요청 시각: {at}",
+        "title": "최근 실행 결과"
+      },
+      "status": {
+        "failed": "실행 요청에 실패했습니다.",
+        "label": "최근 수동 실행",
+        "skippedDevelopment": "개발 환경에서는 실행되지 않습니다.",
+        "skippedLock": "이미 동일 작업이 실행 중이라 시작되지 않았습니다.",
+        "started": "실행이 시작되었습니다."
+      },
+      "statusLabel": {
+        "failed": "요청 실패",
+        "idle": "미실행",
+        "skippedDevelopment": "개발 환경",
+        "skippedLock": "락 충돌",
+        "started": "시작됨"
+      },
+      "warning": {
+        "description": "수동 실행은 시작 여부만 즉시 확인됩니다. 실제 완료/실패는 서버 로그와 알림에서 확인하세요. 락 강제 해제는 실행 중인 작업의 잠금도 해제할 수 있으니 신중히 사용하세요.",
+        "title": "주의사항"
+      }
+    },
+    "management": {
+      "description": "스케줄이 정상적으로 실행되지 않았을 때 수동으로 실행할 수 있습니다.",
+      "title": "스케줄 관리"
     }
   },
+  "service": {
+    "activation_title": "서비스 활성화",
+    "registerFlow": {
+      "checklist_categories": "카테고리 선택",
+      "checklist_done": "완료",
+      "checklist_pending": "대기",
+      "checklist_schedule": "서비스 활성화",
+      "checklist_upbit": "업비트 API 연동",
+      "completed": "{done}/{total} 완료",
+      "description": "아래 3단계를 완료하면 자동 실행 서비스를 시작할 수 있습니다.",
+      "headline": "서비스 시작 설정",
+      "next_action": "다음으로 할 일",
+      "next_categories": "최소 1개 이상의 카테고리를 선택해 주세요.",
+      "next_complete": "모든 단계가 완료되었습니다. 서비스를 모니터링하세요.",
+      "next_schedule": "서비스 활성화를 켜서 자동 실행을 시작하세요.",
+      "next_upbit": "업비트 API 키를 등록해 주세요.",
+      "progress_description": "완료된 단계가 많을수록 서비스가 실행 가능한 상태에 가까워집니다.",
+      "progress_title": "진행 상태",
+      "risk_ack_label": "위의 투자 리스크 안내를 확인했습니다.",
+      "risk_note": "활성화 전에 아래 유의사항을 반드시 확인하세요.",
+      "risk_open": "전체 유의사항 보기",
+      "risk_summary": "투자 리스크 안내",
+      "schedule_off": "비활성화됨",
+      "schedule_on": "활성화됨",
+      "step1Description": "필수 권한과 서버 IP를 확인한 뒤 API 키를 등록합니다.",
+      "step1Label": "1단계",
+      "step1Title": "업비트 계정 연동",
+      "step2Description": "리스크 안내를 확인하고 자동 실행 여부를 설정합니다.",
+      "step2Label": "2단계",
+      "step2Title": "서비스 활성화",
+      "step3Description": "매매 대상 카테고리를 선택해 전략 범위를 설정합니다.",
+      "step3Label": "3단계",
+      "step3Title": "카테고리 선택",
+      "stepHintActivate": "3) 마지막으로 서비스를 활성화하세요.",
+      "stepHintCategory": "2) 매매할 카테고리를 선택하세요.",
+      "stepHintTitle": "권장 순서",
+      "stepHintUpbit": "1) 업비트 API 키를 연동하세요."
+    },
+    "termsofuse": "본 서비스는 예금과 달리 원금 보장이 되지 않으며, 투자 결과에 따라 투자원금의 손실이 발생할 수 있습니다. 경우에 따라 예상 밖의 손실이 발생할 수 있으며, 이러한 손실은 전적으로 투자자에게 귀속됩니다. 높은 수익에는 높은 위험이 수반되므로, 서비스 이용 시 관련된 위험을 반드시 확인해야 합니다. 서비스 이용은 본인의 판단과 책임하에 이루어져야 합니다. 서비스의 과거 수익률이 미래의 수익을 보장하지 않습니다. 서비스 이용 전 반드시 약관을 숙지하고, 서비스의 구조와 위험, 수수료 등 주요 내용을 확인해야 합니다. 투자자의 손실을 보전하거나 일정 수익을 보장하는 약속은 법률적으로 효력이 없습니다. 어떠한 경우에도 서비스 제공자는 고객의 투자손실에 대한 보전이나 보상을 하지 않습니다.",
+    "title": "서비스 등록"
+  },
   "slack": {
-    "title": "Slack",
+    "description": "Slack 메시지를 보내기 위해서는 봇의 API 키를 발급 받아야 합니다.",
     "guide": "Slack 연동 방법",
     "link": "Slack 연동하러 가기",
     "register": "Slack 연동",
-    "description": "Slack 메시지를 보내기 위해서는 봇의 API 키를 발급 받아야 합니다."
+    "title": "Slack"
+  },
+  "sort": {
+    "asc": "오래된순",
+    "desc": "최신순",
+    "label": "정렬 순서"
   },
   "status": {
     "registered": "등록됨",
     "unknown": "알 수 없음"
   },
-  "service": {
-    "title": "서비스 등록",
-    "activation_title": "서비스 활성화",
-    "termsofuse": "본 서비스는 예금과 달리 원금 보장이 되지 않으며, 투자 결과에 따라 투자원금의 손실이 발생할 수 있습니다. 경우에 따라 예상 밖의 손실이 발생할 수 있으며, 이러한 손실은 전적으로 투자자에게 귀속됩니다. 높은 수익에는 높은 위험이 수반되므로, 서비스 이용 시 관련된 위험을 반드시 확인해야 합니다. 서비스 이용은 본인의 판단과 책임하에 이루어져야 합니다. 서비스의 과거 수익률이 미래의 수익을 보장하지 않습니다. 서비스 이용 전 반드시 약관을 숙지하고, 서비스의 구조와 위험, 수수료 등 주요 내용을 확인해야 합니다. 투자자의 손실을 보전하거나 일정 수익을 보장하는 약속은 법률적으로 효력이 없습니다. 어떠한 경우에도 서비스 제공자는 고객의 투자손실에 대한 보전이나 보상을 하지 않습니다.",
-    "registerFlow": {
-      "headline": "서비스 시작 설정",
-      "description": "아래 3단계를 완료하면 자동 실행 서비스를 시작할 수 있습니다.",
-      "stepHintTitle": "권장 순서",
-      "stepHintUpbit": "1) 업비트 API 키를 연동하세요.",
-      "stepHintCategory": "2) 매매할 카테고리를 선택하세요.",
-      "stepHintActivate": "3) 마지막으로 서비스를 활성화하세요.",
-      "step1Label": "1단계",
-      "step2Label": "2단계",
-      "step3Label": "3단계",
-      "step1Title": "업비트 계정 연동",
-      "step1Description": "필수 권한과 서버 IP를 확인한 뒤 API 키를 등록합니다.",
-      "step2Title": "서비스 활성화",
-      "step2Description": "리스크 안내를 확인하고 자동 실행 여부를 설정합니다.",
-      "step3Title": "카테고리 선택",
-      "step3Description": "매매 대상 카테고리를 선택해 전략 범위를 설정합니다.",
-      "progress_title": "진행 상태",
-      "progress_description": "완료된 단계가 많을수록 서비스가 실행 가능한 상태에 가까워집니다.",
-      "completed": "{done}/{total} 완료",
-      "checklist_upbit": "업비트 API 연동",
-      "checklist_categories": "카테고리 선택",
-      "checklist_schedule": "서비스 활성화",
-      "checklist_done": "완료",
-      "checklist_pending": "대기",
-      "schedule_on": "활성화됨",
-      "schedule_off": "비활성화됨",
-      "next_action": "다음으로 할 일",
-      "next_upbit": "업비트 API 키를 등록해 주세요.",
-      "next_categories": "최소 1개 이상의 카테고리를 선택해 주세요.",
-      "next_schedule": "서비스 활성화를 켜서 자동 실행을 시작하세요.",
-      "next_complete": "모든 단계가 완료되었습니다. 서비스를 모니터링하세요.",
-      "risk_summary": "투자 리스크 안내",
-      "risk_note": "활성화 전에 아래 유의사항을 반드시 확인하세요.",
-      "risk_open": "전체 유의사항 보기",
-      "risk_ack_label": "위의 투자 리스크 안내를 확인했습니다."
-    }
+  "symbol": "종목",
+  "symbolPlaceholder": "BTC/KRW",
+  "title": {
+    "coin": "코인"
   },
-  "notify": {
-    "title": "알림 등록",
-    "registerFlow": {
-      "headline": "알림 연동 설정",
-      "description": "Slack 연동을 완료하고 알림 채널을 설정하면 즉시 알림을 받을 수 있습니다.",
-      "stepHintTitle": "권장 순서",
-      "stepHintGuide": "1) Slack 앱을 준비하세요.",
-      "stepHintForm": "2) 채널과 토큰을 저장하세요.",
-      "step1Label": "1단계",
-      "step2Label": "2단계",
-      "step1Title": "Slack 연동 가이드",
-      "step1Description": "채널에 메시지를 전송할 수 있도록 앱 발급 및 권한을 확인하세요.",
-      "step2Title": "Slack 설정 저장",
-      "step2Description": "토큰과 채널을 입력해 알림 발송 대상을 지정하세요.",
-      "progress_title": "설정 진행 상태",
-      "progress_description": "완료된 항목이 늘수록 알림 전송이 가능한 상태에 가까워집니다.",
-      "completed": "{done}/{total} 완료",
-      "checklist_token": "Slack 앱 연동",
-      "checklist_channel": "채널 입력",
-      "checklist_done": "완료",
-      "checklist_pending": "대기",
-      "channel_set": "채널이 입력됨",
-      "channel_missing": "채널 미입력",
-      "next_action": "다음으로 할 일",
-      "next_token": "Slack 토큰을 저장해 앱 연동 상태를 활성화해 주세요.",
-      "next_channel": "알림을 받을 채널을 입력하고 저장하세요.",
-      "next_complete": "알림 설정이 완료되었습니다. 알림을 수신할 수 있습니다."
-    }
-  },
-  "copy": {
-    "link": "링크 복사",
-    "token": "토큰 복사",
-    "complete": "복사되었습니다.",
-    "error": "복사에 실패했습니다.",
-    "notFound": "복사할 값이 없습니다."
-  },
-  "date": {
-    "start": "시작일",
-    "end": "종료일",
-    "today": "오늘",
-    "clear": "초기화"
-  },
-  "sort": {
-    "label": "정렬 순서",
-    "desc": "최신순",
-    "asc": "오래된순"
-  },
-  "error": {
-    "forbidden": {
-      "title": "접근 권한이 없습니다",
-      "description": "이 페이지에 접근할 수 있는 권한이 없습니다. 관리자에게 문의해주세요."
-    },
-    "notFound": {
-      "title": "페이지를 찾을 수 없습니다",
-      "description": "요청하신 페이지를 찾을 수 없습니다.",
-      "home": "홈으로 이동"
-    },
-    "fetch_failed": "데이터를 불러오는 데 실패했습니다: {error}",
-    "update_failed": "업데이트에 실패했습니다: {error}",
-    "create_failed": "생성에 실패했습니다: {error}",
-    "delete_failed": "삭제에 실패했습니다: {error}"
-  },
-  "created": "성공적으로 생성되었습니다.",
-  "updated": "성공적으로 수정되었습니다.",
-  "deleted": "성공적으로 삭제되었습니다.",
-  "createdAt": "생성일",
-  "updatedAt": "수정일",
-  "pagination": "{total}개 중 {start}부터 {end}까지 결과 표시",
-  "all": "전체",
-  "save": "저장",
-  "delete": "삭제",
-  "config": "설정",
-  "activate": "활성화",
-  "loading": "로딩 중...",
-  "nothing": "없음",
   "token": "토큰",
-  "channel": "채널",
-  "profile": "프로필",
-  "more": "더 보기",
-  "close": "닫기",
-  "reportValidation": {
-    "title": "리포트 사후 검증",
-    "description": "발행된 마켓/포트폴리오 리포트의 사후 성과를 검토하고 다음 가드레일 품질을 점검합니다.",
-    "filters": {
-      "reportType": "리포트 유형",
-      "status": "상태",
-      "all": "전체"
-    },
-    "sort": {
-      "by": "정렬 기준",
-      "order": "정렬 순서",
-      "asc": "오름차순",
-      "desc": "내림차순"
-    },
-    "actions": {
-      "refresh": "새로고침"
-    },
-    "stats": {
-      "totalRuns": "전체 실행",
-      "activeRuns": "진행/대기",
-      "completedRuns": "완료",
-      "avgScore": "평균 점수",
-      "recommendedMinConfidence": "기준 신뢰도"
-    },
-    "runs": {
-      "title": "실행 이력",
-      "description": "최근 배치 실행 결과입니다. 행을 선택하면 아래 상세 항목이 갱신됩니다."
-    },
-    "type": {
-      "market": "마켓",
-      "portfolio": "포트폴리오"
-    },
-    "status": {
-      "pending": "대기",
-      "running": "진행중",
-      "completed": "완료",
-      "failed": "실패"
-    },
-    "verdict": {
-      "good": "좋음",
-      "mixed": "혼합",
-      "bad": "나쁨",
-      "invalid": "무효"
-    },
-    "columns": {
-      "seq": "번호",
-      "type": "유형",
-      "horizon": "Horizon",
-      "status": "상태",
-      "progress": "진행률",
-      "overallScore": "종합 점수",
-      "completedAt": "완료 시각"
-    },
-    "detail": {
-      "title": "실행 상세",
-      "batchId": "Batch ID",
-      "summary": "요약",
-      "error": "오류",
-      "emptyDescription": "실행 이력을 선택하면 상세 항목을 확인할 수 있습니다.",
-      "itemCount": "항목 수",
-      "invalidCount": "무효 항목",
-      "avgReturn": "평균 수익률",
-      "avgItemScore": "평균 항목 점수",
-      "verdictBreakdown": "판정 분포"
-    },
-    "items": {
-      "title": "평가 항목",
-      "description": "선택한 실행 배치의 개별 평가 결과입니다.",
-      "symbol": "종목",
-      "status": "상태",
-      "verdict": "판정",
-      "deterministicScore": "결정론 점수",
-      "aiScore": "AI 점수",
-      "overallScore": "점수",
-      "returnPct": "수익률",
-      "nextGuardrail": "다음 가드레일",
-      "evaluatedAt": "평가 시각"
-    },
-    "emptyRuns": "표시할 실행 이력이 없습니다.",
-    "emptyItems": "표시할 상세 항목이 없습니다."
-  },
-  "schedule": {
-    "management": {
-      "title": "스케줄 관리",
-      "description": "스케줄이 정상적으로 실행되지 않았을 때 수동으로 실행할 수 있습니다."
-    },
-    "execute": {
-      "executing": "실행 중...",
-      "label": "수동 실행",
-      "column": {
-        "task": "작업",
-        "auto": "자동 실행(서버)",
-        "status": "최근 수동 실행",
-        "action": "실행"
-      },
-      "auto": {
-        "label": "자동 실행 시각",
-        "loading": "스케줄 정보를 불러오는 중...",
-        "unavailable": "스케줄 정보를 가져오지 못했습니다.",
-        "timezone": "기준 시간대: {timezone}",
-        "nextRunBadge": "다음",
-        "nextRunIn": "다음 실행까지 {remaining}",
-        "nextRunSummary": "가장 가까운 자동 실행: {task} · {time} ({timezone}) · {remaining}",
-        "nextRunUnavailable": "다음 자동 실행 정보를 계산할 수 없습니다.",
-        "remainingSoon": "곧 실행",
-        "remainingMinutes": "{minutes}분 후",
-        "remainingHours": "{hours}시간 후",
-        "remainingHoursMinutes": "{hours}시간 {minutes}분 후"
-      },
-      "lock": {
-        "label": "Lock 상태",
-        "loading": "락 상태를 확인하는 중...",
-        "unavailable": "락 상태 정보를 가져오지 못했습니다.",
-        "locked": "잠김",
-        "unlocked": "해제됨",
-        "ttl": "남은 만료 시간: {value}",
-        "ttlUnknown": "만료 시간 정보를 확인할 수 없습니다.",
-        "ttlMinutesSeconds": "{minutes}분 {seconds}초",
-        "ttlSeconds": "{seconds}초",
-        "checkedAt": "확인 시각: {at}",
-        "releaseButton": "락 강제 해제",
-        "releasing": "해제 중...",
-        "releaseStatus": {
-          "released": "락을 해제했습니다.",
-          "alreadyUnlocked": "이미 해제된 락입니다.",
-          "failed": "락 해제 요청에 실패했습니다."
-        },
-        "recoveredRunningCount": "진행중에서 대기로 복구: {count}건"
-      },
-      "status": {
-        "label": "최근 수동 실행",
-        "started": "실행이 시작되었습니다.",
-        "skippedLock": "이미 동일 작업이 실행 중이라 시작되지 않았습니다.",
-        "skippedDevelopment": "개발 환경에서는 실행되지 않습니다.",
-        "failed": "실행 요청에 실패했습니다."
-      },
-      "statusLabel": {
-        "started": "시작됨",
-        "skippedLock": "락 충돌",
-        "skippedDevelopment": "개발 환경",
-        "failed": "요청 실패",
-        "idle": "미실행"
-      },
-      "marketRecommendation": {
-        "title": "마켓 리포트 생성",
-        "description": "상위 10개 종목 추천 분석을 실행하여 마켓 리포트를 생성합니다.",
-        "button": "실행"
-      },
-      "balanceRecommendationExisting": {
-        "title": "기존 종목 포트폴리오 분석",
-        "description": "기존에 보유한 종목들에 대한 AI 추론을 실행합니다.",
-        "button": "실행"
-      },
-      "balanceRecommendationNew": {
-        "title": "신규 종목 포트폴리오 분석",
-        "description": "신규 종목들을 포함한 전체 AI 추론을 실행합니다.",
-        "button": "실행"
-      },
-      "reportValidation": {
-        "title": "리포트 사후 검증",
-        "description": "발행된 마켓/포트폴리오 리포트를 사후 평가해 다음 리포트 가드레일을 갱신합니다.",
-        "button": "실행"
-      },
-      "recent": {
-        "title": "최근 실행 결과",
-        "description": "현재 페이지 세션에서 요청한 마지막 실행 상태입니다.",
-        "empty": "아직 실행 이력이 없습니다.",
-        "lastRunAt": "요청 시각: {at}"
-      },
-      "warning": {
-        "title": "주의사항",
-        "description": "수동 실행은 시작 여부만 즉시 확인됩니다. 실제 완료/실패는 서버 로그와 알림에서 확인하세요. 락 강제 해제는 실행 중인 작업의 잠금도 해제할 수 있으니 신중히 사용하세요."
-      }
+  "trade": {
+    "amount": "거래금",
+    "date": "날짜",
+    "list": "거래 목록",
+    "profit": "수익금",
+    "type": "거래",
+    "types": {
+      "buy": "매수",
+      "sell": "매도"
     }
+  },
+  "upbit": {
+    "access_key_help": "업비트 Open API에서 발급한 Access Key를 입력하세요.",
+    "access_key_label": "액세스 키",
+    "description": "업비트 계정 연동을 위해서는 계정의 API 키를 발급 받아야 합니다. 다음 가이드를 따라서 서비스를 이용할 업비트 계정의 API 키를 발급 받아주세요.",
+    "grant": "필요한 권한",
+    "grants": {
+      "order": "주문하기",
+      "view_asset": "자산조회"
+    },
+    "guide": "업비트 계정 연동 방법",
+    "ip_label": "IP",
+    "link": "업비트 계정 연동하러 가기",
+    "register": "업비트 계정 연동",
+    "secret_key_help": "Secret Key는 민감 정보이므로 안전하게 보관하세요.",
+    "secret_key_label": "비밀 키",
+    "title": "업비트"
+  },
+  "updated": "성공적으로 수정되었습니다.",
+  "updatedAt": "수정일",
+  "user": {
+    "email": "이메일",
+    "permissions": "권한 목록",
+    "role": "권한",
+    "settings": "사용자 설정"
   }
 }

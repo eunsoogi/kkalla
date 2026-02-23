@@ -15,8 +15,11 @@ Backend for the [Kkalla](https://github.com/eunsoogi/kkalla) AI investment assis
 
 - **Auth** — Google OAuth, JWT bearer, roles & permissions
 - **Users & roles** — CRUD, role-based access
-- **Market research** — OpenAI-powered analysis and recommendations
-- **Rebalance** — Portfolio rebalance suggestions (AI)
+- **Market intelligence** — OpenAI-powered analysis and market signals
+- **Allocation** — Allocation recommendations and execution
+- **Market risk** — Volatility-based risk trigger and execution
+- **Holding ledger** — User holding universe persistence
+- **Allocation audit** — Post-execution evaluation and guardrails
 - **Upbit / trade** — Market data, trades, profit
 - **News** — News aggregation and management
 - **Notify** — Notifications (e.g. Slack), schedules
@@ -47,8 +50,12 @@ api/
 │   │   ├── auth/          # Google OAuth, JWT, guards
 │   │   ├── user/          # Users CRUD
 │   │   ├── role/          # Roles & permissions
-│   │   ├── market-research/
-│   │   ├── rebalance/
+│   │   ├── market-intelligence/
+│   │   ├── allocation/
+│   │   ├── market-risk/
+│   │   ├── holding-ledger/
+│   │   ├── allocation-audit/
+│   │   ├── allocation-core/
 │   │   ├── upbit/         # Upbit/market data
 │   │   ├── trade/         # Trades, profit
 │   │   ├── news/

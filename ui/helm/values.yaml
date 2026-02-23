@@ -123,6 +123,7 @@ tolerations: []
 affinity: {}
 
 env: production
+nodeOptions: "--no-network-family-autoselection --dns-result-order=ipv4first"
 
 publicUrl: ""
 

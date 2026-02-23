@@ -177,6 +177,49 @@ export class RedlockService implements OnModuleDestroy {
     return true;
   }
 
+  public async startWithLocks(
+    resourceNames: string[],
+    duration: number,
+    callback: () => Promise<void>,
+  ): Promise<boolean> {
+    const uniqueResourceNames = [...new Set(resourceNames)].filter((name) => name.length > 0);
+    if (uniqueResourceNames.length < 1) {
+      return false;
+    }
+
+    const acquiredLocks: Array<{ resourceName: string; lock: Lock }> = [];
+    const logResourceName = uniqueResourceNames.join(',');
+
+    for (const resourceName of uniqueResourceNames) {
+      const lockKey = this.getLockKey(resourceName);
+      const lock = await this.acquireLock(lockKey, duration);
+
+      if (!lock) {
+        this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
+        await this.releaseStartLocks(acquiredLocks);
+        return false;
+      }
+
+      acquiredLocks.push({ resourceName, lock });
+      this.logger.debug(this.i18n.t('logging.redlock.lock.acquired', { args: { resourceName } }));
+    }
+
+    void (async () => {
+      try {
+        await callback();
+      } catch (error) {
+        this.logger.error(
+          this.i18n.t('logging.redlock.lock.background_task_error', { args: { resourceName: logResourceName } }),
+          error,
+        );
+      } finally {
+        await this.releaseStartLocks(acquiredLocks);
+      }
+    })();
+
+    return true;
+  }
+
   public async getLockStatus(resourceName: string): Promise<RedlockLockStatus> {
     const lockKey = this.getLockKey(resourceName);
     const ttlMs = await this.redisClient.pttl(lockKey);
@@ -205,6 +248,22 @@ export class RedlockService implements OnModuleDestroy {
     const lockKey = this.getLockKey(resourceName);
     const deleted = await this.redisClient.del(lockKey);
     return deleted > 0;
+  }
+
+  private async releaseStartLocks(acquiredLocks: Array<{ resourceName: string; lock: Lock }>): Promise<void> {
+    for (const acquiredLock of [...acquiredLocks].reverse()) {
+      try {
+        await acquiredLock.lock.release();
+        this.logger.debug(
+          this.i18n.t('logging.redlock.lock.released', { args: { resourceName: acquiredLock.resourceName } }),
+        );
+      } catch (error) {
+        this.logger.error(
+          this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName: acquiredLock.resourceName } }),
+          error,
+        );
+      }
+    }
   }
 
   private getLockKey(resource: string): string {

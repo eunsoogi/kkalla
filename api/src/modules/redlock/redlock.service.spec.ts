@@ -99,4 +99,37 @@ describe('RedlockService', () => {
     expect(result).toBe('done');
     expect(lock.release).toHaveBeenCalledTimes(1);
   });
+
+  it('should start callback only when all startWithLocks resources are acquired', async () => {
+    const firstLock = {
+      release: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Lock;
+    const secondLock = {
+      release: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Lock;
+    acquireMock.mockResolvedValueOnce(firstLock).mockResolvedValueOnce(secondLock);
+
+    const callback = jest.fn().mockResolvedValue(undefined);
+    const started = await service.startWithLocks(['resource:new', 'resource:legacy'], 1_000, callback);
+    await Promise.resolve();
+
+    expect(started).toBe(true);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(secondLock.release).toHaveBeenCalledTimes(1);
+    expect(firstLock.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('should release already acquired locks when one of startWithLocks resources is not acquired', async () => {
+    const firstLock = {
+      release: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Lock;
+    acquireMock.mockResolvedValueOnce(firstLock).mockResolvedValueOnce(null);
+
+    const callback = jest.fn().mockResolvedValue(undefined);
+    const started = await service.startWithLocks(['resource:new', 'resource:legacy'], 1_000, callback);
+
+    expect(started).toBe(false);
+    expect(callback).not.toHaveBeenCalled();
+    expect(firstLock.release).toHaveBeenCalledTimes(1);
+  });
 });
