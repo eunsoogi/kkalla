@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import { Category } from '@/app/(dashboard)/register/_types/category.types';
@@ -10,6 +9,10 @@ export interface CategoryState {
   message?: string;
 }
 
+/**
+ * Retrieves categories action for the dashboard UI flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export const getCategoriesAction = async (): Promise<Category[]> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -23,6 +26,11 @@ export const getCategoriesAction = async (): Promise<Category[]> => {
   }
 };
 
+/**
+ * Retrieves category action for the dashboard UI flow.
+ * @param id - Identifier for the target resource.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getCategoryAction = async (id: string): Promise<Category> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -36,6 +44,12 @@ export const getCategoryAction = async (id: string): Promise<Category> => {
   }
 };
 
+/**
+ * Builds category action used in the dashboard UI flow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function createCategoryAction(_: CategoryState, formData: FormData): Promise<CategoryState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -60,6 +74,12 @@ export async function createCategoryAction(_: CategoryState, formData: FormData)
   }
 }
 
+/**
+ * Handles category action in the dashboard UI workflow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function updateCategoryAction(_: CategoryState, formData: FormData): Promise<CategoryState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -86,6 +106,12 @@ export async function updateCategoryAction(_: CategoryState, formData: FormData)
   }
 }
 
+/**
+ * Handles delete category action in the dashboard UI workflow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function deleteCategoryAction(_: CategoryState, formData: FormData): Promise<CategoryState> {
   const client = await getClient();
   const t = await getTranslations();

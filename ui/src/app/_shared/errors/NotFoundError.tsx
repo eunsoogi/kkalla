@@ -1,11 +1,14 @@
 'use client';
-
 import Link from 'next/link';
 import React from 'react';
 
 import { Button } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
+/**
+ * Renders the Not Found Error UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const NotFoundError = () => {
   const t = useTranslations();
 

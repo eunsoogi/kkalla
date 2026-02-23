@@ -339,6 +339,11 @@ export class MarketRiskService implements OnModuleInit {
     });
   }
 
+  /**
+   * Parses volatility message for the market risk flow.
+   * @param messageBody - Message payload handled by the market risk flow.
+   * @returns Result produced by the market risk flow.
+   */
   private parseVolatilityMessage(messageBody: string | undefined): TradeExecutionMessageV2 {
     return parseTradeExecutionMessage({
       module: TradeExecutionModule.RISK,
@@ -1105,6 +1110,14 @@ export class MarketRiskService implements OnModuleInit {
     return allTrades;
   }
 
+  /**
+   * Calculates model signals for the market risk flow.
+   * @param intensity - Input value for intensity.
+   * @param category - Input value for category.
+   * @param marketFeatures - Input value for market features.
+   * @param symbol - Asset symbol to process.
+   * @returns Result produced by the market risk flow.
+   */
   private calculateModelSignals(
     intensity: number,
     category: Category,
@@ -1150,6 +1163,12 @@ export class MarketRiskService implements OnModuleInit {
     };
   }
 
+  /**
+   * Calculates target weight for the market risk flow.
+   * @param inference - Input value for inference.
+   * @param regimeMultiplier - Input value for regime multiplier.
+   * @returns Computed numeric value for the operation.
+   */
   private calculateTargetWeight(inference: AllocationRecommendationData, regimeMultiplier: number): number {
     const baseTargetWeight =
       inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
@@ -1173,10 +1192,20 @@ export class MarketRiskService implements OnModuleInit {
     return modelTargetWeight;
   }
 
+  /**
+   * Retrieves symbol cooldown key for the market risk flow.
+   * @param symbol - Asset symbol to process.
+   * @returns Formatted string output for the operation.
+   */
   private getSymbolCooldownKey(symbol: string): string {
     return `market-risk:cooldown:${symbol}`;
   }
 
+  /**
+   * Checks symbol on cooldown in the market risk context.
+   * @param symbol - Asset symbol to process.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   private async isSymbolOnCooldown(symbol: string): Promise<boolean> {
     try {
       return Boolean(await this.cacheService.get(this.getSymbolCooldownKey(symbol)));
@@ -1186,12 +1215,21 @@ export class MarketRiskService implements OnModuleInit {
     }
   }
 
+  /**
+   * Runs symbols on cooldown in the market risk workflow.
+   * @param symbols - Asset symbol to process.
+   */
   private async markSymbolsOnCooldown(symbols: string[]): Promise<void> {
     await Promise.all(
       symbols.map((symbol) => this.markSymbolOnCooldown(symbol, this.VOLATILITY_SYMBOL_COOLDOWN_SECONDS)),
     );
   }
 
+  /**
+   * Runs symbol on cooldown in the market risk workflow.
+   * @param symbol - Asset symbol to process.
+   * @param ttlSeconds - Input value for ttl seconds.
+   */
   private async markSymbolOnCooldown(symbol: string, ttlSeconds: number): Promise<void> {
     try {
       await this.cacheService.set(this.getSymbolCooldownKey(symbol), true, ttlSeconds);
@@ -1376,6 +1414,18 @@ export class MarketRiskService implements OnModuleInit {
     return tradeRequests;
   }
 
+  /**
+   * Builds no trade trim requests used in the market risk flow.
+   * @param balances - Input value for balances.
+   * @param inferences - Input value for inferences.
+   * @param count - Input value for count.
+   * @param regimeMultiplier - Input value for regime multiplier.
+   * @param currentWeights - Input value for current weights.
+   * @param marketPrice - Input value for market price.
+   * @param orderableSymbols - Asset symbol to process.
+   * @param tradableMarketValueMap - Input value for tradable market value map.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private generateNoTradeTrimRequests(
     balances: Balances,
     inferences: AllocationRecommendationData[],
@@ -1527,6 +1577,12 @@ export class MarketRiskService implements OnModuleInit {
       .sort((a, b) => a.diff - b.diff);
   }
 
+  /**
+   * Normalizes slot count for volatility for the market risk flow.
+   * @param inferences - Input value for inferences.
+   * @param defaultSlotCount - Input value for default slot count.
+   * @returns Computed numeric value for the operation.
+   */
   private resolveSlotCountForVolatility(inferences: AllocationRecommendationData[], defaultSlotCount: number): number {
     const heldCount = new Set(
       inferences

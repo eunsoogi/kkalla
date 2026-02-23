@@ -22,6 +22,11 @@ describe('WithRedlock', () => {
     class SampleService {
       [REDLOCK_SERVICE] = redlockService;
 
+      /**
+       * Runs workflow logic in the distributed lock workflow.
+       * @param payload - Input value for payload.
+       * @returns Formatted string output for the operation.
+       */
       @WithRedlock({ duration: 1_000 })
       public async execute(payload: string): Promise<string> {
         return `done:${payload}`;
@@ -43,6 +48,10 @@ describe('WithRedlock', () => {
     class SampleService {
       [REDLOCK_SERVICE] = redlockService;
 
+      /**
+       * Runs workflow logic in the distributed lock workflow.
+       * @returns Formatted string output for the operation.
+       */
       @WithRedlock({
         resourceName: 'AllocationService:executeAllocationRecommendationNew',
         compatibleResourceNames: ['RebalanceService:executeBalanceRecommendationNew'],
@@ -88,6 +97,10 @@ describe('WithRedlock', () => {
     class SampleService {
       [REDLOCK_SERVICE] = redlockService;
 
+      /**
+       * Runs workflow logic in the distributed lock workflow.
+       * @returns Formatted string output for the operation.
+       */
       @WithRedlock({
         resourceName: 'AllocationService:executeAllocationRecommendationNew',
         compatibleResourceNames: ['RebalanceService:executeBalanceRecommendationNew'],

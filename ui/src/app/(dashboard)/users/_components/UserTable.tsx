@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback } from 'react';
 
@@ -21,6 +20,11 @@ export interface UserTableProps {
   items: PaginatedItem<User>;
 }
 
+/**
+ * Renders the User Table Base UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const UserTableBase = ({ items }: UserTableProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -109,6 +113,10 @@ const UserTableBase = ({ items }: UserTableProps) => {
   );
 };
 
+/**
+ * Renders the User Table Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UserTableSkeleton = () => {
   const t = useTranslations();
 
@@ -132,6 +140,10 @@ const UserTableSkeleton = () => {
   );
 };
 
+/**
+ * Renders the User Table Data UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UserTableData = () => {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -151,6 +163,10 @@ const UserTableData = () => {
   return <UserTableBase items={data} />;
 };
 
+/**
+ * Renders the User Table UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const UserTable = () => {
   return <UserTableData />;
 };

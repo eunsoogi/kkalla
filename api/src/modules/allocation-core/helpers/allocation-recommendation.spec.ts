@@ -27,6 +27,11 @@ import {
   toPercentString,
 } from './allocation-recommendation';
 
+/**
+ * Builds inference used in the allocation recommendation flow.
+ * @param partial - Input value for partial.
+ * @returns Result produced by the allocation recommendation flow.
+ */
 function createInference(partial: Partial<AllocationRecommendationData> = {}): AllocationRecommendationData {
   return {
     id: 'id',

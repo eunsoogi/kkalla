@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback } from 'react';
 
@@ -20,6 +19,10 @@ export interface BlacklistTableProps {
   items: PaginatedItem<Blacklist>;
 }
 
+/**
+ * Renders the Blacklist Table Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const BlacklistTableSkeleton = () => {
   const t = useTranslations();
 
@@ -64,6 +67,10 @@ const BlacklistTableSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Blacklist Table Content UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const BlacklistTableContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -160,6 +167,10 @@ const BlacklistTableContent = () => {
   );
 };
 
+/**
+ * Renders the Blacklist Table UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const BlacklistTable = () => {
   return <BlacklistTableContent />;
 };

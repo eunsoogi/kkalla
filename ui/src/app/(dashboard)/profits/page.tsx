@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -11,6 +10,10 @@ import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError'
 import { ProfitTable } from '@/app/(dashboard)/profits/_components/ProfitTable';
 import { Permission } from '@/shared/types/permission.types';
 
+/**
+ * Renders the Profit Page Content UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const ProfitPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,6 +78,10 @@ const ProfitPageContent = () => {
   );
 };
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   return (
     <PermissionGuard permissions={[Permission.VIEW_PROFIT]} fallback={<ForbiddenError />}>

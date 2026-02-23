@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Icon } from '@iconify/react';
@@ -17,6 +16,10 @@ import { ContentModal } from '@/app/(dashboard)/_shared/ui/ContentModal';
 
 const MS_1H = 60 * 60 * 1000;
 
+/**
+ * Renders the News Widget Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const NewsWidgetSkeleton = () => (
   <div className='animate-pulse px-4 py-6 space-y-3'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
@@ -30,6 +33,11 @@ interface NewsWidgetProps {
   isLoading?: boolean;
 }
 
+/**
+ * Renders the News Widget UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export function NewsWidget({ items = [], isLoading = false }: NewsWidgetProps) {
   const t = useTranslations();
   const router = useRouter();

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -73,6 +72,11 @@ const markdownBodyClassName = [
   'dark:[&_td]:border-gray-600',
 ].join(' ');
 
+/**
+ * Renders the Content Modal UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export function ContentModal({ show, onClose, title, children, actionLink, renderMarkdown = false }: ContentModalProps) {
   const t = useTranslations();
 

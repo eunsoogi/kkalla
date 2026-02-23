@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter } from 'next/navigation';
 import React, { Suspense, useActionState } from 'react';
 
@@ -18,6 +17,10 @@ interface BlacklistFormProps {
   id?: string;
 }
 
+/**
+ * Renders the Blacklist Form Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const BlacklistFormSkeleton = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
@@ -38,6 +41,11 @@ const BlacklistFormSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Blacklist Form Content UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const BlacklistFormContent: React.FC<BlacklistFormProps> = ({ id }) => {
   const t = useTranslations();
   const router = useRouter();
@@ -148,6 +156,11 @@ const BlacklistFormContent: React.FC<BlacklistFormProps> = ({ id }) => {
   );
 };
 
+/**
+ * Renders the Blacklist Form UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const BlacklistForm = ({ id }: BlacklistFormProps) => {
   return (
     <Suspense fallback={<BlacklistFormSkeleton />}>

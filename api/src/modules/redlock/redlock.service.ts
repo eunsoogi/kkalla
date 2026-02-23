@@ -35,6 +35,12 @@ export class RedlockService implements OnModuleDestroy {
     });
   }
 
+  /**
+   * Runs acquire lock in the distributed lock workflow.
+   * @param lockKey - Lock data used for concurrency control.
+   * @param duration - Input value for duration.
+   * @returns Asynchronous result produced by the distributed lock flow.
+   */
   private async acquireLock(lockKey: string, duration: number): Promise<Lock | null> {
     try {
       return await this.redlock.acquire([lockKey], duration);
@@ -44,6 +50,13 @@ export class RedlockService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Handles with lock in the distributed lock workflow.
+   * @param resourceName - Input value for resource name.
+   * @param duration - Input value for duration.
+   * @param callback - Callback invoked within the workflow.
+   * @returns Asynchronous result produced by the distributed lock flow.
+   */
   public async withLock<T>(
     resourceName: string,
     duration: number,
@@ -67,6 +80,7 @@ export class RedlockService implements OnModuleDestroy {
     const executionContext: RedlockExecutionContext = {
       signal: extensionAbortController.signal,
       assertLockOrThrow: () => {
+        // Long-running callbacks can poll this to stop immediately after lock extension failure.
         if (extensionAbortController.signal.aborted) {
           throw toLockExtensionError();
         }
@@ -82,6 +96,7 @@ export class RedlockService implements OnModuleDestroy {
         return undefined;
       }
 
+      // Refresh at half TTL (bounded by a minimum interval) to keep lock ownership alive.
       const extensionIntervalMs = Math.max(
         this.LOCK_EXTENSION_MIN_INTERVAL_MS,
         Math.floor(duration * this.LOCK_EXTENSION_INTERVAL_FACTOR),
@@ -109,6 +124,7 @@ export class RedlockService implements OnModuleDestroy {
 
       // Lock을 얻으면 함수 실행
       this.logger.debug(this.i18n.t('logging.redlock.lock.acquired', { args: { resourceName } }));
+      // Race callback against extension failure so work aborts if lock safety is lost.
       const lockExtensionFailurePromise = new Promise<never>((_, reject) => {
         if (extensionAbortController.signal.aborted) {
           reject(toLockExtensionError());
@@ -148,6 +164,13 @@ export class RedlockService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Runs with lock in the distributed lock workflow.
+   * @param resourceName - Input value for resource name.
+   * @param duration - Input value for duration.
+   * @param callback - Callback invoked within the workflow.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   public async startWithLock(resourceName: string, duration: number, callback: () => Promise<void>): Promise<boolean> {
     const lockKey = this.getLockKey(resourceName);
     const lock = await this.acquireLock(lockKey, duration);
@@ -177,6 +200,13 @@ export class RedlockService implements OnModuleDestroy {
     return true;
   }
 
+  /**
+   * Runs with locks in the distributed lock workflow.
+   * @param resourceNames - Input value for resource names.
+   * @param duration - Input value for duration.
+   * @param callback - Callback invoked within the workflow.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   public async startWithLocks(
     resourceNames: string[],
     duration: number,
@@ -190,6 +220,7 @@ export class RedlockService implements OnModuleDestroy {
     const acquiredLocks: Array<{ resourceName: string; lock: Lock }> = [];
     const logResourceName = uniqueResourceNames.join(',');
 
+    // Acquire sequentially; if one fails, release already-acquired locks immediately.
     for (const resourceName of uniqueResourceNames) {
       const lockKey = this.getLockKey(resourceName);
       const lock = await this.acquireLock(lockKey, duration);
@@ -220,10 +251,16 @@ export class RedlockService implements OnModuleDestroy {
     return true;
   }
 
+  /**
+   * Retrieves lock status for the distributed lock flow.
+   * @param resourceName - Input value for resource name.
+   * @returns Asynchronous result produced by the distributed lock flow.
+   */
   public async getLockStatus(resourceName: string): Promise<RedlockLockStatus> {
     const lockKey = this.getLockKey(resourceName);
     const ttlMs = await this.redisClient.pttl(lockKey);
 
+    // Redis pttl: -2 missing key, -1 no expire, >=0 remaining milliseconds.
     if (ttlMs === -2) {
       return {
         locked: false,
@@ -244,12 +281,21 @@ export class RedlockService implements OnModuleDestroy {
     };
   }
 
+  /**
+   * Handles force release lock in the distributed lock workflow.
+   * @param resourceName - Input value for resource name.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   public async forceReleaseLock(resourceName: string): Promise<boolean> {
     const lockKey = this.getLockKey(resourceName);
     const deleted = await this.redisClient.del(lockKey);
     return deleted > 0;
   }
 
+  /**
+   * Runs release start locks in the distributed lock workflow.
+   * @param acquiredLocks - Lock data used for concurrency control.
+   */
   private async releaseStartLocks(acquiredLocks: Array<{ resourceName: string; lock: Lock }>): Promise<void> {
     for (const acquiredLock of [...acquiredLocks].reverse()) {
       try {
@@ -266,11 +312,20 @@ export class RedlockService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Retrieves lock key for the distributed lock flow.
+   * @param resource - Input value for resource.
+   * @returns Formatted string output for the operation.
+   */
   private getLockKey(resource: string): string {
     const namespace = process.env.NODE_ENV || 'development';
     return `lock:${namespace}:${resource}`;
   }
 
+  /**
+   * Handles on module destroy in the distributed lock workflow.
+   * @returns Result produced by the distributed lock flow.
+   */
   async onModuleDestroy() {
     await this.redisClient.quit();
   }

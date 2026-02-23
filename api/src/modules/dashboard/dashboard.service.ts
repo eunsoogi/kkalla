@@ -21,6 +21,11 @@ export class DashboardService {
     private readonly feargreedService: FeargreedService,
   ) {}
 
+  /**
+   * Retrieves summary for the dashboard aggregation flow.
+   * @param user - User identifier related to this operation.
+   * @returns Asynchronous result produced by the dashboard aggregation flow.
+   */
   async getSummary(user: User): Promise<DashboardSummaryDto> {
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -86,6 +91,14 @@ export class DashboardService {
     };
   }
 
+  /**
+   * Normalizes settled for the dashboard aggregation flow.
+   * @param result - Input value for result.
+   * @param key - Input value for key.
+   * @param fallback - Input value for fallback.
+   * @param errors - Error captured from a failed operation.
+   * @returns Result produced by the dashboard aggregation flow.
+   */
   private resolveSettled<T>(
     result: PromiseSettledResult<T>,
     key: DashboardSummarySectionKey,

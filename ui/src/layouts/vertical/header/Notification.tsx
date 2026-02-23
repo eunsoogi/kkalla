@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react';
@@ -19,6 +18,11 @@ import { getNotifyCursorAction } from './actions';
 const MS_1H = 60 * 60 * 1000;
 const NOTIFICATION_PREVIEW_ALLOWED_ELEMENTS = ['a', 'br', 'code', 'del', 'em', 'li', 'ol', 'p', 'strong', 'ul'] as const;
 
+/**
+ * Renders the Notification Content UI for the dashboard header.
+ * @param params - Input values for the dashboard header operation.
+ * @returns Rendered React element for this view.
+ */
 const NotificationContent: React.FC<{ enabled: boolean }> = ({ enabled }) => {
   const t = useTranslations();
   const [now] = React.useState(() => Date.now());
@@ -107,6 +111,11 @@ const NotificationContent: React.FC<{ enabled: boolean }> = ({ enabled }) => {
   );
 };
 
+/**
+ * Renders the Notification Item UI for the dashboard header.
+ * @param params - Input values for the dashboard header operation.
+ * @returns Rendered React element for this view.
+ */
 const NotificationItem: React.FC<Notify & { now: number; onOpen: () => void }> = ({ now, onOpen, ...item }) => {
   const createdAt = new Date(item.createdAt).getTime();
   const isNew = now - createdAt <= MS_1H;
@@ -173,6 +182,10 @@ const NotificationItem: React.FC<Notify & { now: number; onOpen: () => void }> =
   );
 };
 
+/**
+ * Renders the Notification Skeleton UI for the dashboard header.
+ * @returns Rendered React element for this view.
+ */
 const NotificationSkeleton: React.FC = () => (
     <div className='space-y-0'>
       {[1, 2, 3].map((i) => (
@@ -197,6 +210,10 @@ const notificationDropdownTheme = {
   },
 };
 
+/**
+ * Renders the Notification UI for the dashboard header.
+ * @returns Rendered React element for this view.
+ */
 const Notification = () => {
   const t = useTranslations();
   const [enabled, setEnabled] = React.useState(false);

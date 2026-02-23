@@ -1,5 +1,4 @@
 'use client';
-
 import Image from 'next/image';
 import React, { Suspense, useCallback } from 'react';
 
@@ -14,6 +13,10 @@ import { getIpAction } from '@/app/(dashboard)/_shared/settings/_actions/setting
 
 const ipQueryKey = ['upbit', 'ip'];
 
+/**
+ * Renders the Upbit Ip UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitIp: React.FC = () => {
   const t = useTranslations();
 
@@ -32,6 +35,10 @@ const UpbitIp: React.FC = () => {
   );
 };
 
+/**
+ * Renders the Upbit Ip Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitIpSkeleton: React.FC = () => {
   const t = useTranslations();
 
@@ -43,6 +50,10 @@ const UpbitIpSkeleton: React.FC = () => {
   );
 };
 
+/**
+ * Renders the Upbit Grants UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitGrants: React.FC = () => {
   const t = useTranslations();
 
@@ -57,6 +68,10 @@ const UpbitGrants: React.FC = () => {
   );
 };
 
+/**
+ * Renders the Upbit Guide UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitGuide: React.FC = () => {
   const t = useTranslations();
 

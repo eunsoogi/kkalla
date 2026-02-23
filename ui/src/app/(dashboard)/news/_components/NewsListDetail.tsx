@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react';
@@ -15,6 +14,11 @@ import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/Infini
 import { getNewsAction } from '../_actions/news.actions';
 import { NEWS_STYLES } from '@/app/(dashboard)/_shared/news/news.styles';
 
+/**
+ * Renders the News Content UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
   const t = useTranslations();
 
@@ -46,6 +50,11 @@ const NewsContent: React.FC<{ id?: string }> = ({ id }) => {
   );
 };
 
+/**
+ * Renders the News Item UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...item }) => {
   const handleClick = useCallback(() => {
     window.open(item.link);
@@ -86,6 +95,10 @@ const NewsItem: React.FC<News & { isFocus?: boolean }> = ({ isFocus = false, ...
   );
 };
 
+/**
+ * Renders the News Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const NewsSkeleton: React.FC = () => {
   const t = useTranslations();
 
@@ -104,6 +117,11 @@ const NewsSkeleton: React.FC = () => {
   );
 };
 
+/**
+ * Renders the News List Detail UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const NewsListDetail: React.FC<{ id?: string }> = ({ id }) => {
   return (
     <Suspense fallback={<NewsSkeleton />}>

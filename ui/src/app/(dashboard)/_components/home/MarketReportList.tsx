@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter } from 'next/navigation';
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -18,6 +17,11 @@ import { ContentModal } from '@/app/(dashboard)/_shared/ui/ContentModal';
 
 const MARKET_REPORT_PREVIEW_ALLOWED_ELEMENTS = ['a', 'br', 'code', 'del', 'em', 'li', 'ol', 'p', 'strong', 'ul'] as const;
 
+/**
+ * Renders the Market Report Row UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const MarketReportRow = ({
   item,
   t,
@@ -126,6 +130,10 @@ const MarketReportRow = ({
   );
 };
 
+/**
+ * Renders the Market Report List Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const MarketReportListSkeleton = () => (
   <div className='animate-pulse px-4 py-6 space-y-3'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
@@ -139,6 +147,11 @@ interface MarketReportListProps {
   isLoading?: boolean;
 }
 
+/**
+ * Renders the Market Report List UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export function MarketReportList({ items = [], isLoading = false }: MarketReportListProps) {
   const t = useTranslations();
   const router = useRouter();

@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import {
@@ -18,6 +17,11 @@ export interface InferenceParams {
   category?: string;
 }
 
+/**
+ * Retrieves market signals action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getMarketSignalsAction = async (
   params: InferenceParams,
 ): Promise<PaginatedItem<MarketSignal>> => {
@@ -55,6 +59,11 @@ interface InferenceCursorParams {
   endDate?: Date;
 }
 
+/**
+ * Retrieves market signals cursor action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getMarketSignalsCursorAction = async (
   params: InferenceCursorParams,
 ): Promise<CursorItem<MarketSignal>> => {
@@ -79,6 +88,11 @@ export const getMarketSignalsCursorAction = async (
   }
 };
 
+/**
+ * Retrieves allocation recommendations action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getAllocationRecommendationsAction = async (
   params: InferenceParams,
 ): Promise<PaginatedItem<AllocationRecommendation>> => {
@@ -103,6 +117,11 @@ export const getAllocationRecommendationsAction = async (
   }
 };
 
+/**
+ * Retrieves allocation recommendations cursor action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getAllocationRecommendationsCursorAction = async (
   params: InferenceCursorParams,
 ): Promise<CursorItem<AllocationRecommendation>> => {

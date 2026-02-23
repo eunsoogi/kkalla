@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -28,6 +27,11 @@ interface InferenceDetailListContentProps {
   endDate?: Date;
 }
 
+/**
+ * Formats rate percent for the dashboard UI flow.
+ * @param rate - Input value for rate.
+ * @returns Formatted string output for the operation.
+ */
 const formatRatePercent = (rate?: number | null): string => {
   if (rate == null || !Number.isFinite(rate)) {
     return '-';
@@ -36,10 +40,20 @@ const formatRatePercent = (rate?: number | null): string => {
   return `${Math.floor(rate * 100)}%`;
 };
 
+/**
+ * Normalizes current ratio for the dashboard UI flow.
+ * @param item - Input value for item.
+ * @returns Computed numeric value for the operation.
+ */
 const resolveCurrentRatio = (item: AllocationRecommendation): number | null => {
   return Number.isFinite(item.modelTargetWeight) ? item.modelTargetWeight : null;
 };
 
+/**
+ * Normalizes prev ratio for the dashboard UI flow.
+ * @param item - Input value for item.
+ * @returns Computed numeric value for the operation.
+ */
 const resolvePrevRatio = (item: AllocationRecommendation): number | null => {
   if (item.prevModelTargetWeight != null && Number.isFinite(item.prevModelTargetWeight)) {
     return item.prevModelTargetWeight;
@@ -48,6 +62,12 @@ const resolvePrevRatio = (item: AllocationRecommendation): number | null => {
   return null;
 };
 
+/**
+ * Retrieves validation label for the dashboard UI flow.
+ * @param t - Input value for t.
+ * @param badge - Input value for badge.
+ * @returns Formatted string output for the operation.
+ */
 const getValidationLabel = (t: (key: string) => string, badge: AllocationAuditBadge): string => {
   if (badge.status === 'pending') return t('inference.validationPending');
   if (badge.status === 'running') return t('inference.validationRunning');
@@ -59,6 +79,11 @@ const getValidationLabel = (t: (key: string) => string, badge: AllocationAuditBa
   return t('inference.validationCompleted');
 };
 
+/**
+ * Renders the Inference Detail Item UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
   const t = useTranslations();
 
@@ -233,6 +258,10 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
   );
 };
 
+/**
+ * Renders the Inference Detail Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const InferenceDetailSkeleton: React.FC = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark relative w-full break-words animate-pulse'>
@@ -257,6 +286,11 @@ interface InferenceDetailProps {
   endDate?: Date;
 }
 
+/**
+ * Renders the Inference Detail UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const InferenceDetail: React.FC<InferenceDetailProps> = ({
   type,
   symbol,

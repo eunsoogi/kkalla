@@ -1,10 +1,13 @@
 'use client';
-
 import React, { useCallback } from 'react';
 
 import { Button } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
+/**
+ * Renders the Slack Guide UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const SlackGuide: React.FC = () => {
   const t = useTranslations();
 

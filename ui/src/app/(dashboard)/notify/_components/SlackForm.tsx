@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Suspense, memo, useActionState } from 'react';
 
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
@@ -17,6 +16,10 @@ import { STATUS_STYLES } from '@/app/(dashboard)/_shared/settings/settings.style
 const configQueryKey = ['slack', 'config'];
 const badgeQueryKey = ['slack', 'status'];
 
+/**
+ * Renders the Slack Status Badge UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const SlackStatusBadge: React.FC = () => {
   const t = useTranslations();
 
@@ -30,6 +33,10 @@ const SlackStatusBadge: React.FC = () => {
   return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
 };
 
+/**
+ * Renders the Slack Status Badge Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const SlackStatusBadgeSkeleton: React.FC = () => {
   const t = useTranslations();
 
@@ -86,12 +93,20 @@ const FormGroup = memo(({ title, children }: { title: string; children: React.Re
 
 FormGroup.displayName = 'FormGroup';
 
+/**
+ * Renders the Slack Form Item Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const SlackFormItemSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return <div className='flex'>{t('loading')}</div>;
 };
 
+/**
+ * Renders the Slack Form UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const SlackForm: React.FC = () => {
   const t = useTranslations();
   const queryClient = useQueryClient();

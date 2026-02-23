@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import React from 'react';
 
@@ -11,6 +10,10 @@ import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError'
 import { RoleTable } from '@/app/(dashboard)/roles/_components/RoleTable';
 import { Permission } from '@/shared/types/permission.types';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const t = useTranslations();
 

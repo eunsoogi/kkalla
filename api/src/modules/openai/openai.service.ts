@@ -53,6 +53,10 @@ export class OpenaiService {
     this.addMessage(messages, 'user', dataString);
   }
 
+  /**
+   * Retrieves server client for the backend service flow.
+   * @returns Result produced by the backend service flow.
+   */
   public async getServerClient() {
     const client = new OpenAI({
       project: process.env.OPENAI_PROJECT,
@@ -329,6 +333,11 @@ export class OpenaiService {
     return results;
   }
 
+  /**
+   * Handles extract response body output in the backend service workflow.
+   * @param body - Input value for body.
+   * @returns Result produced by the backend service flow.
+   */
   private extractResponseBodyOutput(body: unknown): ResponseOutputWithCitations {
     const responseBody = (body ?? {}) as {
       output_text?: unknown;
@@ -377,6 +386,11 @@ export class OpenaiService {
     return { text: '', citations: [] };
   }
 
+  /**
+   * Normalizes citations for the backend service flow.
+   * @param annotations - Input value for annotations.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private normalizeCitations(annotations: unknown[]): CitationRef[] {
     return annotations
       .map((annotation) => {

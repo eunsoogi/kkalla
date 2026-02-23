@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Suspense, useActionState } from 'react';
 
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
@@ -15,6 +14,10 @@ import { STATUS_STYLES } from '@/app/(dashboard)/_shared/settings/settings.style
 
 const badgeQueryKey = ['upbit', 'status'];
 
+/**
+ * Renders the Upbit Status Badge UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitStatusBadge: React.FC = () => {
   const t = useTranslations();
 
@@ -28,12 +31,20 @@ const UpbitStatusBadge: React.FC = () => {
   return <Badge className={STATUS_STYLES[data]}>{t(`status.${data}`)}</Badge>;
 };
 
+/**
+ * Renders the Upbit Status Badge Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitStatusBadgeSkeleton: React.FC = () => {
   const t = useTranslations();
 
   return <Badge className={STATUS_STYLES.unknown}>{t('status.unknown')}</Badge>;
 };
 
+/**
+ * Renders the Upbit Form UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UpbitForm: React.FC = () => {
   const t = useTranslations();
   const queryClient = useQueryClient();

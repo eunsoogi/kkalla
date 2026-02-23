@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Button } from 'flowbite-react';
@@ -26,6 +25,11 @@ interface ScheduleExecuteButtonProps {
   highlightRemainingText?: string;
 }
 
+/**
+ * Renders the Schedule Execute Button UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const ScheduleExecuteButton: React.FC<ScheduleExecuteButtonProps> = ({
   type,
   isPending,

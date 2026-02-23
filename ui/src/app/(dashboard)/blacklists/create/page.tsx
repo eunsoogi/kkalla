@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Suspense } from 'react';
 
 import { PermissionGuard } from '@/app/(dashboard)/_shared/auth/PermissionGuard';
@@ -7,6 +6,10 @@ import { BlacklistForm } from '@/app/(dashboard)/blacklists/_components/Blacklis
 import { ForbiddenError } from '@/app/(dashboard)/_shared/errors/ForbiddenError';
 import { Permission } from '@/shared/types/permission.types';
 
+/**
+ * Renders the Blacklist Form Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const BlacklistFormSkeleton = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
@@ -27,6 +30,10 @@ const BlacklistFormSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   return (
     <PermissionGuard permissions={[Permission.MANAGE_BLACKLISTS]} fallback={<ForbiddenError />}>

@@ -6,6 +6,7 @@ interface PermissionRename {
 }
 
 export class Migration1772300000000 implements MigrationInterface {
+  // Keep permission rewrites as explicit pairs so up/down stay symmetric.
   private readonly permissionRenames: PermissionRename[] = [
     {
       from: 'exec:schedule:market_recommendation',
@@ -25,6 +26,10 @@ export class Migration1772300000000 implements MigrationInterface {
     },
   ];
 
+  /**
+   * Handles up in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   */
   public async up(queryRunner: QueryRunner): Promise<void> {
     await this.renameTableIfNeeded(queryRunner, 'balance_recommendation', 'allocation_recommendation');
     await this.renameTableIfNeeded(queryRunner, 'market_recommendation', 'market_signal');
@@ -147,6 +152,10 @@ export class Migration1772300000000 implements MigrationInterface {
     }
   }
 
+  /**
+   * Handles down in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   */
   public async down(queryRunner: QueryRunner): Promise<void> {
     for (const rename of [...this.permissionRenames].reverse()) {
       await this.renameRolePermission(queryRunner, rename.to, rename.from);
@@ -270,20 +279,33 @@ export class Migration1772300000000 implements MigrationInterface {
     await this.renameTableIfNeeded(queryRunner, 'allocation_recommendation', 'balance_recommendation');
   }
 
+  /**
+   * Handles rename table if needed in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   * @param fromTable - Input value for from table.
+   * @param toTable - Input value for to table.
+   */
   private async renameTableIfNeeded(queryRunner: QueryRunner, fromTable: string, toTable: string): Promise<void> {
     const hasFrom = await queryRunner.hasTable(fromTable);
     const hasTo = await queryRunner.hasTable(toTable);
 
+    // Idempotent rename: skip when target already exists (mixed rollout safety).
     if (hasFrom && !hasTo) {
       await queryRunner.renameTable(fromTable, toTable);
     }
   }
 
+  /**
+   * Handles migrate report type to allocation in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   * @param tableName - Input value for table name.
+   */
   private async migrateReportTypeToAllocation(queryRunner: QueryRunner, tableName: string): Promise<void> {
     if (!(await queryRunner.hasTable(tableName))) {
       return;
     }
 
+    // Expand enum first, rewrite data, then narrow enum to the canonical set.
     await queryRunner.query(
       `ALTER TABLE \`${tableName}\` MODIFY COLUMN \`report_type\` ENUM('market','portfolio','allocation') NOT NULL`,
     );
@@ -295,11 +317,17 @@ export class Migration1772300000000 implements MigrationInterface {
     );
   }
 
+  /**
+   * Handles migrate report type to portfolio in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   * @param tableName - Input value for table name.
+   */
   private async migrateReportTypeToPortfolio(queryRunner: QueryRunner, tableName: string): Promise<void> {
     if (!(await queryRunner.hasTable(tableName))) {
       return;
     }
 
+    // Reverse path for rollback: temporarily allow both labels before restoring old enum.
     await queryRunner.query(
       `ALTER TABLE \`${tableName}\` MODIFY COLUMN \`report_type\` ENUM('market','portfolio','allocation') NOT NULL`,
     );
@@ -311,6 +339,13 @@ export class Migration1772300000000 implements MigrationInterface {
     );
   }
 
+  /**
+   * Handles rename index if exists in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   * @param tableName - Input value for table name.
+   * @param oldIndexName - Input value for old index name.
+   * @param newIndexName - Input value for new index name.
+   */
   private async renameIndexIfExists(
     queryRunner: QueryRunner,
     tableName: string,
@@ -332,6 +367,12 @@ export class Migration1772300000000 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE \`${tableName}\` RENAME INDEX \`${oldIndexName}\` TO \`${newIndexName}\``);
   }
 
+  /**
+   * Handles rewrite trade execution module values in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   * @param fromValue - Input value for from value.
+   * @param toValue - Input value for to value.
+   */
   private async rewriteTradeExecutionModuleValues(
     queryRunner: QueryRunner,
     fromValue: string,
@@ -341,6 +382,7 @@ export class Migration1772300000000 implements MigrationInterface {
       return;
     }
 
+    // Drop rows that would collide after module rename (same message/user pair).
     await queryRunner.query(
       `
       DELETE old_row
@@ -356,12 +398,19 @@ export class Migration1772300000000 implements MigrationInterface {
     await queryRunner.query(`UPDATE trade_execution_ledger SET module = ? WHERE module = ?`, [toValue, fromValue]);
   }
 
+  /**
+   * Handles rename role permission in the backend service workflow.
+   * @param queryRunner - Input value for query runner.
+   * @param from - Input value for from.
+   * @param to - Input value for to.
+   */
   private async renameRolePermission(queryRunner: QueryRunner, from: string, to: string): Promise<void> {
     const hasRoleTable = await queryRunner.hasTable('role');
     if (!hasRoleTable) {
       return;
     }
 
+    // Replace only full permission tokens by padding with commas on both sides.
     await queryRunner.query(
       `
       UPDATE role

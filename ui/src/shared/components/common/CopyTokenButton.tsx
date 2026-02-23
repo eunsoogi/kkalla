@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Icon } from '@iconify/react';
@@ -11,6 +10,11 @@ interface CopyTokenButtonProps {
   className?: string;
 }
 
+/**
+ * Renders the Copy Token Button UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const CopyTokenButton: React.FC<CopyTokenButtonProps> = ({ className }) => {
   const { data: session } = useSession();
   const t = useTranslations();

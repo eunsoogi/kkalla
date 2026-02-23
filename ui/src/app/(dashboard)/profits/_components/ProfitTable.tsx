@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
@@ -22,6 +21,11 @@ export interface ProfitTableProps {
   onPageChange: (page: number) => void;
 }
 
+/**
+ * Renders the Profit Table Item UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const ProfitTableItem = ({ email, profit }: ProfitData) => {
   return (
     <TableRow>
@@ -34,6 +38,11 @@ const ProfitTableItem = ({ email, profit }: ProfitData) => {
   );
 };
 
+/**
+ * Renders the Profit Table Base UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const ProfitTableBase = ({
   items,
   onPageChange,
@@ -93,6 +102,10 @@ const ProfitTableBase = ({
   );
 };
 
+/**
+ * Renders the Profit Table Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const ProfitTableSkeleton = () => {
   return (
     <>
@@ -108,6 +121,11 @@ const ProfitTableSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Profit Table Data UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const ProfitTableData = ({ page, email, onPageChange }: ProfitTableProps) => {
   const { data, isLoading } = useQuery<PaginatedItem<ProfitData>>({
     queryKey: [...profitsQueryKey, page, email],
@@ -123,6 +141,11 @@ const ProfitTableData = ({ page, email, onPageChange }: ProfitTableProps) => {
   return <ProfitTableBase items={data} onPageChange={onPageChange} />;
 };
 
+/**
+ * Renders the Profit Table UI for the dashboard UI.
+ * @param props - Input value for props.
+ * @returns Rendered React element for this view.
+ */
 export const ProfitTable = (props: ProfitTableProps) => {
   return <ProfitTableData {...props} />;
 };

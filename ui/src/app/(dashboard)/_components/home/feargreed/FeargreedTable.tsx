@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Table, TableBody, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
@@ -10,6 +9,10 @@ import { FeargreedHistory } from '@/app/(dashboard)/_components/home/feargreed/_
 
 import { FeargreedTableItem } from './FeargreedTableItem';
 
+/**
+ * Renders the Feargreed Table Skeleton Block UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const FeargreedTableSkeletonBlock = () => (
   <div className='min-h-[120px] animate-pulse px-4 py-6 space-y-3' role='status' aria-label='loading'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
@@ -23,6 +26,11 @@ interface FeargreedTableProps {
   isLoading?: boolean;
 }
 
+/**
+ * Renders the Feargreed Table UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const FeargreedTable = ({ history = null, isLoading = false }: FeargreedTableProps) => {
   const t = useTranslations();
 

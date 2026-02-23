@@ -7,6 +7,10 @@ import UpbitForm from '@/app/(dashboard)/register/_components/UpbitForm';
 import UpbitGuide from '@/app/(dashboard)/register/_components/UpbitGuide';
 import RegisterProgressPanel from '@/app/(dashboard)/register/_components/RegisterProgressPanel';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page = async () => {
   const t = await getTranslations();
 

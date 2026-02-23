@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
@@ -11,6 +10,11 @@ import { formatPrice } from '@/utils/number';
 
 import type { HoldingWithDailyChange } from '@/app/(dashboard)/_components/home/_types/dashboard-summary.types';
 
+/**
+ * Renders the Holding Row UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const HoldingRow = ({ item }: { item: HoldingWithDailyChange }) => (
   <TableRow className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
     <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>{item.symbol}</TableCell>
@@ -30,6 +34,10 @@ const HoldingRow = ({ item }: { item: HoldingWithDailyChange }) => (
   </TableRow>
 );
 
+/**
+ * Renders the Holdings List Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const HoldingsListSkeleton = () => (
   <div className='animate-pulse px-4 py-6 space-y-3'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
@@ -43,6 +51,11 @@ interface HoldingsListProps {
   isLoading?: boolean;
 }
 
+/**
+ * Renders the Holdings List UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export function HoldingsList({ items = [], isLoading = false }: HoldingsListProps) {
   const t = useTranslations();
 

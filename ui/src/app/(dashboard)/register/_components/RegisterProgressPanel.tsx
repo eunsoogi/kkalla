@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +17,10 @@ interface ChecklistItem {
   complete: boolean;
 }
 
+/**
+ * Renders the Register Progress Panel UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const RegisterProgressPanel: React.FC = () => {
   const t = useTranslations();
 

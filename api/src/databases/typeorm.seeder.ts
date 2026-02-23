@@ -27,6 +27,9 @@ export class TypeOrmSeeder implements OnModuleInit {
     private readonly i18n: I18nService,
   ) {}
 
+  /**
+   * Handles on module init in the backend service workflow.
+   */
   async onModuleInit(): Promise<void> {
     const ran = await this.redlockService.withLock(SEED_LOCK_RESOURCE, SEED_LOCK_DURATION_MS, () => this.seedAll());
     if (ran === undefined) {
@@ -34,6 +37,10 @@ export class TypeOrmSeeder implements OnModuleInit {
     }
   }
 
+  /**
+   * Handles seed all in the backend service workflow.
+   * @returns Asynchronous result produced by the backend service flow.
+   */
   private async seedAll(): Promise<true> {
     const env = process.env.NODE_ENV || 'development';
     let seeders: any[] = [];

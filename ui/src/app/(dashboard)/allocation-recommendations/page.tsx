@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState } from 'react';
 
 import { Datepicker, Label, Select, TextInput } from 'flowbite-react';
@@ -11,6 +10,10 @@ import { Category } from '@/enums/category.enum';
 import { SortDirection } from '@/enums/sort.enum';
 import { Permission } from '@/shared/types/permission.types';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const t = useTranslations();
   const locale = useLocale();

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useMemo, useState } from 'react';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -27,6 +26,12 @@ import {
 } from './_types/allocation-audit.types';
 import { formatDate } from '@/utils/date';
 
+/**
+ * Formats signed percent for the allocation audit flow.
+ * @param value - Input value for value.
+ * @param digits - Input value for digits.
+ * @returns Formatted string output for the operation.
+ */
 const formatSignedPercent = (value: number | null | undefined, digits = 2): string => {
   if (value == null || !Number.isFinite(value)) {
     return '-';
@@ -35,6 +40,11 @@ const formatSignedPercent = (value: number | null | undefined, digits = 2): stri
   return `${sign}${value.toFixed(digits)}%`;
 };
 
+/**
+ * Formats score for the allocation audit flow.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
 const formatScore = (value: number | null | undefined): string => {
   if (value == null || !Number.isFinite(value)) {
     return '-';
@@ -42,6 +52,11 @@ const formatScore = (value: number | null | undefined): string => {
   return `${(value * 100).toFixed(0)}%`;
 };
 
+/**
+ * Handles score class name in the allocation audit workflow.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
 const scoreClassName = (value: number | null | undefined): string => {
   if (value == null || !Number.isFinite(value)) {
     return 'text-gray-500 dark:text-gray-400';
@@ -51,6 +66,11 @@ const scoreClassName = (value: number | null | undefined): string => {
   return 'text-red-600 dark:text-red-400';
 };
 
+/**
+ * Handles return class name in the allocation audit workflow.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
 const returnClassName = (value: number | null | undefined): string => {
   if (value == null || !Number.isFinite(value)) {
     return 'text-gray-500 dark:text-gray-400';
@@ -60,6 +80,12 @@ const returnClassName = (value: number | null | undefined): string => {
   return 'text-gray-600 dark:text-gray-300';
 };
 
+/**
+ * Normalizes badge color for the allocation audit flow.
+ * @param status - Input value for status.
+ * @param verdict - Input value for verdict.
+ * @returns Result produced by the allocation audit flow.
+ */
 const toBadgeColor = (status: AllocationAuditStatus, verdict: AllocationAuditVerdict | null) => {
   if (status === 'failed') return 'failure';
   if (status === 'running') return 'warning';
@@ -70,15 +96,32 @@ const toBadgeColor = (status: AllocationAuditStatus, verdict: AllocationAuditVer
   return 'info';
 };
 
+/**
+ * Handles status label in the allocation audit workflow.
+ * @param t - Input value for t.
+ * @param status - Input value for status.
+ * @returns Formatted string output for the operation.
+ */
 const statusLabel = (t: ReturnType<typeof useTranslations>, status: AllocationAuditStatus): string => {
   return t(`allocationAudit.status.${status}`);
 };
 
+/**
+ * Handles verdict label in the allocation audit workflow.
+ * @param t - Input value for t.
+ * @param verdict - Input value for verdict.
+ * @returns Formatted string output for the operation.
+ */
 const verdictLabel = (t: ReturnType<typeof useTranslations>, verdict: AllocationAuditVerdict | null): string => {
   if (!verdict) return '-';
   return t(`allocationAudit.verdict.${verdict}`);
 };
 
+/**
+ * Calculates item overall score for the allocation audit flow.
+ * @param item - Input value for item.
+ * @returns Computed numeric value for the operation.
+ */
 const calculateItemOverallScore = (item: AllocationAuditItem): number | null => {
   if (typeof item.deterministicScore === 'number' && typeof item.aiScore === 'number') {
     return 0.6 * item.deterministicScore + 0.4 * item.aiScore;
@@ -95,6 +138,10 @@ const calculateItemOverallScore = (item: AllocationAuditItem): number | null => 
   return null;
 };
 
+/**
+ * Renders the Page UI for the allocation audit.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const RUNS_PER_PAGE = 20;
   const ITEMS_PER_PAGE = 50;

@@ -1,10 +1,14 @@
 'use client';
-
 import React from 'react';
 
 import { Feargreed } from '@/app/(dashboard)/_components/home/feargreed/_types/feargreed.types';
 import { getDiffColor, getDiffPrefix, getScoreColor } from '@/utils/color';
 
+/**
+ * Renders the Feargreed Guage Item UI for the dashboard UI.
+ * @param item - Input value for item.
+ * @returns Rendered React element for this view.
+ */
 export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
   const score = item?.value ?? 0;
   const diff = item?.diff ?? 0;
@@ -58,6 +62,10 @@ export const FeargreedGuageItem: React.FC<Feargreed | null> = (item) => {
   );
 };
 
+/**
+ * Renders the Feargreed Guage Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const FeargreedGuageSkeleton: React.FC = () => (
   <div className='min-h-[120px] animate-pulse px-4 py-6 space-y-3' role='status' aria-label='loading'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />

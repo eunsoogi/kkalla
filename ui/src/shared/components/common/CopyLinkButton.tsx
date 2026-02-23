@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Icon } from '@iconify/react';
@@ -10,6 +9,11 @@ interface CopyLinkButtonProps {
   path: string;
 }
 
+/**
+ * Renders the Copy Link Button UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const CopyLinkButton: React.FC<CopyLinkButtonProps> = ({ path }) => {
   const t = useTranslations();
 

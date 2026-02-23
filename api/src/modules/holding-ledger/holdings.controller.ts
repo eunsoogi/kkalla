@@ -13,6 +13,11 @@ import { HoldingsService } from './holdings.service';
 export class HoldingsController {
   constructor(private readonly holdingsService: HoldingsService) {}
 
+  /**
+   * Retrieves holdings for the holding ledger flow.
+   * @param user - User identifier related to this operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
   async getHoldings(@CurrentUser() user: User): Promise<HoldingDto[]> {

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useEffect, useState } from 'react';
 
 import { Icon } from '@iconify/react';
@@ -11,6 +10,10 @@ import MobileSidebar from '../sidebar/MobileSidebar';
 import Notification from './Notification';
 import Profile from './Profile';
 
+/**
+ * Renders the Header UI for the dashboard header.
+ * @returns Rendered React element for this view.
+ */
 const Header = () => {
   const [isSticky, setIsSticky] = useState(false);
 

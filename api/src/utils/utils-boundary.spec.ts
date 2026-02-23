@@ -1,6 +1,11 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
+/**
+ * Retrieves type script files recursively for the backend service flow.
+ * @param dir - Input value for dir.
+ * @returns Formatted string output for the operation.
+ */
 function listTypeScriptFilesRecursively(dir: string): string[] {
   const entries = readdirSync(dir).map((entry) => join(dir, entry));
   const files: string[] = [];

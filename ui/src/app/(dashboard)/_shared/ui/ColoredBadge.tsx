@@ -9,6 +9,11 @@ interface ColoredBadgeProps {
   className?: string;
 }
 
+/**
+ * Renders the Colored Badge UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const ColoredBadge = ({ text, className = '' }: ColoredBadgeProps) => {
   const color = stringToColor(text);
 

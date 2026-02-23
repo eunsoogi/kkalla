@@ -1,9 +1,12 @@
 'use client';
-
 import React from 'react';
 
 import { useTranslations } from 'next-intl';
 
+/**
+ * Renders the Forbidden Error UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const ForbiddenError = () => {
   const t = useTranslations();
 

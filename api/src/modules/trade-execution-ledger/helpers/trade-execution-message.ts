@@ -4,6 +4,11 @@ import { Category } from '@/modules/category/category.enum';
 
 import { isNonEmptyString } from './sqs-message';
 
+/**
+ * Parses queued inference for the trade execution ledger flow.
+ * @param inference - Input value for inference.
+ * @returns Result produced by the trade execution ledger flow.
+ */
 export function parseQueuedInference(inference: unknown): AllocationRecommendationData {
   if (!inference || typeof inference !== 'object') {
     throw new Error('Invalid inference item');
@@ -11,6 +16,7 @@ export function parseQueuedInference(inference: unknown): AllocationRecommendati
 
   const candidate = inference as Partial<AllocationRecommendationData>;
   const category = candidate.category as Category;
+  // Category must be strict enum to keep downstream allocation routing deterministic.
   if (!Object.values(Category).includes(category)) {
     throw new Error('Invalid inference category');
   }
@@ -22,6 +28,7 @@ export function parseQueuedInference(inference: unknown): AllocationRecommendati
     throw new Error('Invalid inference symbol');
   }
 
+  // Normalize numeric fields to safe defaults so malformed producer payloads do not crash execution.
   return {
     id: candidate.id,
     batchId: candidate.batchId,

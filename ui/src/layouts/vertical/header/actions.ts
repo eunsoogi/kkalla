@@ -1,6 +1,11 @@
 import { CursorItem } from '@/shared/types/pagination.types';
 import { Notify, initialCursorState } from '@/layouts/vertical/header/_types/notify.types';
 
+/**
+ * Retrieves notify cursor action for the dashboard header flow.
+ * @param cursor - Input value for cursor.
+ * @returns Asynchronous result produced by the dashboard header flow.
+ */
 export const getNotifyCursorAction = async (cursor?: string): Promise<CursorItem<Notify>> => {
   const params = new URLSearchParams();
   if (cursor) {
