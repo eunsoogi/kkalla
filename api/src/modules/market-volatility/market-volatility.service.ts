@@ -1300,8 +1300,18 @@ export class MarketVolatilityService implements OnModuleInit {
       orderableSymbols,
       tradableMarketValueMap,
     );
+    const noTradeTrimRequests: TradeRequest[] = this.generateNoTradeTrimRequests(
+      balances,
+      heldBalanceRecommendations,
+      slotCount,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
+    );
     const includedSellRequests = includedTradeRequests.filter((item) => item.diff < 0);
-    const sellRequests = [...excludedTradeRequests, ...includedSellRequests];
+    const sellRequests = [...excludedTradeRequests, ...includedSellRequests, ...noTradeTrimRequests];
 
     // 주문 정책: 매도 순차 실행
     const sellExecutions = await this.executeTradesSequentiallyWithRequests(user, sellRequests, assertLockOrThrow);
@@ -1346,9 +1356,16 @@ export class MarketVolatilityService implements OnModuleInit {
         refreshedTradableMarketValueMap,
       );
       const buyRequests = refreshedIncludedRequests.filter((item) => item.diff > 0);
+      const availableKrw = this.resolveAvailableKrwBalance(refreshedBalances);
+      const scaledBuyRequests = this.scaleBuyRequestsToAvailableKrw(
+        buyRequests,
+        availableKrw,
+        refreshedTradableMarketValueMap,
+        refreshedMarketPrice,
+      );
 
       // 주문 정책: 매수 순차 실행
-      buyExecutions = await this.executeTradesSequentiallyWithRequests(user, buyRequests, assertLockOrThrow);
+      buyExecutions = await this.executeTradesSequentiallyWithRequests(user, scaledBuyRequests, assertLockOrThrow);
       assertLockOrThrow();
     }
 
@@ -2151,6 +2168,263 @@ export class MarketVolatilityService implements OnModuleInit {
       }));
 
     return tradeRequests;
+  }
+
+  private generateNoTradeTrimRequests(
+    balances: Balances,
+    inferences: BalanceRecommendationData[],
+    count: number,
+    regimeMultiplier: number,
+    currentWeights: Map<string, number>,
+    marketPrice: number,
+    orderableSymbols?: Set<string>,
+    tradableMarketValueMap?: Map<string, number>,
+  ): TradeRequest[] {
+    const topK = Math.max(1, count);
+
+    return inferences
+      .filter((inference) => inference.hasStock && this.isNoTradeRecommendation(inference))
+      .map((inference) => {
+        if (!this.isOrderableSymbol(inference.symbol, orderableSymbols)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'not_orderable',
+              },
+            }),
+          );
+          return null;
+        }
+
+        if (inference.modelTargetWeight == null || !Number.isFinite(inference.modelTargetWeight)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'missing_target_weight',
+              },
+            }),
+          );
+          return null;
+        }
+
+        const targetWeight = this.clamp01(this.clamp01(inference.modelTargetWeight) * regimeMultiplier) / topK;
+        const currentWeight = currentWeights.get(inference.symbol) ?? 0;
+        const deltaWeight = targetWeight - currentWeight;
+        if (deltaWeight >= 0) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'not_overweight',
+                targetWeight,
+                currentWeight,
+                deltaWeight,
+              },
+            }),
+          );
+          return null;
+        }
+
+        if (!this.shouldRebalance(targetWeight, deltaWeight)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'rebalance_band',
+                targetWeight,
+                currentWeight,
+                deltaWeight,
+                requiredBand: this.getRebalanceBand(targetWeight),
+              },
+            }),
+          );
+          return null;
+        }
+
+        if (!this.passesCostGate(deltaWeight)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'cost_gate',
+                deltaWeight,
+                minEdge: (this.ESTIMATED_FEE_RATE + this.ESTIMATED_SLIPPAGE_RATE) * this.COST_GUARD_MULTIPLIER,
+              },
+            }),
+          );
+          return null;
+        }
+
+        const diff = this.calculateRelativeDiff(targetWeight, currentWeight);
+        if (!Number.isFinite(diff) || diff >= 0 || Math.abs(diff) < Number.EPSILON) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'invalid_diff',
+                targetWeight,
+                currentWeight,
+                diff,
+              },
+            }),
+          );
+          return null;
+        }
+
+        if (!this.isSellAmountSufficient(inference.symbol, diff, tradableMarketValueMap)) {
+          this.logger.log(
+            this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim_skipped', {
+              args: {
+                symbol: inference.symbol,
+                reason: 'minimum_sell_amount',
+                diff,
+              },
+            }),
+          );
+          return null;
+        }
+
+        this.logger.log(
+          this.i18n.t('logging.inference.balanceRecommendation.no_trade_trim', {
+            args: {
+              symbol: inference.symbol,
+              targetWeight,
+              currentWeight,
+              deltaWeight,
+              diff,
+            },
+          }),
+        );
+
+        return {
+          symbol: inference.symbol,
+          diff,
+          balances,
+          marketPrice,
+          inference,
+        };
+      })
+      .filter((item): item is TradeRequest => item !== null)
+      .sort((a, b) => a.diff - b.diff);
+  }
+
+  private resolveAvailableKrwBalance(balances: Balances): number {
+    const krwInfoBalance = balances.info.find(
+      (item) => item.currency === item.unit_currency && item.currency.toUpperCase() === 'KRW',
+    )?.balance;
+    const parsedInfoBalance = Number.parseFloat(krwInfoBalance || '0');
+    if (Number.isFinite(parsedInfoBalance) && parsedInfoBalance > 0) {
+      return parsedInfoBalance;
+    }
+
+    const fallbackFree = Number((balances as unknown as Record<string, { free?: number | string }>).KRW?.free ?? 0);
+    if (Number.isFinite(fallbackFree) && fallbackFree > 0) {
+      return fallbackFree;
+    }
+
+    return 0;
+  }
+
+  private estimateBuyNotionalFromRequest(
+    request: TradeRequest,
+    tradableMarketValueMap?: Map<string, number>,
+    fallbackMarketPrice?: number,
+  ): number {
+    if (!Number.isFinite(request.diff) || request.diff <= 0) {
+      return 0;
+    }
+
+    const baseValue = tradableMarketValueMap?.get(request.symbol) ?? fallbackMarketPrice ?? request.marketPrice ?? 0;
+    if (!Number.isFinite(baseValue) || baseValue <= 0) {
+      return 0;
+    }
+
+    const estimated = baseValue * request.diff;
+    if (!Number.isFinite(estimated) || estimated <= 0) {
+      return 0;
+    }
+
+    return estimated;
+  }
+
+  private scaleBuyRequestsToAvailableKrw(
+    buyRequests: TradeRequest[],
+    availableKrw: number,
+    tradableMarketValueMap?: Map<string, number>,
+    fallbackMarketPrice?: number,
+  ): TradeRequest[] {
+    if (buyRequests.length < 1) {
+      return [];
+    }
+
+    const estimates = buyRequests.map((request) => ({
+      request,
+      estimated: this.estimateBuyNotionalFromRequest(request, tradableMarketValueMap, fallbackMarketPrice),
+    }));
+    const totalEstimated = estimates.reduce((total, item) => total + item.estimated, 0);
+
+    if (!Number.isFinite(availableKrw) || availableKrw <= 0 || totalEstimated <= 0) {
+      this.logger.log(
+        this.i18n.t('logging.inference.balanceRecommendation.buy_budget_insufficient', {
+          args: {
+            availableKrw,
+            totalEstimated,
+            requestedCount: buyRequests.length,
+          },
+        }),
+      );
+      return [];
+    }
+
+    if (totalEstimated <= availableKrw) {
+      return buyRequests;
+    }
+
+    const scale = availableKrw / totalEstimated;
+    this.logger.log(
+      this.i18n.t('logging.inference.balanceRecommendation.buy_budget_scaled', {
+        args: {
+          availableKrw,
+          totalEstimated,
+          scale,
+          requestedCount: buyRequests.length,
+        },
+      }),
+    );
+
+    const scaledRequests = estimates
+      .map(({ request, estimated }) => {
+        const scaledDiff = request.diff * scale;
+        const scaledEstimated = estimated * scale;
+        if (!Number.isFinite(scaledDiff) || scaledDiff <= 0) {
+          return null;
+        }
+        if (!Number.isFinite(scaledEstimated) || scaledEstimated <= UPBIT_MINIMUM_TRADE_PRICE) {
+          return null;
+        }
+
+        return {
+          ...request,
+          diff: scaledDiff,
+        };
+      })
+      .filter((item): item is TradeRequest => item !== null);
+
+    if (scaledRequests.length < 1) {
+      this.logger.log(
+        this.i18n.t('logging.inference.balanceRecommendation.buy_budget_insufficient', {
+          args: {
+            availableKrw,
+            totalEstimated,
+            requestedCount: buyRequests.length,
+          },
+        }),
+      );
+    }
+
+    return scaledRequests;
   }
 
   private resolveSlotCountForVolatility(inferences: BalanceRecommendationData[], defaultSlotCount: number): number {

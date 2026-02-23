@@ -671,6 +671,121 @@ describe('MarketVolatilityService', () => {
     expect(requests[0].symbol).toBe('ETH/KRW');
   });
 
+  it('should generate trim-only sell request for overweight hold/no_trade recommendation in volatility mode', () => {
+    const balances: any = { info: [] };
+    const requests = (service as any).generateNoTradeTrimRequests(
+      balances,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'hold',
+          intensity: 0,
+          modelTargetWeight: 0.28,
+        },
+      ] as any,
+      5,
+      1,
+      new Map([['BTC/KRW', 0.28]]),
+      1_000_000,
+      undefined,
+      new Map([['BTC/KRW', 280_000]]),
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('BTC/KRW');
+    expect(requests[0].diff).toBeCloseTo(-0.8, 10);
+    expect(requests[0].diff).toBeGreaterThan(-1);
+  });
+
+  it('should not generate trim-only sell request when hold/no_trade recommendation is not overweight in volatility mode', () => {
+    const balances: any = { info: [] };
+    const requests = (service as any).generateNoTradeTrimRequests(
+      balances,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'no_trade',
+          intensity: 0,
+          modelTargetWeight: 0.28,
+        },
+      ] as any,
+      5,
+      1,
+      new Map([['BTC/KRW', 0.056]]),
+      1_000_000,
+      undefined,
+      new Map([['BTC/KRW', 56_000]]),
+    );
+
+    expect(requests).toHaveLength(0);
+  });
+
+  it('should proportionally scale buy requests when estimated notional exceeds available KRW in volatility mode', () => {
+    const buyRequests = [
+      {
+        symbol: 'BTC/KRW',
+        diff: 0.2,
+        balances: { info: [] },
+        marketPrice: 1_000_000,
+      },
+      {
+        symbol: 'ETH/KRW',
+        diff: 0.1,
+        balances: { info: [] },
+        marketPrice: 1_000_000,
+      },
+    ] as any;
+
+    const scaled = (service as any).scaleBuyRequestsToAvailableKrw(
+      buyRequests,
+      40_000,
+      new Map([
+        ['BTC/KRW', 300_000],
+        ['ETH/KRW', 200_000],
+      ]),
+      1_000_000,
+    );
+
+    expect(scaled).toHaveLength(2);
+    expect(scaled[0].diff).toBeCloseTo(0.1, 10);
+    expect(scaled[1].diff).toBeCloseTo(0.05, 10);
+  });
+
+  it('should drop scaled buy requests below minimum order amount in volatility mode', () => {
+    const buyRequests = [
+      {
+        symbol: 'XRP/KRW',
+        diff: 0.06,
+        balances: { info: [] },
+        marketPrice: 1_000_000,
+      },
+      {
+        symbol: 'BTC/KRW',
+        diff: 0.1,
+        balances: { info: [] },
+        marketPrice: 1_000_000,
+      },
+    ] as any;
+
+    const scaled = (service as any).scaleBuyRequestsToAvailableKrw(
+      buyRequests,
+      53_000,
+      new Map([
+        ['XRP/KRW', 100_000],
+        ['BTC/KRW', 1_000_000],
+      ]),
+      1_000_000,
+    );
+
+    expect(scaled).toHaveLength(1);
+    expect(scaled[0].symbol).toBe('BTC/KRW');
+    expect(scaled[0].diff).toBeCloseTo(0.05, 10);
+  });
+
   it('should drop inference when AI returns symbol mismatch', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
