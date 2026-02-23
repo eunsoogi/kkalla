@@ -44,4 +44,4 @@ jobs:
 
       - name: Run tests
         working-directory: api
-        run: pnpm test -- --ci
+        run: pnpm run test --ci
