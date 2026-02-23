@@ -370,6 +370,8 @@ export class Migration1772400001000 implements MigrationInterface {
       SET l.user_id_ulid = u.id_ulid
       WHERE l.user_id_ulid IS NULL
     `);
+
+    await this.backfillLedgerOrphanUserUlids(queryRunner);
   }
 
   private async backfillBatchUlids(queryRunner: QueryRunner): Promise<void> {
@@ -387,6 +389,38 @@ export class Migration1772400001000 implements MigrationInterface {
       await queryRunner.query(
         `UPDATE allocation_recommendation SET batch_id_ulid = ? WHERE batch_id = ? AND batch_id_ulid IS NULL`,
         [this.ulid(timeMs), batch.batch_id],
+      );
+    }
+  }
+
+  private async backfillLedgerOrphanUserUlids(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      UPDATE trade_execution_ledger
+      SET user_id_ulid = user_id
+      WHERE user_id_ulid IS NULL
+        AND user_id IS NOT NULL
+        AND CHAR_LENGTH(user_id) = 26
+    `);
+
+    const orphanUserIds: Array<{ user_id: string; created_at: Date | string | null }> = await queryRunner.query(`
+      SELECT user_id, MIN(created_at) AS created_at
+      FROM trade_execution_ledger
+      WHERE user_id_ulid IS NULL
+        AND user_id IS NOT NULL
+      GROUP BY user_id
+      ORDER BY created_at ASC, user_id ASC
+    `);
+
+    for (const orphan of orphanUserIds) {
+      const createdAtMs = orphan.created_at ? new Date(orphan.created_at).getTime() : undefined;
+      const timeMs = createdAtMs != null && Number.isFinite(createdAtMs) ? createdAtMs : undefined;
+      const surrogateUlid = this.ulid(timeMs);
+      await queryRunner.query(
+        `UPDATE trade_execution_ledger
+         SET user_id_ulid = ?
+         WHERE user_id = ?
+           AND user_id_ulid IS NULL`,
+        [surrogateUlid, orphan.user_id],
       );
     }
   }
