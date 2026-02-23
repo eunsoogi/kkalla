@@ -23,12 +23,19 @@ interface HoldingLedgerSaveItem {
   index: number;
 }
 
+/**
+ * Transforms executed buy holding items for the holding ledger flow.
+ * @param executions - Input value for executions.
+ * @param buyOrderType - Input value for buy order type.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function collectExecutedBuyHoldingItems<
   TExecution extends {
     request: ExecutionRequestLike;
     trade: ExecutionTradeLike | null;
   },
 >(executions: TExecution[], buyOrderType: string): HoldingLedgerRemoveItem[] {
+  // Key by symbol/category so repeated fills collapse into a single holding entry.
   const boughtMap = new Map<string, HoldingLedgerRemoveItem>();
 
   executions.forEach(({ request, trade }) => {
@@ -46,6 +53,13 @@ export function collectExecutedBuyHoldingItems<
   return Array.from(boughtMap.values());
 }
 
+/**
+ * Transforms liquidated holding items for the holding ledger flow.
+ * @param executions - Input value for executions.
+ * @param sellOrderType - Input value for sell order type.
+ * @param existingHoldings - Input value for existing holdings.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function collectLiquidatedHoldingItems<
   TExecution extends {
     request: ExecutionRequestLike;
@@ -85,6 +99,7 @@ export function collectLiquidatedHoldingItems<
       return;
     }
 
+    // Legacy queue items may miss inference; infer categories from existing holdings.
     const categories = categoryBySymbol.get(request.symbol);
     if (!categories || categories.size < 1) {
       return;
@@ -102,11 +117,19 @@ export function collectLiquidatedHoldingItems<
   return Array.from(removedMap.values());
 }
 
+/**
+ * Builds merged holdings for save used in the holding ledger flow.
+ * @param existingHoldings - Input value for existing holdings.
+ * @param liquidatedItems - Collection of items used by the holding ledger flow.
+ * @param executedBuyItems - Collection of items used by the holding ledger flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function buildMergedHoldingsForSave<T extends HoldingLedgerRemoveItem>(
   existingHoldings: T[],
   liquidatedItems: HoldingLedgerRemoveItem[],
   executedBuyItems: HoldingLedgerRemoveItem[],
 ): HoldingLedgerSaveItem[] {
+  // Remove liquidated pairs first, then overlay newly bought pairs for final ledger snapshot.
   const removedKeySet = new Set(liquidatedItems.map((item) => `${item.symbol}:${item.category}`));
   const merged = new Map<string, HoldingLedgerRemoveItem>();
 

@@ -99,6 +99,9 @@ export class AllocationAuditService {
     private readonly errorService: ErrorService,
   ) {}
 
+  /**
+   * Runs due audits in the allocation audit workflow.
+   */
   @Cron(ScheduleExpression.HOURLY_ALLOCATION_AUDIT)
   @WithRedlock(ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK)
   public async executeDueAudits(): Promise<void> {
@@ -110,6 +113,9 @@ export class AllocationAuditService {
     await this.executeDueAuditsTask();
   }
 
+  /**
+   * Handles cleanup old audits in the allocation audit workflow.
+   */
   @Cron(ScheduleExpression.DAILY_ALLOCATION_AUDIT_RETENTION)
   public async cleanupOldAudits(): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
@@ -120,6 +126,9 @@ export class AllocationAuditService {
     await this.cleanupOldAuditsTask();
   }
 
+  /**
+   * Runs due audits task in the allocation audit workflow.
+   */
   public async executeDueAuditsTask(): Promise<void> {
     try {
       await this.ensureBackfillIfNeeded();
@@ -137,6 +146,10 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Handles requeue running audits to pending in the allocation audit workflow.
+   * @returns Computed numeric value for the operation.
+   */
   public async requeueRunningAuditsToPending(): Promise<number> {
     const runningItems = await AllocationAuditItem.find({
       where: {
@@ -185,6 +198,9 @@ export class AllocationAuditService {
     return runningItems.length;
   }
 
+  /**
+   * Handles cleanup old audits task in the allocation audit workflow.
+   */
   public async cleanupOldAuditsTask(): Promise<void> {
     const threshold = new Date(Date.now() - this.RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
@@ -216,14 +232,26 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Handles enqueue market batch validation in the allocation audit workflow.
+   * @param batchId - Identifier for the target resource.
+   */
   public async enqueueMarketBatchValidation(batchId: string): Promise<void> {
     await this.enqueueBatchValidation('market', batchId);
   }
 
+  /**
+   * Handles enqueue allocation batch validation in the allocation audit workflow.
+   * @param batchId - Identifier for the target resource.
+   */
   public async enqueueAllocationBatchValidation(batchId: string): Promise<void> {
     await this.enqueueBatchValidation('allocation', batchId);
   }
 
+  /**
+   * Retrieves recommended market min confidence for allocation for the allocation audit flow.
+   * @returns Computed numeric value for the operation.
+   */
   public async getRecommendedMarketMinConfidenceForAllocation(): Promise<number> {
     const now = Date.now();
     if (this.marketMinConfidenceCache && this.marketMinConfidenceCache.expiresAt > now) {
@@ -276,6 +304,10 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Builds market validation guardrail text used in the allocation audit flow.
+   * @returns Formatted string output for the operation.
+   */
   public async buildMarketValidationGuardrailText(): Promise<string | null> {
     const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
     const items = await AllocationAuditItem.find({
@@ -317,6 +349,11 @@ export class AllocationAuditService {
     ].join('\n');
   }
 
+  /**
+   * Builds allocation validation guardrail text used in the allocation audit flow.
+   * @param symbol - Asset symbol to process.
+   * @returns Formatted string output for the operation.
+   */
   public async buildAllocationValidationGuardrailText(symbol: string): Promise<string | null> {
     const since = new Date(Date.now() - this.VALIDATION_SUMMARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
     const symbolItems = await AllocationAuditItem.find({
@@ -357,6 +394,11 @@ export class AllocationAuditService {
     ].join('\n');
   }
 
+  /**
+   * Retrieves market validation badge map for the allocation audit flow.
+   * @param recommendationIds - Identifier for the target resource.
+   * @returns Formatted string output for the operation.
+   */
   public async getMarketValidationBadgeMap(recommendationIds: string[]): Promise<Map<string, MarketValidationBadges>> {
     const ids = Array.from(new Set(recommendationIds.filter((id) => !!id)));
     const map = new Map<string, MarketValidationBadges>();
@@ -386,6 +428,11 @@ export class AllocationAuditService {
     return map;
   }
 
+  /**
+   * Retrieves allocation validation badge map for the allocation audit flow.
+   * @param recommendationIds - Identifier for the target resource.
+   * @returns Formatted string output for the operation.
+   */
   public async getAllocationValidationBadgeMap(
     recommendationIds: string[],
   ): Promise<Map<string, AllocationValidationBadges>> {
@@ -417,6 +464,11 @@ export class AllocationAuditService {
     return map;
   }
 
+  /**
+   * Retrieves audit runs for the allocation audit flow.
+   * @param params - Input values for the allocation audit operation.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   public async getAuditRuns(params?: {
     limit?: number;
     page?: number;
@@ -485,6 +537,12 @@ export class AllocationAuditService {
     return response;
   }
 
+  /**
+   * Retrieves audit run items for the allocation audit flow.
+   * @param runId - Identifier for the target resource.
+   * @param params - Input values for the allocation audit operation.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   public async getAuditRunItems(
     runId: string,
     params?: {
@@ -563,6 +621,11 @@ export class AllocationAuditService {
     return response;
   }
 
+  /**
+   * Retrieves validation runs summary for the allocation audit flow.
+   * @param params - Input values for the allocation audit operation.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   private async getValidationRunsSummary(params: {
     totalRuns: number;
     reportType?: ReportType;
@@ -607,6 +670,12 @@ export class AllocationAuditService {
     };
   }
 
+  /**
+   * Retrieves validation run items summary for the allocation audit flow.
+   * @param runId - Identifier for the target resource.
+   * @param totalItems - Collection of items used by the allocation audit flow.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   private async getValidationRunItemsSummary(
     runId: string,
     totalItems: number,
@@ -653,6 +722,11 @@ export class AllocationAuditService {
     };
   }
 
+  /**
+   * Normalizes run sort by for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private resolveRunSortBy(value: AllocationAuditRunSortBy | undefined): AllocationAuditRunSortBy {
     if (
       value === 'createdAt' ||
@@ -666,6 +740,11 @@ export class AllocationAuditService {
     return 'createdAt';
   }
 
+  /**
+   * Normalizes item sort by for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private resolveItemSortBy(value: AllocationAuditItemSortBy | undefined): AllocationAuditItemSortBy {
     if (
       value === 'createdAt' ||
@@ -682,10 +761,21 @@ export class AllocationAuditService {
     return 'createdAt';
   }
 
+  /**
+   * Normalizes sort order for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private resolveSortOrder(value: AllocationAuditSortOrder | undefined): 'ASC' | 'DESC' {
     return value === 'asc' ? 'ASC' : 'DESC';
   }
 
+  /**
+   * Builds run order used in the allocation audit flow.
+   * @param sortBy - Input value for sort by.
+   * @param sortOrder - Input value for sort order.
+   * @returns Formatted string output for the operation.
+   */
   private buildRunOrder(sortBy: AllocationAuditRunSortBy, sortOrder: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {
     const order: Record<string, 'ASC' | 'DESC'> = {};
     order[sortBy] = sortOrder;
@@ -696,6 +786,12 @@ export class AllocationAuditService {
     return order;
   }
 
+  /**
+   * Builds item order used in the allocation audit flow.
+   * @param sortBy - Input value for sort by.
+   * @param sortOrder - Input value for sort order.
+   * @returns Formatted string output for the operation.
+   */
   private buildItemOrder(sortBy: AllocationAuditItemSortBy, sortOrder: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {
     const order: Record<string, 'ASC' | 'DESC'> = {};
     order[sortBy] = sortOrder;
@@ -706,6 +802,11 @@ export class AllocationAuditService {
     return order;
   }
 
+  /**
+   * Builds badge used in the allocation audit flow.
+   * @param item - Input value for item.
+   * @returns Result produced by the allocation audit flow.
+   */
   private buildBadge(item: AllocationAuditItem): AllocationAuditBadge {
     return {
       status: item.status,
@@ -715,6 +816,9 @@ export class AllocationAuditService {
     };
   }
 
+  /**
+   * Handles ensure backfill if needed in the allocation audit workflow.
+   */
   private async ensureBackfillIfNeeded(): Promise<void> {
     const now = Date.now();
     if (this.lastBackfillCheckedAt != null && now - this.lastBackfillCheckedAt < this.BACKFILL_RECHECK_INTERVAL_MS) {
@@ -749,6 +853,11 @@ export class AllocationAuditService {
     this.lastBackfillCheckedAt = Date.now();
   }
 
+  /**
+   * Handles enqueue batch validation in the allocation audit workflow.
+   * @param reportType - Input value for report type.
+   * @param batchId - Identifier for the target resource.
+   */
   private async enqueueBatchValidation(reportType: ReportType, batchId: string): Promise<void> {
     const horizons = reportType === 'market' ? [...this.MARKET_HORIZONS] : [...this.ALLOCATION_HORIZONS];
     const recommendations =
@@ -840,6 +949,13 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Handles find or create run in the allocation audit workflow.
+   * @param reportType - Input value for report type.
+   * @param sourceBatchId - Identifier for the target resource.
+   * @param horizonHours - Input value for horizon hours.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   private async findOrCreateRun(
     reportType: ReportType,
     sourceBatchId: string,
@@ -880,6 +996,9 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Runs due items in the allocation audit workflow.
+   */
   private async processDueItems(): Promise<void> {
     const now = new Date();
     const staleRunningThreshold = new Date(now.getTime() - this.RUNNING_STALE_TIMEOUT_MS);
@@ -946,6 +1065,11 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Runs run in the allocation audit workflow.
+   * @param run - Input value for run.
+   * @param runItems - Collection of items used by the allocation audit flow.
+   */
   private async processRun(run: AllocationAuditRun, runItems: AllocationAuditItem[]): Promise<void> {
     run.status = 'running';
     run.startedAt = run.startedAt ?? new Date();
@@ -997,6 +1121,11 @@ export class AllocationAuditService {
     await this.finalizeRun(run);
   }
 
+  /**
+   * Handles evaluate item deterministic in the allocation audit workflow.
+   * @param item - Input value for item.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   private async evaluateItemDeterministic(item: AllocationAuditItem): Promise<DeterministicEvaluation> {
     const recommendationPrice =
       this.toNullableNumber(item.recommendationPrice) ??
@@ -1075,6 +1204,11 @@ export class AllocationAuditService {
     };
   }
 
+  /**
+   * Normalizes allocation action for the allocation audit flow.
+   * @param item - Input value for item.
+   * @returns Result produced by the allocation audit flow.
+   */
   private resolveAllocationAction(item: AllocationAuditItem): 'buy' | 'sell' | 'hold' {
     const action = (item.recommendationAction ?? '').toLowerCase();
     if (action === 'no_trade') {
@@ -1097,6 +1231,12 @@ export class AllocationAuditService {
     return 'hold';
   }
 
+  /**
+   * Retrieves trade metrics for the allocation audit flow.
+   * @param inferenceId - Identifier for the target resource.
+   * @param dueAt - Input value for due at.
+   * @returns Computed numeric value for the operation.
+   */
   private async fetchTradeMetrics(inferenceId: string, dueAt: Date): Promise<{ profit: number; amount: number }> {
     try {
       const result = await Trade.createQueryBuilder('trade')
@@ -1118,6 +1258,10 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Handles ai evaluation in the allocation audit workflow.
+   * @param items - Collection of items used by the allocation audit flow.
+   */
   private async applyAiEvaluation(items: AllocationAuditItem[]): Promise<void> {
     const requestConfig = {
       ...ALLOCATION_AUDIT_EVALUATOR_CONFIG,
@@ -1176,6 +1320,11 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Builds evaluator messages used in the allocation audit flow.
+   * @param item - Input value for item.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private buildEvaluatorMessages(item: AllocationAuditItem): EasyInputMessage[] {
     const messages: EasyInputMessage[] = [];
     this.openaiService.addMessage(messages, 'system', ALLOCATION_AUDIT_EVALUATOR_PROMPT);
@@ -1208,6 +1357,10 @@ export class AllocationAuditService {
     return messages;
   }
 
+  /**
+   * Handles finalize run in the allocation audit workflow.
+   * @param run - Input value for run.
+   */
   private async finalizeRun(run: AllocationAuditRun): Promise<void> {
     const items = await AllocationAuditItem.find({
       where: {
@@ -1273,6 +1426,11 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Builds run summary used in the allocation audit flow.
+   * @param items - Collection of items used by the allocation audit flow.
+   * @returns Formatted string output for the operation.
+   */
   private buildRunSummary(items: AllocationAuditItem[]): string {
     const validItems = items.filter((item) => item.aiVerdict !== 'invalid');
     if (validItems.length < 1) {
@@ -1330,6 +1488,12 @@ export class AllocationAuditService {
     ].join(', ');
   }
 
+  /**
+   * Handles extract top guardrails in the allocation audit workflow.
+   * @param items - Collection of items used by the allocation audit flow.
+   * @param limit - Input value for limit.
+   * @returns Formatted string output for the operation.
+   */
   private extractTopGuardrails(items: AllocationAuditItem[], limit: number): string[] {
     const counts = new Map<string, number>();
     for (const item of items) {
@@ -1346,6 +1510,10 @@ export class AllocationAuditService {
       .map(([guardrail]) => guardrail);
   }
 
+  /**
+   * Retrieves allocation global guardrails for the allocation audit flow.
+   * @returns Formatted string output for the operation.
+   */
   private async getAllocationGlobalGuardrails(): Promise<string[]> {
     const now = Date.now();
 
@@ -1392,10 +1560,18 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Handles clear allocation global guardrails cache in the allocation audit workflow.
+   */
   private clearAllocationGlobalGuardrailsCache(): void {
     this.allocationGlobalGuardrailsCache = null;
   }
 
+  /**
+   * Normalizes market min confidence from validation for the allocation audit flow.
+   * @param items - Collection of items used by the allocation audit flow.
+   * @returns Computed numeric value for the operation.
+   */
   private resolveMarketMinConfidenceFromValidation(items: AllocationAuditItem[]): number | null {
     const samples: ConfidenceCalibrationSample[] = items
       .filter(
@@ -1470,6 +1646,11 @@ export class AllocationAuditService {
     return null;
   }
 
+  /**
+   * Calculates direction hit rate for the allocation audit flow.
+   * @param items - Collection of items used by the allocation audit flow.
+   * @returns Computed numeric value for the operation.
+   */
   private calculateDirectionHitRate(items: Array<Pick<ConfidenceCalibrationSample, 'directionHit'>>): number {
     if (items.length < 1) {
       return 0;
@@ -1479,12 +1660,20 @@ export class AllocationAuditService {
     return hit / items.length;
   }
 
+  /**
+   * Handles clear market min confidence cache in the allocation audit workflow.
+   */
   private clearMarketMinConfidenceCache(): void {
     this.marketMinConfidenceCache = null;
     this.marketMinConfidenceInFlight = null;
     this.marketMinConfidenceCacheGeneration += 1;
   }
 
+  /**
+   * Calculates accuracy for the allocation audit flow.
+   * @param items - Collection of items used by the allocation audit flow.
+   * @returns Computed numeric value for the operation.
+   */
   private calculateAccuracy(items: AllocationAuditItem[]): { hit: number; total: number; ratio: number } {
     const directional = items.filter((item) => item.directionHit != null);
     const hit = directional.filter((item) => item.directionHit === true).length;
@@ -1496,6 +1685,11 @@ export class AllocationAuditService {
     };
   }
 
+  /**
+   * Calculates item overall score for the allocation audit flow.
+   * @param item - Input value for item.
+   * @returns Computed numeric value for the operation.
+   */
   private calculateItemOverallScore(item: Pick<AllocationAuditItem, 'deterministicScore' | 'aiScore'>): number | null {
     const deterministic = this.toNullableNumber(item.deterministicScore);
     const aiScore = this.toNullableNumber(item.aiScore);
@@ -1515,6 +1709,12 @@ export class AllocationAuditService {
     return null;
   }
 
+  /**
+   * Calculates run overall score for the allocation audit flow.
+   * @param deterministic - Input value for deterministic.
+   * @param ai - Input value for ai.
+   * @returns Computed numeric value for the operation.
+   */
   private calculateRunOverallScore(deterministic: number | null, ai: number | null): number | null {
     const deterministicScore = this.toNullableNumber(deterministic);
     const aiScore = this.toNullableNumber(ai);
@@ -1531,6 +1731,12 @@ export class AllocationAuditService {
     return null;
   }
 
+  /**
+   * Normalizes price at time for the allocation audit flow.
+   * @param symbol - Asset symbol to process.
+   * @param time - Input value for time.
+   * @returns Computed numeric value for the operation.
+   */
   private async resolvePriceAtTime(symbol: string, time: Date): Promise<number | undefined> {
     try {
       const minuteOpen = await this.upbitService.getMinuteCandleAt(symbol, time);
@@ -1567,6 +1773,11 @@ export class AllocationAuditService {
     }
   }
 
+  /**
+   * Normalizes allocation recommendation confidence for the allocation audit flow.
+   * @param recommendation - Input value for recommendation.
+   * @returns Computed numeric value for the operation.
+   */
   private resolveAllocationRecommendationConfidence(recommendation: AllocationRecommendation): number | null {
     const fromReason = this.extractConfidenceFromReason(recommendation.reason);
     if (fromReason != null) {
@@ -1581,6 +1792,11 @@ export class AllocationAuditService {
     return this.clamp(Math.abs(intensity), 0, 1);
   }
 
+  /**
+   * Handles extract confidence from reason in the allocation audit workflow.
+   * @param reason - Input value for reason.
+   * @returns Computed numeric value for the operation.
+   */
   private extractConfidenceFromReason(reason: string | null | undefined): number | null {
     if (typeof reason !== 'string' || reason.trim() === '') {
       return null;
@@ -1610,6 +1826,14 @@ export class AllocationAuditService {
     return null;
   }
 
+  /**
+   * Handles clamp limit in the allocation audit workflow.
+   * @param value - Input value for value.
+   * @param fallback - Input value for fallback.
+   * @param min - Input value for min.
+   * @param max - Input value for max.
+   * @returns Computed numeric value for the operation.
+   */
   private clampLimit(value: number | undefined, fallback: number, min: number, max: number): number {
     if (!Number.isFinite(value)) {
       return fallback;
@@ -1621,6 +1845,13 @@ export class AllocationAuditService {
     return parsed;
   }
 
+  /**
+   * Handles clamp in the allocation audit workflow.
+   * @param value - Input value for value.
+   * @param min - Input value for min.
+   * @param max - Input value for max.
+   * @returns Computed numeric value for the operation.
+   */
   private clamp(value: number, min: number, max: number): number {
     if (!Number.isFinite(value)) {
       return min;
@@ -1631,6 +1862,11 @@ export class AllocationAuditService {
     return value;
   }
 
+  /**
+   * Handles average in the allocation audit workflow.
+   * @param values - Input value for values.
+   * @returns Computed numeric value for the operation.
+   */
   private average(values: number[]): number | null {
     if (values.length < 1) {
       return null;
@@ -1640,10 +1876,20 @@ export class AllocationAuditService {
     return sum / values.length;
   }
 
+  /**
+   * Checks finite number in the allocation audit context.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private isFiniteNumber(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value);
   }
 
+  /**
+   * Normalizes nullable number for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private toNullableNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
       return value;
@@ -1655,11 +1901,21 @@ export class AllocationAuditService {
     return null;
   }
 
+  /**
+   * Normalizes number for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private toNumber(value: unknown): number {
     const parsed = this.toNullableNumber(value);
     return parsed ?? 0;
   }
 
+  /**
+   * Normalizes non negative integer for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private toNonNegativeInteger(value: unknown): number {
     const parsed = this.toNullableNumber(value);
     if (parsed == null) {
@@ -1668,6 +1924,10 @@ export class AllocationAuditService {
     return Math.max(0, Math.floor(parsed));
   }
 
+  /**
+   * Handles safe notify server in the allocation audit workflow.
+   * @param message - Message payload handled by the allocation audit flow.
+   */
   private async safeNotifyServer(message: string): Promise<void> {
     try {
       await this.notifyService.notifyServer(message);

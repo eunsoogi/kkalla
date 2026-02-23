@@ -25,6 +25,10 @@ export interface MenuItem {
   url?: any;
 }
 
+/**
+ * Handles sidebar content in the dashboard sidebar workflow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export const SidebarContent = (): MenuItem[] => {
   const t = useTranslations('menu');
   const { hasPermission } = usePermissions();

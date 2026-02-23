@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +10,10 @@ import { FeargreedGauge } from '@/app/(dashboard)/_components/home/feargreed/Fea
 import { FeargreedTable } from '@/app/(dashboard)/_components/home/feargreed/FeargreedTable';
 import { ProfitDashboard } from '@/app/(dashboard)/_shared/profit/_components/ProfitDashboard';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const t = useTranslations();
   const { data, isPending } = useQuery({

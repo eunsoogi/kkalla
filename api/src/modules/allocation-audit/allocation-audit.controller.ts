@@ -21,6 +21,18 @@ import { AllocationAuditService } from './allocation-audit.service';
 export class AllocationAuditController {
   constructor(private readonly allocationAuditService: AllocationAuditService) {}
 
+  /**
+   * Retrieves runs for the allocation audit flow.
+   * @param limitRaw - Input value for limit raw.
+   * @param pageRaw - Input value for page raw.
+   * @param perPageRaw - Input value for per page raw.
+   * @param sortByRaw - Input value for sort by raw.
+   * @param sortOrderRaw - Input value for sort order raw.
+   * @param includeSummaryRaw - Input value for include summary raw.
+   * @param reportTypeRaw - Input value for report type raw.
+   * @param statusRaw - Input value for status raw.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   @Get('runs')
   public async getRuns(
     @Query('limit') limitRaw?: string,
@@ -53,6 +65,17 @@ export class AllocationAuditController {
     });
   }
 
+  /**
+   * Retrieves run items for the allocation audit flow.
+   * @param runId - Identifier for the target resource.
+   * @param limitRaw - Input value for limit raw.
+   * @param pageRaw - Input value for page raw.
+   * @param perPageRaw - Input value for per page raw.
+   * @param sortByRaw - Input value for sort by raw.
+   * @param sortOrderRaw - Input value for sort order raw.
+   * @param includeSummaryRaw - Input value for include summary raw.
+   * @returns Asynchronous result produced by the allocation audit flow.
+   */
   @Get('runs/:runId/items')
   public async getRunItems(
     @Param('runId') runId: string,
@@ -79,6 +102,11 @@ export class AllocationAuditController {
     });
   }
 
+  /**
+   * Parses report type for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private parseReportType(value?: string): ReportType | undefined {
     if (value === 'market' || value === 'allocation') {
       return value;
@@ -86,6 +114,11 @@ export class AllocationAuditController {
     return undefined;
   }
 
+  /**
+   * Parses status for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private parseStatus(value?: string): AllocationAuditStatus | undefined {
     if (value === 'pending' || value === 'running' || value === 'completed' || value === 'failed') {
       return value;
@@ -93,6 +126,11 @@ export class AllocationAuditController {
     return undefined;
   }
 
+  /**
+   * Parses limit for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private parseLimit(value?: string): number | undefined {
     if (!value) {
       return undefined;
@@ -102,6 +140,11 @@ export class AllocationAuditController {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
+  /**
+   * Parses run sort by for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private parseRunSortBy(value?: string): AllocationAuditRunSortBy | undefined {
     if (
       value === 'createdAt' ||
@@ -115,6 +158,11 @@ export class AllocationAuditController {
     return undefined;
   }
 
+  /**
+   * Parses item sort by for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private parseItemSortBy(value?: string): AllocationAuditItemSortBy | undefined {
     if (
       value === 'createdAt' ||
@@ -131,6 +179,11 @@ export class AllocationAuditController {
     return undefined;
   }
 
+  /**
+   * Parses sort order for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation audit flow.
+   */
   private parseSortOrder(value?: string): AllocationAuditSortOrder | undefined {
     if (value === 'asc' || value === 'desc') {
       return value;
@@ -138,6 +191,11 @@ export class AllocationAuditController {
     return undefined;
   }
 
+  /**
+   * Parses boolean for the allocation audit flow.
+   * @param value - Input value for value.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   private parseBoolean(value?: string): boolean {
     if (!value) {
       return false;

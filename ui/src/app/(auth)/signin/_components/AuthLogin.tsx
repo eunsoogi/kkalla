@@ -7,6 +7,10 @@ import { useTranslations } from 'next-intl';
 
 const DEFAULT_CALLBACK_URL = '/';
 
+/**
+ * Renders the Auth Login UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const AuthLogin: React.FC = () => {
   const t = useTranslations();
   const searchParams = useSearchParams();

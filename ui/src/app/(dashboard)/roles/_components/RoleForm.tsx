@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter } from 'next/navigation';
 import React, { Suspense, useActionState } from 'react';
 
@@ -18,6 +17,10 @@ interface RoleFormProps {
   id?: string;
 }
 
+/**
+ * Renders the Role Form Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const RoleFormSkeleton = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
@@ -46,6 +49,11 @@ const RoleFormSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Role Form Content UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const RoleFormContent: React.FC<RoleFormProps> = ({ id }) => {
   const t = useTranslations();
   const queryClient = useQueryClient();
@@ -177,6 +185,11 @@ const RoleFormContent: React.FC<RoleFormProps> = ({ id }) => {
   );
 };
 
+/**
+ * Renders the Role Form UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const RoleForm = ({ id }: RoleFormProps) => {
   return (
     <Suspense fallback={<RoleFormSkeleton />}>

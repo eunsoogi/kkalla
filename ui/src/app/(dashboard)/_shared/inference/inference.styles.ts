@@ -1,3 +1,8 @@
+/**
+ * Retrieves rate color for the dashboard UI flow.
+ * @param rate - Input value for rate.
+ * @returns Result produced by the dashboard UI flow.
+ */
 export const getRateColor = (rate: number) => {
   // rate를 0~1 범위로 정규화
   const normalizedRate = (rate + 1) / 2;
@@ -11,18 +16,34 @@ export const getRateColor = (rate: number) => {
   };
 };
 
+/**
+ * Retrieves weight color for the dashboard UI flow.
+ * @param weight - Input value for weight.
+ * @returns Result produced by the dashboard UI flow.
+ */
 export const getWeightColor = (weight: number) => {
   if (weight > 0.7) return { backgroundColor: '#7E22CE', color: 'white' }; // purple-700
   if (weight > 0.4) return { backgroundColor: '#9333EA', color: 'white' }; // purple-600
   return { backgroundColor: '#A855F7', color: 'white' }; // purple-500
 };
 
+/**
+ * Retrieves confidence color for the dashboard UI flow.
+ * @param confidence - Identifier for the target resource.
+ * @returns Result produced by the dashboard UI flow.
+ */
 export const getConfidenceColor = (confidence: number) => {
   if (confidence > 0.7) return { backgroundColor: '#312E81', color: 'white' }; // indigo-900
   if (confidence > 0.4) return { backgroundColor: '#4338CA', color: 'white' }; // indigo-700
   return { backgroundColor: '#4F46E5', color: 'white' }; // indigo-600
 };
 
+/**
+ * Retrieves validation color for the dashboard UI flow.
+ * @param status - Input value for status.
+ * @param verdict - Input value for verdict.
+ * @returns Result produced by the dashboard UI flow.
+ */
 export const getValidationColor = (status: string, verdict?: string | null) => {
   if (status === 'pending') return { backgroundColor: '#6B7280', color: 'white' }; // gray-500
   if (status === 'running') return { backgroundColor: '#0EA5E9', color: 'white' }; // sky-500

@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { Icon } from '@iconify/react';
@@ -11,6 +10,11 @@ import { getDiffColor, getDiffPrefix } from '@/utils/color';
 
 const MS_1H = 60 * 60 * 1000;
 
+/**
+ * Renders the Feargreed Table Item UI for the dashboard UI.
+ * @param item - Input value for item.
+ * @returns Rendered React element for this view.
+ */
 export const FeargreedTableItem: React.FC<Feargreed | null> = (item) => {
   const formatter = useFormatter();
   const [now] = React.useState(() => Date.now());

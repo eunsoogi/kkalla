@@ -38,30 +38,56 @@ export class ScheduleController {
     private readonly scheduleExecutionService: ScheduleExecutionService,
   ) {}
 
+  /**
+   * Retrieves workflow logic for the schedule execution flow.
+   * @param user - User identifier related to this operation.
+   * @returns Result produced by the schedule execution flow.
+   */
   @Get()
   @UseGuards(GoogleTokenAuthGuard)
   public async get(@CurrentUser() user: User) {
     return this.scheduleService.read(user);
   }
 
+  /**
+   * Handles post in the schedule execution workflow.
+   * @param user - User identifier related to this operation.
+   * @param createScheduleDto - Input value for create schedule dto.
+   * @returns Result produced by the schedule execution flow.
+   */
   @Post()
   @UseGuards(GoogleTokenAuthGuard)
   public async post(@CurrentUser() user: User, @Body() createScheduleDto: CreateScheduleDto) {
     return this.scheduleService.create(user, createScheduleDto);
   }
 
+  /**
+   * Retrieves execution plans for the schedule execution flow.
+   * @returns Processed collection for downstream workflow steps.
+   */
   @Get('execution-plans')
   @UseGuards(GoogleTokenAuthGuard)
   public getExecutionPlans(): SchedulePlanResponse[] {
     return this.scheduleExecutionService.getExecutionPlans();
   }
 
+  /**
+   * Retrieves lock states for the schedule execution flow.
+   * @param user - User identifier related to this operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   @Get('locks')
   @UseGuards(GoogleTokenAuthGuard)
   public async getLockStates(@CurrentUser() user: User): Promise<ScheduleLockStateResponse[]> {
     return this.scheduleExecutionService.getLockStates(this.getAuthorizedTasks(user));
   }
 
+  /**
+   * Runs release lock in the schedule execution workflow.
+   * @param user - User identifier related to this operation.
+   * @param taskRaw - Task identifier to execute.
+   * @returns Asynchronous result produced by the schedule execution flow.
+   */
   @Post('locks/:task/release')
   @UseGuards(GoogleTokenAuthGuard)
   public async releaseLock(
@@ -73,6 +99,10 @@ export class ScheduleController {
     return this.scheduleExecutionService.releaseLock(task);
   }
 
+  /**
+   * Runs market signal in the schedule execution workflow.
+   * @returns Asynchronous result produced by the schedule execution flow.
+   */
   @Post('execute/market-signal')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
   @RequirePermissions(Permission.EXEC_SCHEDULE_MARKET_RECOMMENDATION)
@@ -80,6 +110,10 @@ export class ScheduleController {
     return this.scheduleExecutionService.executeMarketSignal();
   }
 
+  /**
+   * Runs allocation recommendation with existing items in the schedule execution workflow.
+   * @returns Asynchronous result produced by the schedule execution flow.
+   */
   @Post('execute/allocation-recommendation/existing')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
   @RequirePermissions(Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_EXISTING)
@@ -87,6 +121,10 @@ export class ScheduleController {
     return this.scheduleExecutionService.executeAllocationRecommendationExisting();
   }
 
+  /**
+   * Runs allocation recommendation new items in the schedule execution workflow.
+   * @returns Asynchronous result produced by the schedule execution flow.
+   */
   @Post('execute/allocation-recommendation/new')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
   @RequirePermissions(Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW)
@@ -94,6 +132,10 @@ export class ScheduleController {
     return this.scheduleExecutionService.executeAllocationRecommendationNew();
   }
 
+  /**
+   * Runs allocation audit in the schedule execution workflow.
+   * @returns Asynchronous result produced by the schedule execution flow.
+   */
   @Post('execute/allocation-audit')
   @UseGuards(GoogleTokenAuthGuard, PermissionGuard)
   @RequirePermissions(Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT)
@@ -101,6 +143,11 @@ export class ScheduleController {
     return this.scheduleExecutionService.executeAllocationAudit();
   }
 
+  /**
+   * Parses task for the schedule execution flow.
+   * @param taskRaw - Task identifier to execute.
+   * @returns Result produced by the schedule execution flow.
+   */
   private parseTask(taskRaw: string): ScheduleExecutionTask {
     if (EXECUTION_TASKS.includes(taskRaw as ScheduleExecutionTask)) {
       return taskRaw as ScheduleExecutionTask;
@@ -109,12 +156,22 @@ export class ScheduleController {
     throw new BadRequestException(`Unknown schedule task: ${taskRaw}`);
   }
 
+  /**
+   * Retrieves authorized tasks for the schedule execution flow.
+   * @param user - User identifier related to this operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private getAuthorizedTasks(user: User): ScheduleExecutionTask[] {
     const permissions = this.getUserPermissions(user);
 
     return EXECUTION_TASKS.filter((task) => permissions.has(TASK_PERMISSION_MAP[task]));
   }
 
+  /**
+   * Handles ensure task permission in the schedule execution workflow.
+   * @param user - User identifier related to this operation.
+   * @param task - Task identifier to execute.
+   */
   private ensureTaskPermission(user: User, task: ScheduleExecutionTask): void {
     const permissions = this.getUserPermissions(user);
     const requiredPermission = TASK_PERMISSION_MAP[task];
@@ -124,6 +181,11 @@ export class ScheduleController {
     }
   }
 
+  /**
+   * Retrieves user permissions for the schedule execution flow.
+   * @param user - User identifier related to this operation.
+   * @returns Result produced by the schedule execution flow.
+   */
   private getUserPermissions(user: User): Set<Permission> {
     const permissions = user.roles?.flatMap((role) => role.permissions ?? []) ?? [];
     return new Set(permissions);

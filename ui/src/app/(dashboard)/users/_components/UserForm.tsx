@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Suspense, useActionState } from 'react';
 
 import { Icon } from '@iconify/react';
@@ -17,6 +16,10 @@ interface UserFormProps {
   id: string;
 }
 
+/**
+ * Renders the User Form Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const UserFormSkeleton = () => {
   return (
     <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark p-6 relative w-full min-h-full break-words'>
@@ -40,6 +43,11 @@ const UserFormSkeleton = () => {
   );
 };
 
+/**
+ * Renders the User Form Content UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const UserFormContent: React.FC<UserFormProps> = ({ id }) => {
   const t = useTranslations();
   const queryClient = useQueryClient();
@@ -138,6 +146,11 @@ const UserFormContent: React.FC<UserFormProps> = ({ id }) => {
   );
 };
 
+/**
+ * Renders the User Form UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const UserForm: React.FC<UserFormProps> = ({ id }) => {
   return (
     <Suspense fallback={<UserFormSkeleton />}>

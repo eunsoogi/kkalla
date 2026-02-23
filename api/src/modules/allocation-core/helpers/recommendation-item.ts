@@ -20,6 +20,12 @@ interface UserCategoryLike {
   category: Category;
 }
 
+/**
+ * Transforms unique non blacklisted items for the allocation recommendation flow.
+ * @param items - Collection of items used by the allocation recommendation flow.
+ * @param blacklist - Collection of items used by the allocation recommendation flow.
+ * @returns Result produced by the allocation recommendation flow.
+ */
 export function filterUniqueNonBlacklistedItems<T extends SymbolCategoryItem>(
   items: T[],
   blacklist: SymbolCategoryItem[],
@@ -53,6 +59,12 @@ export function filterUniqueNonBlacklistedItems<T extends SymbolCategoryItem>(
   };
 }
 
+/**
+ * Retrieves item count by category for the allocation recommendation flow.
+ * @param category - Input value for category.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Computed numeric value for the operation.
+ */
 export function getItemCountByCategory(category: Category, config: CategoryItemCountConfig): number {
   switch (category) {
     case Category.COIN_MAJOR:
@@ -66,6 +78,14 @@ export function getItemCountByCategory(category: Category, config: CategoryItemC
   return 0;
 }
 
+/**
+ * Retrieves max authorized item count for the allocation recommendation flow.
+ * @param user - User identifier related to this operation.
+ * @param categories - Input value for categories.
+ * @param hasPermission - Input value for has permission.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Computed numeric value for the operation.
+ */
 export function getMaxAuthorizedItemCount<TUser>(
   user: TUser,
   categories: Category[],
@@ -80,6 +100,12 @@ export function getMaxAuthorizedItemCount<TUser>(
   return Math.max(...authorizedCategories.map((category) => getItemCountByCategory(category, config)));
 }
 
+/**
+ * Handles held asset flags in the allocation recommendation workflow.
+ * @param inferences - Input value for inferences.
+ * @param holdingItems - Collection of items used by the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function applyHeldAssetFlags<
   T extends {
     symbol: string;
@@ -95,6 +121,14 @@ export function applyHeldAssetFlags<
   }));
 }
 
+/**
+ * Transforms authorized recommendation items for the allocation recommendation flow.
+ * @param user - User identifier related to this operation.
+ * @param items - Collection of items used by the allocation recommendation flow.
+ * @param enabledCategories - Input value for enabled categories.
+ * @param hasPermission - Input value for has permission.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function filterAuthorizedRecommendationItems<TUser, TItem extends { category: Category }>(
   user: TUser,
   items: TItem[],

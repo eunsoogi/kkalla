@@ -335,6 +335,11 @@ export class AllocationService implements OnModuleInit {
     });
   }
 
+  /**
+   * Parses allocation message for the allocation recommendation flow.
+   * @param messageBody - Message payload handled by the allocation recommendation flow.
+   * @returns Result produced by the allocation recommendation flow.
+   */
   private parseAllocationMessage(messageBody: string | undefined): TradeExecutionMessageV2 {
     return parseTradeExecutionMessage({
       module: TradeExecutionModule.ALLOCATION,
@@ -347,6 +352,11 @@ export class AllocationService implements OnModuleInit {
     });
   }
 
+  /**
+   * Parses allocation mode for the allocation recommendation flow.
+   * @param value - Input value for value.
+   * @returns Result produced by the allocation recommendation flow.
+   */
   private parseAllocationMode(value: unknown): AllocationMode {
     if (value == null) {
       return this.DEFAULT_ALLOCATION_MODE;
@@ -378,6 +388,9 @@ export class AllocationService implements OnModuleInit {
     await this.executeAllocationRecommendationNewTask();
   }
 
+  /**
+   * Runs allocation recommendation new task in the allocation recommendation workflow.
+   */
   public async executeAllocationRecommendationNewTask(): Promise<void> {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
@@ -459,6 +472,9 @@ export class AllocationService implements OnModuleInit {
     await this.executeAllocationRecommendationExistingTask();
   }
 
+  /**
+   * Runs allocation recommendation existing task in the allocation recommendation workflow.
+   */
   public async executeAllocationRecommendationExistingTask(): Promise<void> {
     this.logger.log(this.i18n.t('logging.schedule.start'));
 
@@ -497,6 +513,11 @@ export class AllocationService implements OnModuleInit {
     this.logger.log(this.i18n.t('logging.schedule.end'));
   }
 
+  /**
+   * Retrieves user holding pairs safely for the allocation recommendation flow.
+   * @param users - User identifier related to this operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private async fetchUserHoldingPairsSafely(
     users: User[],
   ): Promise<Array<{ user: User; items: RecommendationItem[] }>> {
@@ -637,6 +658,13 @@ export class AllocationService implements OnModuleInit {
     }
   }
 
+  /**
+   * Handles scope inferences for user in the allocation recommendation workflow.
+   * @param user - User identifier related to this operation.
+   * @param inferences - Input value for inferences.
+   * @param inferenceSymbolsByUserId - Asset symbol to process.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private scopeInferencesForUser(
     user: User,
     inferences: AllocationRecommendationData[],
@@ -1221,6 +1249,19 @@ export class AllocationService implements OnModuleInit {
     return tradeRequests;
   }
 
+  /**
+   * Builds no trade trim requests used in the allocation recommendation flow.
+   * @param balances - Input value for balances.
+   * @param inferences - Input value for inferences.
+   * @param count - Input value for count.
+   * @param regimeMultiplier - Input value for regime multiplier.
+   * @param currentWeights - Input value for current weights.
+   * @param marketPrice - Input value for market price.
+   * @param orderableSymbols - Asset symbol to process.
+   * @param tradableMarketValueMap - Input value for tradable market value map.
+   * @param allowBackfill - Input value for allow backfill.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private generateNoTradeTrimRequests(
     balances: Balances,
     inferences: AllocationRecommendationData[],
@@ -1378,6 +1419,14 @@ export class AllocationService implements OnModuleInit {
       .sort((a, b) => a.diff - b.diff);
   }
 
+  /**
+   * Calculates model signals for the allocation recommendation flow.
+   * @param intensity - Input value for intensity.
+   * @param category - Input value for category.
+   * @param marketFeatures - Input value for market features.
+   * @param symbol - Asset symbol to process.
+   * @returns Result produced by the allocation recommendation flow.
+   */
   private calculateModelSignals(
     intensity: number,
     category: Category,
@@ -1423,6 +1472,14 @@ export class AllocationService implements OnModuleInit {
     };
   }
 
+  /**
+   * Normalizes neutral model target weight for the allocation recommendation flow.
+   * @param previousModelTargetWeight - Input value for previous model target weight.
+   * @param suggestedWeight - Input value for suggested weight.
+   * @param fallbackModelTargetWeight - Input value for fallback model target weight.
+   * @param hasStock - Input value for has stock.
+   * @returns Computed numeric value for the operation.
+   */
   private resolveNeutralModelTargetWeight(
     previousModelTargetWeight: number | null | undefined,
     suggestedWeight: number | null | undefined,
@@ -1447,6 +1504,12 @@ export class AllocationService implements OnModuleInit {
     return hasStock ? this.MIN_RECOMMEND_WEIGHT : 0;
   }
 
+  /**
+   * Calculates target weight for the allocation recommendation flow.
+   * @param inference - Input value for inference.
+   * @param regimeMultiplier - Input value for regime multiplier.
+   * @returns Computed numeric value for the operation.
+   */
   private calculateTargetWeight(inference: AllocationRecommendationData, regimeMultiplier: number): number {
     const baseTargetWeight =
       inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
@@ -1580,6 +1643,12 @@ export class AllocationService implements OnModuleInit {
     return Date.now() - state.updatedAt <= MARKET_SIGNAL_STATE_MAX_AGE_MS;
   }
 
+  /**
+   * Checks recommendations newer than state in the allocation recommendation context.
+   * @param recommendations - Input value for recommendations.
+   * @param state - Input value for state.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   private hasRecommendationsNewerThanState(recommendations: MarketSignal[], state: MarketSignalState): boolean {
     return recommendations.some((recommendation) => {
       const createdAt =
@@ -1591,6 +1660,12 @@ export class AllocationService implements OnModuleInit {
     });
   }
 
+  /**
+   * Checks different recommendation batch in the allocation recommendation context.
+   * @param recommendations - Input value for recommendations.
+   * @param state - Input value for state.
+   * @returns Boolean flag that indicates whether the condition is satisfied.
+   */
   private hasDifferentRecommendationBatch(recommendations: MarketSignal[], state: MarketSignalState): boolean {
     if (recommendations.length < 1) {
       return false;
@@ -1599,6 +1674,10 @@ export class AllocationService implements OnModuleInit {
     return recommendations[0].batchId !== state.batchId;
   }
 
+  /**
+   * Retrieves recommend items for the allocation recommendation flow.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private async fetchRecommendItems(): Promise<RecommendationItem[]> {
     let latestState: MarketSignalState | null = null;
 
@@ -1683,6 +1762,10 @@ export class AllocationService implements OnModuleInit {
       }));
   }
 
+  /**
+   * Normalizes min recommend confidence for the allocation recommendation flow.
+   * @returns Computed numeric value for the operation.
+   */
   private async resolveMinRecommendConfidence(): Promise<number> {
     try {
       const tunedConfidence = await this.allocationAuditService.getRecommendedMarketMinConfidenceForAllocation();
@@ -2033,6 +2116,11 @@ export class AllocationService implements OnModuleInit {
     return allocationRecommendation.save();
   }
 
+  /**
+   * Handles find previous model target weight in the allocation recommendation workflow.
+   * @param entity - Input value for entity.
+   * @returns Computed numeric value for the operation.
+   */
   private async findPreviousModelTargetWeight(entity: AllocationRecommendation): Promise<number | null> {
     try {
       const previous = await AllocationRecommendation.createQueryBuilder('recommendation')
@@ -2058,6 +2146,11 @@ export class AllocationService implements OnModuleInit {
     return null;
   }
 
+  /**
+   * Retrieves allocation validation badge map safe for the allocation recommendation flow.
+   * @param ids - Identifier for the target resource.
+   * @returns Result produced by the allocation recommendation flow.
+   */
   private async getAllocationValidationBadgeMapSafe(ids: string[]) {
     try {
       return await this.allocationAuditService.getAllocationValidationBadgeMap(ids);

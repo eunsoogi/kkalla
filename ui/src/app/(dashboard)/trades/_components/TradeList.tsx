@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -16,6 +15,10 @@ import { formatNumber } from '@/utils/number';
 import { getTradeAction } from '../_actions/trade.actions';
 import { TRADE_STYLES } from '@/app/(dashboard)/_shared/trades/trade.styles';
 
+/**
+ * Renders the Trade Content UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const TradeContent = () => {
   const { data } = useSuspenseQuery<PaginatedItem<Trade>>({
     queryKey: ['trades'],
@@ -33,6 +36,11 @@ const TradeContent = () => {
   );
 };
 
+/**
+ * Renders the Trade List Item UI for the dashboard UI.
+ * @param item - Input value for item.
+ * @returns Rendered React element for this view.
+ */
 export const TradeListItem: React.FC<Trade> = (item) => {
   const t = useTranslations();
 
@@ -52,6 +60,10 @@ export const TradeListItem: React.FC<Trade> = (item) => {
   );
 };
 
+/**
+ * Renders the Trade List Item Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const TradeListItemSkeleton = () => {
   const t = useTranslations();
 
@@ -64,6 +76,10 @@ export const TradeListItemSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Trade List UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const TradeList = () => {
   const t = useTranslations();
 

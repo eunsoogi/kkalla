@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import {
@@ -38,14 +37,29 @@ const SCHEDULE_EXECUTION_TASKS: ScheduleExecutionTask[] = [
   'allocationAudit',
 ];
 
+/**
+ * Checks schedule execution task in the dashboard UI context.
+ * @param task - Task identifier to execute.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const isScheduleExecutionTask = (task: unknown): task is ScheduleExecutionTask => {
   return typeof task === 'string' && SCHEDULE_EXECUTION_TASKS.includes(task as ScheduleExecutionTask);
 };
 
+/**
+ * Checks schedule execution status in the dashboard UI context.
+ * @param status - Input value for status.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const isScheduleExecutionStatus = (status: string): status is ScheduleExecutionStatus => {
   return ['started', 'skipped_lock'].includes(status);
 };
 
+/**
+ * Checks schedule lock state response in the dashboard UI context.
+ * @param value - Input value for value.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const isScheduleLockStateResponse = (value: unknown): value is ScheduleLockStateResponse => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -60,6 +74,11 @@ const isScheduleLockStateResponse = (value: unknown): value is ScheduleLockState
   );
 };
 
+/**
+ * Checks schedule lock release response in the dashboard UI context.
+ * @param value - Input value for value.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const isScheduleLockReleaseResponse = (value: unknown): value is ScheduleLockReleaseResponse => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -75,6 +94,12 @@ const isScheduleLockReleaseResponse = (value: unknown): value is ScheduleLockRel
   );
 };
 
+/**
+ * Retrieves status message for the dashboard UI flow.
+ * @param t - Input value for t.
+ * @param status - Input value for status.
+ * @returns Formatted string output for the operation.
+ */
 const getStatusMessage = (t: Awaited<ReturnType<typeof getTranslations>>, status: ScheduleActionStatus): string => {
   switch (status) {
     case 'started':
@@ -86,6 +111,12 @@ const getStatusMessage = (t: Awaited<ReturnType<typeof getTranslations>>, status
   }
 };
 
+/**
+ * Retrieves lock action message for the dashboard UI flow.
+ * @param t - Input value for t.
+ * @param status - Input value for status.
+ * @returns Formatted string output for the operation.
+ */
 const getLockActionMessage = (t: Awaited<ReturnType<typeof getTranslations>>, status: ScheduleLockActionStatus): string => {
   switch (status) {
     case 'released':
@@ -97,6 +128,12 @@ const getLockActionMessage = (t: Awaited<ReturnType<typeof getTranslations>>, st
   }
 };
 
+/**
+ * Runs schedule action in the dashboard UI workflow.
+ * @param path - Input value for path.
+ * @param task - Task identifier to execute.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 const executeScheduleAction = async (path: string, task: ScheduleExecutionTask): Promise<ScheduleActionState> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -129,10 +166,18 @@ const executeScheduleAction = async (path: string, task: ScheduleExecutionTask):
   }
 };
 
+/**
+ * Runs market signal action in the dashboard UI workflow.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const executeMarketSignalAction = async (): Promise<ScheduleActionState> => {
   return executeScheduleAction('/api/v1/schedules/execute/market-signal', 'marketSignal');
 };
 
+/**
+ * Runs allocation recommendation with existing items action in the dashboard UI workflow.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const executeAllocationRecommendationWithExistingItemsAction = async (): Promise<ScheduleActionState> => {
   return executeScheduleAction(
     '/api/v1/schedules/execute/allocation-recommendation/existing',
@@ -140,14 +185,26 @@ export const executeAllocationRecommendationWithExistingItemsAction = async (): 
   );
 };
 
+/**
+ * Runs allocation recommendation new items action in the dashboard UI workflow.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const executeAllocationRecommendationNewItemsAction = async (): Promise<ScheduleActionState> => {
   return executeScheduleAction('/api/v1/schedules/execute/allocation-recommendation/new', 'allocationRecommendationNew');
 };
 
+/**
+ * Runs allocation audit action in the dashboard UI workflow.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const executeAllocationAuditAction = async (): Promise<ScheduleActionState> => {
   return executeScheduleAction('/api/v1/schedules/execute/allocation-audit', 'allocationAudit');
 };
 
+/**
+ * Retrieves schedule execution plans action for the dashboard UI flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export const getScheduleExecutionPlansAction = async (): Promise<ScheduleExecutionPlanResponse[]> => {
   const client = await getClient();
 
@@ -159,6 +216,10 @@ export const getScheduleExecutionPlansAction = async (): Promise<ScheduleExecuti
   }
 };
 
+/**
+ * Retrieves schedule lock states action for the dashboard UI flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export const getScheduleLockStatesAction = async (): Promise<ScheduleLockStateResponse[]> => {
   const client = await getClient();
 
@@ -174,6 +235,11 @@ export const getScheduleLockStatesAction = async (): Promise<ScheduleLockStateRe
   }
 };
 
+/**
+ * Runs release schedule lock action in the dashboard UI workflow.
+ * @param task - Task identifier to execute.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const releaseScheduleLockAction = async (task: ScheduleExecutionTask): Promise<ScheduleLockActionState> => {
   const client = await getClient();
   const t = await getTranslations();

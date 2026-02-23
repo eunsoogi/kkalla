@@ -79,6 +79,12 @@ export class Trade extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  /**
+   * Handles paginate in the backend service workflow.
+   * @param user - User identifier related to this operation.
+   * @param request - Request payload for the backend service operation.
+   * @returns Asynchronous result produced by the backend service flow.
+   */
   public static async paginate(user: User, request: ItemRequest & TradeFilter): Promise<PaginatedItem<Trade>> {
     const where: any = {
       user: {
@@ -124,6 +130,12 @@ export class Trade extends BaseEntity {
     };
   }
 
+  /**
+   * Handles cursor in the backend service workflow.
+   * @param user - User identifier related to this operation.
+   * @param request - Request payload for the backend service operation.
+   * @returns Formatted string output for the operation.
+   */
   public static async cursor(
     user: User,
     request: CursorRequest<string> & TradeFilter,

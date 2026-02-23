@@ -2,6 +2,10 @@ import React from 'react';
 
 import { useTranslations } from 'next-intl';
 
+/**
+ * Renders the Schedule Warning UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const ScheduleWarning: React.FC = () => {
   const t = useTranslations();
 

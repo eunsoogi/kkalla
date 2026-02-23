@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState } from 'react';
 
 import { Datepicker, Label, Select, TextInput } from 'flowbite-react';
@@ -9,6 +8,10 @@ import { TradeDetail } from '@/app/(dashboard)/trades/_components/TradeDetail';
 import { SortDirection } from '@/enums/sort.enum';
 import { TradeTypes } from '@/enums/trade.enum';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const t = useTranslations();
   const locale = useLocale();

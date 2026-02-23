@@ -13,6 +13,9 @@ import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
 
 export class UserSeeder implements Seeder {
+  /**
+   * Runs workflow logic in the backend service workflow.
+   */
   async run(): Promise<void> {
     const email = process.env.ADMIN_EMAIL!;
     let user = await User.findOneBy({ email });
@@ -32,6 +35,9 @@ export class UserSeeder implements Seeder {
 }
 
 export class AllocationRecommendationSeeder implements Seeder {
+  /**
+   * Runs workflow logic in the backend service workflow.
+   */
   public async run(): Promise<void> {
     await AllocationRecommendation.createQueryBuilder().delete().execute();
 
@@ -76,6 +82,9 @@ export class AllocationRecommendationSeeder implements Seeder {
 }
 
 export class TradeSeeder implements Seeder {
+  /**
+   * Runs workflow logic in the backend service workflow.
+   */
   async run(): Promise<void> {
     const users = await User.find();
     const inferences = await AllocationRecommendation.find();
@@ -105,6 +114,9 @@ export class TradeSeeder implements Seeder {
 }
 
 export class NotifySeeder implements Seeder {
+  /**
+   * Runs workflow logic in the backend service workflow.
+   */
   async run(): Promise<void> {
     const users = await User.find();
     await Notify.createQueryBuilder().delete().execute();
@@ -131,6 +143,9 @@ export class NotifySeeder implements Seeder {
  * 카테고리별 다양한 종목으로 매매 카테고리 필터 테스트 가능
  */
 export class HoldingLedgerSeeder implements Seeder {
+  /**
+   * Runs workflow logic in the backend service workflow.
+   */
   async run(): Promise<void> {
     const users = await User.find();
     const user = users[0];
@@ -163,6 +178,9 @@ export class HoldingLedgerSeeder implements Seeder {
  * 설정 화면에서 나스닥을 켜면 보유 종목에 AAPL 등이 보이는지 확인 가능
  */
 export class UserCategorySeeder implements Seeder {
+  /**
+   * Runs workflow logic in the backend service workflow.
+   */
   async run(): Promise<void> {
     const email = process.env.ADMIN_EMAIL;
     if (!email) return;

@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import { News } from '@/app/(dashboard)/_shared/news/news.types';
@@ -7,6 +6,11 @@ import { getClient } from '@/utils/api';
 
 import type { HoldingWithDailyChange, MarketReportWithChange } from '@/app/(dashboard)/_components/home/_types/dashboard-summary.types';
 
+/**
+ * Retrieves latest market reports action for the dashboard UI flow.
+ * @param limit - Input value for limit.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export const getLatestMarketReportsAction = async (
   limit = 10,
 ): Promise<{ success: boolean; message?: string; items?: MarketReportWithChange[] }> => {
@@ -23,6 +27,10 @@ export const getLatestMarketReportsAction = async (
   }
 };
 
+/**
+ * Retrieves holdings action for the dashboard UI flow.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export const getHoldingsAction = async (): Promise<{
   success: boolean;
   message?: string;
@@ -39,6 +47,11 @@ export const getHoldingsAction = async (): Promise<{
   }
 };
 
+/**
+ * Retrieves dashboard news action for the dashboard UI flow.
+ * @param limit - Input value for limit.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export const getDashboardNewsAction = async (
   limit = 20,
 ): Promise<{ success: boolean; message?: string; items?: News[] }> => {

@@ -1,5 +1,4 @@
 'use client';
-
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback } from 'react';
 
@@ -21,6 +20,11 @@ export interface RoleTableProps {
   items: PaginatedItem<Role>;
 }
 
+/**
+ * Renders the Role Table Base UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const RoleTableBase = ({ items }: RoleTableProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,6 +116,10 @@ const RoleTableBase = ({ items }: RoleTableProps) => {
   );
 };
 
+/**
+ * Renders the Role Table Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const RoleTableSkeleton = () => {
   const t = useTranslations();
 
@@ -135,6 +143,10 @@ const RoleTableSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Role Table Data UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const RoleTableData = () => {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -154,6 +166,10 @@ const RoleTableData = () => {
   return <RoleTableBase items={data} />;
 };
 
+/**
+ * Renders the Role Table UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const RoleTable = () => {
   return <RoleTableData />;
 };

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Fragment, Suspense, useCallback } from 'react';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -26,6 +25,11 @@ interface TradeDetailListContentProps {
   endDate?: Date;
 }
 
+/**
+ * Renders the Trade Detail Item UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const TradeDetailItem: React.FC<TradeDetailListContentProps> = (params) => {
   const t = useTranslations();
 
@@ -105,6 +109,11 @@ interface TradeDetailProps {
   endDate?: Date;
 }
 
+/**
+ * Renders the Trade Detail UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const TradeDetail: React.FC<TradeDetailProps> = ({
   symbol,
   type,

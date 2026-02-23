@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import AuthLogin from '@/app/(auth)/signin/_components/AuthLogin';
@@ -13,6 +12,10 @@ const gradientStyle = {
   height: '100vh',
 };
 
+/**
+ * Renders the Boxed Login UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const BoxedLogin = () => {
   return (
     <div style={gradientStyle} className='relative overflow-hidden h-screen'>

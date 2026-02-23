@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useTransition } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +12,11 @@ type ScheduleToggleSwitchProps = {
   isRiskAcknowledged: boolean;
 };
 
+/**
+ * Renders the Schedule Toggle Switch UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 const ScheduleToggleSwitch: React.FC<ScheduleToggleSwitchProps> = ({ isRiskAcknowledged }) => {
   const t = useTranslations();
   const queryClient = useQueryClient();
@@ -53,6 +57,10 @@ const ScheduleToggleSwitch: React.FC<ScheduleToggleSwitchProps> = ({ isRiskAckno
   );
 };
 
+/**
+ * Renders the Schedule Form UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const ScheduleForm: React.FC = () => {
   const t = useTranslations();
   const [isRiskAcknowledged, setRiskAcknowledged] = useState(false);

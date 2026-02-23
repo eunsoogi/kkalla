@@ -1,5 +1,4 @@
 'use client';
-
 import React, { Suspense, useActionState, useCallback, useTransition } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -14,6 +13,10 @@ import { getCategoryPermission, getCategoryText } from '@/utils/category';
 
 import { getCategoriesAction, updateCategoryAction } from '../_actions/category.actions';
 
+/**
+ * Renders the Category Form Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const CategoryFormSkeleton = () => {
   return (
     <div className='space-y-6 animate-pulse'>
@@ -32,6 +35,10 @@ const CategoryFormSkeleton = () => {
   );
 };
 
+/**
+ * Renders the Category Form Content UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const CategoryFormContent = () => {
   const t = useTranslations();
   const [isPending, startTransition] = useTransition();
@@ -115,6 +122,10 @@ const CategoryFormContent = () => {
   );
 };
 
+/**
+ * Renders the Category Form UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export default function CategoryForm() {
   return (
     <Suspense fallback={<CategoryFormSkeleton />}>

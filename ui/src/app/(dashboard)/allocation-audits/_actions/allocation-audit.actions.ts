@@ -1,5 +1,4 @@
 'use server';
-
 import { getClient } from '@/utils/api';
 
 import {
@@ -32,6 +31,11 @@ interface GetAllocationAuditRunItemsParams {
   sortOrder?: AllocationAuditSortOrder;
 }
 
+/**
+ * Retrieves allocation audit runs action for the allocation audit flow.
+ * @param params - Input values for the allocation audit operation.
+ * @returns Asynchronous result produced by the allocation audit flow.
+ */
 export const getAllocationAuditRunsAction = async (
   params: GetAllocationAuditRunsParams = {},
 ): Promise<AllocationAuditRunPage> => {
@@ -97,6 +101,12 @@ export const getAllocationAuditRunsAction = async (
   }
 };
 
+/**
+ * Retrieves allocation audit run items action for the allocation audit flow.
+ * @param runId - Identifier for the target resource.
+ * @param params - Input values for the allocation audit operation.
+ * @returns Asynchronous result produced by the allocation audit flow.
+ */
 export const getAllocationAuditRunItemsAction = async (
   runId: string,
   params: GetAllocationAuditRunItemsParams = {},

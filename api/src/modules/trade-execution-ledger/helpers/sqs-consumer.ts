@@ -23,6 +23,10 @@ interface SqsConsumerOptions {
   restartDelayMs?: number;
 }
 
+/**
+ * Runs sqs consumer in the trade execution ledger workflow.
+ * @param options - Configuration for the trade execution ledger flow.
+ */
 export function startSqsConsumer(options: SqsConsumerOptions): void {
   options.logger.log(options.messages.onStart);
 
@@ -37,6 +41,10 @@ export function startSqsConsumer(options: SqsConsumerOptions): void {
   });
 }
 
+/**
+ * Handles consume sqs messages in the trade execution ledger workflow.
+ * @param options - Configuration for the trade execution ledger flow.
+ */
 async function consumeSqsMessages(options: SqsConsumerOptions): Promise<void> {
   options.logger.log(options.messages.onStart);
 

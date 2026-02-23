@@ -1,10 +1,14 @@
 'use client';
-
 import React from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { LoadingIndicator } from './LoadingIndicator';
 
+/**
+ * Renders the Infinity Scroll UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export const InfinityScroll: React.FC<{
   onIntersect: () => void;
   isLoading?: boolean;

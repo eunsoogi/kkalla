@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import { Blacklist } from '@/app/(dashboard)/blacklists/_types/blacklist.types';
@@ -16,6 +15,11 @@ export interface BlacklistState {
   message?: string;
 }
 
+/**
+ * Retrieves blacklists action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getBlacklistsAction = async (params: BlacklistsParams): Promise<PaginatedItem<Blacklist>> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -31,6 +35,11 @@ export const getBlacklistsAction = async (params: BlacklistsParams): Promise<Pag
   }
 };
 
+/**
+ * Retrieves blacklist action for the dashboard UI flow.
+ * @param id - Identifier for the target resource.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getBlacklistAction = async (id: string): Promise<Blacklist> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -44,6 +53,12 @@ export const getBlacklistAction = async (id: string): Promise<Blacklist> => {
   }
 };
 
+/**
+ * Builds blacklist action used in the dashboard UI flow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function createBlacklistAction(_: BlacklistState, formData: FormData): Promise<BlacklistState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -71,6 +86,12 @@ export async function createBlacklistAction(_: BlacklistState, formData: FormDat
   }
 }
 
+/**
+ * Handles blacklist action in the dashboard UI workflow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function updateBlacklistAction(_: BlacklistState, formData: FormData): Promise<BlacklistState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -99,6 +120,12 @@ export async function updateBlacklistAction(_: BlacklistState, formData: FormDat
   }
 }
 
+/**
+ * Handles delete blacklist action in the dashboard UI workflow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function deleteBlacklistAction(_: BlacklistState, formData: FormData): Promise<BlacklistState> {
   const client = await getClient();
   const t = await getTranslations();

@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import { CursorItem, PaginatedItem } from '@/shared/types/pagination.types';
@@ -13,6 +12,11 @@ export interface GetTradeParams {
   lastHours?: number;
 }
 
+/**
+ * Retrieves trade action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getTradeAction = async (params?: GetTradeParams): Promise<PaginatedItem<Trade>> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -53,6 +57,11 @@ interface TradeCursorParams {
   endDate?: Date;
 }
 
+/**
+ * Retrieves trade cursor action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getTradeCursorAction = async (params: TradeCursorParams): Promise<CursorItem<Trade>> => {
   const client = await getClient();
   const t = await getTranslations();

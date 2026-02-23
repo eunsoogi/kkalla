@@ -36,11 +36,17 @@ interface MarkMalformedMessageAsNonRetryableOptions {
   resolveUserId(parsed: JsonRecord | null): string;
 }
 
+/**
+ * Runs malformed message as non retryable in the trade execution ledger workflow.
+ * @param options - Configuration for the trade execution ledger flow.
+ * @param error - Error captured from a failed operation.
+ */
 export async function markMalformedMessageAsNonRetryable(
   options: MarkMalformedMessageAsNonRetryableOptions,
   error: unknown,
 ): Promise<void> {
   const parsed = tryParseJsonRecord(options.message.Body);
+  // Synthesize a stable key when producer payload is broken and MessageId is missing.
   const messageKey =
     readStringValue(parsed, 'messageKey') ?? options.message.MessageId ?? `malformed:${Date.now()}:${randomUUID()}`;
   const userId = options.resolveUserId(parsed);
@@ -56,6 +62,7 @@ export async function markMalformedMessageAsNonRetryable(
     expiresAt,
   });
 
+  // Only first worker writes malformed-failure row; duplicates are already deduped by ledger.
   if (acquireResult.acquired) {
     await options.ledgerService.markNonRetryableFailed({
       module: options.module,

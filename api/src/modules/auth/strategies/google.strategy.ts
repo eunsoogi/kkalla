@@ -32,6 +32,11 @@ export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-toke
     super();
   }
 
+  /**
+   * Handles validate in the authentication workflow.
+   * @param accessToken - Input value for access token.
+   * @returns Asynchronous result produced by the authentication flow.
+   */
   public async validate(accessToken: string): Promise<User> {
     const cacheKey = this.buildTokenCacheKey(accessToken);
     const cached = await this.cacheService.get<CachedGoogleTokenInfo>(cacheKey);
@@ -62,6 +67,11 @@ export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-toke
     return this.userService.findOrCreate({ email: userInfo.email });
   }
 
+  /**
+   * Builds token cache key used in the authentication flow.
+   * @param accessToken - Input value for access token.
+   * @returns Formatted string output for the operation.
+   */
   private buildTokenCacheKey(accessToken: string): string {
     const tokenHash = createHash('sha256').update(accessToken).digest('hex');
     return `auth:google-token:${tokenHash}`;

@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import { PaginatedItem } from '@/shared/types/pagination.types';
@@ -13,6 +12,10 @@ export interface GetProfitListParams {
   email?: string;
 }
 
+/**
+ * Retrieves my profit action for the dashboard UI flow.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getMyProfitAction = async (): Promise<ProfitResponse> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -31,6 +34,11 @@ export const getMyProfitAction = async (): Promise<ProfitResponse> => {
   }
 };
 
+/**
+ * Retrieves profits action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function getProfitsAction(params?: GetProfitListParams): Promise<PaginatedItem<ProfitData>> {
   const client = await getClient();
   const { data } = await client.get('/api/v1/profits', {

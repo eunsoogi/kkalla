@@ -1,5 +1,4 @@
 'use server';
-
 import { getTranslations } from 'next-intl/server';
 
 import { PaginatedItem } from '@/shared/types/pagination.types';
@@ -17,6 +16,11 @@ export interface RoleState {
   message?: string;
 }
 
+/**
+ * Retrieves roles action for the dashboard UI flow.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getRolesAction = async (params: RolesParams): Promise<PaginatedItem<Role>> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -32,6 +36,11 @@ export const getRolesAction = async (params: RolesParams): Promise<PaginatedItem
   }
 };
 
+/**
+ * Retrieves role action for the dashboard UI flow.
+ * @param id - Identifier for the target resource.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export const getRoleAction = async (id: string): Promise<Role> => {
   const client = await getClient();
   const t = await getTranslations();
@@ -45,6 +54,12 @@ export const getRoleAction = async (id: string): Promise<Role> => {
   }
 };
 
+/**
+ * Builds role action used in the dashboard UI flow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function createRoleAction(_: RoleState, formData: FormData): Promise<RoleState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -74,6 +89,12 @@ export async function createRoleAction(_: RoleState, formData: FormData): Promis
   }
 }
 
+/**
+ * Handles role action in the dashboard UI workflow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function updateRoleAction(_: RoleState, formData: FormData): Promise<RoleState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -104,6 +125,12 @@ export async function updateRoleAction(_: RoleState, formData: FormData): Promis
   }
 }
 
+/**
+ * Handles delete role action in the dashboard UI workflow.
+ * @param _ - Input value for .
+ * @param formData - Input value for form data.
+ * @returns Asynchronous result produced by the dashboard UI flow.
+ */
 export async function deleteRoleAction(_: RoleState, formData: FormData): Promise<RoleState> {
   const client = await getClient();
   const t = await getTranslations();
@@ -125,6 +152,10 @@ export async function deleteRoleAction(_: RoleState, formData: FormData): Promis
   }
 }
 
+/**
+ * Retrieves permissions action for the dashboard UI flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export const getPermissionsAction = async (): Promise<Permission[]> => {
   const client = await getClient();
   const t = await getTranslations();

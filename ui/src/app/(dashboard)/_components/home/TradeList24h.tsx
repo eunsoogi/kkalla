@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 
 import { useRouter } from 'next/navigation';
@@ -14,6 +13,10 @@ import { formatNumber } from '@/utils/number';
 
 import { TRADE_STYLES } from '@/app/(dashboard)/_shared/trades/trade.styles';
 
+/**
+ * Renders the Trade List24h Skeleton UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 export const TradeList24hSkeleton = () => (
   <div className='animate-pulse px-4 py-6 space-y-3'>
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
@@ -27,6 +30,11 @@ interface TradeList24hProps {
   isLoading?: boolean;
 }
 
+/**
+ * Renders the Trade List24h UI for the dashboard UI.
+ * @param params - Input values for the dashboard UI operation.
+ * @returns Rendered React element for this view.
+ */
 export function TradeList24h({ items = [], isLoading = false }: TradeList24hProps) {
   const t = useTranslations();
   const router = useRouter();

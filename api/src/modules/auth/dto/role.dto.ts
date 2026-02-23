@@ -5,6 +5,11 @@ export class RoleDto {
   name: string;
   permissions: string[];
 
+  /**
+   * Handles from in the authentication workflow.
+   * @param role - Input value for role.
+   * @returns Result produced by the authentication flow.
+   */
   static from(role: Role): RoleDto {
     if (!role) {
       return null;

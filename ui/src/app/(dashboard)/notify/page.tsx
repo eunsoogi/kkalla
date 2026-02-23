@@ -5,6 +5,10 @@ import SlackForm from '@/app/(dashboard)/notify/_components/SlackForm';
 import SlackGuide from '@/app/(dashboard)/notify/_components/SlackGuide';
 import SlackProgressPanel from '@/app/(dashboard)/notify/_components/SlackProgressPanel';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page = async () => {
   const t = await getTranslations();
 

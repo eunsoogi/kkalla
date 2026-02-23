@@ -65,6 +65,10 @@ interface ProcessTradeExecutionMessageOptions<TMessage extends TradeExecutionMes
   onError(messageId: string | undefined, error: unknown): void;
 }
 
+/**
+ * Runs trade execution message in the trade execution ledger workflow.
+ * @param options - Configuration for the trade execution ledger flow.
+ */
 export async function processTradeExecutionMessage<TMessage extends TradeExecutionMessagePayload>(
   options: ProcessTradeExecutionMessageOptions<TMessage>,
 ): Promise<void> {
@@ -76,6 +80,7 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
     return;
   }
 
+  // Canonical module key keeps dedupe stable across renamed module labels.
   const dedupeModuleKey = resolveDedupeModuleKey(parsedMessage, options.module);
   const ledgerContext: ProcessingLedgerContext = {
     module: dedupeModuleKey,
@@ -94,6 +99,7 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
     });
 
     if (!acquired.acquired) {
+      // Already-processing messages are deferred; terminal duplicates are discarded.
       if (acquired.status === TradeExecutionLedgerStatus.PROCESSING) {
         options.onSkippedProcessing(parsedMessage.messageKey);
         await deferSqsMessageWhileProcessing({
@@ -119,6 +125,7 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
       attemptCount: acquired.attemptCount ?? 1,
     };
 
+    // Skip stale queue items after ledger acquire so expiry gets persisted once.
     if (isMessageExpired(parsedMessage.expiresAt)) {
       await options.ledgerService.markStaleSkipped({
         ...processingLedgerContext,
@@ -132,6 +139,7 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
       return;
     }
 
+    // Run trade execution under user lock and periodic processing heartbeats.
     const lockResult = await options.withUserLock(parsedMessage.userId, async (lockContext) =>
       withProcessingHeartbeat({
         context: processingLedgerContext,
@@ -171,10 +179,12 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
   } catch (error) {
     options.onError(options.message.MessageId, error);
 
+    // Success state already persisted; do not overwrite ledger status in fallback path.
     if (succeeded) {
       throw error;
     }
 
+    // Without attempt count we cannot safely write failure metadata.
     if (!hasPositiveAttemptCount(processingLedgerContext)) {
       throw error;
     }
@@ -200,6 +210,12 @@ export async function processTradeExecutionMessage<TMessage extends TradeExecuti
   }
 }
 
+/**
+ * Normalizes dedupe module key for the trade execution ledger flow.
+ * @param parsedMessage - Message payload handled by the trade execution ledger flow.
+ * @param fallbackModule - Input value for fallback module.
+ * @returns Formatted string output for the operation.
+ */
 function resolveDedupeModuleKey<TMessage extends TradeExecutionMessagePayload>(
   parsedMessage: TMessage,
   fallbackModule: TradeExecutionModule,
@@ -212,7 +228,14 @@ function resolveDedupeModuleKey<TMessage extends TradeExecutionMessagePayload>(
   return fallbackModule;
 }
 
+/**
+ * Normalizes module key for the trade execution ledger flow.
+ * @param moduleKey - Input value for module key.
+ * @param fallbackModule - Input value for fallback module.
+ * @returns Result produced by the trade execution ledger flow.
+ */
 function normalizeModuleKey(moduleKey: string, fallbackModule: TradeExecutionModule): TradeExecutionModule {
+  // Legacy module names are normalized to the post-refactor canonical modules.
   if (moduleKey === TradeExecutionModule.ALLOCATION || moduleKey === 'rebalance') {
     return TradeExecutionModule.ALLOCATION;
   }

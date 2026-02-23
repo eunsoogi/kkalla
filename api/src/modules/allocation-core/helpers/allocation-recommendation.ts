@@ -26,10 +26,22 @@ interface CategoryRecommendationFilterConfig extends RecommendationFilterConfig 
   categoryItemCountConfig: CategoryItemCountConfig;
 }
 
+/**
+ * Handles clamp in the allocation recommendation workflow.
+ * @param value - Input value for value.
+ * @param min - Input value for min.
+ * @param max - Input value for max.
+ * @returns Computed numeric value for the operation.
+ */
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Handles clamp01 in the allocation recommendation workflow.
+ * @param value - Input value for value.
+ * @returns Computed numeric value for the operation.
+ */
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -38,12 +50,22 @@ export function clamp01(value: number): number {
   return clamp(value, 0, 1);
 }
 
+/**
+ * Retrieves recommendation score for the allocation recommendation flow.
+ * @param item - Input value for item.
+ * @returns Computed numeric value for the operation.
+ */
 export function getRecommendationScore(item: Pick<AllocationRecommendationData, 'weight' | 'confidence'>): number {
   const weight = item.weight ?? 0.1;
   const confidence = item.confidence ?? 0.7;
   return weight * 0.6 + confidence * 0.4;
 }
 
+/**
+ * Retrieves buy priority score for the allocation recommendation flow.
+ * @param item - Input value for item.
+ * @returns Computed numeric value for the operation.
+ */
 export function getBuyPriorityScore(item: Pick<AllocationRecommendationData, 'buyScore' | 'intensity'>): number {
   if (item.buyScore != null && Number.isFinite(item.buyScore)) {
     return clamp01(item.buyScore);
@@ -52,10 +74,16 @@ export function getBuyPriorityScore(item: Pick<AllocationRecommendationData, 'bu
   return clamp01(item.intensity);
 }
 
+/**
+ * Transforms allocation recommendations by priority for the allocation recommendation flow.
+ * @param inferences - Input value for inferences.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function sortAllocationRecommendationsByPriority<
   T extends Pick<AllocationRecommendationData, 'hasStock' | 'buyScore' | 'intensity' | 'weight' | 'confidence'>,
 >(inferences: T[]): T[] {
   return inferences.sort((a, b) => {
+    // Keep currently held assets ahead of new entries to minimize unnecessary churn.
     if (a.hasStock && b.hasStock) {
       return 0;
     } else if (a.hasStock) {
@@ -82,10 +110,21 @@ export function sortAllocationRecommendationsByPriority<
   });
 }
 
+/**
+ * Checks krw symbol in the allocation recommendation context.
+ * @param symbol - Asset symbol to process.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function isKrwSymbol(symbol: string): boolean {
   return symbol.endsWith('/KRW');
 }
 
+/**
+ * Checks orderable symbol in the allocation recommendation context.
+ * @param symbol - Asset symbol to process.
+ * @param orderableSymbols - Asset symbol to process.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function isOrderableSymbol(symbol: string, orderableSymbols?: Set<string>): boolean {
   if (!isKrwSymbol(symbol)) {
     return false;
@@ -98,6 +137,14 @@ export function isOrderableSymbol(symbol: string, orderableSymbols?: Set<string>
   return orderableSymbols.has(symbol);
 }
 
+/**
+ * Checks sell amount sufficient in the allocation recommendation context.
+ * @param symbol - Asset symbol to process.
+ * @param diff - Input value for diff.
+ * @param minimumTradePrice - Input value for minimum trade price.
+ * @param tradableMarketValueMap - Input value for tradable market value map.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function isSellAmountSufficient(
   symbol: string,
   diff: number,
@@ -120,6 +167,11 @@ export function isSellAmountSufficient(
   return tradableMarketValue * Math.abs(diff) >= minimumTradePrice;
 }
 
+/**
+ * Normalizes allocation recommendation action for the allocation recommendation flow.
+ * @param action - Input value for action.
+ * @returns Result produced by the allocation recommendation flow.
+ */
 export function normalizeAllocationRecommendationAction(action: unknown): AllocationRecommendationAction {
   if (action === 'buy' || action === 'sell' || action === 'hold' || action === 'no_trade') {
     return action;
@@ -153,6 +205,12 @@ interface NormalizeAllocationRecommendationResponseOptions {
   onSymbolMismatch?: (args: { outputSymbol: string; expectedSymbol: string }) => void;
 }
 
+/**
+ * Normalizes allocation recommendation response payload for the allocation recommendation flow.
+ * @param response - Response object for the allocation recommendation operation.
+ * @param options - Configuration for the allocation recommendation flow.
+ * @returns Result produced by the allocation recommendation flow.
+ */
 export function normalizeAllocationRecommendationResponsePayload(
   response: unknown,
   options: NormalizeAllocationRecommendationResponseOptions,
@@ -163,6 +221,7 @@ export function normalizeAllocationRecommendationResponsePayload(
 
   const parsed = response as ParsedAllocationRecommendationResponse;
   const outputSymbol = typeof parsed.symbol === 'string' ? parsed.symbol.trim() : '';
+  // Symbol mismatch often indicates cross-symbol model output; optionally drop hard.
   if (outputSymbol !== options.expectedSymbol) {
     options.onSymbolMismatch?.({
       outputSymbol,
@@ -190,6 +249,15 @@ export function normalizeAllocationRecommendationResponsePayload(
   };
 }
 
+/**
+ * Normalizes allocation recommendation action for the allocation recommendation flow.
+ * @param intensity - Input value for intensity.
+ * @param sellScore - Input value for sell score.
+ * @param modelTargetWeight - Input value for model target weight.
+ * @param minimumTradeIntensity - Input value for minimum trade intensity.
+ * @param sellScoreThreshold - Input value for sell score threshold.
+ * @returns Result produced by the allocation recommendation flow.
+ */
 export function resolveAllocationRecommendationAction(
   intensity: number,
   sellScore: number,
@@ -225,9 +293,15 @@ interface AllocationModelSignals {
   action: AllocationRecommendationAction;
 }
 
+/**
+ * Calculates allocation model signals for the allocation recommendation flow.
+ * @param options - Configuration for the allocation recommendation flow.
+ * @returns Result produced by the allocation recommendation flow.
+ */
 export function calculateAllocationModelSignals(
   options: CalculateAllocationModelSignalsOptions,
 ): AllocationModelSignals {
+  // Blend AI direction with feature-derived market quality into buy/sell scores.
   const aiBuy = clamp01(options.intensity);
   const aiSell = clamp01(-options.intensity);
   const featureScore = calculateFeatureScore(options.marketFeatures, options.featureScoreConfig);
@@ -254,6 +328,12 @@ export function calculateAllocationModelSignals(
   };
 }
 
+/**
+ * Calculates regime adjusted target weight for the allocation recommendation flow.
+ * @param baseTargetWeight - Input value for base target weight.
+ * @param regimeMultiplier - Input value for regime multiplier.
+ * @returns Computed numeric value for the operation.
+ */
 export function calculateRegimeAdjustedTargetWeight(baseTargetWeight: number, regimeMultiplier: number): number {
   if (!Number.isFinite(baseTargetWeight) || baseTargetWeight <= 0) {
     return 0;
@@ -263,6 +343,12 @@ export function calculateRegimeAdjustedTargetWeight(baseTargetWeight: number, re
   return clamp01(adjustedTargetWeight);
 }
 
+/**
+ * Checks no trade recommendation in the allocation recommendation context.
+ * @param inference - Input value for inference.
+ * @param minAllocationConfidence - Identifier for the target resource.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function isNoTradeRecommendation(
   inference: AllocationRecommendationData,
   minAllocationConfidence: number,
@@ -278,6 +364,13 @@ export function isNoTradeRecommendation(
   return false;
 }
 
+/**
+ * Checks included recommendation in the allocation recommendation context.
+ * @param inference - Input value for inference.
+ * @param minimumTradeIntensity - Input value for minimum trade intensity.
+ * @param minAllocationConfidence - Identifier for the target resource.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function isIncludedRecommendation(
   inference: AllocationRecommendationData,
   minimumTradeIntensity: number,
@@ -294,6 +387,11 @@ export function isIncludedRecommendation(
   return inference.intensity > minimumTradeIntensity;
 }
 
+/**
+ * Transforms recommendations by category for the allocation recommendation flow.
+ * @param inferences - Input value for inferences.
+ * @returns Processed collection for downstream workflow steps.
+ */
 function groupRecommendationsByCategory<T extends Pick<AllocationRecommendationData, 'category'>>(
   inferences: T[],
 ): Array<[Category, T[]]> {
@@ -308,6 +406,13 @@ function groupRecommendationsByCategory<T extends Pick<AllocationRecommendationD
   return Array.from(grouped.entries());
 }
 
+/**
+ * Retrieves included recommendations by category for the allocation recommendation flow.
+ * @param categoryInferences - Input value for category inferences.
+ * @param category - Input value for category.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 function getIncludedRecommendationsByCategory<T extends AllocationRecommendationData>(
   categoryInferences: T[],
   category: Category,
@@ -318,6 +423,12 @@ function getIncludedRecommendationsByCategory<T extends AllocationRecommendation
     .slice(0, getItemCountByCategory(category, config.categoryItemCountConfig));
 }
 
+/**
+ * Transforms included recommendations for the allocation recommendation flow.
+ * @param inferences - Input value for inferences.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function filterIncludedRecommendations<T extends AllocationRecommendationData>(
   inferences: T[],
   config: RecommendationFilterConfig,
@@ -327,6 +438,12 @@ export function filterIncludedRecommendations<T extends AllocationRecommendation
   );
 }
 
+/**
+ * Transforms excluded held recommendations for the allocation recommendation flow.
+ * @param inferences - Input value for inferences.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function filterExcludedHeldRecommendations<T extends AllocationRecommendationData>(
   inferences: T[],
   config: RecommendationFilterConfig,
@@ -339,10 +456,17 @@ export function filterExcludedHeldRecommendations<T extends AllocationRecommenda
   );
 }
 
+/**
+ * Transforms included recommendations by category for the allocation recommendation flow.
+ * @param inferences - Input value for inferences.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function filterIncludedRecommendationsByCategory<T extends AllocationRecommendationData>(
   inferences: T[],
   config: CategoryRecommendationFilterConfig,
 ): T[] {
+  // Apply category quotas first, then re-sort globally for final execution priority.
   const filtered = groupRecommendationsByCategory(inferences).flatMap(([category, categoryInferences]) =>
     getIncludedRecommendationsByCategory(categoryInferences, category, config),
   );
@@ -350,6 +474,12 @@ export function filterIncludedRecommendationsByCategory<T extends AllocationReco
   return sortAllocationRecommendationsByPriority(filtered);
 }
 
+/**
+ * Transforms excluded recommendations by category for the allocation recommendation flow.
+ * @param inferences - Input value for inferences.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function filterExcludedRecommendationsByCategory<T extends AllocationRecommendationData>(
   inferences: T[],
   config: CategoryRecommendationFilterConfig,
@@ -366,11 +496,18 @@ export function filterExcludedRecommendationsByCategory<T extends AllocationReco
   return sortAllocationRecommendationsByPriority(filtered);
 }
 
+/**
+ * Calculates feature score for the allocation recommendation flow.
+ * @param marketFeatures - Input value for market features.
+ * @param config - Configuration for the allocation recommendation flow.
+ * @returns Computed numeric value for the operation.
+ */
 export function calculateFeatureScore(marketFeatures: MarketFeatures | null, config: FeatureScoreConfig): number {
   if (!marketFeatures) {
     return 0;
   }
 
+  // Normalize each signal into 0..1 before applying configured weights.
   const confidence = clamp01((marketFeatures.prediction?.confidence ?? 0) / 100);
   const momentumStrength = clamp01((marketFeatures.prediction?.momentumStrength ?? 0) / 100);
   const liquidityScore = clamp01((marketFeatures.liquidityScore ?? 0) / 10);
@@ -390,6 +527,13 @@ export function calculateFeatureScore(marketFeatures: MarketFeatures | null, con
   );
 }
 
+/**
+ * Calculates allocation band for the allocation recommendation flow.
+ * @param targetWeight - Input value for target weight.
+ * @param minAllocationBand - Input value for min allocation band.
+ * @param allocationBandRatio - Input value for allocation band ratio.
+ * @returns Computed numeric value for the operation.
+ */
 export function calculateAllocationBand(
   targetWeight: number,
   minAllocationBand: number,
@@ -398,15 +542,32 @@ export function calculateAllocationBand(
   return Math.max(minAllocationBand, targetWeight * allocationBandRatio);
 }
 
+/**
+ * Checks reallocate in the allocation recommendation context.
+ * @param targetWeight - Input value for target weight.
+ * @param deltaWeight - Input value for delta weight.
+ * @param minAllocationBand - Input value for min allocation band.
+ * @param allocationBandRatio - Input value for allocation band ratio.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function shouldReallocate(
   targetWeight: number,
   deltaWeight: number,
   minAllocationBand: number,
   allocationBandRatio: number,
 ): boolean {
+  // Skip micro-adjustments unless the gap exceeds the dynamic allocation band.
   return Math.abs(deltaWeight) >= calculateAllocationBand(targetWeight, minAllocationBand, allocationBandRatio);
 }
 
+/**
+ * Handles passes cost gate in the allocation recommendation workflow.
+ * @param deltaWeight - Input value for delta weight.
+ * @param estimatedFeeRate - Input value for estimated fee rate.
+ * @param estimatedSlippageRate - Input value for estimated slippage rate.
+ * @param costGuardMultiplier - Input value for cost guard multiplier.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 export function passesCostGate(
   deltaWeight: number,
   estimatedFeeRate: number,
@@ -417,10 +578,21 @@ export function passesCostGate(
   return Math.abs(deltaWeight) >= minEdge;
 }
 
+/**
+ * Calculates relative diff for the allocation recommendation flow.
+ * @param targetWeight - Input value for target weight.
+ * @param currentWeight - Input value for current weight.
+ * @returns Computed numeric value for the operation.
+ */
 export function calculateRelativeDiff(targetWeight: number, currentWeight: number): number {
   return (targetWeight - currentWeight) / (currentWeight || 1);
 }
 
+/**
+ * Normalizes available krw balance for the allocation recommendation flow.
+ * @param balances - Input value for balances.
+ * @returns Computed numeric value for the operation.
+ */
 export function resolveAvailableKrwBalance(balances: Balances): number {
   const krwInfoBalance = balances.info.find(
     (item) => item.currency === item.unit_currency && item.currency.toUpperCase() === 'KRW',
@@ -438,6 +610,13 @@ export function resolveAvailableKrwBalance(balances: Balances): number {
   return 0;
 }
 
+/**
+ * Calculates buy notional from request for the allocation recommendation flow.
+ * @param request - Request payload for the allocation recommendation operation.
+ * @param tradableMarketValueMap - Input value for tradable market value map.
+ * @param fallbackMarketPrice - Input value for fallback market price.
+ * @returns Computed numeric value for the operation.
+ */
 export function estimateBuyNotionalFromRequest(
   request: { diff: number; symbol: string; marketPrice?: number },
   tradableMarketValueMap?: Map<string, number>,
@@ -473,6 +652,13 @@ interface ScaleBuyRequestsToAvailableKrwOptions {
   }) => void;
 }
 
+/**
+ * Handles scale buy requests to available krw in the allocation recommendation workflow.
+ * @param buyRequests - Input value for buy requests.
+ * @param availableKrw - Input value for available krw.
+ * @param options - Configuration for the allocation recommendation flow.
+ * @returns Processed collection for downstream workflow steps.
+ */
 export function scaleBuyRequestsToAvailableKrw<
   TRequest extends {
     diff: number;
@@ -503,6 +689,7 @@ export function scaleBuyRequestsToAvailableKrw<
     return buyRequests;
   }
 
+  // Scale every buy request proportionally to preserve the requested portfolio shape.
   const scale = availableKrw / totalEstimated;
   options.onBudgetScaled?.({
     availableKrw,
@@ -540,6 +727,11 @@ export function scaleBuyRequestsToAvailableKrw<
   return scaledRequests;
 }
 
+/**
+ * Normalizes percent string for the allocation recommendation flow.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
 export function toPercentString(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) {
     return '-';

@@ -116,6 +116,11 @@ export class AllocationRecommendation extends BaseEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  /**
+   * Retrieves recent for the allocation recommendation flow.
+   * @param request - Request payload for the allocation recommendation operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   public static async getRecent(request: RecentAllocationRecommendationRequest): Promise<AllocationRecommendation[]> {
     return await this.find({
       where: {
@@ -129,6 +134,11 @@ export class AllocationRecommendation extends BaseEntity {
     });
   }
 
+  /**
+   * Handles paginate in the allocation recommendation workflow.
+   * @param request - Request payload for the allocation recommendation operation.
+   * @returns Asynchronous result produced by the allocation recommendation flow.
+   */
   public static async paginate(
     request: ItemRequest & AllocationRecommendationFilter,
   ): Promise<PaginatedItem<AllocationRecommendation>> {
@@ -166,6 +176,11 @@ export class AllocationRecommendation extends BaseEntity {
     };
   }
 
+  /**
+   * Handles cursor in the allocation recommendation workflow.
+   * @param request - Request payload for the allocation recommendation operation.
+   * @returns Formatted string output for the operation.
+   */
   public static async cursor(
     request: CursorRequest<string> & AllocationRecommendationFilter,
   ): Promise<CursorItem<AllocationRecommendation, string>> {

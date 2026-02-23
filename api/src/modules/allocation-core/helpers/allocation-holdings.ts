@@ -8,6 +8,12 @@ interface BuildOrderableSymbolSetOptions {
   onPartialCheck?: () => void;
 }
 
+/**
+ * Builds orderable symbol set used in the allocation recommendation flow.
+ * @param symbols - Asset symbol to process.
+ * @param options - Configuration for the allocation recommendation flow.
+ * @returns Formatted string output for the operation.
+ */
 export async function buildOrderableSymbolSet(
   symbols: string[],
   options: BuildOrderableSymbolSetOptions,
@@ -41,9 +47,18 @@ export async function buildOrderableSymbolSet(
     options.onPartialCheck?.();
   }
 
+  // Fail open for unchecked symbols so transient exchange errors do not freeze trading.
   return new Set(checks.filter((check) => !check.checked || check.exists).map((check) => check.symbol));
 }
 
+/**
+ * Builds current weight map used in the allocation recommendation flow.
+ * @param balances - Input value for balances.
+ * @param totalMarketValue - Input value for total market value.
+ * @param getPrice - Input value for get price.
+ * @param orderableSymbols - Asset symbol to process.
+ * @returns Computed numeric value for the operation.
+ */
 export async function buildCurrentWeightMap(
   balances: Balances,
   totalMarketValue: number,
@@ -74,6 +89,7 @@ export async function buildCurrentWeightMap(
           const currPrice = await getPrice(symbol);
           return { symbol, weight: (tradableBalance * currPrice) / totalMarketValue };
         } catch {
+          // Price API fallback: use avg_buy_price to keep weight estimation available.
           const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
           if (!Number.isFinite(avgBuyPrice) || avgBuyPrice <= 0) {
             return null;
@@ -98,6 +114,13 @@ export async function buildCurrentWeightMap(
   return weightMap;
 }
 
+/**
+ * Builds tradable market value map used in the allocation recommendation flow.
+ * @param balances - Input value for balances.
+ * @param getPrice - Input value for get price.
+ * @param orderableSymbols - Asset symbol to process.
+ * @returns Computed numeric value for the operation.
+ */
 export async function buildTradableMarketValueMap(
   balances: Balances,
   getPrice: (symbol: string) => Promise<number>,
@@ -122,6 +145,7 @@ export async function buildTradableMarketValueMap(
           const currPrice = await getPrice(symbol);
           return { symbol, marketValue: tradableBalance * currPrice };
         } catch {
+          // Keep best-effort tradable value map when live price fetch fails.
           const avgBuyPrice = parseFloat(item.avg_buy_price || 0);
           if (!Number.isFinite(avgBuyPrice) || avgBuyPrice <= 0) {
             return { symbol, marketValue: 0 };

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
 
 import { useSession } from 'next-auth/react';
@@ -49,6 +48,11 @@ interface NextRunHighlight {
 
 const LOCK_REFRESH_INTERVAL_MS = 15_000;
 
+/**
+ * Parses run at to minutes for the dashboard UI flow.
+ * @param runAt - Input value for run at.
+ * @returns Computed numeric value for the operation.
+ */
 const parseRunAtToMinutes = (runAt: string): number | null => {
   const [hourRaw, minuteRaw] = runAt.split(':');
   if (!hourRaw || !minuteRaw) {
@@ -65,6 +69,11 @@ const parseRunAtToMinutes = (runAt: string): number | null => {
   return hour * 60 + minute;
 };
 
+/**
+ * Retrieves current minutes for timezone for the dashboard UI flow.
+ * @param timezone - Input value for timezone.
+ * @returns Computed numeric value for the operation.
+ */
 const getCurrentMinutesForTimezone = (timezone: string): number | null => {
   try {
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -87,6 +96,11 @@ const getCurrentMinutesForTimezone = (timezone: string): number | null => {
   }
 };
 
+/**
+ * Handles find nearest next run in the dashboard UI workflow.
+ * @param plans - Input value for plans.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const findNearestNextRun = (plans: ScheduleExecutionPlanResponse[]): NextRunHighlight | null => {
   let nearest: NextRunHighlight | null = null;
 
@@ -118,6 +132,12 @@ const findNearestNextRun = (plans: ScheduleExecutionPlanResponse[]): NextRunHigh
   return nearest;
 };
 
+/**
+ * Formats remaining time for the dashboard UI flow.
+ * @param minutesUntil - Input value for minutes until.
+ * @param t - Input value for t.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const formatRemainingTime = (minutesUntil: number, t: ReturnType<typeof useTranslations>) => {
   if (minutesUntil <= 0) {
     return t('schedule.execute.auto.remainingSoon');
@@ -137,6 +157,11 @@ const formatRemainingTime = (minutesUntil: number, t: ReturnType<typeof useTrans
   return t('schedule.execute.auto.remainingHoursMinutes', { hours, minutes });
 };
 
+/**
+ * Normalizes task record for the dashboard UI flow.
+ * @param items - Collection of items used by the dashboard UI flow.
+ * @returns Result produced by the dashboard UI flow.
+ */
 const toTaskRecord = <T extends { task: ScheduleExecutionTask }>(items: T[]): Partial<Record<ScheduleExecutionTask, T>> => {
   return items.reduce<Partial<Record<ScheduleExecutionTask, T>>>((acc, item) => {
     acc[item.task] = item;
@@ -144,6 +169,10 @@ const toTaskRecord = <T extends { task: ScheduleExecutionTask }>(items: T[]): Pa
   }, {});
 };
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations();

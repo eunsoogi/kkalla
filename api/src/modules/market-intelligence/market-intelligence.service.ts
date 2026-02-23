@@ -104,6 +104,9 @@ export class MarketIntelligenceService {
     await this.executeMarketSignalTask();
   }
 
+  /**
+   * Runs market signal task in the market signal workflow.
+   */
   public async executeMarketSignalTask(): Promise<void> {
     this.logger.log(this.i18n.t('logging.schedule.marketSignal.start'));
 
@@ -284,6 +287,11 @@ export class MarketIntelligenceService {
     }));
   }
 
+  /**
+   * Handles cache latest signal state in the market signal workflow.
+   * @param batchId - Identifier for the target resource.
+   * @param hasRecommendations - Input value for has recommendations.
+   */
   private async cacheLatestSignalState(batchId: string, hasRecommendations: boolean): Promise<void> {
     const state: MarketSignalState = {
       batchId,
@@ -514,6 +522,12 @@ export class MarketIntelligenceService {
     return result;
   }
 
+  /**
+   * Handles backfill latest batch signal prices in the market signal workflow.
+   * @param latestBatchItems - Collection of items used by the market signal flow.
+   * @param mode - Input value for mode.
+   * @returns Computed numeric value for the operation.
+   */
   private async backfillLatestBatchSignalPrices(
     latestBatchItems: MarketSignal[],
     mode: 'exact' | 'mixed' | 'approx',
@@ -555,6 +569,11 @@ export class MarketIntelligenceService {
     return new Map(entries.filter((entry): entry is [string, number] => entry != null));
   }
 
+  /**
+   * Handles persist signal price if missing in the market signal workflow.
+   * @param id - Identifier for the target resource.
+   * @param recommendationPrice - Input value for recommendation price.
+   */
   private async persistSignalPriceIfMissing(id: string, recommendationPrice: number): Promise<void> {
     if (!Number.isFinite(recommendationPrice) || recommendationPrice <= 0) {
       return;
@@ -577,6 +596,12 @@ export class MarketIntelligenceService {
     }
   }
 
+  /**
+   * Builds minute lookup candidate set used in the market signal flow.
+   * @param items - Collection of items used by the market signal flow.
+   * @param mode - Input value for mode.
+   * @returns Formatted string output for the operation.
+   */
   private buildMinuteLookupCandidateSet(
     items: Array<Pick<MarketSignal, 'id' | 'createdAt'>>,
     mode: 'exact' | 'mixed' | 'approx',
@@ -599,6 +624,14 @@ export class MarketIntelligenceService {
     );
   }
 
+  /**
+   * Normalizes signal price at time for the market signal flow.
+   * @param symbol - Asset symbol to process.
+   * @param createdAt - Input value for created at.
+   * @param marketData - Input value for market data.
+   * @param allowMinuteLookup - Input value for allow minute lookup.
+   * @returns Computed numeric value for the operation.
+   */
   private async resolveSignalPriceAtTime(
     symbol: string,
     createdAt: Date,
@@ -609,6 +642,14 @@ export class MarketIntelligenceService {
     return resolution.price;
   }
 
+  /**
+   * Normalizes signal price at time with source for the market signal flow.
+   * @param symbol - Asset symbol to process.
+   * @param createdAt - Input value for created at.
+   * @param marketData - Input value for market data.
+   * @param allowMinuteLookup - Input value for allow minute lookup.
+   * @returns Asynchronous result produced by the market signal flow.
+   */
   private async resolveSignalPriceAtTimeWithSource(
     symbol: string,
     createdAt: Date,
@@ -642,6 +683,13 @@ export class MarketIntelligenceService {
     return { source: 'none' };
   }
 
+  /**
+   * Normalizes daily fallback price for the market signal flow.
+   * @param candles1d - Input value for candles1d.
+   * @param createdAt - Input value for created at.
+   * @param currentPrice - Input value for current price.
+   * @returns Computed numeric value for the operation.
+   */
   private resolveDailyFallbackPrice(candles1d: number[][], createdAt: Date, currentPrice?: number): number | undefined {
     if (candles1d.length < 1) {
       return currentPrice;
@@ -662,11 +710,21 @@ export class MarketIntelligenceService {
     return currentPrice;
   }
 
+  /**
+   * Normalizes finite number for the market signal flow.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private toFiniteNumber(value: unknown): number | undefined {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
+  /**
+   * Normalizes positive number for the market signal flow.
+   * @param value - Input value for value.
+   * @returns Computed numeric value for the operation.
+   */
   private toPositiveNumber(value: unknown): number | undefined {
     const parsed = this.toFiniteNumber(value);
     if (parsed == null || parsed <= 0) {
@@ -675,6 +733,11 @@ export class MarketIntelligenceService {
     return parsed;
   }
 
+  /**
+   * Retrieves market validation badge map safe for the market signal flow.
+   * @param ids - Identifier for the target resource.
+   * @returns Result produced by the market signal flow.
+   */
   private async getMarketValidationBadgeMapSafe(ids: string[]) {
     try {
       return await this.allocationAuditService.getMarketValidationBadgeMap(ids);
@@ -684,6 +747,12 @@ export class MarketIntelligenceService {
     }
   }
 
+  /**
+   * Normalizes market signals for the market signal flow.
+   * @param recommendations - Input value for recommendations.
+   * @param allowedSymbols - Asset symbol to process.
+   * @returns Computed numeric value for the operation.
+   */
   private normalizeMarketSignals(
     recommendations: Array<{
       symbol: string;

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState } from 'react';
 
 import { Datepicker, Label, Select, TextInput } from 'flowbite-react';
@@ -8,6 +7,10 @@ import { useLocale, useTranslations } from 'next-intl';
 import { InferenceDetail } from '@/app/(dashboard)/_shared/inference/_components/InferenceDetail';
 import { SortDirection } from '@/enums/sort.enum';
 
+/**
+ * Renders the Page UI for the dashboard UI.
+ * @returns Rendered React element for this view.
+ */
 const Page: React.FC = () => {
   const t = useTranslations();
   const locale = useLocale();
@@ -28,7 +31,6 @@ const Page: React.FC = () => {
             placeholder={t('symbolPlaceholder')}
           />
         </div>
-
 
         <div className='col-span-2 flex flex-col gap-2'>
           <Label htmlFor='sortDirection'>{t('sort.label')}</Label>

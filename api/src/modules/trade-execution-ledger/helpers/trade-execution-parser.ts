@@ -17,6 +17,11 @@ interface ParseTradeExecutionMessageOptions {
   parseAllocationMode?: (value: unknown) => AllocationMode;
 }
 
+/**
+ * Parses trade execution message for the trade execution ledger flow.
+ * @param options - Configuration for the trade execution ledger flow.
+ * @returns Result produced by the trade execution ledger flow.
+ */
 export function parseTradeExecutionMessage(options: ParseTradeExecutionMessageOptions): TradeExecutionMessageV2 {
   if (!options.messageBody) {
     throw new Error('Empty SQS message body');
@@ -31,6 +36,12 @@ export function parseTradeExecutionMessage(options: ParseTradeExecutionMessageOp
   return parseTradeExecutionMessageV2(parsed, options);
 }
 
+/**
+ * Parses trade execution message v2 for the trade execution ledger flow.
+ * @param parsed - Input value for parsed.
+ * @param options - Configuration for the trade execution ledger flow.
+ * @returns Result produced by the trade execution ledger flow.
+ */
 function parseTradeExecutionMessageV2(
   parsed: Partial<QueueTradeExecutionMessageV2>,
   options: ParseTradeExecutionMessageOptions,
@@ -57,6 +68,7 @@ function parseTradeExecutionMessageV2(
     throw new Error('Invalid inferences');
   }
 
+  // Preserve incoming module label for dedupe compatibility while fixing runtime module.
   const moduleKey = parsed.module ?? options.module;
 
   const message: TradeExecutionMessageV2 = {
@@ -72,6 +84,7 @@ function parseTradeExecutionMessageV2(
   };
 
   if (options.parseAllocationMode) {
+    // Backward compatibility: older producers sent portfolioMode instead of allocationMode.
     const legacyMode = (parsed as Record<string, unknown>).portfolioMode;
     message.allocationMode = options.parseAllocationMode(parsed.allocationMode ?? legacyMode);
   }
@@ -79,6 +92,13 @@ function parseTradeExecutionMessageV2(
   return message;
 }
 
+/**
+ * Checks supported module label in the trade execution ledger context.
+ * @param value - Input value for value.
+ * @param module - Input value for module.
+ * @param aliases - Input value for aliases.
+ * @returns Boolean flag that indicates whether the condition is satisfied.
+ */
 function isSupportedModuleLabel(value: unknown, module: TradeExecutionModule, aliases: string[] = []): boolean {
   return typeof value === 'string' && (value === module || aliases.includes(value));
 }

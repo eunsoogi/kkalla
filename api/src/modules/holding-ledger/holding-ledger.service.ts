@@ -30,6 +30,11 @@ export class HoldingLedgerService {
     return this.toRecommendationItems(items);
   }
 
+  /**
+   * Retrieves holdings by user for the holding ledger flow.
+   * @param user - User identifier related to this operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   public async fetchHoldingsByUser(user: User): Promise<RecommendationItem[]> {
     const items = await HoldingLedger.find({
       where: {
@@ -49,6 +54,11 @@ export class HoldingLedgerService {
     }));
   }
 
+  /**
+   * Retrieves holdings by users for the holding ledger flow.
+   * @param users - User identifier related to this operation.
+   * @returns Processed collection for downstream workflow steps.
+   */
   public async fetchHoldingsByUsers(users: User[]): Promise<RecommendationItem[]> {
     if (users.length < 1) {
       return [];
@@ -130,6 +140,11 @@ export class HoldingLedgerService {
     );
   }
 
+  /**
+   * Normalizes recommendation items for the holding ledger flow.
+   * @param items - Collection of items used by the holding ledger flow.
+   * @returns Processed collection for downstream workflow steps.
+   */
   private toRecommendationItems(items: HoldingLedger[]): RecommendationItem[] {
     const deduped = new Map<string, RecommendationItem>();
 
