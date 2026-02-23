@@ -142,7 +142,7 @@ export class MarketResearchService {
                   },
                 }),
               )
-              .join('\n'),
+              .join('\n\n'),
           },
         }),
       );
