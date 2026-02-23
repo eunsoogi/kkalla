@@ -1077,7 +1077,7 @@ export class RebalanceService implements OnModuleInit {
                 },
               }),
             )
-            .join('\n'),
+            .join('\n\n'),
         },
       }),
     );

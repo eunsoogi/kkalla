@@ -1235,7 +1235,7 @@ export class MarketVolatilityService implements OnModuleInit {
                 },
               }),
             )
-            .join('\n'),
+            .join('\n\n'),
         },
       }),
     );
