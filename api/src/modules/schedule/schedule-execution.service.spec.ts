@@ -18,7 +18,7 @@ describe('ScheduleExecutionService', () => {
     requeueRunningAuditsToPending: jest.Mock;
   };
   let redlockService: {
-    startWithLock: jest.Mock;
+    startWithLocks: jest.Mock;
     getLockStatus: jest.Mock;
     forceReleaseLock: jest.Mock;
   };
@@ -37,7 +37,7 @@ describe('ScheduleExecutionService', () => {
       requeueRunningAuditsToPending: jest.fn().mockResolvedValue(0),
     };
     redlockService = {
-      startWithLock: jest.fn().mockResolvedValue(true),
+      startWithLocks: jest.fn().mockResolvedValue(true),
       getLockStatus: jest.fn().mockResolvedValue({
         locked: false,
         ttlMs: null,
@@ -64,8 +64,8 @@ describe('ScheduleExecutionService', () => {
 
     const result = await service.executeMarketSignal();
 
-    expect(redlockService.startWithLock).toHaveBeenCalledWith(
-      'MarketIntelligenceService:executeMarketSignal',
+    expect(redlockService.startWithLocks).toHaveBeenCalledWith(
+      ['MarketIntelligenceService:executeMarketSignal', 'MarketResearchService:executeMarketRecommendation'],
       88_200_000,
       expect.any(Function),
     );
@@ -130,14 +130,19 @@ describe('ScheduleExecutionService', () => {
   });
 
   it('should return lock states by task', async () => {
-    redlockService.getLockStatus
-      .mockResolvedValueOnce({ locked: true, ttlMs: 10_000 })
-      .mockResolvedValueOnce({ locked: false, ttlMs: null });
+    redlockService.getLockStatus.mockImplementation(async (resourceName: string) => {
+      if (resourceName === 'MarketIntelligenceService:executeMarketSignal') {
+        return { locked: true, ttlMs: 10_000 };
+      }
+      return { locked: false, ttlMs: null };
+    });
 
     const lockStates = await service.getLockStates(['marketSignal', 'allocationAudit']);
 
-    expect(redlockService.getLockStatus).toHaveBeenNthCalledWith(1, 'MarketIntelligenceService:executeMarketSignal');
-    expect(redlockService.getLockStatus).toHaveBeenNthCalledWith(2, 'AllocationAuditService:executeDueAudits');
+    expect(redlockService.getLockStatus).toHaveBeenCalledWith('MarketIntelligenceService:executeMarketSignal');
+    expect(redlockService.getLockStatus).toHaveBeenCalledWith('MarketResearchService:executeMarketRecommendation');
+    expect(redlockService.getLockStatus).toHaveBeenCalledWith('AllocationAuditService:executeDueAudits');
+    expect(redlockService.getLockStatus).toHaveBeenCalledWith('ReportValidationService:executeDueValidations');
     expect(lockStates).toHaveLength(2);
     expect(lockStates[0]?.task).toBe('marketSignal');
     expect(lockStates[0]?.locked).toBe(true);
@@ -147,20 +152,24 @@ describe('ScheduleExecutionService', () => {
   });
 
   it('should release task lock and return updated state', async () => {
-    redlockService.forceReleaseLock.mockResolvedValue(true);
-    redlockService.getLockStatus.mockResolvedValue({
-      locked: false,
-      ttlMs: null,
+    redlockService.forceReleaseLock.mockResolvedValue(false);
+    redlockService.forceReleaseLock.mockImplementation(async (resourceName: string) => {
+      return resourceName === 'AllocationService:executeAllocationRecommendationExisting';
     });
+    redlockService.getLockStatus.mockResolvedValue({ locked: false, ttlMs: null });
 
     const result = await service.releaseLock('allocationRecommendationExisting');
 
     expect(redlockService.forceReleaseLock).toHaveBeenCalledWith(
       'AllocationService:executeAllocationRecommendationExisting',
     );
+    expect(redlockService.forceReleaseLock).toHaveBeenCalledWith(
+      'RebalanceService:executeBalanceRecommendationExisting',
+    );
     expect(redlockService.getLockStatus).toHaveBeenCalledWith(
       'AllocationService:executeAllocationRecommendationExisting',
     );
+    expect(redlockService.getLockStatus).toHaveBeenCalledWith('RebalanceService:executeBalanceRecommendationExisting');
     expect(result.task).toBe('allocationRecommendationExisting');
     expect(result.released).toBe(true);
     expect(result.locked).toBe(false);
@@ -179,6 +188,7 @@ describe('ScheduleExecutionService', () => {
     const result = await service.releaseLock('allocationAudit');
 
     expect(redlockService.forceReleaseLock).toHaveBeenCalledWith('AllocationAuditService:executeDueAudits');
+    expect(redlockService.forceReleaseLock).toHaveBeenCalledWith('ReportValidationService:executeDueValidations');
     expect(allocationAuditService.requeueRunningAuditsToPending).toHaveBeenCalledTimes(1);
     expect(result.task).toBe('allocationAudit');
     expect(result.recoveredRunningCount).toBe(12);
@@ -198,34 +208,37 @@ describe('ScheduleExecutionService', () => {
   });
 
   it('should return started when lock is acquired', async () => {
-    redlockService.startWithLock.mockResolvedValue(true);
+    redlockService.startWithLocks.mockResolvedValue(true);
 
     const result = await service.executeMarketSignal();
 
     expect(result.status).toBe('started');
-    expect(redlockService.startWithLock).toHaveBeenCalledWith(
-      'MarketIntelligenceService:executeMarketSignal',
+    expect(redlockService.startWithLocks).toHaveBeenCalledWith(
+      ['MarketIntelligenceService:executeMarketSignal', 'MarketResearchService:executeMarketRecommendation'],
       88_200_000,
       expect.any(Function),
     );
   });
 
   it('should return skipped_lock when lock is not acquired', async () => {
-    redlockService.startWithLock.mockResolvedValue(false);
+    redlockService.startWithLocks.mockResolvedValue(false);
 
     const result = await service.executeAllocationRecommendationExisting();
 
     expect(result.status).toBe('skipped_lock');
-    expect(redlockService.startWithLock).toHaveBeenCalledWith(
-      'AllocationService:executeAllocationRecommendationExisting',
+    expect(redlockService.startWithLocks).toHaveBeenCalledWith(
+      [
+        'AllocationService:executeAllocationRecommendationExisting',
+        'RebalanceService:executeBalanceRecommendationExisting',
+      ],
       3_600_000,
       expect.any(Function),
     );
   });
 
   it('should execute the correct callback when lock runner invokes it', async () => {
-    redlockService.startWithLock.mockImplementation(
-      async (_resourceName: string, _duration: number, callback: () => Promise<void>) => {
+    redlockService.startWithLocks.mockImplementation(
+      async (_resourceNames: string[], _duration: number, callback: () => Promise<void>) => {
         await callback();
         return true;
       },
@@ -237,14 +250,14 @@ describe('ScheduleExecutionService', () => {
   });
 
   it('should propagate start-stage errors', async () => {
-    redlockService.startWithLock.mockRejectedValue(new Error('boom'));
+    redlockService.startWithLocks.mockRejectedValue(new Error('boom'));
 
     await expect(service.executeAllocationRecommendationNew()).rejects.toThrow('boom');
   });
 
   it('should execute report validation task with lock', async () => {
-    redlockService.startWithLock.mockImplementation(
-      async (_resourceName: string, _duration: number, callback: () => Promise<void>) => {
+    redlockService.startWithLocks.mockImplementation(
+      async (_resourceNames: string[], _duration: number, callback: () => Promise<void>) => {
         await callback();
         return true;
       },

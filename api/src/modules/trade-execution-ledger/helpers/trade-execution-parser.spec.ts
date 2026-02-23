@@ -85,6 +85,35 @@ describe('trade-execution-parser utils', () => {
     expect(riskMessage.module).toBe(TradeExecutionModule.RISK);
   });
 
+  it('should fallback to legacy portfolioMode when allocationMode is missing', () => {
+    const parseAllocationMode = jest.fn().mockReturnValue('existing');
+    const now = new Date('2026-02-23T00:00:00.000Z').toISOString();
+    const expiresAt = new Date('2026-02-23T00:30:00.000Z').toISOString();
+
+    const result = parseTradeExecutionMessage({
+      module: TradeExecutionModule.ALLOCATION,
+      moduleLabel: 'allocation',
+      queueMessageVersion: 2,
+      messageBody: JSON.stringify({
+        version: 2,
+        module: 'rebalance',
+        runId: 'run-legacy',
+        messageKey: 'key-legacy',
+        userId: 'user-legacy',
+        generatedAt: now,
+        expiresAt,
+        portfolioMode: 'existing',
+        inferences: [{ id: 'i-legacy' }],
+      }),
+      acceptedModuleAliases: ['rebalance'],
+      parseInference: (inference) => inference as any,
+      parseAllocationMode,
+    });
+
+    expect(result.allocationMode).toBe('existing');
+    expect(parseAllocationMode).toHaveBeenCalledWith('existing');
+  });
+
   it('should throw when module or version is unsupported', () => {
     expect(() =>
       parseTradeExecutionMessage({

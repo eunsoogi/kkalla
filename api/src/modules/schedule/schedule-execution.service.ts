@@ -20,6 +20,7 @@ import { SchedulePlanResponse } from './schedule-plan.interface';
 
 interface LockConfig {
   resourceName: string;
+  compatibleResourceNames?: string[];
   duration: number;
 }
 
@@ -30,18 +31,22 @@ export class ScheduleExecutionService {
   private readonly lockConfigByTask: Record<ScheduleExecutionTask, LockConfig> = {
     marketSignal: {
       resourceName: 'MarketIntelligenceService:executeMarketSignal',
+      compatibleResourceNames: ['MarketResearchService:executeMarketRecommendation'],
       duration: 88_200_000,
     },
     allocationRecommendationExisting: {
       resourceName: 'AllocationService:executeAllocationRecommendationExisting',
+      compatibleResourceNames: ['RebalanceService:executeBalanceRecommendationExisting'],
       duration: 3_600_000,
     },
     allocationRecommendationNew: {
       resourceName: 'AllocationService:executeAllocationRecommendationNew',
+      compatibleResourceNames: ['RebalanceService:executeBalanceRecommendationNew'],
       duration: 3_600_000,
     },
     allocationAudit: {
       resourceName: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.resourceName,
+      compatibleResourceNames: ['ReportValidationService:executeDueValidations'],
       duration: ALLOCATION_AUDIT_EXECUTE_DUE_VALIDATIONS_LOCK.duration,
     },
   };
@@ -88,7 +93,7 @@ export class ScheduleExecutionService {
     const lockStateEntries = await Promise.all(
       tasks.map(async (task) => {
         const lock = this.getLockConfig(task);
-        const lockStatus = await this.redlockService.getLockStatus(lock.resourceName);
+        const lockStatus = await this.getAggregatedLockStatus(lock);
 
         return {
           task,
@@ -107,8 +112,11 @@ export class ScheduleExecutionService {
 
   public async releaseLock(task: ScheduleExecutionTask): Promise<ScheduleLockReleaseResponse> {
     const lock = this.getLockConfig(task);
-    const released = await this.redlockService.forceReleaseLock(lock.resourceName);
-    const lockStatus = await this.redlockService.getLockStatus(lock.resourceName);
+    const releaseResults = await Promise.all(
+      this.getLockResourceNames(lock).map((resourceName) => this.redlockService.forceReleaseLock(resourceName)),
+    );
+    const released = releaseResults.some((result) => result);
+    const lockStatus = await this.getAggregatedLockStatus(lock);
     const recoveredRunningCount =
       task === 'allocationAudit' && !lockStatus.locked
         ? await this.allocationAuditService.requeueRunningAuditsToPending()
@@ -155,8 +163,7 @@ export class ScheduleExecutionService {
     callback: () => Promise<void>,
   ): Promise<ScheduleExecutionResponse> {
     const requestedAt = new Date().toISOString();
-
-    const started = await this.redlockService.startWithLock(lock.resourceName, lock.duration, callback);
+    const started = await this.redlockService.startWithLocks(this.getLockResourceNames(lock), lock.duration, callback);
 
     return {
       task,
@@ -167,6 +174,37 @@ export class ScheduleExecutionService {
 
   private getLockConfig(task: ScheduleExecutionTask): LockConfig {
     return this.lockConfigByTask[task];
+  }
+
+  private getLockResourceNames(lock: LockConfig): string[] {
+    return [lock.resourceName, ...(lock.compatibleResourceNames ?? [])];
+  }
+
+  private async getAggregatedLockStatus(lock: LockConfig): Promise<{ locked: boolean; ttlMs: number | null }> {
+    const statuses = await Promise.all(
+      this.getLockResourceNames(lock).map((resourceName) => this.redlockService.getLockStatus(resourceName)),
+    );
+
+    const lockedStatuses = statuses.filter((status) => status.locked);
+    if (lockedStatuses.length < 1) {
+      return {
+        locked: false,
+        ttlMs: null,
+      };
+    }
+
+    const hasUnknownTtl = lockedStatuses.some((status) => status.ttlMs == null);
+    if (hasUnknownTtl) {
+      return {
+        locked: true,
+        ttlMs: null,
+      };
+    }
+
+    return {
+      locked: true,
+      ttlMs: Math.max(...lockedStatuses.map((status) => status.ttlMs ?? 0)),
+    };
   }
 
   private extractRunAtTimes(cronExpression: string): string[] {

@@ -65,7 +65,8 @@ function parseTradeExecutionMessageV2(
   };
 
   if (options.parseAllocationMode) {
-    message.allocationMode = options.parseAllocationMode(parsed.allocationMode);
+    const legacyMode = (parsed as Record<string, unknown>).portfolioMode;
+    message.allocationMode = options.parseAllocationMode(parsed.allocationMode ?? legacyMode);
   }
 
   return message;
