@@ -206,11 +206,25 @@ describe('MarketRegimeService', () => {
     expect(httpService.get).not.toHaveBeenCalled();
   });
 
-  it('should fallback to feargreed-based neutral snapshot when CMC fails on cold start', async () => {
+  it('should persist and reuse feargreed-based neutral snapshot when CMC fails on cold start', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(FIXED_NOW);
     const { service, httpService, cacheService } = buildService();
 
-    cacheService.get.mockResolvedValue(null);
+    const snapshotCacheKey = 'market-regime:last-success:v1';
+    let snapshotCache: any = null;
+
+    cacheService.get.mockImplementation(async (key: string) => {
+      if (key === snapshotCacheKey) {
+        return snapshotCache;
+      }
+      return null;
+    });
+    cacheService.set.mockImplementation(async (key: string, value: unknown) => {
+      if (key === snapshotCacheKey) {
+        snapshotCache = value;
+      }
+    });
+
     httpService.get.mockImplementation((url: string) => {
       if (url.includes('global-metrics/crypto/overview/detail')) {
         throw new Error('cmc failed');
@@ -256,6 +270,12 @@ describe('MarketRegimeService', () => {
         classification: 'Greed',
       }),
     );
+
+    const cachedSnapshot = await service.getSnapshot();
+    expect(cachedSnapshot.source).toBe('live');
+    expect(cachedSnapshot.btcDominance).toBe(55);
+    expect(cachedSnapshot.altcoinIndex).toBe(50);
+    expect(httpService.get).toHaveBeenCalledTimes(2);
   });
 
   it('should throw when CMC fails and no cached snapshot exists', async () => {

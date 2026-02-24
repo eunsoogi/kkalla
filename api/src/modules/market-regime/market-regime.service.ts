@@ -83,7 +83,7 @@ export class MarketRegimeService {
   private async loadSnapshot(): Promise<MarketRegimeSnapshot> {
     try {
       const liveSnapshot = await this.fetchLiveSnapshot();
-      if (liveSnapshot.source === 'live') {
+      if (liveSnapshot.source === 'live' || liveSnapshot.source === 'cache_fallback') {
         await this.cacheLastSuccessSnapshot(liveSnapshot);
       }
       return liveSnapshot;
