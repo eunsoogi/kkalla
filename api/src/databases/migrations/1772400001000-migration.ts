@@ -8,6 +8,10 @@ interface UlidLinkColumn {
 }
 
 export class Migration1772400001000 implements MigrationInterface {
+  public readonly transaction = false;
+  private static readonly MIGRATION_LOCK_NAME = 'migration:1772400001000-4000:ulid-cutover';
+  private static readonly MIGRATION_LOCK_TIMEOUT_SECONDS = 3600;
+
   private readonly idTables = [
     'user',
     'role',
@@ -48,11 +52,32 @@ export class Migration1772400001000 implements MigrationInterface {
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await this.prepareUlidColumns(queryRunner);
+    await this.withMigrationLock(queryRunner, () => this.prepareUlidColumns(queryRunner));
   }
 
   public async down(): Promise<void> {
     throw new Error('Migration1772400001000 down migration is not supported');
+  }
+
+  private async withMigrationLock(queryRunner: QueryRunner, callback: () => Promise<void>): Promise<void> {
+    const rows: Array<{ acquired: string | number | null }> = await queryRunner.query(
+      'SELECT GET_LOCK(?, ?) AS acquired',
+      [Migration1772400001000.MIGRATION_LOCK_NAME, Migration1772400001000.MIGRATION_LOCK_TIMEOUT_SECONDS],
+    );
+
+    if (Number(rows[0]?.acquired ?? 0) !== 1) {
+      throw new Error('[ulid cutover] failed to acquire migration lock for Migration1772400001000');
+    }
+
+    try {
+      await callback();
+    } finally {
+      try {
+        await queryRunner.query('SELECT RELEASE_LOCK(?)', [Migration1772400001000.MIGRATION_LOCK_NAME]);
+      } catch {
+        // noop
+      }
+    }
   }
 
   private async prepareUlidColumns(queryRunner: QueryRunner): Promise<void> {

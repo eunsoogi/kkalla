@@ -12,6 +12,7 @@ const AppDataSource = new DataSource({
   subscribers: [__dirname + '/../**/*.subscriber{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
+  migrationsTransactionMode: 'each',
   migrationsRun: process.env.NODE_ENV === 'production',
   synchronize: process.env.NODE_ENV !== 'production',
   timezone: process.env.TZ_OFFSET,
