@@ -9,7 +9,7 @@ interface UlidLinkColumn {
 
 export class Migration1772400001000 implements MigrationInterface {
   public readonly transaction = false;
-  private static readonly MIGRATION_LOCK_NAME = 'migration:1772400001000:ulid-cutover';
+  private static readonly MIGRATION_LOCK_NAME = 'migration:1772400001000-4000:ulid-cutover';
   private static readonly MIGRATION_LOCK_TIMEOUT_SECONDS = 3600;
 
   private readonly idTables = [

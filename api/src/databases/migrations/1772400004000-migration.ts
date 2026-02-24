@@ -16,7 +16,7 @@ export class Migration1772400004000 implements MigrationInterface {
   public readonly transaction = false;
 
   private static readonly FOREIGN_KEY_PLAN_TABLE = '_migration_1772400004000_fk_plan';
-  private static readonly MIGRATION_LOCK_NAME = 'migration:1772400004000:ulid-cutover';
+  private static readonly MIGRATION_LOCK_NAME = 'migration:1772400001000-4000:ulid-cutover';
   private static readonly MIGRATION_LOCK_TIMEOUT_SECONDS = 3600;
 
   private readonly idTables = [
