@@ -24,7 +24,6 @@ import { ProfitModule } from './modules/profit/profit.module';
 import { RedlockModule } from './modules/redlock/redlock.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
-import { SequenceModule } from './modules/sequence/sequence.module';
 import { SlackModule } from './modules/slack/slack.module';
 import { TradeExecutionLedgerModule } from './modules/trade-execution-ledger/trade-execution-ledger.module';
 import { TradeModule } from './modules/trade/trade.module';
@@ -45,7 +44,6 @@ import { UserModule } from './modules/user/user.module';
       },
     }),
     TranslateModule,
-    SequenceModule,
     // Feature modules (alphabetical order)
     AuthModule,
     BlacklistModule,

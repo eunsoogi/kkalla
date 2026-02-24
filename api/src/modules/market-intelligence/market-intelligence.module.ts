@@ -11,7 +11,6 @@ import { NotifyModule } from '../notify/notify.module';
 import { OpenaiModule } from '../openai/openai.module';
 import { RedlockModule } from '../redlock/redlock.module';
 import { UpbitModule } from '../upbit/upbit.module';
-import { MarketSignalSubscriber } from './entities/market-signal.subscriber';
 import { MarketIntelligenceController } from './market-intelligence.controller';
 import { MarketIntelligenceService } from './market-intelligence.service';
 
@@ -30,7 +29,7 @@ import { MarketIntelligenceService } from './market-intelligence.service';
     AllocationAuditModule,
   ],
   controllers: [MarketIntelligenceController],
-  providers: [MarketIntelligenceService, MarketSignalSubscriber],
+  providers: [MarketIntelligenceService],
   exports: [MarketIntelligenceService],
 })
 export class MarketIntelligenceModule {}

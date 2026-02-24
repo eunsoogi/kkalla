@@ -1,5 +1,6 @@
 import {
   BaseEntity,
+  BeforeInsert,
   Between,
   Column,
   CreateDateColumn,
@@ -8,13 +9,14 @@ import {
   LessThanOrEqual,
   Like,
   MoreThanOrEqual,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { Category } from '@/modules/category/category.enum';
 import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import {
   AllocationRecommendationAction,
@@ -25,25 +27,26 @@ import {
 @Entity()
 @Index('idx_allocation_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })
 @Index('idx_allocation_recommendation_symbol', ['symbol'])
-@Index('idx_allocation_recommendation_category_seq', ['category', 'seq'])
-@Index('idx_allocation_recommendation_category_symbol_seq', ['category', 'symbol', 'seq'])
+@Index('idx_allocation_recommendation_category_id', ['category', 'id'])
+@Index('idx_allocation_recommendation_category_symbol_id', ['category', 'symbol', 'id'])
 @Index('idx_allocation_recommendation_category_created_at', ['category', 'createdAt'])
 @Index('idx_allocation_recommendation_category_symbol_created_at', ['category', 'symbol', 'createdAt'])
 export class AllocationRecommendation extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
 
   @Column({
-    type: 'uuid',
+    ...ULID_COLUMN_OPTIONS,
     nullable: false,
   })
   batchId: string;
 
-  @Column({
-    type: 'bigint',
-    unique: true,
-  })
-  seq: number;
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @Column({
     type: 'varchar',
@@ -159,7 +162,7 @@ export class AllocationRecommendation extends BaseEntity {
     const findOptions = {
       where,
       order: {
-        seq: sortDirection,
+        id: sortDirection,
       },
       skip: (request.page - 1) * request.perPage,
       take: request.perPage,
@@ -207,14 +210,14 @@ export class AllocationRecommendation extends BaseEntity {
       });
 
       if (cursor) {
-        where.seq = sortDirection === SortDirection.DESC ? LessThanOrEqual(cursor.seq) : MoreThanOrEqual(cursor.seq);
+        where.id = sortDirection === SortDirection.DESC ? LessThanOrEqual(cursor.id) : MoreThanOrEqual(cursor.id);
       }
     }
 
     const findOptions = {
       where,
       order: {
-        seq: sortDirection,
+        id: sortDirection,
       },
       take: request.limit + 1,
       skip: request.cursor && request.skip ? 1 : 0,

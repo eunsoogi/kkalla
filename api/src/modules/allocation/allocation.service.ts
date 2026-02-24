@@ -59,6 +59,7 @@ import { parseQueuedInference } from '@/modules/trade-execution-ledger/helpers/t
 import { parseTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-parser';
 import { processTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-pipeline';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
+import { generateMonotonicUlid } from '@/utils/id';
 import { formatNumber } from '@/utils/number';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
@@ -1980,7 +1981,7 @@ export class AllocationService implements OnModuleInit {
       this.i18n.t('logging.inference.allocationRecommendation.presave', { args: { count: validResults.length } }),
     );
 
-    const batchId = randomUUID();
+    const batchId = generateMonotonicUlid();
     const recommendationResults = await Promise.all(
       validResults.map((recommendation) => this.saveAllocationRecommendation({ ...recommendation, batchId })),
     );
@@ -2032,7 +2033,6 @@ export class AllocationService implements OnModuleInit {
     const items = await Promise.all(
       paginatedResult.items.map(async (entity) => ({
         id: entity.id,
-        seq: entity.seq,
         symbol: entity.symbol,
         category: entity.category,
         intensity: entity.intensity,
@@ -2070,7 +2070,6 @@ export class AllocationService implements OnModuleInit {
     const items = await Promise.all(
       cursorResult.items.map(async (entity) => ({
         id: entity.id,
-        seq: entity.seq,
         symbol: entity.symbol,
         category: entity.category,
         intensity: entity.intensity,
@@ -2127,8 +2126,8 @@ export class AllocationService implements OnModuleInit {
         .select(['recommendation.modelTargetWeight'])
         .where('recommendation.symbol = :symbol', { symbol: entity.symbol })
         .andWhere('recommendation.category = :category', { category: entity.category })
-        .andWhere('recommendation.seq < :seq', { seq: entity.seq })
-        .orderBy('recommendation.seq', 'DESC')
+        .andWhere('recommendation.id < :id', { id: entity.id })
+        .orderBy('recommendation.id', 'DESC')
         .getOne();
 
       if (previous?.modelTargetWeight != null && Number.isFinite(previous.modelTargetWeight)) {
@@ -2137,7 +2136,7 @@ export class AllocationService implements OnModuleInit {
     } catch (error) {
       this.logger.warn(
         this.i18n.t('logging.inference.allocationRecommendation.prev_target_weight_failed', {
-          args: { symbol: entity.symbol, seq: entity.seq },
+          args: { symbol: entity.symbol, id: entity.id },
         }),
         error,
       );

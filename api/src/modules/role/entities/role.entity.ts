@@ -1,16 +1,18 @@
 import {
   BaseEntity,
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   Like,
   ManyToMany,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { SortDirection } from '@/modules/item/item.enum';
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { Permission } from '../../permission/permission.enum';
 import { User } from '../../user/entities/user.entity';
@@ -18,8 +20,15 @@ import { RoleFilter } from '../role.interface';
 
 @Entity()
 export class Role extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
+
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
 
   @Column({
     type: 'varchar',

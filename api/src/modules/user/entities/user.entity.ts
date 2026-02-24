@@ -1,18 +1,20 @@
 import {
   BaseEntity,
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   JoinTable,
   Like,
   ManyToMany,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { SortDirection } from '@/modules/item/item.enum';
 import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
 import { Role } from '@/modules/role/entities/role.entity';
+import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { UserFilter } from '../user.interface';
 
@@ -22,8 +24,26 @@ import { UserFilter } from '../user.interface';
   },
 })
 export class User extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({
+    ...ULID_COLUMN_OPTIONS,
+  })
   id: string;
+
+  @BeforeInsert()
+  private assignId(): void {
+    assignUlidIfMissing(this);
+  }
+
+  @Column({
+    name: 'legacy_id',
+    type: 'char',
+    length: 36,
+    charset: 'ascii',
+    collation: 'ascii_bin',
+    nullable: true,
+    unique: true,
+  })
+  legacyId: string | null;
 
   @Column({
     type: 'varchar',

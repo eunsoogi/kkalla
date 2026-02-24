@@ -152,7 +152,7 @@ const Page: React.FC = () => {
   const canLoadAllocationAuditData = sessionStatus === 'authenticated' && hasAllocationAuditAccess;
   const [reportType, setReportType] = useState<'all' | AllocationAuditReportType>('all');
   const [status, setStatus] = useState<'all' | AllocationAuditStatus>('all');
-  const [runsSortBy, setRunsSortBy] = useState<AllocationAuditRunSortBy>('seq');
+  const [runsSortBy, setRunsSortBy] = useState<AllocationAuditRunSortBy>('createdAt');
   const [runsSortOrder, setRunsSortOrder] = useState<AllocationAuditSortOrder>('desc');
   const [runsPage, setRunsPage] = useState(1);
   const [itemsSortBy, setItemsSortBy] = useState<AllocationAuditItemSortBy>('evaluatedAt');
@@ -375,21 +375,9 @@ const Page: React.FC = () => {
           </div>
           <SimpleBar className='min-h-0'>
             <div className='overflow-x-auto min-w-0'>
-              <Table hoverable className='w-full text-left min-w-[760px]'>
+                <Table hoverable className='w-full text-left min-w-[760px]'>
                 <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700'>
                   <TableRow>
-                    <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
-                      <button
-                        type='button'
-                        onClick={() => handleRunsSort('seq')}
-                        className='inline-flex w-full cursor-pointer select-none items-center gap-1 px-4 py-3 -mx-4 -my-3 text-left hover:text-blue-600 dark:hover:text-blue-400'
-                      >
-                        <span>{t('allocationAudit.columns.seq')}</span>
-                        <span className={runsSortBy === 'seq' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}>
-                          {sortIndicator(runsSortBy === 'seq', runsSortOrder)}
-                        </span>
-                      </button>
-                    </TableHeadCell>
                     <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('allocationAudit.columns.type')}</TableHeadCell>
                     <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('allocationAudit.columns.horizon')}</TableHeadCell>
                     <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
@@ -450,7 +438,7 @@ const Page: React.FC = () => {
                 <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
                   {isRunsLoading && (
                     <TableRow>
-                      <TableCell colSpan={7} className='px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm'>
+                      <TableCell colSpan={6} className='px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm'>
                         {t('loading')}
                       </TableCell>
                     </TableRow>
@@ -458,7 +446,7 @@ const Page: React.FC = () => {
 
                   {!isRunsLoading && runs.length < 1 && (
                     <TableRow>
-                      <TableCell colSpan={7} className='px-4 py-8'>
+                      <TableCell colSpan={6} className='px-4 py-8'>
                         <div className='flex flex-col items-center gap-2 text-gray-500 dark:text-gray-400 text-sm'>
                           <Icon icon='solar:document-text-line-duotone' width={22} height={22} />
                           <span>{t('allocationAudit.emptyRuns')}</span>
@@ -480,9 +468,6 @@ const Page: React.FC = () => {
                           active ? 'bg-lightprimary/40 dark:bg-darkprimary/30' : ''
                         }`}
                       >
-                        <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>
-                          {run.seq}
-                        </TableCell>
                         <TableCell className='px-4 py-3 whitespace-nowrap'>{t(`allocationAudit.type.${run.reportType}`)}</TableCell>
                         <TableCell className='px-4 py-3 whitespace-nowrap'>{`${run.horizonHours}h`}</TableCell>
                         <TableCell className='px-4 py-3 whitespace-nowrap'>

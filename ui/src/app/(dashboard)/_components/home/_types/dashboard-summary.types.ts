@@ -8,7 +8,6 @@ import { Feargreed, FeargreedHistory } from '../feargreed/_types/feargreed.types
 /** 최신 마켓 리포트 (추천 시점 대비 변동률 포함) */
 export interface MarketReportWithChange {
   id: string;
-  seq: number;
   symbol: string;
   weight: number;
   reason: string;

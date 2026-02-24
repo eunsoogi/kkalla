@@ -20,7 +20,10 @@ export class UserService {
   ) {}
 
   public async findById(id: string): Promise<User> {
-    const user = await User.findOne({ where: { id }, relations: ['roles'] });
+    const user = await User.findOne({
+      where: [{ id }, { legacyId: id }],
+      relations: ['roles'],
+    });
 
     if (!user) {
       throw new NotFoundException(

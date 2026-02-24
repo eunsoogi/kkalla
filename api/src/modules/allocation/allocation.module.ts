@@ -19,7 +19,6 @@ import { UpbitModule } from '../upbit/upbit.module';
 import { UserModule } from '../user/user.module';
 import { AllocationController } from './allocation.controller';
 import { AllocationService } from './allocation.service';
-import { AllocationRecommendationSubscriber } from './entities/allocation-recommendation.subscriber';
 
 @Module({
   imports: [
@@ -42,7 +41,7 @@ import { AllocationRecommendationSubscriber } from './entities/allocation-recomm
     TradeExecutionLedgerModule,
   ],
   controllers: [AllocationController],
-  providers: [AllocationService, AllocationRecommendationSubscriber],
+  providers: [AllocationService],
   exports: [AllocationService],
 })
 export class AllocationModule {}

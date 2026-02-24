@@ -67,6 +67,7 @@ import { processTradeExecutionMessage } from '@/modules/trade-execution-ledger/h
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { User } from '@/modules/user/entities/user.entity';
+import { generateMonotonicUlid } from '@/utils/id';
 import { formatNumber } from '@/utils/number';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
@@ -1830,7 +1831,7 @@ export class MarketRiskService implements OnModuleInit {
       this.i18n.t('logging.inference.allocationRecommendation.presave', { args: { count: validResults.length } }),
     );
 
-    const batchId = randomUUID();
+    const batchId = generateMonotonicUlid();
     const recommendationResults = await Promise.all(
       validResults.map((recommendation) => this.saveAllocationRecommendation({ ...recommendation, batchId })),
     );

@@ -60,7 +60,7 @@
       "orderable_symbol_check_failed": "주문 가능 심볼 검증에 실패했습니다. KRW 심볼 필터만 사용합니다.",
       "orderable_symbol_check_partial": "일부 주문 가능 심볼 검증에 실패했습니다. 미검증 심볼은 안전상 포함합니다.",
       "presave": "자산 배분 추천 데이터 {count}개를 저장합니다...",
-      "prev_target_weight_failed": "[이전 최종 비중 조회 실패] symbol={symbol}, seq={seq}",
+      "prev_target_weight_failed": "[이전 최종 비중 조회 실패] symbol={symbol}, id={id}",
       "save": "자산 배분 추천 데이터 {count}개를 저장했습니다.",
       "skip_allocation_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
       "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}",

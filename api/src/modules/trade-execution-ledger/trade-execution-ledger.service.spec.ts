@@ -1,3 +1,5 @@
+import { normalizeIdentifierToUlid } from '@/utils/id';
+
 import { TradeExecutionLedger } from './entities/trade-execution-ledger.entity';
 import { TradeExecutionLedgerStatus } from './trade-execution-ledger.enum';
 import { TradeExecutionLedgerService } from './trade-execution-ledger.service';
@@ -162,6 +164,30 @@ describe('TradeExecutionLedgerService', () => {
     });
   });
 
+  it('should normalize non-ulid userId before persisting ledger row', async () => {
+    const input = {
+      module: 'allocation',
+      messageKey: 'run-6:user-1',
+      userId: '3f3af1ad-2c1a-4f6c-af4a-4af5a81d53a7',
+      payloadHash: 'hash-6',
+      generatedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+
+    let savedUserId = '';
+    jest.spyOn(TradeExecutionLedger, 'findOne').mockResolvedValueOnce(null);
+    jest.spyOn(TradeExecutionLedger.prototype, 'save').mockImplementationOnce(async function saveMock(
+      this: TradeExecutionLedger,
+    ) {
+      savedUserId = this.userId;
+      return this as TradeExecutionLedger;
+    });
+
+    await service.acquire(input);
+
+    expect(savedUserId).toBe(normalizeIdentifierToUlid(input.userId));
+  });
+
   it('should guard terminal updates using processing attemptCount', async () => {
     const updateSpy = jest.spyOn(TradeExecutionLedger, 'update').mockResolvedValueOnce({ affected: 1 } as any);
 
@@ -176,7 +202,7 @@ describe('TradeExecutionLedgerService', () => {
       {
         module: 'allocation',
         messageKey: 'run-6:user-1',
-        userId: 'user-1',
+        userId: normalizeIdentifierToUlid('user-1'),
         status: TradeExecutionLedgerStatus.PROCESSING,
         attemptCount: 2,
       },

@@ -4,7 +4,7 @@ export type AllocationAuditReportType = 'market' | 'allocation';
 export type AllocationAuditStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type AllocationAuditVerdict = 'good' | 'mixed' | 'bad' | 'invalid';
 export type AllocationAuditSortOrder = 'asc' | 'desc';
-export type AllocationAuditRunSortBy = 'createdAt' | 'completedAt' | 'overallScore' | 'status' | 'seq';
+export type AllocationAuditRunSortBy = 'createdAt' | 'completedAt' | 'overallScore' | 'status';
 export type AllocationAuditItemSortBy =
   | 'createdAt'
   | 'evaluatedAt'
@@ -17,7 +17,6 @@ export type AllocationAuditItemSortBy =
 
 export interface AllocationAuditRun {
   id: string;
-  seq: number;
   reportType: AllocationAuditReportType;
   sourceBatchId: string;
   horizonHours: number;
@@ -37,7 +36,6 @@ export interface AllocationAuditRun {
 
 export interface AllocationAuditItem {
   id: string;
-  seq: number;
   runId: string;
   reportType: AllocationAuditReportType;
   sourceRecommendationId: string;

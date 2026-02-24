@@ -11,7 +11,6 @@ export interface AllocationAuditBadge {
 export interface AllocationRecommendation {
   id: string;
   batchId: string;
-  seq: number;
   symbol: string;
   modelTargetWeight: number;
   prevModelTargetWeight?: number | null;
@@ -28,7 +27,6 @@ export interface AllocationRecommendation {
 export interface MarketSignal {
   id: string;
   batchId: string;
-  seq: number;
   symbol: string;
   weight: number;
   reason: string;

@@ -146,13 +146,7 @@ export class AllocationAuditController {
    * @returns Result produced by the allocation audit flow.
    */
   private parseRunSortBy(value?: string): AllocationAuditRunSortBy | undefined {
-    if (
-      value === 'createdAt' ||
-      value === 'completedAt' ||
-      value === 'overallScore' ||
-      value === 'status' ||
-      value === 'seq'
-    ) {
+    if (value === 'createdAt' || value === 'completedAt' || value === 'overallScore' || value === 'status') {
       return value;
     }
     return undefined;

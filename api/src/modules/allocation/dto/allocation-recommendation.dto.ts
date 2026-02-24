@@ -10,9 +10,6 @@ export class AllocationRecommendationDto {
   id: string;
 
   @ApiProperty()
-  seq: number;
-
-  @ApiProperty()
   symbol: string;
 
   @ApiProperty({
