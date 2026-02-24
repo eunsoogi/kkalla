@@ -341,6 +341,7 @@ export class Migration1772400003000 implements MigrationInterface {
     tableName: string,
     idColumn: string,
     valueColumn: string,
+    updateConditionSql = `\`${valueColumn}\` IS NULL`,
   ): Promise<void> {
     while (true) {
       const rows: Array<{ id: string; value: string }> = await queryRunner.query(`
@@ -360,7 +361,7 @@ export class Migration1772400003000 implements MigrationInterface {
       await this.executeWithLockRetry(
         () =>
           queryRunner.query(
-            `UPDATE \`${tableName}\` SET \`${valueColumn}\` = CASE \`${idColumn}\` ${caseFragments} END WHERE \`${idColumn}\` IN (${inPlaceholders}) AND \`${valueColumn}\` IS NULL`,
+            `UPDATE \`${tableName}\` SET \`${valueColumn}\` = CASE \`${idColumn}\` ${caseFragments} END WHERE \`${idColumn}\` IN (${inPlaceholders}) AND ${updateConditionSql}`,
             params,
           ),
         `${tableName}.${valueColumn} backfill`,
@@ -413,35 +414,39 @@ export class Migration1772400003000 implements MigrationInterface {
     await this.backfillByJoin(
       queryRunner,
       `
-        SELECT r.id AS id, a.batch_id_ulid AS value
+        SELECT r.id AS id, MIN(a.batch_id_ulid) AS value
         FROM allocation_audit_run r
         INNER JOIN allocation_recommendation a
           ON CAST(a.batch_id AS CHAR(36)) = CAST(r.source_batch_id AS CHAR(36))
         WHERE r.report_type = 'allocation'
           AND CHAR_LENGTH(r.source_batch_id) <> 26
           AND a.batch_id_ulid IS NOT NULL
+        GROUP BY r.id
         ORDER BY r.id ASC
       `,
       'allocation_audit_run',
       'id',
       'source_batch_id',
+      'CHAR_LENGTH(`source_batch_id`) <> 26',
     );
 
     await this.backfillByJoin(
       queryRunner,
       `
-        SELECT i.id AS id, a.batch_id_ulid AS value
+        SELECT i.id AS id, MIN(a.batch_id_ulid) AS value
         FROM allocation_audit_item i
         INNER JOIN allocation_recommendation a
           ON CAST(a.batch_id AS CHAR(36)) = CAST(i.source_batch_id AS CHAR(36))
         WHERE i.report_type = 'allocation'
           AND CHAR_LENGTH(i.source_batch_id) <> 26
           AND a.batch_id_ulid IS NOT NULL
+        GROUP BY i.id
         ORDER BY i.id ASC
       `,
       'allocation_audit_item',
       'id',
       'source_batch_id',
+      'CHAR_LENGTH(`source_batch_id`) <> 26',
     );
   }
 
