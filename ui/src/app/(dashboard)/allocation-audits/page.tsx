@@ -53,6 +53,63 @@ const formatScore = (value: number | null | undefined): string => {
 };
 
 /**
+ * Formats market regime percent for allocation audit view.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
+const formatRegimePercent = (value: number | null | undefined): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${value.toFixed(2)}%`;
+};
+
+/**
+ * Formats market regime score for allocation audit view.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
+const formatRegimeScore = (value: number | null | undefined, pointUnitLabel: string): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${Number(value.toFixed(2)).toString()}${pointUnitLabel}`;
+};
+
+/**
+ * Formats feargreed score for allocation audit view.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
+const formatFeargreedScore = (value: number | null | undefined): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return value.toFixed(0);
+};
+
+/**
+ * Formats market regime asOf for allocation audit view.
+ * @param value - Input value for value.
+ * @returns Formatted string output for the operation.
+ */
+const formatRegimeAsOf = (value: string | null | undefined): string => {
+  if (!value) {
+    return '-';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '-';
+  }
+
+  return formatDate(parsed);
+};
+
+/**
  * Handles score class name in the allocation audit workflow.
  * @param value - Input value for value.
  * @returns Formatted string output for the operation.
@@ -586,7 +643,7 @@ const Page: React.FC = () => {
           <div className='mt-5'>
             <SimpleBar className='min-h-0'>
               <div className='overflow-x-auto min-w-0'>
-                <Table hoverable className='w-full text-left min-w-[1220px]'>
+                <Table hoverable className='w-full text-left min-w-[1720px]'>
                   <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700'>
                     <TableRow>
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
@@ -690,6 +747,18 @@ const Page: React.FC = () => {
                           </span>
                         </button>
                       </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        {t('allocationAudit.items.recommendationBtcDominance')}
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        {t('allocationAudit.items.recommendationAltcoinIndex')}
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        {t('allocationAudit.items.recommendationFeargreedIndex')}
+                      </TableHeadCell>
+                      <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
+                        {t('allocationAudit.items.recommendationRegimeAsOf')}
+                      </TableHeadCell>
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('allocationAudit.items.nextGuardrail')}</TableHeadCell>
                       <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
                         <button
@@ -714,7 +783,7 @@ const Page: React.FC = () => {
                   <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
                     {isItemsLoading && (
                       <TableRow>
-                        <TableCell colSpan={9} className='px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm'>
+                        <TableCell colSpan={13} className='px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm'>
                           {t('loading')}
                         </TableCell>
                       </TableRow>
@@ -722,7 +791,7 @@ const Page: React.FC = () => {
 
                     {!isItemsLoading && items.length < 1 && (
                       <TableRow>
-                        <TableCell colSpan={9} className='px-4 py-8'>
+                        <TableCell colSpan={13} className='px-4 py-8'>
                           <div className='flex flex-col items-center gap-2 text-gray-500 dark:text-gray-400 text-sm'>
                             <Icon icon='solar:list-check-line-duotone' width={22} height={22} />
                             <span>{t('allocationAudit.emptyItems')}</span>
@@ -757,6 +826,23 @@ const Page: React.FC = () => {
                           </TableCell>
                           <TableCell className={`px-4 py-3 whitespace-nowrap font-medium ${returnClassName(item.returnPct)}`}>
                             {formatSignedPercent(item.returnPct)}
+                          </TableCell>
+                          <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-gray-700 dark:text-gray-200'>
+                            {formatRegimePercent(item.recommendationBtcDominance)}
+                          </TableCell>
+                          <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-gray-700 dark:text-gray-200'>
+                            {formatRegimeScore(item.recommendationAltcoinIndex, t('unitPoint'))}
+                          </TableCell>
+                          <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-gray-700 dark:text-gray-200'>
+                            {formatFeargreedScore(item.recommendationFeargreedIndex)}
+                          </TableCell>
+                          <TableCell className='px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300'>
+                            <div className='flex flex-wrap items-center gap-1'>
+                              <span>{formatRegimeAsOf(item.recommendationMarketRegimeAsOf)}</span>
+                              {item.recommendationMarketRegimeIsStale === true && (
+                                <Badge color='failure'>{t('allocationAudit.items.regimeStale')}</Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className='px-4 py-3 text-sm max-w-[420px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap'>
                             {item.nextGuardrail ?? '-'}

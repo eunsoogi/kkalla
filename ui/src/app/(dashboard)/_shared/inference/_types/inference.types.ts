@@ -20,6 +20,14 @@ export interface AllocationRecommendation {
   reason: string;
   createdAt?: string;
   updatedAt?: string;
+  btcDominance?: number | null;
+  altcoinIndex?: number | null;
+  marketRegimeAsOf?: string | Date | null;
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeIsStale?: boolean | null;
+  feargreedIndex?: number | null;
+  feargreedClassification?: string | null;
+  feargreedTimestamp?: string | Date | null;
   validation24h?: AllocationAuditBadge;
   validation72h?: AllocationAuditBadge;
 }
@@ -33,6 +41,14 @@ export interface MarketSignal {
   confidence: number;
   createdAt?: string;
   updatedAt?: string;
+  btcDominance?: number | null;
+  altcoinIndex?: number | null;
+  marketRegimeAsOf?: string | Date | null;
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeIsStale?: boolean | null;
+  feargreedIndex?: number | null;
+  feargreedClassification?: string | null;
+  feargreedTimestamp?: string | Date | null;
   validation24h?: AllocationAuditBadge;
   validation72h?: AllocationAuditBadge;
 }

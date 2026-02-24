@@ -5,9 +5,9 @@ import { BlacklistModule } from '../blacklist/blacklist.module';
 import { CacheModule } from '../cache/cache.module';
 import { CategoryModule } from '../category/category.module';
 import { ErrorModule } from '../error/error.module';
-import { FeargreedModule } from '../feargreed/feargreed.module';
 import { FeatureModule } from '../feature/feature.module';
 import { HoldingLedgerModule } from '../holding-ledger/holding-ledger.module';
+import { MarketRegimeModule } from '../market-regime/market-regime.module';
 import { NewsModule } from '../news/news.module';
 import { NotifyModule } from '../notify/notify.module';
 import { OpenaiModule } from '../openai/openai.module';
@@ -32,9 +32,9 @@ import { AllocationService } from './allocation.service';
     UpbitModule,
     forwardRef(() => ScheduleModule),
     NewsModule,
-    FeargreedModule,
     OpenaiModule,
     FeatureModule,
+    MarketRegimeModule,
     ErrorModule,
     AllocationAuditModule,
     UserModule,

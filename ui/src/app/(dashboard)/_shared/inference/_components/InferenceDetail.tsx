@@ -80,12 +80,70 @@ const getValidationLabel = (t: (key: string) => string, badge: AllocationAuditBa
 };
 
 /**
+ * Formats market regime percent value for inference detail.
+ * @param value - Input value for percent.
+ * @returns Formatted string output for the operation.
+ */
+const formatMarketRegimePercent = (value?: number | null): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${value.toFixed(2)}%`;
+};
+
+/**
+ * Formats market regime score value for inference detail.
+ * @param value - Input value for score.
+ * @returns Formatted string output for the operation.
+ */
+const formatMarketRegimeScore = (value: number | null | undefined, pointUnitLabel: string): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${Number(value.toFixed(2)).toString()}${pointUnitLabel}`;
+};
+
+/**
+ * Formats feargreed score for inference detail.
+ * @param value - Input value for score.
+ * @returns Formatted string output for the operation.
+ */
+const formatFeargreedScore = (value?: number | null): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return value.toFixed(0);
+};
+
+/**
+ * Formats market regime asOf for inference detail.
+ * @param value - Input value for asOf.
+ * @returns Formatted string output for the operation.
+ */
+const formatMarketRegimeAsOf = (value?: string | Date | null): string => {
+  if (!value) {
+    return '-';
+  }
+
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '-';
+  }
+
+  return formatDate(parsed);
+};
+
+/**
  * Renders the Inference Detail Item UI for the dashboard UI.
  * @param params - Input values for the dashboard UI operation.
  * @returns Rendered React element for this view.
  */
 const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
   const t = useTranslations();
+  const pointUnitLabel = t('unitPoint');
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<CursorItem<Recommendation>>({
     queryKey: ['inferences', type, 'cursor', params],
@@ -234,6 +292,22 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                           )}
                         </div>
                       )}
+                      <div className='flex flex-wrap items-center gap-2'>
+                        <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.marketRegime')}:</span>
+                        <Badge color='gray'>
+                          {`${t('inference.marketRegimeBtc')} ${formatMarketRegimePercent(item.btcDominance ?? null)}`}
+                        </Badge>
+                        <Badge color='gray'>
+                          {`${t('inference.marketRegimeAlt')} ${formatMarketRegimeScore(item.altcoinIndex ?? null, pointUnitLabel)}`}
+                        </Badge>
+                        <Badge color='gray'>
+                          {`${t('inference.marketRegimeFeargreed')} ${formatFeargreedScore(item.feargreedIndex ?? null)}`}
+                        </Badge>
+                        <Badge color='gray'>{`${t('inference.marketRegimeAsOf')} ${formatMarketRegimeAsOf(item.marketRegimeAsOf ?? null)}`}</Badge>
+                        {item.marketRegimeIsStale === true && (
+                          <Badge color='failure'>{t('inference.marketRegimeStale')}</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <p className='text-gray-600 dark:text-gray-400 mt-4 whitespace-pre-wrap'>

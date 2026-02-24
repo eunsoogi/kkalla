@@ -67,7 +67,14 @@ describe('AllocationService', () => {
         getCompactNews: jest.fn().mockResolvedValue([]),
       } as any,
       {
-        getCompactFeargreed: jest.fn().mockResolvedValue(null),
+        getSnapshot: jest.fn().mockResolvedValue({
+          btcDominance: 55,
+          altcoinIndex: 50,
+          asOf: new Date(),
+          source: 'live',
+          isStale: false,
+          staleAgeMinutes: 0,
+        }),
       } as any,
       {
         createResponse: jest.fn(),

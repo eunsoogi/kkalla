@@ -5,14 +5,10 @@ import { I18nService } from 'nestjs-i18n';
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
 import { RecommendationItem } from '@/modules/allocation-core/allocation-core.types';
-import {
-  fetchCoinNewsWithFallback,
-  fetchFearGreedIndexWithFallback,
-} from '@/modules/allocation-core/helpers/allocation-recommendation-context';
+import { fetchCoinNewsWithFallback } from '@/modules/allocation-core/helpers/allocation-recommendation-context';
 import { filterUniqueNonBlacklistedItems } from '@/modules/allocation-core/helpers/recommendation-item';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
-import { FeargreedService } from '@/modules/feargreed/feargreed.service';
 import { FeatureService } from '@/modules/feature/feature.service';
 import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
 import { NewsService } from '@/modules/news/news.service';
@@ -25,6 +21,8 @@ import { normalizeKrwSymbol } from '@/utils/symbol';
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
 import { BlacklistService } from '../blacklist/blacklist.service';
 import { Category } from '../category/category.enum';
+import { MarketRegimeSnapshot } from '../market-regime/market-regime.interface';
+import { MarketRegimeService } from '../market-regime/market-regime.service';
 import { NotifyService } from '../notify/notify.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { GetMarketSignalsCursorDto } from './dto/get-market-signals-cursor.dto';
@@ -52,6 +50,8 @@ interface LatestPriceChangeOptions {
 interface SaveMarketSignalOptions {
   recommendationTime?: Date;
   marketData?: KrwTickerDailyData | null;
+  marketRegime?: MarketRegimeSnapshot | null;
+  feargreed?: MarketRegimeSnapshot['feargreed'];
 }
 
 interface SignalPriceResolution {
@@ -76,7 +76,7 @@ export class MarketIntelligenceService {
     private readonly upbitService: UpbitService,
     private readonly cacheService: CacheService,
     private readonly newsService: NewsService,
-    private readonly feargreedService: FeargreedService,
+    private readonly marketRegimeService: MarketRegimeService,
     private readonly openaiService: OpenaiService,
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
@@ -195,7 +195,9 @@ export class MarketIntelligenceService {
     // 메시지 빌드
     this.logger.log(this.i18n.t('logging.inference.marketSignal.build_msg_start'));
 
-    const messages = await this.errorService.retryWithFallback(() => this.buildMarketSignalMessages(symbols));
+    const { messages, marketRegime } = await this.errorService.retryWithFallback(() =>
+      this.buildMarketSignalMessages(symbols),
+    );
 
     this.logger.log(this.i18n.t('logging.inference.marketSignal.build_msg_complete'));
 
@@ -260,6 +262,8 @@ export class MarketIntelligenceService {
           {
             recommendationTime,
             marketData: marketDataMap.get(recommendation.symbol),
+            marketRegime,
+            feargreed: marketRegime?.feargreed ?? null,
           },
         ),
       ),
@@ -284,6 +288,14 @@ export class MarketIntelligenceService {
       weight: saved.weight,
       reason: toUserFacingText(saved.reason),
       confidence: saved.confidence,
+      btcDominance: saved.btcDominance,
+      altcoinIndex: saved.altcoinIndex,
+      marketRegimeAsOf: saved.marketRegimeAsOf,
+      marketRegimeSource: saved.marketRegimeSource,
+      marketRegimeIsStale: saved.marketRegimeIsStale,
+      feargreedIndex: saved.feargreedIndex,
+      feargreedClassification: saved.feargreedClassification,
+      feargreedTimestamp: saved.feargreedTimestamp,
     }));
   }
 
@@ -319,7 +331,10 @@ export class MarketIntelligenceService {
    * @param symbols 추천 대상 종목 목록 (선택적)
    * @returns OpenAI API용 메시지 배열
    */
-  private async buildMarketSignalMessages(symbols?: string[]): Promise<EasyInputMessage[]> {
+  private async buildMarketSignalMessages(symbols?: string[]): Promise<{
+    messages: EasyInputMessage[];
+    marketRegime: MarketRegimeSnapshot | null;
+  }> {
     const messages: EasyInputMessage[] = [];
 
     // 시스템 프롬프트 추가
@@ -335,12 +350,12 @@ export class MarketIntelligenceService {
       this.openaiService.addMessagePair(messages, 'prompt.input.news', news);
     }
 
-    // 공포탐욕지수 추가
-    const feargreed = await fetchFearGreedIndexWithFallback({
-      feargreedService: this.feargreedService,
-      errorService: this.errorService,
-      onError: (error) => this.logger.error(this.i18n.t('logging.feargreed.load_failed'), error),
-    });
+    const marketRegime = await this.fetchMarketRegimeWithFallback();
+    if (marketRegime) {
+      this.openaiService.addMessagePair(messages, 'prompt.input.market_regime', marketRegime);
+    }
+
+    const feargreed = marketRegime?.feargreed ?? null;
     if (feargreed) {
       this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
     }
@@ -359,7 +374,23 @@ export class MarketIntelligenceService {
     const marketData = this.featureService.formatMarketData(marketFeatures);
     this.openaiService.addMessage(messages, 'user', `${this.featureService.MARKET_DATA_LEGEND}\n\n${marketData}`);
 
-    return messages;
+    return {
+      messages,
+      marketRegime,
+    };
+  }
+
+  /**
+   * Retrieves market regime snapshot with fallback for the market signal flow.
+   * @returns Asynchronous result produced by the market signal flow.
+   */
+  private async fetchMarketRegimeWithFallback(): Promise<MarketRegimeSnapshot | null> {
+    try {
+      return await this.errorService.retryWithFallback(() => this.marketRegimeService.getSnapshot());
+    } catch (error) {
+      this.logger.error(this.i18n.t('logging.marketRegime.load_failed'), error);
+      return null;
+    }
   }
 
   /**
@@ -383,6 +414,14 @@ export class MarketIntelligenceService {
         batchId: entity.batchId,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
+        btcDominance: this.toFiniteNumber(entity.btcDominance) ?? null,
+        altcoinIndex: this.toFiniteNumber(entity.altcoinIndex) ?? null,
+        marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
+        marketRegimeSource: entity.marketRegimeSource ?? null,
+        marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
+        feargreedIndex: this.toFiniteNumber(entity.feargreedIndex) ?? null,
+        feargreedClassification: entity.feargreedClassification ?? null,
+        feargreedTimestamp: entity.feargreedTimestamp ?? null,
         validation24h: validation.validation24h,
         validation72h: validation.validation72h,
       };
@@ -413,6 +452,14 @@ export class MarketIntelligenceService {
       batchId: entity.batchId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
+      btcDominance: this.toFiniteNumber(entity.btcDominance) ?? null,
+      altcoinIndex: this.toFiniteNumber(entity.altcoinIndex) ?? null,
+      marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
+      marketRegimeSource: entity.marketRegimeSource ?? null,
+      marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
+      feargreedIndex: this.toFiniteNumber(entity.feargreedIndex) ?? null,
+      feargreedClassification: entity.feargreedClassification ?? null,
+      feargreedTimestamp: entity.feargreedTimestamp ?? null,
     }));
 
     return {
@@ -447,6 +494,16 @@ export class MarketIntelligenceService {
     const marketSignal = new MarketSignal();
     Object.assign(marketSignal, recommendation, { symbol: normalizedSymbol });
     marketSignal.recommendationPrice = recommendationPrice ?? null;
+    marketSignal.btcDominance = options?.marketRegime?.btcDominance ?? recommendation.btcDominance ?? null;
+    marketSignal.altcoinIndex = options?.marketRegime?.altcoinIndex ?? recommendation.altcoinIndex ?? null;
+    marketSignal.marketRegimeAsOf = options?.marketRegime?.asOf ?? recommendation.marketRegimeAsOf ?? null;
+    marketSignal.marketRegimeSource = options?.marketRegime?.source ?? recommendation.marketRegimeSource ?? null;
+    marketSignal.marketRegimeIsStale = options?.marketRegime?.isStale ?? recommendation.marketRegimeIsStale ?? null;
+    marketSignal.feargreedIndex = options?.feargreed?.index ?? recommendation.feargreedIndex ?? null;
+    marketSignal.feargreedClassification =
+      options?.feargreed?.classification ?? recommendation.feargreedClassification ?? null;
+    marketSignal.feargreedTimestamp =
+      this.fromUnixSeconds(options?.feargreed?.timestamp) ?? recommendation.feargreedTimestamp ?? null;
     return marketSignal.save();
   }
 
@@ -509,6 +566,14 @@ export class MarketIntelligenceService {
           batchId: entity.batchId,
           createdAt: entity.createdAt,
           updatedAt: entity.updatedAt,
+          btcDominance: this.toFiniteNumber(entity.btcDominance) ?? null,
+          altcoinIndex: this.toFiniteNumber(entity.altcoinIndex) ?? null,
+          marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
+          marketRegimeSource: entity.marketRegimeSource ?? null,
+          marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
+          feargreedIndex: this.toFiniteNumber(entity.feargreedIndex) ?? null,
+          feargreedClassification: entity.feargreedClassification ?? null,
+          feargreedTimestamp: entity.feargreedTimestamp ?? null,
           recommendationPrice,
           currentPrice,
           priceChangePct,
@@ -725,6 +790,23 @@ export class MarketIntelligenceService {
   private toPositiveNumber(value: unknown): number | undefined {
     const parsed = this.toFiniteNumber(value);
     if (parsed == null || parsed <= 0) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  /**
+   * Converts unix seconds to date for the market signal flow.
+   * @param value - Unix seconds value.
+   * @returns Converted date value.
+   */
+  private fromUnixSeconds(value: unknown): Date | undefined {
+    const seconds = this.toFiniteNumber(value);
+    if (seconds == null) {
+      return undefined;
+    }
+    const parsed = new Date(seconds * 1000);
+    if (Number.isNaN(parsed.getTime())) {
       return undefined;
     }
     return parsed;

@@ -49,6 +49,30 @@ export class AllocationRecommendationDto {
   @ApiProperty()
   updatedAt: Date;
 
+  @ApiProperty({ required: false, nullable: true })
+  btcDominance?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  altcoinIndex?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  marketRegimeAsOf?: Date | null;
+
+  @ApiProperty({ required: false, nullable: true, enum: ['live', 'cache_fallback'] })
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  marketRegimeIsStale?: boolean | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  feargreedIndex?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  feargreedClassification?: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  feargreedTimestamp?: Date | null;
+
   @ApiProperty({ required: false, type: () => AllocationAuditBadgeDto })
   validation24h?: AllocationAuditBadgeDto;
 

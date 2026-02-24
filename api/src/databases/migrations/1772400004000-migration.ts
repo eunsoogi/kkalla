@@ -463,11 +463,7 @@ export class Migration1772400004000 implements MigrationInterface {
     }
   }
 
-  private async hasColumnInSchema(
-    queryRunner: QueryRunner,
-    tableName: string,
-    columnName: string,
-  ): Promise<boolean> {
+  private async hasColumnInSchema(queryRunner: QueryRunner, tableName: string, columnName: string): Promise<boolean> {
     const rows: Array<{ count: string | number }> = await queryRunner.query(
       `
         SELECT COUNT(*) AS count

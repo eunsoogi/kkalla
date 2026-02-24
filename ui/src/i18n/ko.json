@@ -1,10 +1,8 @@
 {
   "activate": "활성화",
   "all": "전체",
+  "unitPoint": "점",
   "allocationAudit": {
-    "actions": {
-      "refresh": "새로고침"
-    },
     "columns": {
       "completedAt": "완료 시각",
       "horizon": "Horizon",
@@ -35,26 +33,23 @@
     },
     "items": {
       "aiScore": "AI 점수",
-      "description": "선택한 실행 배치의 개별 평가 결과입니다.",
       "deterministicScore": "결정론 점수",
       "evaluatedAt": "평가 시각",
       "nextGuardrail": "다음 가드레일",
       "overallScore": "점수",
+      "recommendationAltcoinIndex": "추천 알트코인 시즌 지수",
+      "recommendationBtcDominance": "추천 BTC 도미넌스",
+      "recommendationFeargreedIndex": "추천 공포 탐욕 지수",
+      "recommendationRegimeAsOf": "추천 국면 기준 시각",
+      "regimeStale": "지연",
       "returnPct": "수익률",
       "status": "상태",
       "symbol": "종목",
-      "title": "평가 항목",
       "verdict": "판정"
     },
     "runs": {
       "description": "최근 배치 실행 결과입니다. 행을 선택하면 아래 상세 항목이 갱신됩니다.",
       "title": "실행 이력"
-    },
-    "sort": {
-      "asc": "오름차순",
-      "by": "정렬 기준",
-      "desc": "내림차순",
-      "order": "정렬 순서"
     },
     "stats": {
       "activeRuns": "진행/대기",
@@ -106,12 +101,10 @@
     "selected_count": "{count}개 선택됨",
     "selected_empty": "선택된 카테고리가 없습니다.",
     "title": "카테고리 설정",
-    "update_error": "카테고리 업데이트에 실패했습니다.",
     "update_success": "카테고리가 업데이트되었습니다."
   },
   "channel": "채널",
   "close": "닫기",
-  "config": "설정",
   "copy": {
     "complete": "복사되었습니다.",
     "error": "복사에 실패했습니다.",
@@ -131,11 +124,21 @@
     "columnSymbol": "종목",
     "columnTime": "시각",
     "columnTitle": "제목",
-    "columnValidation24h": "검증 24h",
-    "columnValidation72h": "검증 72h",
     "currencyKrw": "KRW",
+    "altcoinIndexTitle": "알트코인 시즌 지수",
+    "btcDominanceTitle": "BTC 도미넌스",
     "emptyHoldings": "보유 종목이 없습니다.",
     "emptyMarketReport": "최신 마켓 리포트가 없습니다.",
+    "marketRegimeAlt": "알트코인 시즌 지수",
+    "marketRegimeAsOf": "기준 시각",
+    "marketRegimeBtc": "BTC 도미넌스",
+    "marketRegimeStateAltBitcoinSeason": "비트코인 시즌",
+    "marketRegimeStateAltNeutral": "중립 구간",
+    "marketRegimeStateAltSeason": "알트코인 시즌",
+    "marketRegimeStateBtcAltFriendly": "알트 우호 구간",
+    "marketRegimeStateBtcDominant": "BTC 우위 구간",
+    "marketRegimeStateBtcTransition": "전환 구간",
+    "marketRegimeStale": "지연",
     "emptyNews": "표시할 뉴스가 없습니다.",
     "emptyNotificationLog": "알림 내역이 없습니다.",
     "emptyTrades24h": "최근 24시간 내 거래가 없습니다.",
@@ -174,17 +177,16 @@
     "update_failed": "업데이트에 실패했습니다: {error}"
   },
   "feargreed": {
-    "change": "변화",
-    "date": "날짜",
-    "history": "히스토리",
-    "score": "점수",
-    "stage": "단계",
     "title": "공포 탐욕 지수"
   },
   "inference": {
     "confidence": "신뢰도",
-    "list": "추론 목록",
-    "mine": "내 추론만 보기",
+    "marketRegime": "시장 국면",
+    "marketRegimeAlt": "알트코인 시즌 지수",
+    "marketRegimeAsOf": "기준 시각",
+    "marketRegimeBtc": "BTC 도미넌스",
+    "marketRegimeFeargreed": "공포 탐욕 지수",
+    "marketRegimeStale": "지연",
     "rate": "비율",
     "reason": "근거",
     "validation24h": "검증 24h",
@@ -220,14 +222,6 @@
     "userManagement": "사용자 관리"
   },
   "more": "더 보기",
-  "news": {
-    "importance": {
-      "0": "일반",
-      "1": "참고",
-      "2": "주의",
-      "3": "중요"
-    }
-  },
   "nothing": "없음",
   "notify": {
     "registerFlow": {
@@ -255,8 +249,7 @@
       "stepHintForm": "2) 채널과 토큰을 저장하세요.",
       "stepHintGuide": "1) Slack 앱을 준비하세요.",
       "stepHintTitle": "권장 순서"
-    },
-    "title": "알림 등록"
+    }
   },
   "pagination": "{total}개 중 {start}부터 {end}까지 결과 표시",
   "profile": "프로필",
@@ -307,7 +300,6 @@
         "task": "작업"
       },
       "executing": "실행 중...",
-      "label": "수동 실행",
       "lock": {
         "checkedAt": "확인 시각: {at}",
         "label": "Lock 상태",
@@ -333,23 +325,15 @@
         "description": "상위 10개 종목 추천 분석을 실행하여 마켓 리포트를 생성합니다.",
         "title": "마켓 리포트 생성"
       },
-      "recent": {
-        "description": "현재 페이지 세션에서 요청한 마지막 실행 상태입니다.",
-        "empty": "아직 실행 이력이 없습니다.",
-        "lastRunAt": "요청 시각: {at}",
-        "title": "최근 실행 결과"
-      },
       "status": {
         "failed": "실행 요청에 실패했습니다.",
         "label": "최근 수동 실행",
-        "skippedDevelopment": "개발 환경에서는 실행되지 않습니다.",
         "skippedLock": "이미 동일 작업이 실행 중이라 시작되지 않았습니다.",
         "started": "실행이 시작되었습니다."
       },
       "statusLabel": {
         "failed": "요청 실패",
         "idle": "미실행",
-        "skippedDevelopment": "개발 환경",
         "skippedLock": "락 충돌",
         "started": "시작됨"
       },
@@ -408,8 +392,7 @@
     "description": "Slack 메시지를 보내기 위해서는 봇의 API 키를 발급 받아야 합니다.",
     "guide": "Slack 연동 방법",
     "link": "Slack 연동하러 가기",
-    "register": "Slack 연동",
-    "title": "Slack"
+    "register": "Slack 연동"
   },
   "sort": {
     "asc": "오래된순",
@@ -422,14 +405,10 @@
   },
   "symbol": "종목",
   "symbolPlaceholder": "BTC/KRW",
-  "title": {
-    "coin": "코인"
-  },
   "token": "토큰",
   "trade": {
     "amount": "거래금",
     "date": "날짜",
-    "list": "거래 목록",
     "profit": "수익금",
     "type": "거래",
     "types": {
@@ -451,14 +430,12 @@
     "link": "업비트 계정 연동하러 가기",
     "register": "업비트 계정 연동",
     "secret_key_help": "Secret Key는 민감 정보이므로 안전하게 보관하세요.",
-    "secret_key_label": "비밀 키",
-    "title": "업비트"
+    "secret_key_label": "비밀 키"
   },
   "updated": "성공적으로 수정되었습니다.",
   "updatedAt": "수정일",
   "user": {
     "email": "이메일",
-    "permissions": "권한 목록",
     "role": "권한",
     "settings": "사용자 설정"
   }

@@ -37,6 +37,14 @@ export interface MarketSignalData {
   cashWeight?: number;
   regime?: 'risk_on' | 'neutral' | 'risk_off';
   riskFlags?: string[];
+  btcDominance?: number | null;
+  altcoinIndex?: number | null;
+  marketRegimeAsOf?: Date | null;
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeIsStale?: boolean | null;
+  feargreedIndex?: number | null;
+  feargreedClassification?: string | null;
+  feargreedTimestamp?: Date | null;
 }
 
 export const MARKET_SIGNAL_STATE_CACHE_KEY = 'market-intelligence:latest-state';

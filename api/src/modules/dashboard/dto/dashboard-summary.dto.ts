@@ -1,16 +1,15 @@
 import { HoldingDto } from '@/modules/holding-ledger/dto/holding.dto';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 
-import { Feargreed, FeargreedHistory } from '../../feargreed/feargreed.interface';
 import { MarketSignalWithChangeDto } from '../../market-intelligence/dto/market-signal-with-change.dto';
+import { MarketRegimeSnapshot } from '../../market-regime/market-regime.interface';
 import { News } from '../../news/news.interface';
 import { ProfitDto } from '../../profit/dto/profit.dto';
 
 export type DashboardSummarySectionKey =
   | 'marketReports'
+  | 'marketRegime'
   | 'news'
-  | 'feargreed'
-  | 'feargreedHistory'
   | 'holdings'
   | 'trades24h'
   | 'profit';
@@ -18,9 +17,8 @@ export type DashboardSummarySectionKey =
 export interface DashboardSummaryDto {
   generatedAt: string;
   marketReports: MarketSignalWithChangeDto[];
+  marketRegime: MarketRegimeSnapshot | null;
   news: News[];
-  feargreed: Feargreed | null;
-  feargreedHistory: FeargreedHistory;
   holdings: HoldingDto[];
   trades24h: Trade[];
   profit: ProfitDto | null;

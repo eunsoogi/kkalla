@@ -11,11 +11,56 @@ import SimpleBar from 'simplebar-react';
 import { getConfidenceColor, getWeightColor } from '@/app/(dashboard)/_shared/inference/inference.styles';
 import type { MarketReportWithChange } from '@/app/(dashboard)/_components/home/_types/dashboard-summary.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { formatDate } from '@/utils/date';
 import { formatPrice } from '@/utils/number';
 
 import { ContentModal } from '@/app/(dashboard)/_shared/ui/ContentModal';
 
 const MARKET_REPORT_PREVIEW_ALLOWED_ELEMENTS = ['a', 'br', 'code', 'del', 'em', 'li', 'ol', 'p', 'strong', 'ul'] as const;
+
+/**
+ * Formats market regime percent value for dashboard view.
+ * @param value - Numeric percent value.
+ * @returns Formatted percent string.
+ */
+const formatRegimePercent = (value?: number | null): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${value.toFixed(2)}%`;
+};
+
+/**
+ * Formats market regime score value for dashboard view.
+ * @param value - Numeric score value.
+ * @returns Formatted score string.
+ */
+const formatRegimeScore = (value: number | null | undefined, pointUnitLabel: string): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${Number(value.toFixed(2)).toString()}${pointUnitLabel}`;
+};
+
+/**
+ * Formats market regime snapshot timestamp for dashboard view.
+ * @param value - Snapshot asOf value.
+ * @returns Formatted timestamp string.
+ */
+const formatRegimeAsOf = (value?: string | Date | null): string => {
+  if (!value) {
+    return '-';
+  }
+
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '-';
+  }
+
+  return formatDate(parsed);
+};
 
 /**
  * Renders the Market Report Row UI for the dashboard UI.
@@ -35,6 +80,8 @@ const MarketReportRow = ({
   const confidencePct = Math.floor((item.confidence ?? 0) * 100);
   const weightStyle = getWeightColor(item.weight ?? 0);
   const confidenceStyle = getConfidenceColor(item.confidence ?? 0);
+  const marketRegimeAsOf = formatRegimeAsOf(item.marketRegimeAsOf);
+  const pointUnitLabel = t('unitPoint');
 
   return (
     <TableRow
@@ -108,6 +155,22 @@ const MarketReportRow = ({
               {item.reason}
             </ReactMarkdown>
           </span>
+          <div className='flex flex-wrap items-center gap-1.5 text-[11px] leading-4'>
+            <span className='rounded bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-200'>
+              {`${t('dashboard.marketRegimeBtc')}: ${formatRegimePercent(item.btcDominance)}`}
+            </span>
+            <span className='rounded bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-200'>
+              {`${t('dashboard.marketRegimeAlt')}: ${formatRegimeScore(item.altcoinIndex, pointUnitLabel)}`}
+            </span>
+            <span className='rounded bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-200'>
+              {`${t('dashboard.marketRegimeAsOf')}: ${marketRegimeAsOf}`}
+            </span>
+            {item.marketRegimeIsStale === true && (
+              <span className='rounded bg-red-100 px-1.5 py-0.5 text-red-800 dark:bg-red-900/40 dark:text-red-200'>
+                {t('dashboard.marketRegimeStale')}
+              </span>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>

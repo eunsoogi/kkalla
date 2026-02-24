@@ -14,9 +14,9 @@ import { CacheService } from '../cache/cache.service';
 import { Category } from '../category/category.enum';
 import { CategoryService } from '../category/category.service';
 import { ErrorService } from '../error/error.service';
-import { FeargreedService } from '../feargreed/feargreed.service';
 import { FeatureService } from '../feature/feature.service';
 import { HoldingLedgerService } from '../holding-ledger/holding-ledger.service';
+import { MarketRegimeService } from '../market-regime/market-regime.service';
 import { NewsService } from '../news/news.service';
 import { NotifyService } from '../notify/notify.service';
 import { OpenaiService } from '../openai/openai.service';
@@ -141,9 +141,16 @@ describe('MarketRiskService', () => {
           },
         },
         {
-          provide: FeargreedService,
+          provide: MarketRegimeService,
           useValue: {
-            getCompactFeargreed: jest.fn().mockResolvedValue(null),
+            getSnapshot: jest.fn().mockResolvedValue({
+              btcDominance: 55,
+              altcoinIndex: 50,
+              asOf: new Date(),
+              source: 'live',
+              isStale: false,
+              staleAgeMinutes: 0,
+            }),
           },
         },
         {

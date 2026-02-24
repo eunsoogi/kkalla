@@ -20,3 +20,4 @@ reportType별로 실제 입력에 존재하는 필드만 사용해 평가합니�
 4. nextGuardrail은 구체적이고 실행 가능한 문장으로 작성합니다.
 5. 입력에 없는 필드를 "반드시 추가"하라고 강제하는 nextGuardrail은 금지합니다.
 6. reportType이 allocation이고 reason/confidence가 비어 있으면 intensity/action/성과 기반 가드레일을 작성합니다.
+7. recommendation에 시장 국면(BTC 도미넌스/알트코인 시즌 지수/공포 탐욕 지수/기준 시각(asOf)/데이터 출처(source)/신선도(isStale))이 있으면, 해당 조건에서 reason/confidence/intensity가 결과와 정렬됐는지 함께 평가합니다.

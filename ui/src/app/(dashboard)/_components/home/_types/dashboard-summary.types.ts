@@ -2,8 +2,7 @@ import { AllocationAuditBadge } from '@/app/(dashboard)/_shared/inference/_types
 import { News } from '@/app/(dashboard)/_shared/news/news.types';
 import { ProfitData } from '@/app/(dashboard)/_shared/profit/_types/profit.types';
 import { Trade } from '@/app/(dashboard)/_shared/trades/trade.types';
-
-import { Feargreed, FeargreedHistory } from '../feargreed/_types/feargreed.types';
+import { DashboardMarketRegimeSnapshot } from '@/app/(dashboard)/_components/home/_types/market-regime.types';
 
 /** 최신 마켓 리포트 (추천 시점 대비 변동률 포함) */
 export interface MarketReportWithChange {
@@ -15,6 +14,14 @@ export interface MarketReportWithChange {
   batchId: string;
   createdAt: string;
   updatedAt: string;
+  btcDominance?: number | null;
+  altcoinIndex?: number | null;
+  marketRegimeAsOf?: string | Date | null;
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeIsStale?: boolean | null;
+  feargreedIndex?: number | null;
+  feargreedClassification?: string | null;
+  feargreedTimestamp?: string | Date | null;
   recommendationPrice?: number;
   currentPrice?: number;
   priceChangePct?: number;
@@ -33,9 +40,8 @@ export interface HoldingWithDailyChange {
 
 export type DashboardSummarySectionKey =
   | 'marketReports'
+  | 'marketRegime'
   | 'news'
-  | 'feargreed'
-  | 'feargreedHistory'
   | 'holdings'
   | 'trades24h'
   | 'profit';
@@ -43,9 +49,8 @@ export type DashboardSummarySectionKey =
 export interface DashboardSummaryResponse {
   generatedAt: string;
   marketReports: MarketReportWithChange[];
+  marketRegime: DashboardMarketRegimeSnapshot | null;
   news: News[];
-  feargreed: Feargreed | null;
-  feargreedHistory: FeargreedHistory;
   holdings: HoldingWithDailyChange[];
   trades24h: Trade[];
   profit: ProfitData | null;

@@ -501,24 +501,33 @@ export class AllocationAuditService {
     });
 
     const response: AllocationAuditRunPage = {
-      items: runs.map((run) => ({
-        id: run.id,
-        reportType: run.reportType,
-        sourceBatchId: run.sourceBatchId,
-        horizonHours: run.horizonHours,
-        status: run.status,
-        itemCount: run.itemCount,
-        completedCount: run.completedCount,
-        deterministicScoreAvg: run.deterministicScoreAvg,
-        aiScoreAvg: run.aiScoreAvg,
-        overallScore: run.overallScore,
-        summary: run.summary != null ? toUserFacingText(run.summary) : null,
-        startedAt: run.startedAt,
-        completedAt: run.completedAt,
-        error: run.error,
-        createdAt: run.createdAt,
-        updatedAt: run.updatedAt,
-      })),
+      items: runs.map((run) => {
+        const itemCount = this.toNonNegativeInteger(run.itemCount);
+        const completedCount = this.toNonNegativeInteger(run.completedCount);
+        const deterministicScoreAvg = this.toNullableNumber(run.deterministicScoreAvg);
+        const aiScoreAvg = this.toNullableNumber(run.aiScoreAvg);
+        const overallScore =
+          this.toNullableNumber(run.overallScore) ?? this.calculateRunOverallScore(deterministicScoreAvg, aiScoreAvg);
+
+        return {
+          id: run.id,
+          reportType: run.reportType,
+          sourceBatchId: run.sourceBatchId,
+          horizonHours: run.horizonHours,
+          status: run.status,
+          itemCount,
+          completedCount,
+          deterministicScoreAvg,
+          aiScoreAvg,
+          overallScore,
+          summary: run.summary != null ? toUserFacingText(run.summary) : null,
+          startedAt: run.startedAt,
+          completedAt: run.completedAt,
+          error: run.error,
+          createdAt: run.createdAt,
+          updatedAt: run.updatedAt,
+        };
+      }),
       total,
       page: safePage,
       perPage: safePerPage,
@@ -588,6 +597,14 @@ export class AllocationAuditService {
         recommendationIntensity: item.recommendationIntensity,
         recommendationAction: item.recommendationAction,
         recommendationPrice: item.recommendationPrice,
+        recommendationBtcDominance: item.recommendationBtcDominance,
+        recommendationAltcoinIndex: item.recommendationAltcoinIndex,
+        recommendationMarketRegimeAsOf: item.recommendationMarketRegimeAsOf,
+        recommendationMarketRegimeSource: item.recommendationMarketRegimeSource,
+        recommendationMarketRegimeIsStale: item.recommendationMarketRegimeIsStale,
+        recommendationFeargreedIndex: item.recommendationFeargreedIndex,
+        recommendationFeargreedClassification: item.recommendationFeargreedClassification,
+        recommendationFeargreedTimestamp: item.recommendationFeargreedTimestamp,
         evaluatedPrice: item.evaluatedPrice,
         returnPct: item.returnPct,
         directionHit: item.directionHit,
@@ -900,6 +917,15 @@ export class AllocationAuditService {
               entity.recommendationWeight = this.toNullableNumber(recommendation.weight);
               entity.recommendationIntensity = null;
               entity.recommendationAction = 'buy';
+              entity.recommendationBtcDominance = this.toNullableNumber(recommendation.btcDominance);
+              entity.recommendationAltcoinIndex = this.toNullableNumber(recommendation.altcoinIndex);
+              entity.recommendationMarketRegimeAsOf = recommendation.marketRegimeAsOf ?? null;
+              entity.recommendationMarketRegimeSource = recommendation.marketRegimeSource ?? null;
+              entity.recommendationMarketRegimeIsStale =
+                recommendation.marketRegimeIsStale == null ? null : Boolean(recommendation.marketRegimeIsStale);
+              entity.recommendationFeargreedIndex = this.toNullableNumber(recommendation.feargreedIndex);
+              entity.recommendationFeargreedClassification = recommendation.feargreedClassification ?? null;
+              entity.recommendationFeargreedTimestamp = recommendation.feargreedTimestamp ?? null;
             } else {
               const recommendation = item as AllocationRecommendation;
               entity.recommendationReason = recommendation.reason;
@@ -907,6 +933,15 @@ export class AllocationAuditService {
               entity.recommendationWeight = null;
               entity.recommendationIntensity = this.toNullableNumber(recommendation.intensity);
               entity.recommendationAction = recommendation.action ?? null;
+              entity.recommendationBtcDominance = this.toNullableNumber(recommendation.btcDominance);
+              entity.recommendationAltcoinIndex = this.toNullableNumber(recommendation.altcoinIndex);
+              entity.recommendationMarketRegimeAsOf = recommendation.marketRegimeAsOf ?? null;
+              entity.recommendationMarketRegimeSource = recommendation.marketRegimeSource ?? null;
+              entity.recommendationMarketRegimeIsStale =
+                recommendation.marketRegimeIsStale == null ? null : Boolean(recommendation.marketRegimeIsStale);
+              entity.recommendationFeargreedIndex = this.toNullableNumber(recommendation.feargreedIndex);
+              entity.recommendationFeargreedClassification = recommendation.feargreedClassification ?? null;
+              entity.recommendationFeargreedTimestamp = recommendation.feargreedTimestamp ?? null;
             }
 
             return entity;
@@ -1333,6 +1368,16 @@ export class AllocationAuditService {
         action: item.recommendationAction,
         recommendationPrice: item.recommendationPrice,
         recommendationCreatedAt: item.recommendationCreatedAt,
+        marketRegime: {
+          btcDominance: item.recommendationBtcDominance,
+          altcoinIndex: item.recommendationAltcoinIndex,
+          feargreedIndex: item.recommendationFeargreedIndex,
+          feargreedClassification: item.recommendationFeargreedClassification,
+          feargreedTimestamp: item.recommendationFeargreedTimestamp,
+          asOf: item.recommendationMarketRegimeAsOf,
+          source: item.recommendationMarketRegimeSource,
+          isStale: item.recommendationMarketRegimeIsStale,
+        },
       },
       observed: {
         evaluatedPrice: item.evaluatedPrice,

@@ -21,11 +21,28 @@
   --color-muted: #EFF4FA;
   --color-darklink: #7b8893;
   --color-lightgray: #f4f7fb;
-  --color-feargreed-extreme-fear: #E84141;
-  --color-feargreed-fear: #E87941;
-  --color-feargreed-neutral: #E8D741;
-  --color-feargreed-greed: #5DE841;
-  --color-feargreed-extreme-greed: #41E884;
+  --color-regime-feargreed-segment-1-start: #6b0f0f;
+  --color-regime-feargreed-segment-1-end: #ff9f5f;
+  --color-regime-feargreed-segment-2-start: #8a2d11;
+  --color-regime-feargreed-segment-2-end: #ffe277;
+  --color-regime-feargreed-segment-3-start: #615406;
+  --color-regime-feargreed-segment-3-end: #fff7b3;
+  --color-regime-feargreed-segment-4-start: #4f7d12;
+  --color-regime-feargreed-segment-4-end: #57e74e;
+  --color-regime-feargreed-segment-5-start: #188c34;
+  --color-regime-feargreed-segment-5-end: #3cffb2;
+  --color-regime-btc-dominance-segment-1-start: #0f7a3f;
+  --color-regime-btc-dominance-segment-1-end: #b6ff5b;
+  --color-regime-btc-dominance-segment-2-start: #65d93f;
+  --color-regime-btc-dominance-segment-2-end: #ffb060;
+  --color-regime-btc-dominance-segment-3-start: #ff8f3e;
+  --color-regime-btc-dominance-segment-3-end: #7f0e0e;
+  --color-regime-alt-season-segment-1-start: #7f0e0e;
+  --color-regime-alt-season-segment-1-end: #ffa65e;
+  --color-regime-alt-season-segment-2-start: #ff9a4d;
+  --color-regime-alt-season-segment-2-end: #9bff57;
+  --color-regime-alt-season-segment-3-start: #37b63a;
+  --color-regime-alt-season-segment-3-end: #58ff9f;
 }
 
 @theme {

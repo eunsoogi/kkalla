@@ -5,10 +5,59 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 import { getDashboardSummary } from '@/app/(dashboard)/_components/home/dashboard-summary.client';
-import { HoldingsList, MarketReportList, NewsWidget, TradeList24h } from '@/app/(dashboard)/_components/home';
-import { FeargreedGauge } from '@/app/(dashboard)/_components/home/feargreed/FeargreedGauge';
-import { FeargreedTable } from '@/app/(dashboard)/_components/home/feargreed/FeargreedTable';
+import {
+  FeargreedWidget,
+  HoldingsList,
+  MarketRegimeWidget,
+  MarketReportList,
+  NewsWidget,
+  TradeList24h,
+} from '@/app/(dashboard)/_components/home';
 import { ProfitDashboard } from '@/app/(dashboard)/_shared/profit/_components/ProfitDashboard';
+
+/**
+ * Resolves BTC dominance state label for the dashboard UI.
+ * @param t - Translator.
+ * @param classification - Snapshot classification value.
+ * @returns Localized label for the current BTC dominance state.
+ */
+const resolveBtcDominanceStateLabel = (
+  t: (key: string) => string,
+  classification?: 'altcoin_friendly' | 'transition' | 'bitcoin_dominance' | null,
+): string => {
+  switch (classification) {
+    case 'altcoin_friendly':
+      return t('dashboard.marketRegimeStateBtcAltFriendly');
+    case 'transition':
+      return t('dashboard.marketRegimeStateBtcTransition');
+    case 'bitcoin_dominance':
+      return t('dashboard.marketRegimeStateBtcDominant');
+    default:
+      return '-';
+  }
+};
+
+/**
+ * Resolves altcoin season state label for the dashboard UI.
+ * @param t - Translator.
+ * @param classification - Snapshot classification value.
+ * @returns Localized label for the current altcoin season state.
+ */
+const resolveAltcoinSeasonStateLabel = (
+  t: (key: string) => string,
+  classification?: 'bitcoin_season' | 'neutral' | 'altcoin_season' | null,
+): string => {
+  switch (classification) {
+    case 'bitcoin_season':
+      return t('dashboard.marketRegimeStateAltBitcoinSeason');
+    case 'neutral':
+      return t('dashboard.marketRegimeStateAltNeutral');
+    case 'altcoin_season':
+      return t('dashboard.marketRegimeStateAltSeason');
+    default:
+      return '-';
+  }
+};
 
 /**
  * Renders the Page UI for the dashboard UI.
@@ -23,9 +72,9 @@ const Page: React.FC = () => {
   });
 
   const marketReports = data?.marketReports ?? [];
+  const marketRegime = data?.marketRegime ?? null;
   const news = data?.news ?? [];
-  const feargreed = data?.feargreed ?? null;
-  const feargreedHistory = data?.feargreedHistory ?? { data: [] };
+  const feargreed = marketRegime?.feargreed ?? null;
   const holdings = data?.holdings ?? [];
   const trades24h = data?.trades24h ?? [];
   const profit = data?.profit ?? null;
@@ -59,22 +108,31 @@ const Page: React.FC = () => {
           <NewsWidget isLoading={isPending} items={news} />
         </div>
 
-        {/* 5행: 공포·탐욕 지수 + 히스토리 */}
-        <div className='min-w-0 lg:col-span-4 col-span-12'>
-          <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0'>
-            <h5 className='card-title text-dark dark:text-white px-4 mb-4 sm:px-6'>{t('feargreed.title')}</h5>
-            <div className='px-4 sm:px-6 pb-6'>
-              <FeargreedGauge isLoading={isPending} item={feargreed} />
-            </div>
-          </div>
+        {/* 5행: BTC 도미넌스 + 알트코인 시즌 지수 + 공포·탐욕 지수 */}
+        <div className='min-w-0 md:col-span-6 lg:col-span-4 col-span-12'>
+          <MarketRegimeWidget
+            title={t('dashboard.btcDominanceTitle')}
+            stateLabel={resolveBtcDominanceStateLabel(t, marketRegime?.btcDominanceClassification)}
+            gaugeId='btc-dominance'
+            type='btcDominance'
+            value={marketRegime?.btcDominance}
+            asOf={marketRegime?.asOf}
+            isLoading={isPending}
+          />
         </div>
-        <div className='min-w-0 lg:col-span-8 col-span-12'>
-          <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0'>
-            <div className='px-4 sm:px-6 mb-4'>
-              <h5 className='card-title text-dark dark:text-white'>{t('feargreed.history')}</h5>
-            </div>
-            <FeargreedTable isLoading={isPending} history={feargreedHistory} />
-          </div>
+        <div className='min-w-0 md:col-span-6 lg:col-span-4 col-span-12'>
+          <MarketRegimeWidget
+            title={t('dashboard.altcoinIndexTitle')}
+            stateLabel={resolveAltcoinSeasonStateLabel(t, marketRegime?.altcoinIndexClassification)}
+            gaugeId='altcoin-season-index'
+            type='altcoinSeasonIndex'
+            value={marketRegime?.altcoinIndex}
+            asOf={marketRegime?.asOf}
+            isLoading={isPending}
+          />
+        </div>
+        <div className='min-w-0 lg:col-span-4 col-span-12'>
+          <FeargreedWidget title={t('feargreed.title')} item={feargreed} asOf={feargreed?.date} isLoading={isPending} />
         </div>
       </div>
     </>

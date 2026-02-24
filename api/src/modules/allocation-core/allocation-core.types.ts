@@ -32,6 +32,14 @@ export interface AllocationRecommendationData {
   decisionConfidence?: number;
   expectedVolatilityPct?: number;
   riskFlags?: string[];
+  btcDominance?: number | null;
+  altcoinIndex?: number | null;
+  marketRegimeAsOf?: Date | null;
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeIsStale?: boolean | null;
+  feargreedIndex?: number | null;
+  feargreedClassification?: string | null;
+  feargreedTimestamp?: Date | null;
 }
 
 export interface TradeExecutionMessageV2 {
