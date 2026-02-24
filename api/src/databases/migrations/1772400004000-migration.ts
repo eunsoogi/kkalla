@@ -420,13 +420,12 @@ export class Migration1772400004000 implements MigrationInterface {
       return;
     }
 
-    const primaryColumnsBeforeSwap = await this.getPrimaryKeyColumns(queryRunner, 'user_roles_role');
-    const hasExpectedPrimaryBeforeSwap =
-      primaryColumnsBeforeSwap.length === 2 &&
-      primaryColumnsBeforeSwap[0] === 'user_id' &&
-      primaryColumnsBeforeSwap[1] === 'role_id';
+    const hasUserIdUlidBeforeSwap = await this.hasColumnInSchema(queryRunner, 'user_roles_role', 'user_id_ulid');
+    const hasRoleIdUlidBeforeSwap = await this.hasColumnInSchema(queryRunner, 'user_roles_role', 'role_id_ulid');
+    const swapNeeded = hasUserIdUlidBeforeSwap || hasRoleIdUlidBeforeSwap;
 
-    if (primaryColumnsBeforeSwap.length > 0 && !hasExpectedPrimaryBeforeSwap) {
+    const primaryColumnsBeforeSwap = await this.getPrimaryKeyColumns(queryRunner, 'user_roles_role');
+    if (swapNeeded && primaryColumnsBeforeSwap.length > 0) {
       await queryRunner.query('ALTER TABLE `user_roles_role` DROP PRIMARY KEY');
     }
 
