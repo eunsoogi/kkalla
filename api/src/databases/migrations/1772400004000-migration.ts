@@ -63,30 +63,11 @@ export class Migration1772400004000 implements MigrationInterface {
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const cutoverCompleted = await this.isCutoverCompleted(queryRunner);
-    if (cutoverCompleted) {
-      return;
-    }
-
     await this.applyUlidCutover(queryRunner);
   }
 
   public async down(): Promise<void> {
     throw new Error('Migration1772400004000 down migration is not supported');
-  }
-
-  private async isCutoverCompleted(queryRunner: QueryRunner): Promise<boolean> {
-    const userTable = await queryRunner.getTable('user');
-    if (!userTable) {
-      return false;
-    }
-
-    if (userTable.findColumnByName('id_ulid')) {
-      return false;
-    }
-
-    const idColumn = userTable.findColumnByName('id');
-    return idColumn?.type === 'char' && String(idColumn.length ?? '') === '26';
   }
 
   private async applyUlidCutover(queryRunner: QueryRunner): Promise<void> {
