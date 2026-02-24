@@ -1,5 +1,6 @@
-import { ImportanceLevel } from '@/types/news.type';
 import { CursorItem } from '@/shared/types/pagination.types';
+
+export type ImportanceLevel = 0 | 1 | 2 | 3;
 
 export interface News {
   id: string;
