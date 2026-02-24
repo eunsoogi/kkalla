@@ -86,101 +86,249 @@ export class Migration1772400003000 implements MigrationInterface {
   }
 
   private async backfillRelationUlids(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      UPDATE trade t
-      INNER JOIN user u ON u.id = t.user_id
-      SET t.user_id_ulid = u.id_ulid
-      WHERE t.user_id_ulid IS NULL
-    `);
+    await this.backfillTradeUserUlids(queryRunner);
 
-    await queryRunner.query(`
-      UPDATE trade t
-      INNER JOIN allocation_recommendation a ON a.id = t.inference_id
-      SET t.inference_id_ulid = a.id_ulid
-      WHERE t.inference_id IS NOT NULL
-        AND t.inference_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT t.id AS id, a.id_ulid AS value
+        FROM trade t
+        INNER JOIN allocation_recommendation a ON a.id = t.inference_id
+        WHERE t.inference_id IS NOT NULL
+          AND t.inference_id_ulid IS NULL
+          AND a.id_ulid IS NOT NULL
+        ORDER BY t.id ASC
+      `,
+      'trade',
+      'id',
+      'inference_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE notify n
-      INNER JOIN user u ON u.id = n.user_id
-      SET n.user_id_ulid = u.id_ulid
-      WHERE n.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT n.id AS id, u.id_ulid AS value
+        FROM notify n
+        INNER JOIN user u ON u.id = n.user_id
+        WHERE n.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY n.id ASC
+      `,
+      'notify',
+      'id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE schedule s
-      INNER JOIN user u ON u.id = s.user_id
-      SET s.user_id_ulid = u.id_ulid
-      WHERE s.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT s.id AS id, u.id_ulid AS value
+        FROM schedule s
+        INNER JOIN user u ON u.id = s.user_id
+        WHERE s.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY s.id ASC
+      `,
+      'schedule',
+      'id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE upbit_config uc
-      INNER JOIN user u ON u.id = uc.user_id
-      SET uc.user_id_ulid = u.id_ulid
-      WHERE uc.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT uc.id AS id, u.id_ulid AS value
+        FROM upbit_config uc
+        INNER JOIN user u ON u.id = uc.user_id
+        WHERE uc.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY uc.id ASC
+      `,
+      'upbit_config',
+      'id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE slack_config sc
-      INNER JOIN user u ON u.id = sc.user_id
-      SET sc.user_id_ulid = u.id_ulid
-      WHERE sc.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT sc.id AS id, u.id_ulid AS value
+        FROM slack_config sc
+        INNER JOIN user u ON u.id = sc.user_id
+        WHERE sc.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY sc.id ASC
+      `,
+      'slack_config',
+      'id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE holding_ledger h
-      INNER JOIN user u ON u.id = h.user_id
-      SET h.user_id_ulid = u.id_ulid
-      WHERE h.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT h.id AS id, u.id_ulid AS value
+        FROM holding_ledger h
+        INNER JOIN user u ON u.id = h.user_id
+        WHERE h.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY h.id ASC
+      `,
+      'holding_ledger',
+      'id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE user_category uc
-      INNER JOIN user u ON u.id = uc.user_id
-      SET uc.user_id_ulid = u.id_ulid
-      WHERE uc.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT uc.id AS id, u.id_ulid AS value
+        FROM user_category uc
+        INNER JOIN user u ON u.id = uc.user_id
+        WHERE uc.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY uc.id ASC
+      `,
+      'user_category',
+      'id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE allocation_audit_item i
-      INNER JOIN allocation_audit_run r ON r.id = i.run_id
-      SET i.run_id_ulid = r.id_ulid
-      WHERE i.run_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT i.id AS id, r.id_ulid AS value
+        FROM allocation_audit_item i
+        INNER JOIN allocation_audit_run r ON r.id = i.run_id
+        WHERE i.run_id_ulid IS NULL
+          AND r.id_ulid IS NOT NULL
+        ORDER BY i.id ASC
+      `,
+      'allocation_audit_item',
+      'id',
+      'run_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE allocation_audit_item i
-      INNER JOIN allocation_recommendation a ON a.id = i.source_recommendation_id
-      SET i.source_recommendation_id_ulid = a.id_ulid
-      WHERE i.report_type = 'allocation'
-        AND i.source_recommendation_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT i.id AS id, a.id_ulid AS value
+        FROM allocation_audit_item i
+        INNER JOIN allocation_recommendation a ON a.id = i.source_recommendation_id
+        WHERE i.report_type = 'allocation'
+          AND i.source_recommendation_id_ulid IS NULL
+          AND a.id_ulid IS NOT NULL
+        ORDER BY i.id ASC
+      `,
+      'allocation_audit_item',
+      'id',
+      'source_recommendation_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE allocation_audit_item i
-      INNER JOIN market_signal m ON m.id = i.source_recommendation_id
-      SET i.source_recommendation_id_ulid = m.id_ulid
-      WHERE i.report_type = 'market'
-        AND i.source_recommendation_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT i.id AS id, m.id_ulid AS value
+        FROM allocation_audit_item i
+        INNER JOIN market_signal m ON m.id = i.source_recommendation_id
+        WHERE i.report_type = 'market'
+          AND i.source_recommendation_id_ulid IS NULL
+          AND m.id_ulid IS NOT NULL
+        ORDER BY i.id ASC
+      `,
+      'allocation_audit_item',
+      'id',
+      'source_recommendation_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE user_roles_role urr
-      INNER JOIN user u ON u.id = urr.user_id
-      SET urr.user_id_ulid = u.id_ulid
-      WHERE urr.user_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT urr.user_id AS id, u.id_ulid AS value
+        FROM user_roles_role urr
+        INNER JOIN user u ON u.id = urr.user_id
+        WHERE urr.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY urr.user_id ASC
+      `,
+      'user_roles_role',
+      'user_id',
+      'user_id_ulid',
+    );
 
-    await queryRunner.query(`
-      UPDATE user_roles_role urr
-      INNER JOIN role r ON r.id = urr.role_id
-      SET urr.role_id_ulid = r.id_ulid
-      WHERE urr.role_id_ulid IS NULL
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT urr.role_id AS id, r.id_ulid AS value
+        FROM user_roles_role urr
+        INNER JOIN role r ON r.id = urr.role_id
+        WHERE urr.role_id_ulid IS NULL
+          AND r.id_ulid IS NOT NULL
+        ORDER BY urr.role_id ASC
+      `,
+      'user_roles_role',
+      'role_id',
+      'role_id_ulid',
+    );
 
     await this.backfillTradeExecutionLedgerUserUlids(queryRunner);
+  }
+
+  private async backfillTradeUserUlids(queryRunner: QueryRunner): Promise<void> {
+    while (true) {
+      const rows: Array<{ id: string; user_id_ulid: string }> = await queryRunner.query(`
+        SELECT t.id, u.id_ulid AS user_id_ulid
+        FROM trade t
+        INNER JOIN user u ON u.id = t.user_id
+        WHERE t.user_id_ulid IS NULL
+          AND u.id_ulid IS NOT NULL
+        ORDER BY t.id ASC
+        LIMIT ${Migration1772400003000.BACKFILL_BATCH_SIZE}
+      `);
+
+      if (rows.length === 0) {
+        break;
+      }
+
+      const caseFragments = rows.map(() => 'WHEN ? THEN ?').join(' ');
+      const idPlaceholders = rows.map(() => '?').join(', ');
+      const params = rows.flatMap((row) => [row.id, row.user_id_ulid]);
+      params.push(...rows.map((row) => row.id));
+
+      await queryRunner.query(
+        `UPDATE trade SET user_id_ulid = CASE id ${caseFragments} END WHERE id IN (${idPlaceholders}) AND user_id_ulid IS NULL`,
+        params,
+      );
+    }
+  }
+
+  private async backfillByJoin(
+    queryRunner: QueryRunner,
+    selectQuery: string,
+    tableName: string,
+    idColumn: string,
+    valueColumn: string,
+  ): Promise<void> {
+    while (true) {
+      const rows: Array<{ id: string; value: string }> = await queryRunner.query(`
+        ${selectQuery}
+        LIMIT ${Migration1772400003000.BACKFILL_BATCH_SIZE}
+      `);
+
+      if (rows.length === 0) {
+        break;
+      }
+
+      const caseFragments = rows.map(() => 'WHEN ? THEN ?').join(' ');
+      const inPlaceholders = rows.map(() => '?').join(', ');
+      const params = rows.flatMap((row) => [row.id, row.value]);
+      params.push(...rows.map((row) => row.id));
+
+      await queryRunner.query(
+        `UPDATE \`${tableName}\` SET \`${valueColumn}\` = CASE \`${idColumn}\` ${caseFragments} END WHERE \`${idColumn}\` IN (${inPlaceholders}) AND \`${valueColumn}\` IS NULL`,
+        params,
+      );
+    }
   }
 
   private async backfillTradeExecutionLedgerUserUlids(queryRunner: QueryRunner): Promise<void> {
@@ -221,21 +369,39 @@ export class Migration1772400003000 implements MigrationInterface {
   }
 
   private async migrateAllocationAuditBatchIds(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      UPDATE allocation_audit_run r
-      INNER JOIN allocation_recommendation a ON CAST(a.batch_id AS CHAR(36)) = CAST(r.source_batch_id AS CHAR(36))
-      SET r.source_batch_id = a.batch_id_ulid
-      WHERE r.report_type = 'allocation'
-        AND CHAR_LENGTH(r.source_batch_id) <> 26
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT r.id AS id, a.batch_id_ulid AS value
+        FROM allocation_audit_run r
+        INNER JOIN allocation_recommendation a
+          ON CAST(a.batch_id AS CHAR(36)) = CAST(r.source_batch_id AS CHAR(36))
+        WHERE r.report_type = 'allocation'
+          AND CHAR_LENGTH(r.source_batch_id) <> 26
+          AND a.batch_id_ulid IS NOT NULL
+        ORDER BY r.id ASC
+      `,
+      'allocation_audit_run',
+      'id',
+      'source_batch_id',
+    );
 
-    await queryRunner.query(`
-      UPDATE allocation_audit_item i
-      INNER JOIN allocation_recommendation a ON CAST(a.batch_id AS CHAR(36)) = CAST(i.source_batch_id AS CHAR(36))
-      SET i.source_batch_id = a.batch_id_ulid
-      WHERE i.report_type = 'allocation'
-        AND CHAR_LENGTH(i.source_batch_id) <> 26
-    `);
+    await this.backfillByJoin(
+      queryRunner,
+      `
+        SELECT i.id AS id, a.batch_id_ulid AS value
+        FROM allocation_audit_item i
+        INNER JOIN allocation_recommendation a
+          ON CAST(a.batch_id AS CHAR(36)) = CAST(i.source_batch_id AS CHAR(36))
+        WHERE i.report_type = 'allocation'
+          AND CHAR_LENGTH(i.source_batch_id) <> 26
+          AND a.batch_id_ulid IS NOT NULL
+        ORDER BY i.id ASC
+      `,
+      'allocation_audit_item',
+      'id',
+      'source_batch_id',
+    );
   }
 
   private async ensureAuditSourceBatchIdColumnsAreVarchar(queryRunner: QueryRunner): Promise<void> {

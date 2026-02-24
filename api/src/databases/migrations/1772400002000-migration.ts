@@ -103,12 +103,30 @@ export class Migration1772400002000 implements MigrationInterface {
       return;
     }
 
-    await queryRunner.query(`
-      UPDATE user
-      SET legacy_id = id
-      WHERE id IS NOT NULL
-        AND legacy_id IS NULL
-    `);
+    while (true) {
+      const rows: Array<{ id: string }> = await queryRunner.query(`
+        SELECT id
+        FROM user
+        WHERE id IS NOT NULL
+          AND legacy_id IS NULL
+        ORDER BY id ASC
+        LIMIT ${Migration1772400002000.BACKFILL_BATCH_SIZE}
+      `);
+
+      if (rows.length === 0) {
+        break;
+      }
+
+      const caseFragments = rows.map(() => 'WHEN ? THEN ?').join(' ');
+      const inPlaceholders = rows.map(() => '?').join(', ');
+      const params = rows.flatMap((row) => [row.id, row.id]);
+      params.push(...rows.map((row) => row.id));
+
+      await queryRunner.query(
+        `UPDATE user SET legacy_id = CASE id ${caseFragments} END WHERE id IN (${inPlaceholders}) AND legacy_id IS NULL`,
+        params,
+      );
+    }
   }
 
   private async backfillBatchUlids(queryRunner: QueryRunner): Promise<void> {
