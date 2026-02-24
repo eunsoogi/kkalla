@@ -393,17 +393,17 @@ export class Migration1772400004000 implements MigrationInterface {
     newColumn: string,
     nullable: boolean,
   ): Promise<void> {
-    const table = await queryRunner.getTable(tableName);
-    if (!table) {
+    const hasTable = await queryRunner.hasTable(tableName);
+    if (!hasTable) {
       return;
     }
 
-    const hasNewColumn = !!table.findColumnByName(newColumn);
+    const hasNewColumn = await this.hasColumnInSchema(queryRunner, tableName, newColumn);
     if (!hasNewColumn) {
       return;
     }
 
-    const hasOldColumn = !!table.findColumnByName(oldColumn);
+    const hasOldColumn = await this.hasColumnInSchema(queryRunner, tableName, oldColumn);
     if (hasOldColumn) {
       await queryRunner.query(`ALTER TABLE \`${tableName}\` DROP COLUMN \`${oldColumn}\``);
     }
@@ -420,37 +420,75 @@ export class Migration1772400004000 implements MigrationInterface {
       return;
     }
 
-    const table = await queryRunner.getTable('user_roles_role');
-    if (!table) {
-      return;
-    }
+    const primaryColumnsBeforeSwap = await this.getPrimaryKeyColumns(queryRunner, 'user_roles_role');
+    const hasExpectedPrimaryBeforeSwap =
+      primaryColumnsBeforeSwap.length === 2 &&
+      primaryColumnsBeforeSwap[0] === 'user_id' &&
+      primaryColumnsBeforeSwap[1] === 'role_id';
 
-    const hasUserIdUlid = !!table.findColumnByName('user_id_ulid');
-    const hasRoleIdUlid = !!table.findColumnByName('role_id_ulid');
-
-    if (!hasUserIdUlid || !hasRoleIdUlid) {
-      return;
-    }
-
-    if (table.primaryColumns.length > 0) {
+    if (primaryColumnsBeforeSwap.length > 0 && !hasExpectedPrimaryBeforeSwap) {
       await queryRunner.query('ALTER TABLE `user_roles_role` DROP PRIMARY KEY');
     }
 
-    if (table.findColumnByName('user_id')) {
-      await queryRunner.query('ALTER TABLE `user_roles_role` DROP COLUMN `user_id`');
+    await this.swapColumnToUlid(queryRunner, 'user_roles_role', 'user_id', 'user_id_ulid', false);
+    await this.swapColumnToUlid(queryRunner, 'user_roles_role', 'role_id', 'role_id_ulid', false);
+
+    const hasUserId = await this.hasColumnInSchema(queryRunner, 'user_roles_role', 'user_id');
+    const hasRoleId = await this.hasColumnInSchema(queryRunner, 'user_roles_role', 'role_id');
+    if (!hasUserId || !hasRoleId) {
+      throw new Error(
+        `[ulid cutover] user_roles_role column swap incomplete (user_id: ${hasUserId}, role_id: ${hasRoleId})`,
+      );
     }
 
-    if (table.findColumnByName('role_id')) {
-      await queryRunner.query('ALTER TABLE `user_roles_role` DROP COLUMN `role_id`');
+    const primaryColumnsAfterSwap = await this.getPrimaryKeyColumns(queryRunner, 'user_roles_role');
+    const hasExpectedPrimaryAfterSwap =
+      primaryColumnsAfterSwap.length === 2 &&
+      primaryColumnsAfterSwap[0] === 'user_id' &&
+      primaryColumnsAfterSwap[1] === 'role_id';
+
+    if (!hasExpectedPrimaryAfterSwap) {
+      if (primaryColumnsAfterSwap.length > 0) {
+        await queryRunner.query('ALTER TABLE `user_roles_role` DROP PRIMARY KEY');
+      }
+
+      await queryRunner.query('ALTER TABLE `user_roles_role` ADD PRIMARY KEY (`user_id`, `role_id`)');
     }
+  }
 
-    await queryRunner.query(`
-      ALTER TABLE \`user_roles_role\`
-      CHANGE COLUMN \`user_id_ulid\` \`user_id\` CHAR(26) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-      CHANGE COLUMN \`role_id_ulid\` \`role_id\` CHAR(26) CHARACTER SET ascii COLLATE ascii_bin NOT NULL
-    `);
+  private async hasColumnInSchema(
+    queryRunner: QueryRunner,
+    tableName: string,
+    columnName: string,
+  ): Promise<boolean> {
+    const rows: Array<{ count: string | number }> = await queryRunner.query(
+      `
+        SELECT COUNT(*) AS count
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = ?
+          AND column_name = ?
+      `,
+      [tableName, columnName],
+    );
 
-    await queryRunner.query('ALTER TABLE `user_roles_role` ADD PRIMARY KEY (`user_id`, `role_id`)');
+    return Number(rows[0]?.count ?? 0) > 0;
+  }
+
+  private async getPrimaryKeyColumns(queryRunner: QueryRunner, tableName: string): Promise<string[]> {
+    const rows: Array<{ column_name: string }> = await queryRunner.query(
+      `
+        SELECT COLUMN_NAME AS column_name
+        FROM information_schema.KEY_COLUMN_USAGE
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND CONSTRAINT_NAME = 'PRIMARY'
+        ORDER BY ORDINAL_POSITION ASC
+      `,
+      [tableName],
+    );
+
+    return rows.map((row) => row.column_name);
   }
 
   private async dropSeqColumn(queryRunner: QueryRunner, tableName: string): Promise<void> {
