@@ -440,6 +440,14 @@ export class Migration1772400004000 implements MigrationInterface {
       );
     }
 
+    const isUserIdUlidColumn = await this.isUlidAsciiColumn(queryRunner, 'user_roles_role', 'user_id');
+    const isRoleIdUlidColumn = await this.isUlidAsciiColumn(queryRunner, 'user_roles_role', 'role_id');
+    if (!isUserIdUlidColumn || !isRoleIdUlidColumn) {
+      throw new Error(
+        `[ulid cutover] user_roles_role columns are not ULID-compatible (user_id: ${isUserIdUlidColumn}, role_id: ${isRoleIdUlidColumn})`,
+      );
+    }
+
     const primaryColumnsAfterSwap = await this.getPrimaryKeyColumns(queryRunner, 'user_roles_role');
     const hasExpectedPrimaryAfterSwap =
       primaryColumnsAfterSwap.length === 2 &&
@@ -488,6 +496,41 @@ export class Migration1772400004000 implements MigrationInterface {
     );
 
     return rows.map((row) => row.column_name);
+  }
+
+  private async isUlidAsciiColumn(queryRunner: QueryRunner, tableName: string, columnName: string): Promise<boolean> {
+    const rows: Array<{
+      data_type: string | null;
+      character_maximum_length: string | number | null;
+      character_set_name: string | null;
+      collation_name: string | null;
+    }> = await queryRunner.query(
+      `
+        SELECT
+          DATA_TYPE AS data_type,
+          CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,
+          CHARACTER_SET_NAME AS character_set_name,
+          COLLATION_NAME AS collation_name
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = ?
+          AND column_name = ?
+        LIMIT 1
+      `,
+      [tableName, columnName],
+    );
+
+    const column = rows[0];
+    if (!column) {
+      return false;
+    }
+
+    return (
+      String(column.data_type ?? '').toLowerCase() === 'char' &&
+      Number(column.character_maximum_length ?? 0) === 26 &&
+      String(column.character_set_name ?? '').toLowerCase() === 'ascii' &&
+      String(column.collation_name ?? '').toLowerCase() === 'ascii_bin'
+    );
   }
 
   private async dropSeqColumn(queryRunner: QueryRunner, tableName: string): Promise<void> {
