@@ -79,6 +79,7 @@ export class Migration1772400003000 implements MigrationInterface {
 
   private async backfillRelationUlidsAndAuditBatchIds(queryRunner: QueryRunner): Promise<void> {
     await this.backfillRelationUlids(queryRunner);
+    await this.ensureAuditSourceBatchIdColumnsAreVarchar(queryRunner);
     await this.migrateAllocationAuditBatchIds(queryRunner);
     await this.assertAllocationAuditBatchIdsMigrated(queryRunner, 'allocation_audit_run');
     await this.assertAllocationAuditBatchIdsMigrated(queryRunner, 'allocation_audit_item');
@@ -222,16 +223,46 @@ export class Migration1772400003000 implements MigrationInterface {
   private async migrateAllocationAuditBatchIds(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       UPDATE allocation_audit_run r
-      INNER JOIN allocation_recommendation a ON a.batch_id = r.source_batch_id
+      INNER JOIN allocation_recommendation a ON CAST(a.batch_id AS CHAR(36)) = CAST(r.source_batch_id AS CHAR(36))
       SET r.source_batch_id = a.batch_id_ulid
       WHERE r.report_type = 'allocation'
+        AND CHAR_LENGTH(r.source_batch_id) <> 26
     `);
 
     await queryRunner.query(`
       UPDATE allocation_audit_item i
-      INNER JOIN allocation_recommendation a ON a.batch_id = i.source_batch_id
+      INNER JOIN allocation_recommendation a ON CAST(a.batch_id AS CHAR(36)) = CAST(i.source_batch_id AS CHAR(36))
       SET i.source_batch_id = a.batch_id_ulid
       WHERE i.report_type = 'allocation'
+        AND CHAR_LENGTH(i.source_batch_id) <> 26
+    `);
+  }
+
+  private async ensureAuditSourceBatchIdColumnsAreVarchar(queryRunner: QueryRunner): Promise<void> {
+    await this.ensureSourceBatchIdColumnIsVarchar(queryRunner, 'allocation_audit_run');
+    await this.ensureSourceBatchIdColumnIsVarchar(queryRunner, 'allocation_audit_item');
+  }
+
+  private async ensureSourceBatchIdColumnIsVarchar(queryRunner: QueryRunner, tableName: string): Promise<void> {
+    const table = await queryRunner.getTable(tableName);
+    if (!table) {
+      return;
+    }
+
+    const sourceBatchIdColumn = table.findColumnByName('source_batch_id');
+    if (!sourceBatchIdColumn) {
+      return;
+    }
+
+    const columnType = sourceBatchIdColumn.type.toLowerCase();
+    const isTextType = columnType === 'varchar' || columnType === 'char' || columnType.includes('text');
+    if (isTextType) {
+      return;
+    }
+
+    await queryRunner.query(`
+      ALTER TABLE \`${tableName}\`
+      CHANGE COLUMN \`source_batch_id\` \`source_batch_id\` VARCHAR(255) NOT NULL
     `);
   }
 
