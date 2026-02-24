@@ -13,6 +13,8 @@ interface ForeignKeyCapturePlan {
 }
 
 export class Migration1772400004000 implements MigrationInterface {
+  private static readonly FOREIGN_KEY_PLAN_TABLE = '_migration_1772400004000_fk_plan';
+
   private readonly idTables = [
     'user',
     'role',
@@ -71,10 +73,10 @@ export class Migration1772400004000 implements MigrationInterface {
   }
 
   private async applyUlidCutover(queryRunner: QueryRunner): Promise<void> {
-    const capturedForeignKeys = new Map<string, TableForeignKey[]>();
+    await this.ensureForeignKeyPlanTable(queryRunner);
 
     for (const plan of this.fkCapturePlans) {
-      capturedForeignKeys.set(plan.table, await this.captureAndDropForeignKeys(queryRunner, plan.table, plan.columns));
+      await this.persistAndDropForeignKeys(queryRunner, plan.table, plan.columns);
     }
 
     await this.dropIndexIfExists(
@@ -159,11 +161,8 @@ export class Migration1772400004000 implements MigrationInterface {
       true,
     );
 
-    for (const [table, foreignKeys] of capturedForeignKeys.entries()) {
-      for (const foreignKey of foreignKeys) {
-        await queryRunner.createForeignKey(table, foreignKey);
-      }
-    }
+    await this.restoreForeignKeysFromPlan(queryRunner);
+    await this.dropForeignKeyPlanTable(queryRunner);
 
     const hasSequenceTable = await queryRunner.hasTable('sequence');
     if (hasSequenceTable) {
@@ -171,14 +170,29 @@ export class Migration1772400004000 implements MigrationInterface {
     }
   }
 
-  private async captureAndDropForeignKeys(
+  private async ensureForeignKeyPlanTable(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS \`${Migration1772400004000.FOREIGN_KEY_PLAN_TABLE}\` (
+        \`table_name\` VARCHAR(128) NOT NULL,
+        \`foreign_key_name\` VARCHAR(191) NOT NULL,
+        \`column_names\` TEXT NOT NULL,
+        \`referenced_table_name\` VARCHAR(128) NOT NULL,
+        \`referenced_column_names\` TEXT NOT NULL,
+        \`on_delete\` VARCHAR(32) NULL,
+        \`on_update\` VARCHAR(32) NULL,
+        PRIMARY KEY (\`table_name\`, \`foreign_key_name\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  }
+
+  private async persistAndDropForeignKeys(
     queryRunner: QueryRunner,
     tableName: string,
     columns: string[],
-  ): Promise<TableForeignKey[]> {
+  ): Promise<void> {
     const table = await queryRunner.getTable(tableName);
     if (!table) {
-      return [];
+      return;
     }
 
     const matches = table.foreignKeys.filter((foreignKey) =>
@@ -186,19 +200,121 @@ export class Migration1772400004000 implements MigrationInterface {
     );
 
     for (const foreignKey of matches) {
-      await queryRunner.dropForeignKey(tableName, foreignKey);
+      if (!foreignKey.referencedTableName) {
+        continue;
+      }
+
+      const persistedForeignKeyName = this.toPersistedForeignKeyName(foreignKey);
+
+      await queryRunner.query(
+        `INSERT IGNORE INTO \`${Migration1772400004000.FOREIGN_KEY_PLAN_TABLE}\`
+          (\`table_name\`, \`foreign_key_name\`, \`column_names\`, \`referenced_table_name\`, \`referenced_column_names\`, \`on_delete\`, \`on_update\`)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          tableName,
+          persistedForeignKeyName,
+          JSON.stringify(foreignKey.columnNames),
+          foreignKey.referencedTableName,
+          JSON.stringify(foreignKey.referencedColumnNames),
+          foreignKey.onDelete ?? null,
+          foreignKey.onUpdate ?? null,
+        ],
+      );
     }
 
-    return matches.map(
-      (foreignKey) =>
-        new TableForeignKey({
-          name: foreignKey.name,
-          columnNames: [...foreignKey.columnNames],
-          referencedTableName: foreignKey.referencedTableName,
-          referencedColumnNames: [...foreignKey.referencedColumnNames],
-          onDelete: foreignKey.onDelete,
-          onUpdate: foreignKey.onUpdate,
-        }),
+    for (const foreignKey of matches) {
+      await queryRunner.dropForeignKey(tableName, foreignKey);
+    }
+  }
+
+  private async restoreForeignKeysFromPlan(queryRunner: QueryRunner): Promise<void> {
+    const rows: Array<{
+      table_name: string;
+      foreign_key_name: string;
+      column_names: string;
+      referenced_table_name: string;
+      referenced_column_names: string;
+      on_delete: string | null;
+      on_update: string | null;
+    }> = await queryRunner.query(
+      `SELECT
+         table_name,
+         foreign_key_name,
+         column_names,
+         referenced_table_name,
+         referenced_column_names,
+         on_delete,
+         on_update
+       FROM \`${Migration1772400004000.FOREIGN_KEY_PLAN_TABLE}\`
+       ORDER BY table_name ASC, foreign_key_name ASC`,
+    );
+
+    for (const row of rows) {
+      const table = await queryRunner.getTable(row.table_name);
+      if (!table) {
+        continue;
+      }
+
+      const foreignKey = new TableForeignKey({
+        name: row.foreign_key_name,
+        columnNames: this.parsePersistedColumns(row.column_names),
+        referencedTableName: row.referenced_table_name,
+        referencedColumnNames: this.parsePersistedColumns(row.referenced_column_names),
+        onDelete: row.on_delete ?? undefined,
+        onUpdate: row.on_update ?? undefined,
+      });
+
+      const exists = table.foreignKeys.some((existing) => this.isSameForeignKey(existing, foreignKey));
+      if (exists) {
+        continue;
+      }
+
+      await queryRunner.createForeignKey(row.table_name, foreignKey);
+    }
+  }
+
+  private async dropForeignKeyPlanTable(queryRunner: QueryRunner): Promise<void> {
+    const hasPlanTable = await queryRunner.hasTable(Migration1772400004000.FOREIGN_KEY_PLAN_TABLE);
+    if (!hasPlanTable) {
+      return;
+    }
+
+    await queryRunner.dropTable(Migration1772400004000.FOREIGN_KEY_PLAN_TABLE);
+  }
+
+  private parsePersistedColumns(raw: string): string[] {
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed.map((value) => String(value));
+    } catch {
+      return [];
+    }
+  }
+
+  private toPersistedForeignKeyName(foreignKey: TableForeignKey): string {
+    if (foreignKey.name) {
+      return foreignKey.name;
+    }
+
+    const columnPart = foreignKey.columnNames.join('_');
+    const referencedColumnPart = foreignKey.referencedColumnNames.join('_');
+    const referencedTableName = foreignKey.referencedTableName ?? 'unknown';
+    return `fk_${columnPart}_${referencedTableName}_${referencedColumnPart}`.slice(0, 191);
+  }
+
+  private isSameForeignKey(left: TableForeignKey, right: TableForeignKey): boolean {
+    if (left.name && right.name) {
+      return left.name === right.name;
+    }
+
+    return (
+      left.referencedTableName === right.referencedTableName &&
+      left.columnNames.join(',') === right.columnNames.join(',') &&
+      left.referencedColumnNames.join(',') === right.referencedColumnNames.join(',')
     );
   }
 
