@@ -405,7 +405,7 @@ export class Migration1772400004000 implements MigrationInterface {
 
     const hasOldColumn = await this.hasColumnInSchema(queryRunner, tableName, oldColumn);
     if (hasOldColumn) {
-      await queryRunner.query(`ALTER TABLE \`${tableName}\` DROP COLUMN \`${oldColumn}\``);
+      await this.dropColumnSafely(queryRunner, tableName, oldColumn);
     }
 
     await queryRunner.query(`
@@ -531,6 +531,49 @@ export class Migration1772400004000 implements MigrationInterface {
       String(column.character_set_name ?? '').toLowerCase() === 'ascii' &&
       String(column.collation_name ?? '').toLowerCase() === 'ascii_bin'
     );
+  }
+
+  private async dropColumnSafely(queryRunner: QueryRunner, tableName: string, columnName: string): Promise<void> {
+    try {
+      await queryRunner.query(`ALTER TABLE \`${tableName}\` DROP COLUMN \`${columnName}\``);
+      return;
+    } catch (error) {
+      const shouldRetry = this.isRetriableDropColumnError(error);
+      if (!shouldRetry) {
+        throw error;
+      }
+    }
+
+    await this.dropIndexesContainingColumn(queryRunner, tableName, columnName);
+
+    const stillExists = await this.hasColumnInSchema(queryRunner, tableName, columnName);
+    if (!stillExists) {
+      return;
+    }
+
+    await queryRunner.query(`ALTER TABLE \`${tableName}\` DROP COLUMN \`${columnName}\``);
+  }
+
+  private isRetriableDropColumnError(error: unknown): boolean {
+    const code = String((error as { code?: unknown })?.code ?? '');
+    const errno = Number((error as { errno?: unknown })?.errno ?? 0);
+    return code === 'ER_KEY_COLUMN_DOES_NOT_EXITS' || errno === 1072 || errno === 1091;
+  }
+
+  private async dropIndexesContainingColumn(
+    queryRunner: QueryRunner,
+    tableName: string,
+    columnName: string,
+  ): Promise<void> {
+    const table = await queryRunner.getTable(tableName);
+    if (!table) {
+      return;
+    }
+
+    const indexes = table.indices.filter((index) => index.columnNames.includes(columnName));
+    for (const index of indexes) {
+      await queryRunner.dropIndex(tableName, index);
+    }
   }
 
   private async dropSeqColumn(queryRunner: QueryRunner, tableName: string): Promise<void> {
