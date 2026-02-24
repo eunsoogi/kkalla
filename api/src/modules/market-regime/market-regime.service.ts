@@ -44,6 +44,8 @@ export class MarketRegimeService {
 
   private readonly STALE_THRESHOLD_MS = 60 * 60 * 1000;
   private readonly RECENT_SNAPSHOT_WINDOW_MS = 60 * 60 * 1000;
+  private readonly BTC_DOMINANCE_NEUTRAL_FALLBACK = 55;
+  private readonly ALTCOIN_INDEX_NEUTRAL_FALLBACK = 50;
   private readonly BTC_DOMINANCE_ALT_FRIENDLY_MAX = 50;
   private readonly BTC_DOMINANCE_TRANSITION_MAX = 60;
   private readonly ALTCOIN_INDEX_BITCOIN_SEASON_MAX = 25;
@@ -166,6 +168,26 @@ export class MarketRegimeService {
         fallbackAsOf != null;
 
       if (!hasSnapshotCache) {
+        if (feargreed) {
+          const feargreedAsOf = new Date(feargreed.timestamp * 1000);
+          this.logger.warn(
+            this.i18n.t('logging.marketRegime.cmc_overview_failed_using_feargreed_fallback', {
+              args: {
+                asOf: feargreedAsOf.toISOString(),
+                message: this.errorService.getErrorMessage(error),
+              },
+            }),
+          );
+
+          return this.buildSnapshot({
+            btcDominance: this.BTC_DOMINANCE_NEUTRAL_FALLBACK,
+            altcoinIndex: this.ALTCOIN_INDEX_NEUTRAL_FALLBACK,
+            feargreed,
+            asOf: feargreedAsOf,
+            source: 'cache_fallback',
+          });
+        }
+
         throw error;
       }
 

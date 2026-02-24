@@ -41,6 +41,7 @@
   },
   "marketRegime": {
     "cmc_overview_failed_using_cache": "CoinMarketCap 시장 데이터 로드에 실패하여 캐시 스냅샷을 사용합니다. asOf={asOf}, error={message}",
+    "cmc_overview_failed_using_feargreed_fallback": "CoinMarketCap 시장 데이터 로드에 실패하여 공포탐욕지수 기반 기본 스냅샷을 사용합니다. asOf={asOf}, error={message}",
     "feargreed_live_failed_fallback_cache": "공포탐욕지수 실시간 로드에 실패하여 캐시를 사용합니다. asOf={asOf}",
     "load_failed": "시장 국면(BTC 도미넌스/알트코인 시즌 지수) 데이터 로드에 실패했습니다.",
     "snapshot_feargreed_load_failed": "시장 지표 스냅샷 생성 중 공포탐욕지수 로드에 실패하여 null로 처리합니다. error={message}",

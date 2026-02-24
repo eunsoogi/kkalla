@@ -206,6 +206,58 @@ describe('MarketRegimeService', () => {
     expect(httpService.get).not.toHaveBeenCalled();
   });
 
+  it('should fallback to feargreed-based neutral snapshot when CMC fails on cold start', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(FIXED_NOW);
+    const { service, httpService, cacheService } = buildService();
+
+    cacheService.get.mockResolvedValue(null);
+    httpService.get.mockImplementation((url: string) => {
+      if (url.includes('global-metrics/crypto/overview/detail')) {
+        throw new Error('cmc failed');
+      }
+      if (url.includes('alternative.me/fng')) {
+        return of({
+          data: {
+            name: 'Fear and Greed Index',
+            data: [
+              {
+                value: '62',
+                value_classification: 'Greed',
+                timestamp: String(Math.floor(FIXED_NOW / 1000) - 120),
+                time_until_update: '3600',
+              },
+              {
+                value: '58',
+                value_classification: 'Greed',
+                timestamp: String(Math.floor(FIXED_NOW / 1000) - 3700),
+                time_until_update: '0',
+              },
+            ],
+            metadata: {
+              error: null,
+            },
+          },
+        });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const snapshot = await service.getSnapshot();
+
+    expect(snapshot.source).toBe('cache_fallback');
+    expect(snapshot.isStale).toBe(false);
+    expect(snapshot.btcDominance).toBe(55);
+    expect(snapshot.btcDominanceClassification).toBe('transition');
+    expect(snapshot.altcoinIndex).toBe(50);
+    expect(snapshot.altcoinIndexClassification).toBe('neutral');
+    expect(snapshot.feargreed).toEqual(
+      expect.objectContaining({
+        index: 62,
+        classification: 'Greed',
+      }),
+    );
+  });
+
   it('should throw when CMC fails and no cached snapshot exists', async () => {
     const { service, httpService, cacheService } = buildService();
 
