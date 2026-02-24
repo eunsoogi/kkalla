@@ -10,7 +10,13 @@ interface SwapColumnPlan {
 }
 
 export class Migration1772400003000 implements MigrationInterface {
-  private static readonly BACKFILL_BATCH_SIZE = 1000;
+  public readonly transaction = false;
+
+  private static readonly BACKFILL_BATCH_SIZE = 200;
+  private static readonly MIGRATION_LOCK_NAME = 'migration:1772400003000:ulid-cutover';
+  private static readonly MIGRATION_LOCK_TIMEOUT_SECONDS = 3600;
+  private static readonly LOCK_RETRY_MAX_ATTEMPTS = 10;
+  private static readonly LOCK_RETRY_BASE_DELAY_MS = 300;
 
   private readonly idTables = [
     'user',
@@ -50,17 +56,40 @@ export class Migration1772400003000 implements MigrationInterface {
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const cutoverCompleted = await this.isCutoverCompleted(queryRunner);
-    if (cutoverCompleted) {
-      return;
-    }
+    await this.withMigrationLock(queryRunner, async () => {
+      const cutoverCompleted = await this.isCutoverCompleted(queryRunner);
+      if (cutoverCompleted) {
+        return;
+      }
 
-    await this.backfillRelationUlidsAndAuditBatchIds(queryRunner);
-    await this.runPreflightChecks(queryRunner);
+      await this.backfillRelationUlidsAndAuditBatchIds(queryRunner);
+      await this.runPreflightChecks(queryRunner);
+    });
   }
 
   public async down(): Promise<void> {
     throw new Error('Migration1772400003000 down migration is not supported');
+  }
+
+  private async withMigrationLock(queryRunner: QueryRunner, callback: () => Promise<void>): Promise<void> {
+    const rows: Array<{ acquired: string | number | null }> = await queryRunner.query(
+      'SELECT GET_LOCK(?, ?) AS acquired',
+      [Migration1772400003000.MIGRATION_LOCK_NAME, Migration1772400003000.MIGRATION_LOCK_TIMEOUT_SECONDS],
+    );
+
+    if (Number(rows[0]?.acquired ?? 0) !== 1) {
+      throw new Error('[ulid cutover] failed to acquire migration lock for Migration1772400003000');
+    }
+
+    try {
+      await callback();
+    } finally {
+      try {
+        await queryRunner.query('SELECT RELEASE_LOCK(?)', [Migration1772400003000.MIGRATION_LOCK_NAME]);
+      } catch {
+        // noop
+      }
+    }
   }
 
   private async isCutoverCompleted(queryRunner: QueryRunner): Promise<boolean> {
@@ -295,9 +324,13 @@ export class Migration1772400003000 implements MigrationInterface {
       const params = rows.flatMap((row) => [row.id, row.user_id_ulid]);
       params.push(...rows.map((row) => row.id));
 
-      await queryRunner.query(
-        `UPDATE trade SET user_id_ulid = CASE id ${caseFragments} END WHERE id IN (${idPlaceholders}) AND user_id_ulid IS NULL`,
-        params,
+      await this.executeWithLockRetry(
+        () =>
+          queryRunner.query(
+            `UPDATE trade SET user_id_ulid = CASE id ${caseFragments} END WHERE id IN (${idPlaceholders}) AND user_id_ulid IS NULL`,
+            params,
+          ),
+        'trade.user_id_ulid backfill',
       );
     }
   }
@@ -324,9 +357,13 @@ export class Migration1772400003000 implements MigrationInterface {
       const params = rows.flatMap((row) => [row.id, row.value]);
       params.push(...rows.map((row) => row.id));
 
-      await queryRunner.query(
-        `UPDATE \`${tableName}\` SET \`${valueColumn}\` = CASE \`${idColumn}\` ${caseFragments} END WHERE \`${idColumn}\` IN (${inPlaceholders}) AND \`${valueColumn}\` IS NULL`,
-        params,
+      await this.executeWithLockRetry(
+        () =>
+          queryRunner.query(
+            `UPDATE \`${tableName}\` SET \`${valueColumn}\` = CASE \`${idColumn}\` ${caseFragments} END WHERE \`${idColumn}\` IN (${inPlaceholders}) AND \`${valueColumn}\` IS NULL`,
+            params,
+          ),
+        `${tableName}.${valueColumn} backfill`,
       );
     }
   }
@@ -361,9 +398,13 @@ export class Migration1772400003000 implements MigrationInterface {
       const params = updates.flatMap((update) => [update.userId, update.userIdUlid]);
       params.push(...updates.map((update) => update.userId));
 
-      await queryRunner.query(
-        `UPDATE trade_execution_ledger SET user_id_ulid = CASE user_id ${caseFragments} END WHERE user_id IN (${inPlaceholders}) AND user_id_ulid IS NULL`,
-        params,
+      await this.executeWithLockRetry(
+        () =>
+          queryRunner.query(
+            `UPDATE trade_execution_ledger SET user_id_ulid = CASE user_id ${caseFragments} END WHERE user_id IN (${inPlaceholders}) AND user_id_ulid IS NULL`,
+            params,
+          ),
+        'trade_execution_ledger.user_id_ulid backfill',
       );
     }
   }
@@ -426,10 +467,14 @@ export class Migration1772400003000 implements MigrationInterface {
       return;
     }
 
-    await queryRunner.query(`
-      ALTER TABLE \`${tableName}\`
-      CHANGE COLUMN \`source_batch_id\` \`source_batch_id\` VARCHAR(255) NOT NULL
-    `);
+    await this.executeWithLockRetry(
+      () =>
+        queryRunner.query(`
+          ALTER TABLE \`${tableName}\`
+          CHANGE COLUMN \`source_batch_id\` \`source_batch_id\` VARCHAR(255) NOT NULL
+        `),
+      `${tableName}.source_batch_id type change`,
+    );
   }
 
   private async assertAllocationAuditBatchIdsMigrated(queryRunner: QueryRunner, tableName: string): Promise<void> {
@@ -511,5 +556,41 @@ export class Migration1772400003000 implements MigrationInterface {
     if (Number(rows[0]?.count ?? 0) > 0) {
       throw new Error(`[ulid cutover] ${tableName}.${newColumn} is NULL while ${oldColumn} is NOT NULL`);
     }
+  }
+
+  private async executeWithLockRetry<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+    let attempt = 0;
+
+    while (true) {
+      try {
+        return await operation();
+      } catch (error) {
+        attempt += 1;
+        if (!this.isRetryableLockError(error)) {
+          throw error;
+        }
+
+        if (attempt >= Migration1772400003000.LOCK_RETRY_MAX_ATTEMPTS) {
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(`[ulid cutover] ${operationName} failed after ${attempt} attempts: ${reason}`);
+        }
+
+        const delayMs = Migration1772400003000.LOCK_RETRY_BASE_DELAY_MS * attempt;
+        await this.sleep(delayMs);
+      }
+    }
+  }
+
+  private isRetryableLockError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const message = error.message.toLowerCase();
+    return message.includes('lock wait timeout exceeded') || message.includes('deadlock found');
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
