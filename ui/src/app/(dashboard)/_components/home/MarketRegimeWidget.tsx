@@ -176,9 +176,10 @@ interface FeargreedGaugeProps {
  * @returns Rendered React element for this view.
  */
 const FeargreedGauge = ({ item = null, gaugeId = 'feargreed', pointUnitLabel }: FeargreedGaugeProps) => {
-  const score = Number.isFinite(item?.index) ? Number(item?.index) : 0;
-  const displayScore = score.toLocaleString();
-  const diff = Number.isFinite(item?.diff) ? Number(item?.diff) : 0;
+  const hasScore = Number.isFinite(item?.index);
+  const score = hasScore ? Number(item?.index) : 0;
+  const displayScore = hasScore ? score.toLocaleString() : '-';
+  const diff = hasScore && Number.isFinite(item?.diff) ? Number(item?.diff) : null;
   const stage = item?.classification ?? '-';
 
   return (
@@ -190,10 +191,12 @@ const FeargreedGauge = ({ item = null, gaugeId = 'feargreed', pointUnitLabel }: 
         <>
           <div className='flex items-start justify-center gap-1'>
             <div className='text-3xl font-bold leading-none text-gray-900 dark:text-white'>{displayScore}</div>
-            <div className={`mt-0.5 text-xs font-medium ${getDiffColor(diff)}`}>
-              {getDiffPrefix(diff)}
-              {diff.toLocaleString()}
-            </div>
+            {diff != null && (
+              <div className={`mt-0.5 text-xs font-medium ${getDiffColor(diff)}`}>
+                {getDiffPrefix(diff)}
+                {diff.toLocaleString()}
+              </div>
+            )}
           </div>
           <div className='text-lg text-gray-500 dark:text-gray-400'>{pointUnitLabel}</div>
           <div className='text-sm mt-1 text-gray-700 dark:text-gray-200'>{stage}</div>
