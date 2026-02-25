@@ -144,7 +144,7 @@ const MarketRegimeGauge = ({
       ? type === 'btcDominance'
         ? value.toFixed(2)
         : Number(value.toFixed(2)).toString()
-      : '0';
+      : '-';
   const unitLabel = type === 'btcDominance' ? '%' : pointUnitLabel;
   const gaugeBackgroundSegments = type === 'btcDominance' ? getBtcDominanceGaugeSegments() : getAltcoinSeasonGaugeSegments();
 
