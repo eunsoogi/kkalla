@@ -310,6 +310,7 @@ export class MarketRegimeService {
       altcoinIndex: snapshot.altcoinIndex,
       feargreed: snapshot.feargreed,
       asOf: snapshot.asOf.toISOString(),
+      source: snapshot.source,
     };
 
     await this.cacheService.set(
@@ -324,6 +325,9 @@ export class MarketRegimeService {
       const cachedPayload = await this.cacheService.get<MarketRegimeCachePayload>(
         this.MARKET_REGIME_LAST_SUCCESS_CACHE_KEY,
       );
+      if (cachedPayload?.source === 'cache_fallback') {
+        return null;
+      }
       const cachedSnapshot = this.buildSnapshotFromCache(cachedPayload, 'live');
       if (!cachedSnapshot) {
         return null;

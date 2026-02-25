@@ -19,6 +19,7 @@ export interface MarketRegimeCachePayload {
   altcoinIndex: number;
   feargreed?: Feargreed | CompactFeargreed | null;
   asOf: string;
+  source?: MarketRegimeSource;
 }
 
 export interface FeargreedApiResponse {
