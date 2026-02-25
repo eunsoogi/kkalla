@@ -54,6 +54,15 @@ describe('recommendation-item count helpers', () => {
     expect(max).toBe(5);
   });
 
+  it('should follow slot rule by enabled and authorized categories', () => {
+    const user = { id: 'user-1' };
+    const hasPermission = () => true;
+
+    expect(getMaxAuthorizedItemCount(user, [Category.COIN_MAJOR], hasPermission, config)).toBe(2);
+    expect(getMaxAuthorizedItemCount(user, [Category.COIN_MINOR], hasPermission, config)).toBe(5);
+    expect(getMaxAuthorizedItemCount(user, [Category.COIN_MAJOR, Category.COIN_MINOR], hasPermission, config)).toBe(5);
+  });
+
   it('should return 0 when no categories are authorized', () => {
     const user = { id: 'user-1' };
     const categories = [Category.COIN_MAJOR];

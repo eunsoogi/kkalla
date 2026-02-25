@@ -4,7 +4,11 @@ import {
   AllocationRecommendationAction,
   AllocationRecommendationData,
 } from '@/modules/allocation-core/allocation-core.types';
-import { CategoryItemCountConfig, getItemCountByCategory } from '@/modules/allocation-core/helpers/recommendation-item';
+import {
+  CategoryItemCountConfig,
+  DEFAULT_CATEGORY_ITEM_COUNT_CONFIG,
+  getItemCountByCategory,
+} from '@/modules/allocation-core/helpers/recommendation-item';
 import { Category } from '@/modules/category/category.enum';
 import { MarketFeatures } from '@/modules/upbit/upbit.interface';
 
@@ -23,7 +27,7 @@ interface RecommendationFilterConfig {
 }
 
 interface CategoryRecommendationFilterConfig extends RecommendationFilterConfig {
-  categoryItemCountConfig: CategoryItemCountConfig;
+  categoryItemCountConfig?: CategoryItemCountConfig;
 }
 
 /**
@@ -418,9 +422,11 @@ function getIncludedRecommendationsByCategory<T extends AllocationRecommendation
   category: Category,
   config: CategoryRecommendationFilterConfig,
 ): T[] {
+  const categoryItemCountConfig = config.categoryItemCountConfig ?? DEFAULT_CATEGORY_ITEM_COUNT_CONFIG;
+
   return sortAllocationRecommendationsByPriority([...categoryInferences])
     .filter((item) => isIncludedRecommendation(item, config.minimumTradeIntensity, config.minAllocationConfidence))
-    .slice(0, getItemCountByCategory(category, config.categoryItemCountConfig));
+    .slice(0, getItemCountByCategory(category, categoryItemCountConfig));
 }
 
 /**

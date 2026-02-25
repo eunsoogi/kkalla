@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 
 import { AllocationAuditModule } from '../allocation-audit/allocation-audit.module';
+import { AllocationCoreModule } from '../allocation-core/allocation-core.module';
 import { CacheModule } from '../cache/cache.module';
 import { CategoryModule } from '../category/category.module';
 import { ErrorModule } from '../error/error.module';
@@ -22,6 +23,7 @@ import { MarketRiskService } from './market-risk.service';
 @Module({
   imports: [
     RedlockModule,
+    AllocationCoreModule,
     CacheModule,
     HoldingLedgerModule,
     UpbitModule,

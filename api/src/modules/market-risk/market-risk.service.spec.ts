@@ -7,6 +7,7 @@ import {
   isNoTradeRecommendation,
   isSellAmountSufficient,
 } from '@/modules/allocation-core/helpers/allocation-recommendation';
+import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
 import { AllocationRecommendation } from '../allocation/entities/allocation-recommendation.entity';
@@ -107,6 +108,12 @@ describe('MarketRiskService', () => {
           useValue: {
             checkCategoryPermission: jest.fn().mockReturnValue(true),
             findEnabledByUser: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: AllocationSlotService,
+          useValue: {
+            resolveAuthorizedSlotCount: jest.fn().mockResolvedValue(5),
           },
         },
         {
@@ -373,6 +380,38 @@ describe('MarketRiskService', () => {
     });
   });
 
+  it('should exclude category-quota overflow symbols in risk mode', () => {
+    const balances: any = { info: [] };
+    const inferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.9,
+        hasStock: true,
+      },
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.8,
+        hasStock: true,
+      },
+      {
+        symbol: 'SOL/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.7,
+        hasStock: true,
+      },
+    ];
+
+    const excludedRequests = (service as any).generateExcludedTradeRequests(balances, inferences, 5, 1_000_000);
+
+    expect(excludedRequests).toHaveLength(1);
+    expect(excludedRequests[0]).toMatchObject({
+      symbol: 'SOL/KRW',
+      diff: -1,
+    });
+  });
+
   it('should calculate risk model signals in 0~1 range and apply regime multiplier', () => {
     const signals = (service as any).calculateModelSignals(0.65, Category.COIN_MINOR, null);
 
@@ -429,6 +468,55 @@ describe('MarketRiskService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].diff).toBeCloseTo(0.1, 10);
+  });
+
+  it('should apply category quota when creating included trade requests in risk mode', () => {
+    const balances: any = { info: [] };
+    const inferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.9,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+      },
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.8,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+      },
+      {
+        symbol: 'SOL/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.7,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+      },
+      {
+        symbol: 'XRP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.6,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+      },
+    ];
+    const currentWeights = new Map<string, number>();
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(3);
+    const requestSymbols = requests.map((request: { symbol: string }) => request.symbol);
+    expect(requestSymbols).toEqual(expect.arrayContaining(['BTC/KRW', 'ETH/KRW', 'XRP/KRW']));
+    expect(requestSymbols).not.toContain('SOL/KRW');
   });
 
   it('should not create a bullish feature bias when market features are missing', () => {
@@ -637,6 +725,47 @@ describe('MarketRiskService', () => {
 
     const passedInferences = includedSpy.mock.calls[0][1];
     expect(passedInferences).toEqual([expect.objectContaining({ symbol: 'ETH/KRW', hasStock: true })]);
+  });
+
+  it('should use category-based slot count even when held recommendations are fewer', async () => {
+    const categoryService = (service as any).categoryService;
+    const user = { id: 'user-1', roles: [] } as any;
+    const balances: any = { info: [] };
+    const inferences = [
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.8,
+        modelTargetWeight: 0.8,
+        action: 'buy',
+        hasStock: true,
+      },
+    ];
+
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValueOnce([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    categoryService.findEnabledByUser.mockResolvedValue([
+      { category: Category.COIN_MAJOR },
+      { category: Category.COIN_MINOR },
+    ]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValueOnce(balances).mockResolvedValueOnce(balances);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    const includedSpy = jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+
+    const result = await service.executeVolatilityTradesForUser(user, inferences as any, true);
+
+    expect(result).toEqual([]);
+    expect(includedSpy).toHaveBeenCalledTimes(2);
+    expect(includedSpy.mock.calls[0][2]).toBe(5);
+    expect(includedSpy.mock.calls[1][2]).toBe(5);
   });
 
   it('should skip notify and balance fetch when authorized recommendations are not held', async () => {

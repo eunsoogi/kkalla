@@ -36,8 +36,8 @@ import {
   applyHeldAssetFlags,
   filterAuthorizedRecommendationItems,
   filterUniqueNonBlacklistedItems,
-  getMaxAuthorizedItemCount,
 } from '@/modules/allocation-core/helpers/recommendation-item';
+import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { FeatureService } from '@/modules/feature/feature.service';
@@ -145,9 +145,6 @@ export class AllocationService implements OnModuleInit {
   private readonly MESSAGE_TTL_MS = 30 * 60 * 1000;
   private readonly USER_TRADE_LOCK_DURATION_MS = 5 * 60 * 1000;
   private readonly PROCESSING_HEARTBEAT_INTERVAL_MS = 60 * 1000;
-  private readonly COIN_MAJOR_ITEM_COUNT = 2;
-  private readonly COIN_MINOR_ITEM_COUNT = 5;
-  private readonly NASDAQ_ITEM_COUNT = 0;
   private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
   private readonly DEFAULT_ALLOCATION_MODE: AllocationMode = 'new';
 
@@ -172,6 +169,7 @@ export class AllocationService implements OnModuleInit {
     private readonly cacheService: CacheService,
     private readonly scheduleService: ScheduleService,
     private readonly categoryService: CategoryService,
+    private readonly allocationSlotService: AllocationSlotService,
     private readonly notifyService: NotifyService,
     private readonly profitService: ProfitService,
     private readonly newsService: NewsService,
@@ -751,20 +749,9 @@ export class AllocationService implements OnModuleInit {
     assertLockOrThrow();
 
     // 사용자별 최대 편입 종목 수 계산 (카테고리별 제한 고려)
-    const userCategories = await this.categoryService.findEnabledByUser(user);
-    const count = getMaxAuthorizedItemCount(
-      user,
-      userCategories.map((userCategory) => userCategory.category),
-      (targetUser, category) => this.categoryService.checkCategoryPermission(targetUser, category),
-      {
-        coinMajorItemCount: this.COIN_MAJOR_ITEM_COUNT,
-        coinMinorItemCount: this.COIN_MINOR_ITEM_COUNT,
-        nasdaqItemCount: this.NASDAQ_ITEM_COUNT,
-      },
-    );
+    const slotCount = await this.allocationSlotService.resolveAuthorizedSlotCount(user);
     assertLockOrThrow();
     const allowBackfill = allocationMode === 'new';
-    const slotCount = count;
 
     // 유저 계좌 조회: 현재 보유 종목 및 잔고 정보
     const balances = await this.upbitService.getBalances(user);
@@ -1081,16 +1068,10 @@ export class AllocationService implements OnModuleInit {
     tradableMarketValueMap?: Map<string, number>,
     allowBackfill: boolean = true,
   ): TradeRequest[] {
-    const categoryItemCountConfig = {
-      coinMajorItemCount: this.COIN_MAJOR_ITEM_COUNT,
-      coinMinorItemCount: this.COIN_MINOR_ITEM_COUNT,
-      nasdaqItemCount: this.NASDAQ_ITEM_COUNT,
-    };
     // 편입 대상 종목 선정 (최대 count개)
     const filteredAllocationRecommendations = filterIncludedRecommendationsByCategory(inferences, {
       minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
       minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-      categoryItemCountConfig,
     })
       .filter((inference) => allowBackfill || inference.hasStock)
       .slice(0, count);
@@ -1209,15 +1190,9 @@ export class AllocationService implements OnModuleInit {
     tradableMarketValueMap?: Map<string, number>,
     allowBackfill: boolean = true,
   ): TradeRequest[] {
-    const categoryItemCountConfig = {
-      coinMajorItemCount: this.COIN_MAJOR_ITEM_COUNT,
-      coinMinorItemCount: this.COIN_MINOR_ITEM_COUNT,
-      nasdaqItemCount: this.NASDAQ_ITEM_COUNT,
-    };
     const includedAllocationRecommendations = filterIncludedRecommendationsByCategory(inferences, {
       minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
       minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-      categoryItemCountConfig,
     }).filter((inference) => allowBackfill || inference.hasStock);
 
     // 편출 대상 종목 선정:
@@ -1228,7 +1203,6 @@ export class AllocationService implements OnModuleInit {
       ...filterExcludedRecommendationsByCategory(inferences, {
         minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
         minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-        categoryItemCountConfig,
       }),
     ];
 
