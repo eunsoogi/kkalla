@@ -7,10 +7,10 @@ import React from 'react';
 import { Icon } from '@iconify/react';
 import { SidebarItem } from 'flowbite-react';
 
-import { ChildItem } from '../Sidebaritems';
+import { LeafChildItem } from '../Sidebaritems';
 
 interface NavItemsProps {
-  item: ChildItem;
+  item: LeafChildItem;
 }
 const NavItems: React.FC<NavItemsProps> = ({ item }) => {
   const pathname = usePathname();

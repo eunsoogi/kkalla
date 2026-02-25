@@ -27,8 +27,8 @@ const MobileSidebar = () => {
         <SimpleBar className='h-[calc(100vh-100px)]'>
           <SidebarItems className='px-4 mb-12'>
             <SidebarItemGroup className='sidebar-nav'>
-              {sidebarContent.map((item, index) => (
-                <React.Fragment key={index}>
+              {sidebarContent.map((item) => (
+                <React.Fragment key={item.id}>
                   <h5 className='text-link text-xs caption'>
                     <span className='hide-menu'>{item.heading}</span>
                   </h5>
@@ -38,8 +38,8 @@ const MobileSidebar = () => {
                     height={18}
                   />
 
-                  {item.children?.map((child, index) => (
-                    <React.Fragment key={child.id && index}>
+                  {item.children.map((child) => (
+                    <React.Fragment key={child.id}>
                       {child.children ? (
                         <div className='collpase-items'>
                           <NavCollapse item={child} />

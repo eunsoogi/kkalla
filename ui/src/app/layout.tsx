@@ -28,6 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   const timeZone = await getTimeZone();
   const messages = await getMessages();
+  const requestNow = new Date().toISOString();
 
   // 서버 사이드에서 쿠키를 읽어서 초기 dark mode 상태 결정
   const cookieStore = await cookies();
@@ -44,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={`${manrope.className}`}>
         <ThemeProvider theme={customTheme as any} root>
-          <Providers locale={locale} timeZone={timeZone} messages={messages}>
+          <Providers locale={locale} timeZone={timeZone} messages={messages} requestNow={requestNow}>
             {children}
           </Providers>
         </ThemeProvider>
