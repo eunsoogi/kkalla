@@ -28,8 +28,8 @@ const SidebarLayout = () => {
           <SimpleBar className='h-[calc(100vh-120px)]'>
             <SidebarItems className='px-6 mb-12'>
               <SidebarItemGroup className='sidebar-nav'>
-                {sidebarContent.map((item, index) => (
-                  <React.Fragment key={index}>
+                {sidebarContent.map((item) => (
+                  <React.Fragment key={item.id}>
                     <h5 className='text-link dark:text-darklink text-xs caption'>
                       <span className='hide-menu'>{item.heading}</span>
                     </h5>
@@ -38,8 +38,8 @@ const SidebarLayout = () => {
                       className='text-ld block mx-auto mt-6 leading-6 dark:text-opacity-60 hide-icon'
                       height={18}
                     />
-                    {item.children?.map((child, index) => (
-                      <React.Fragment key={`${child.id}-${index}`}>
+                    {item.children.map((child) => (
+                      <React.Fragment key={child.id}>
                         {child.children ? (
                           <div className='collpase-items'>
                             <NavCollapse item={child} />

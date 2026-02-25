@@ -1,28 +1,32 @@
-import { uniqueId } from 'lodash';
 import { useTranslations } from 'next-intl';
 
 import { usePermissions } from '@/hooks/usePermissions';
 import { Permission } from '@/shared/types/permission.types';
 
-export interface ChildItem {
-  id?: number | string;
-  name?: string;
-  icon?: any;
-  children?: ChildItem[];
-  item?: any;
-  url?: any;
+interface BaseChildItem {
+  id: string;
+  name: string;
+  icon?: string;
   color?: string;
 }
 
+export interface LeafChildItem extends BaseChildItem {
+  url: string;
+  children?: never;
+}
+
+export interface CollapseChildItem extends BaseChildItem {
+  icon: string;
+  children: ChildItem[];
+  url?: never;
+}
+
+export type ChildItem = LeafChildItem | CollapseChildItem;
+
 export interface MenuItem {
-  heading?: string;
-  name?: string;
-  icon?: any;
-  id?: number;
-  to?: string;
-  items?: MenuItem[];
-  children?: ChildItem[];
-  url?: any;
+  id: string;
+  heading: string;
+  children: ChildItem[];
 }
 
 /**
@@ -33,80 +37,83 @@ export const SidebarContent = (): MenuItem[] => {
   const t = useTranslations('menu');
   const { hasPermission } = usePermissions();
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     {
+      id: 'home',
       heading: t('home'),
       children: [
         {
+          id: 'dashboard',
           name: t('dashboard'),
           icon: 'solar:widget-add-line-duotone',
-          id: uniqueId(),
           url: '/',
         },
       ],
     },
     {
+      id: 'service',
       heading: t('service'),
       children: [
         {
+          id: 'news',
           name: t('newsList'),
           icon: 'solar:document-outline',
-          id: uniqueId(),
           url: '/news',
         },
         {
+          id: 'market-signals',
           name: t('marketReport'),
           icon: 'solar:chart-line-duotone',
-          id: uniqueId(),
           url: '/market-signals',
         },
         {
+          id: 'allocation-recommendations',
           name: t('allocationReport'),
           icon: 'solar:chart-line-duotone',
-          id: uniqueId(),
           url: '/allocation-recommendations',
         },
         {
+          id: 'trades',
           name: t('tradeList'),
           icon: 'uil:exchange',
-          id: uniqueId(),
           url: '/trades',
         },
       ],
     },
     {
+      id: 'config',
       heading: t('config'),
       children: [
         {
+          id: 'register',
           name: t('register'),
           icon: 'solar:chat-round-money-bold',
-          id: uniqueId(),
           url: '/register',
         },
         {
+          id: 'notify',
           name: t('notify'),
           icon: 'solar:bell-bold',
-          id: uniqueId(),
           url: '/notify',
         },
       ],
     },
   ];
 
-  const adminChildren = [];
+  const adminChildren: ChildItem[] = [];
 
   if (hasPermission(['manage:users'])) {
     adminChildren.push(
       {
+        id: 'users',
         name: t('userManagement'),
         icon: 'solar:users-group-rounded-line-duotone',
-        id: uniqueId(),
         url: '/users',
       },
       {
+        id: 'roles',
         name: t('roleManagement'),
         icon: 'solar:shield-user-line-duotone',
-        id: uniqueId(),
         url: '/roles',
       },
     );
@@ -114,18 +121,18 @@ export const SidebarContent = (): MenuItem[] => {
 
   if (hasPermission([Permission.VIEW_PROFIT])) {
     adminChildren.push({
+      id: 'profits',
       name: t('profitManagement'),
       icon: 'solar:money-bag-line-duotone',
-      id: uniqueId(),
       url: '/profits',
     });
   }
 
   if (hasPermission([Permission.VIEW_BLACKLISTS])) {
     adminChildren.push({
+      id: 'blacklists',
       name: t('blacklistManagement'),
       icon: 'solar:forbidden-circle-line-duotone',
-      id: uniqueId(),
       url: '/blacklists',
     });
   }
@@ -139,24 +146,25 @@ export const SidebarContent = (): MenuItem[] => {
 
   if (hasScheduleAccess) {
     adminChildren.push({
+      id: 'schedules',
       name: t('scheduleManagement'),
       icon: 'solar:calendar-mark-line-duotone',
-      id: uniqueId(),
       url: '/schedules',
     });
   }
 
   if (hasPermission([Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT])) {
     adminChildren.push({
+      id: 'allocation-audits',
       name: t('allocationAudit'),
       icon: 'solar:checklist-minimalistic-line-duotone',
-      id: uniqueId(),
       url: '/allocation-audits',
     });
   }
 
   if (adminChildren.length > 0) {
     menuItems.push({
+      id: 'admin',
       heading: t('admin'),
       children: adminChildren,
     });

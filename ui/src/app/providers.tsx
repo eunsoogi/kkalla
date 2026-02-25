@@ -20,11 +20,14 @@ interface ProvidersProps {
   locale?: string;
   timeZone?: string;
   messages?: AbstractIntlMessages;
+  requestNow?: string;
 }
 
-export function Providers({ children, locale, timeZone, messages }: ProvidersProps) {
+export function Providers({ children, locale, timeZone, messages, requestNow }: ProvidersProps) {
+  const now = requestNow ? new Date(requestNow) : new Date();
+
   return (
-    <NextIntlClientProvider locale={locale} timeZone={timeZone} messages={messages} now={new Date()}>
+    <NextIntlClientProvider locale={locale} timeZone={timeZone} messages={messages} now={now}>
       <SessionProvider>
         <QueryClientProvider client={queryClient}>
           {children}
