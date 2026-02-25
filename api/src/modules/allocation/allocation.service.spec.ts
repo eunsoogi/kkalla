@@ -57,6 +57,9 @@ describe('AllocationService', () => {
         checkCategoryPermission: jest.fn().mockReturnValue(true),
       } as any,
       {
+        resolveAuthorizedSlotCount: jest.fn().mockResolvedValue(5),
+      } as any,
+      {
         notify: jest.fn().mockResolvedValue(undefined),
         clearClients: jest.fn(),
       } as any,

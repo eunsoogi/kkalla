@@ -25,8 +25,8 @@ import {
   calculateRegimeAdjustedTargetWeight,
   calculateRelativeDiff,
   clamp01,
-  filterExcludedHeldRecommendations,
-  filterIncludedRecommendations,
+  filterExcludedRecommendationsByCategory,
+  filterIncludedRecommendationsByCategory,
   isNoTradeRecommendation,
   isOrderableSymbol,
   isSellAmountSufficient,
@@ -42,8 +42,8 @@ import { buildLatestAllocationRecommendationMetricsMap } from '@/modules/allocat
 import {
   applyHeldAssetFlags,
   filterAuthorizedRecommendationItems,
-  getMaxAuthorizedItemCount,
 } from '@/modules/allocation-core/helpers/recommendation-item';
+import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { FeatureService } from '@/modules/feature/feature.service';
@@ -145,9 +145,6 @@ export class MarketRiskService implements OnModuleInit {
   private readonly MESSAGE_TTL_MS = 30 * 60 * 1000;
   private readonly USER_TRADE_LOCK_DURATION_MS = 5 * 60 * 1000;
   private readonly PROCESSING_HEARTBEAT_INTERVAL_MS = 60 * 1000;
-  private readonly COIN_MAJOR_ITEM_COUNT = 2;
-  private readonly COIN_MINOR_ITEM_COUNT = 5;
-  private readonly NASDAQ_ITEM_COUNT = 0;
 
   // Amazon SQS
   private readonly sqs = new SQSClient({
@@ -180,6 +177,7 @@ export class MarketRiskService implements OnModuleInit {
     private readonly cacheService: CacheService,
     private readonly scheduleService: ScheduleService,
     private readonly categoryService: CategoryService,
+    private readonly allocationSlotService: AllocationSlotService,
     private readonly notifyService: NotifyService,
     private readonly profitService: ProfitService,
     private readonly i18n: I18nService,
@@ -878,24 +876,13 @@ export class MarketRiskService implements OnModuleInit {
     }
 
     // 전체 자산 배분 종목 수 계산 (전체 자산 배분 비율 유지를 위해 사용)
-    const userCategories = await this.categoryService.findEnabledByUser(user);
-    const count = getMaxAuthorizedItemCount(
-      user,
-      userCategories.map((userCategory) => userCategory.category),
-      (targetUser, category) => this.categoryService.checkCategoryPermission(targetUser, category),
-      {
-        coinMajorItemCount: this.COIN_MAJOR_ITEM_COUNT,
-        coinMinorItemCount: this.COIN_MINOR_ITEM_COUNT,
-        nasdaqItemCount: this.NASDAQ_ITEM_COUNT,
-      },
-    );
+    const slotCount = await this.allocationSlotService.resolveAuthorizedSlotCount(user);
     assertLockOrThrow();
 
-    // count가 0이면 거래 불가
-    if (count === 0) {
+    // slotCount가 0이면 거래 불가
+    if (slotCount === 0) {
       return [];
     }
-    const slotCount = this.resolveSlotCountForVolatility(heldAllocationRecommendations, count);
 
     const orderableSymbols = await buildOrderableSymbolSet(
       [
@@ -1240,6 +1227,34 @@ export class MarketRiskService implements OnModuleInit {
   }
 
   /**
+   * Builds held included recommendations by category for the market risk flow.
+   * @param inferences - Input value for inferences.
+   * @returns Processed collection for downstream workflow steps.
+   */
+  private buildHeldIncludedRecommendationsByCategory(
+    inferences: AllocationRecommendationData[],
+  ): AllocationRecommendationData[] {
+    return filterIncludedRecommendationsByCategory(inferences, {
+      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
+      minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
+    }).filter((inference) => inference.hasStock);
+  }
+
+  /**
+   * Builds held excluded recommendations by category for the market risk flow.
+   * @param inferences - Input value for inferences.
+   * @returns Processed collection for downstream workflow steps.
+   */
+  private buildHeldExcludedRecommendationsByCategory(
+    inferences: AllocationRecommendationData[],
+  ): AllocationRecommendationData[] {
+    return filterExcludedRecommendationsByCategory(inferences, {
+      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
+      minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
+    }).filter((inference) => inference.hasStock);
+  }
+
+  /**
    * 편입 거래 요청 생성
    *
    * - 편입 대상 종목들에 대한 매수/매도 거래 요청을 생성합니다.
@@ -1262,10 +1277,7 @@ export class MarketRiskService implements OnModuleInit {
     tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
     // 편입 대상 종목 선정 (기존 보유 + intensity > 0인 종목들)
-    const filteredAllocationRecommendations = filterIncludedRecommendations(inferences, {
-      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-      minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-    }).filter((inference) => inference.hasStock);
+    const filteredAllocationRecommendations = this.buildHeldIncludedRecommendationsByCategory(inferences);
     const topK = Math.max(1, count);
 
     // 편입 거래 요청 생성
@@ -1381,20 +1393,14 @@ export class MarketRiskService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
-    const includedAllocationRecommendations = filterIncludedRecommendations(inferences, {
-      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-      minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-    }).filter((inference) => inference.hasStock);
+    const includedAllocationRecommendations = this.buildHeldIncludedRecommendationsByCategory(inferences);
 
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
     // 2. intensity <= 0 && hasStock인 종목들
     const filteredAllocationRecommendations = [
       ...includedAllocationRecommendations.slice(count),
-      ...filterExcludedHeldRecommendations(inferences, {
-        minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-        minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-      }),
+      ...this.buildHeldExcludedRecommendationsByCategory(inferences),
     ];
 
     // 편출 거래 요청 생성: 모두 완전 매도(diff: -1)
@@ -1576,22 +1582,6 @@ export class MarketRiskService implements OnModuleInit {
       })
       .filter((item): item is TradeRequest => item !== null)
       .sort((a, b) => a.diff - b.diff);
-  }
-
-  /**
-   * Normalizes slot count for volatility for the market risk flow.
-   * @param inferences - Input value for inferences.
-   * @param defaultSlotCount - Input value for default slot count.
-   * @returns Computed numeric value for the operation.
-   */
-  private resolveSlotCountForVolatility(inferences: AllocationRecommendationData[], defaultSlotCount: number): number {
-    const heldCount = new Set(
-      inferences
-        .filter((inference) => inference.hasStock)
-        .map((inference) => `${inference.symbol}:${inference.category}`),
-    ).size;
-
-    return Math.min(defaultSlotCount, heldCount);
   }
 
   /**

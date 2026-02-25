@@ -16,6 +16,12 @@ export interface CategoryItemCountConfig {
   nasdaqItemCount: number;
 }
 
+export const DEFAULT_CATEGORY_ITEM_COUNT_CONFIG: Readonly<CategoryItemCountConfig> = Object.freeze({
+  coinMajorItemCount: 2,
+  coinMinorItemCount: 5,
+  nasdaqItemCount: 0,
+});
+
 interface UserCategoryLike {
   category: Category;
 }
@@ -90,7 +96,7 @@ export function getMaxAuthorizedItemCount<TUser>(
   user: TUser,
   categories: Category[],
   hasPermission: (user: TUser, category: Category) => boolean,
-  config: CategoryItemCountConfig,
+  config: CategoryItemCountConfig = DEFAULT_CATEGORY_ITEM_COUNT_CONFIG,
 ): number {
   const authorizedCategories = categories.filter((category) => hasPermission(user, category));
   if (authorizedCategories.length < 1) {
