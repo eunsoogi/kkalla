@@ -31,7 +31,16 @@ describe('MarketIntelligenceService', () => {
       upbitService as any,
       {} as any,
       {} as any,
-      {} as any,
+      {
+        getSnapshot: jest.fn().mockResolvedValue({
+          btcDominance: 55,
+          altcoinIndex: 50,
+          asOf: new Date(),
+          source: 'live',
+          isStale: false,
+          staleAgeMinutes: 0,
+        }),
+      } as any,
       {} as any,
       {} as any,
       {} as any,

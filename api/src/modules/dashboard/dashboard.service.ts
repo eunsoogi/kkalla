@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { User } from '@/modules/user/entities/user.entity';
 
-import { FeargreedService } from '../feargreed/feargreed.service';
 import { HoldingsService } from '../holding-ledger/holdings.service';
 import { MarketIntelligenceService } from '../market-intelligence/market-intelligence.service';
+import { MarketRegimeService } from '../market-regime/market-regime.service';
 import { NewsService } from '../news/news.service';
 import { ProfitService } from '../profit/profit.service';
 import { TradeService } from '../trade/trade.service';
@@ -17,8 +17,8 @@ export class DashboardService {
     private readonly tradeService: TradeService,
     private readonly holdingsService: HoldingsService,
     private readonly marketIntelligenceService: MarketIntelligenceService,
+    private readonly marketRegimeService: MarketRegimeService,
     private readonly newsService: NewsService,
-    private readonly feargreedService: FeargreedService,
   ) {}
 
   /**
@@ -30,32 +30,30 @@ export class DashboardService {
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const [
-      profitResult,
-      tradesResult,
-      holdingsResult,
-      marketReportsResult,
-      newsResult,
-      feargreedResult,
-      historyResult,
-    ] = await Promise.allSettled([
-      this.profitService.getProfit(user),
-      this.tradeService.paginateTrades(user, {
-        page: 1,
-        perPage: 50,
-        createdAt: {
-          gte: last24h,
-          lte: now,
-        },
-      }),
-      this.holdingsService.getHoldings(user),
-      this.marketIntelligenceService.getLatestWithPriceChange(10, { mode: 'mixed' }),
-      this.newsService.getNewsForDashboard(10),
-      this.feargreedService.getFeargreed(),
-      this.feargreedService.getFeargreedHistory(7),
-    ]);
+    const [profitResult, tradesResult, holdingsResult, marketReportsResult, marketRegimeResult, newsResult] =
+      await Promise.allSettled([
+        this.profitService.getProfit(user),
+        this.tradeService.paginateTrades(user, {
+          page: 1,
+          perPage: 50,
+          createdAt: {
+            gte: last24h,
+            lte: now,
+          },
+        }),
+        this.holdingsService.getHoldings(user),
+        this.marketIntelligenceService.getLatestWithPriceChange(10, { mode: 'mixed' }),
+        this.marketRegimeService.getSnapshot(),
+        this.newsService.getNewsForDashboard(10),
+      ]);
 
     const errors: Partial<Record<DashboardSummarySectionKey, string>> = {};
+    const marketRegime = this.resolveSettled(
+      marketRegimeResult,
+      'marketRegime',
+      null,
+      errors,
+    ) as DashboardSummaryDto['marketRegime'];
 
     return {
       generatedAt: now.toISOString(),
@@ -65,14 +63,8 @@ export class DashboardService {
         [],
         errors,
       ) as DashboardSummaryDto['marketReports'],
+      marketRegime,
       news: this.resolveSettled(newsResult, 'news', [], errors) as DashboardSummaryDto['news'],
-      feargreed: this.resolveSettled(feargreedResult, 'feargreed', null, errors) as DashboardSummaryDto['feargreed'],
-      feargreedHistory: this.resolveSettled(
-        historyResult,
-        'feargreedHistory',
-        { data: [] },
-        errors,
-      ) as DashboardSummaryDto['feargreedHistory'],
       holdings: this.resolveSettled(holdingsResult, 'holdings', [], errors) as DashboardSummaryDto['holdings'],
       trades24h: this.resolveSettled(
         tradesResult,

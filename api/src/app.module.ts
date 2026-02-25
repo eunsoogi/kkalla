@@ -9,7 +9,6 @@ import { BlacklistModule } from './modules/blacklist/blacklist.module';
 import { CategoryModule } from './modules/category/category.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ErrorModule } from './modules/error/error.module';
-import { FeargreedModule } from './modules/feargreed/feargreed.module';
 import { FeatureModule } from './modules/feature/feature.module';
 import { HealthModule } from './modules/health/health.module';
 import { HoldingLedgerModule } from './modules/holding-ledger/holding-ledger.module';
@@ -50,7 +49,6 @@ import { UserModule } from './modules/user/user.module';
     CategoryModule,
     DashboardModule,
     ErrorModule,
-    FeargreedModule,
     FeatureModule,
     HealthModule,
     HoldingLedgerModule,

@@ -3,13 +3,11 @@ import { Module } from '@nestjs/common';
 
 import { CacheModule } from '../cache/cache.module';
 import { ErrorModule } from '../error/error.module';
-import { FeargreedController } from './feargreed.controller';
-import { FeargreedService } from './feargreed.service';
+import { MarketRegimeService } from './market-regime.service';
 
 @Module({
   imports: [ErrorModule, HttpModule, CacheModule],
-  controllers: [FeargreedController],
-  providers: [FeargreedService],
-  exports: [FeargreedService],
+  providers: [MarketRegimeService],
+  exports: [MarketRegimeService],
 })
-export class FeargreedModule {}
+export class MarketRegimeModule {}

@@ -1,6 +1,6 @@
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
-import { CompactFeargreed } from '@/modules/feargreed/feargreed.interface';
+import { Feargreed, MarketRegimeSnapshot } from '@/modules/market-regime/market-regime.interface';
 import { NewsTypes } from '@/modules/news/news.enum';
 import { CompactNews } from '@/modules/news/news.interface';
 import { MarketFeatures } from '@/modules/upbit/upbit.interface';
@@ -18,8 +18,8 @@ interface NewsReader {
   }): Promise<CompactNews[]>;
 }
 
-interface FeargreedReader {
-  getCompactFeargreed(): Promise<CompactFeargreed>;
+interface MarketRegimeReader {
+  getSnapshot(): Promise<MarketRegimeSnapshot>;
 }
 
 interface ErrorLogger {
@@ -32,8 +32,8 @@ interface FetchCoinNewsWithFallbackOptions {
   onError: ErrorLogger;
 }
 
-interface FetchFearGreedIndexWithFallbackOptions {
-  feargreedService: FeargreedReader;
+interface FetchMarketRegimeWithFallbackOptions {
+  marketRegimeService: MarketRegimeReader;
   errorService: RetryFallbackExecutor;
   onError: ErrorLogger;
 }
@@ -59,11 +59,11 @@ interface BuildAllocationRecommendationPromptMessagesOptions {
   openaiService: AllocationRecommendationPromptBuilder;
   featureService: MarketFeatureContextFormatter;
   newsService: NewsReader;
-  feargreedService: FeargreedReader;
+  marketRegimeService: MarketRegimeReader;
   errorService: RetryFallbackExecutor;
   allocationAuditService: ValidationGuardrailProvider;
   onNewsError: ErrorLogger;
-  onFearGreedError: ErrorLogger;
+  onMarketRegimeError: ErrorLogger;
   onValidationGuardrailError: (error: unknown, symbol: string) => void;
 }
 
@@ -91,19 +91,19 @@ export async function fetchCoinNewsWithFallback(options: FetchCoinNewsWithFallba
 }
 
 /**
- * Retrieves fear greed index with fallback for the allocation recommendation flow.
+ * Retrieves market regime snapshot with fallback for the allocation recommendation flow.
  * @param options - Configuration for the allocation recommendation flow.
  * @returns Asynchronous result produced by the allocation recommendation flow.
  */
-export async function fetchFearGreedIndexWithFallback(
-  options: FetchFearGreedIndexWithFallbackOptions,
-): Promise<CompactFeargreed | null> {
-  const operation = () => options.feargreedService.getCompactFeargreed();
+export async function fetchMarketRegimeWithFallback(
+  options: FetchMarketRegimeWithFallbackOptions,
+): Promise<MarketRegimeSnapshot | null> {
+  const operation = () => options.marketRegimeService.getSnapshot();
 
   try {
     return await options.errorService.retryWithFallback(operation);
   } catch (error) {
-    // Keep recommendation flow alive even when fear-greed source is unavailable.
+    // Keep recommendation flow alive even when market regime source is unavailable.
     options.onError(error);
     return null;
   }
@@ -116,7 +116,12 @@ export async function fetchFearGreedIndexWithFallback(
  */
 export async function buildAllocationRecommendationPromptMessages(
   options: BuildAllocationRecommendationPromptMessagesOptions,
-): Promise<{ messages: EasyInputMessage[]; marketFeatures: MarketFeatures | null }> {
+): Promise<{
+  messages: EasyInputMessage[];
+  marketFeatures: MarketFeatures | null;
+  marketRegime: MarketRegimeSnapshot | null;
+  feargreed: Feargreed | null;
+}> {
   const messages: EasyInputMessage[] = [];
 
   options.openaiService.addMessage(messages, 'system', options.prompt);
@@ -130,11 +135,16 @@ export async function buildAllocationRecommendationPromptMessages(
     options.openaiService.addMessagePair(messages, 'prompt.input.news', news);
   }
 
-  const feargreed = await fetchFearGreedIndexWithFallback({
-    feargreedService: options.feargreedService,
+  const marketRegime = await fetchMarketRegimeWithFallback({
+    marketRegimeService: options.marketRegimeService,
     errorService: options.errorService,
-    onError: options.onFearGreedError,
+    onError: options.onMarketRegimeError,
   });
+  if (marketRegime) {
+    options.openaiService.addMessagePair(messages, 'prompt.input.market_regime', marketRegime);
+  }
+
+  const feargreed = marketRegime?.feargreed ?? null;
   if (feargreed) {
     options.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
   }
@@ -156,5 +166,5 @@ export async function buildAllocationRecommendationPromptMessages(
   // Always provide structured market features so model input shape stays stable.
   options.openaiService.addMessage(messages, 'user', `${options.featureService.MARKET_DATA_LEGEND}\n\n${marketData}`);
 
-  return { messages, marketFeatures };
+  return { messages, marketFeatures, marketRegime, feargreed };
 }

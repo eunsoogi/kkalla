@@ -40,7 +40,6 @@ import {
 } from '@/modules/allocation-core/helpers/recommendation-item';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
-import { FeargreedService } from '@/modules/feargreed/feargreed.service';
 import { FeatureService } from '@/modules/feature/feature.service';
 import {
   buildMergedHoldingsForSave,
@@ -74,6 +73,7 @@ import {
   MARKET_SIGNAL_STATE_MAX_AGE_MS,
   MarketSignalState,
 } from '../market-intelligence/market-intelligence.interface';
+import { MarketRegimeService } from '../market-regime/market-regime.service';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
@@ -175,7 +175,7 @@ export class AllocationService implements OnModuleInit {
     private readonly notifyService: NotifyService,
     private readonly profitService: ProfitService,
     private readonly newsService: NewsService,
-    private readonly feargreedService: FeargreedService,
+    private readonly marketRegimeService: MarketRegimeService,
     private readonly openaiService: OpenaiService,
     private readonly featureService: FeatureService,
     private readonly errorService: ErrorService,
@@ -797,7 +797,7 @@ export class AllocationService implements OnModuleInit {
     assertLockOrThrow();
     // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
     const regimeMultiplier = await resolveMarketRegimeMultiplier(() =>
-      this.errorService.retryWithFallback(() => this.feargreedService.getCompactFeargreed()),
+      this.errorService.retryWithFallback(() => this.marketRegimeService.getSnapshot()),
     );
     assertLockOrThrow();
     // 현재가 기준 자산 배분 비중 맵 (심볼 -> 현재 비중)
@@ -1850,26 +1850,27 @@ export class AllocationService implements OnModuleInit {
             );
           }
 
-          const { messages, marketFeatures } = await buildAllocationRecommendationPromptMessages({
-            symbol: targetSymbol,
-            prompt: UPBIT_ALLOCATION_RECOMMENDATION_PROMPT,
-            openaiService: this.openaiService,
-            featureService: this.featureService,
-            newsService: this.newsService,
-            feargreedService: this.feargreedService,
-            errorService: this.errorService,
-            allocationAuditService: this.allocationAuditService,
-            onNewsError: (error) => this.logger.error(this.i18n.t('logging.news.load_failed'), error),
-            onFearGreedError: (error) => this.logger.error(this.i18n.t('logging.feargreed.load_failed'), error),
-            onValidationGuardrailError: (error, symbol) => {
-              this.logger.warn(
-                this.i18n.t('logging.inference.allocationRecommendation.validation_guardrail_load_failed', {
-                  args: { symbol },
-                }),
-                error,
-              );
-            },
-          });
+          const { messages, marketFeatures, marketRegime, feargreed } =
+            await buildAllocationRecommendationPromptMessages({
+              symbol: targetSymbol,
+              prompt: UPBIT_ALLOCATION_RECOMMENDATION_PROMPT,
+              openaiService: this.openaiService,
+              featureService: this.featureService,
+              newsService: this.newsService,
+              marketRegimeService: this.marketRegimeService,
+              errorService: this.errorService,
+              allocationAuditService: this.allocationAuditService,
+              onNewsError: (error) => this.logger.error(this.i18n.t('logging.news.load_failed'), error),
+              onMarketRegimeError: (error) => this.logger.error(this.i18n.t('logging.marketRegime.load_failed'), error),
+              onValidationGuardrailError: (error, symbol) => {
+                this.logger.warn(
+                  this.i18n.t('logging.inference.allocationRecommendation.validation_guardrail_load_failed', {
+                    args: { symbol },
+                  }),
+                  error,
+                );
+              },
+            });
 
           const requestConfig = {
             ...UPBIT_ALLOCATION_RECOMMENDATION_CONFIG,
@@ -1959,6 +1960,17 @@ export class AllocationService implements OnModuleInit {
             decisionConfidence,
             expectedVolatilityPct: normalizedResponse.expectedVolatilityPct,
             riskFlags: normalizedResponse.riskFlags,
+            btcDominance: marketRegime?.btcDominance ?? null,
+            altcoinIndex: marketRegime?.altcoinIndex ?? null,
+            marketRegimeAsOf: marketRegime?.asOf ?? null,
+            marketRegimeSource: marketRegime?.source ?? null,
+            marketRegimeIsStale: marketRegime?.isStale ?? null,
+            feargreedIndex: feargreed?.index ?? null,
+            feargreedClassification: feargreed?.classification ?? null,
+            feargreedTimestamp:
+              feargreed?.timestamp != null && Number.isFinite(feargreed.timestamp)
+                ? new Date(feargreed.timestamp * 1000)
+                : null,
             buyScore: modelSignals.buyScore,
             sellScore: modelSignals.sellScore,
             modelTargetWeight,
@@ -2016,6 +2028,14 @@ export class AllocationService implements OnModuleInit {
       decisionConfidence: validResults[index].decisionConfidence,
       expectedVolatilityPct: validResults[index].expectedVolatilityPct,
       riskFlags: validResults[index].riskFlags,
+      btcDominance: saved.btcDominance,
+      altcoinIndex: saved.altcoinIndex,
+      marketRegimeAsOf: saved.marketRegimeAsOf,
+      marketRegimeSource: saved.marketRegimeSource,
+      marketRegimeIsStale: saved.marketRegimeIsStale,
+      feargreedIndex: saved.feargreedIndex,
+      feargreedClassification: saved.feargreedClassification,
+      feargreedTimestamp: saved.feargreedTimestamp,
     }));
   }
 
@@ -2045,6 +2065,14 @@ export class AllocationService implements OnModuleInit {
         reason: entity.reason != null ? toUserFacingText(entity.reason) : null,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
+        btcDominance: entity.btcDominance ?? null,
+        altcoinIndex: entity.altcoinIndex ?? null,
+        marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
+        marketRegimeSource: entity.marketRegimeSource ?? null,
+        marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
+        feargreedIndex: entity.feargreedIndex ?? null,
+        feargreedClassification: entity.feargreedClassification ?? null,
+        feargreedTimestamp: entity.feargreedTimestamp ?? null,
         validation24h: badgeMap.get(entity.id)?.validation24h,
         validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
@@ -2082,6 +2110,14 @@ export class AllocationService implements OnModuleInit {
         reason: entity.reason != null ? toUserFacingText(entity.reason) : null,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
+        btcDominance: entity.btcDominance ?? null,
+        altcoinIndex: entity.altcoinIndex ?? null,
+        marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
+        marketRegimeSource: entity.marketRegimeSource ?? null,
+        marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
+        feargreedIndex: entity.feargreedIndex ?? null,
+        feargreedClassification: entity.feargreedClassification ?? null,
+        feargreedTimestamp: entity.feargreedTimestamp ?? null,
         validation24h: badgeMap.get(entity.id)?.validation24h,
         validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
@@ -2112,6 +2148,14 @@ export class AllocationService implements OnModuleInit {
 
     const allocationRecommendation = new AllocationRecommendation();
     Object.assign(allocationRecommendation, recommendation, { symbol: normalizedSymbol });
+    allocationRecommendation.btcDominance = recommendation.btcDominance ?? null;
+    allocationRecommendation.altcoinIndex = recommendation.altcoinIndex ?? null;
+    allocationRecommendation.marketRegimeAsOf = recommendation.marketRegimeAsOf ?? null;
+    allocationRecommendation.marketRegimeSource = recommendation.marketRegimeSource ?? null;
+    allocationRecommendation.marketRegimeIsStale = recommendation.marketRegimeIsStale ?? null;
+    allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
+    allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
+    allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
     return allocationRecommendation.save();
   }
 

@@ -30,6 +30,30 @@ export class MarketSignalWithChangeDto {
   @ApiProperty()
   updatedAt: Date;
 
+  @ApiProperty({ required: false, nullable: true })
+  btcDominance?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  altcoinIndex?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  marketRegimeAsOf?: Date | null;
+
+  @ApiProperty({ required: false, nullable: true, enum: ['live', 'cache_fallback'] })
+  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  marketRegimeIsStale?: boolean | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  feargreedIndex?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  feargreedClassification?: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  feargreedTimestamp?: Date | null;
+
   /** 추천 시점 기준 가격 (분봉 해당 분 시가 우선, 없으면 해당일 종가) */
   @ApiProperty({ required: false })
   recommendationPrice?: number;

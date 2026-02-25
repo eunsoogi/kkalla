@@ -3,7 +3,7 @@ import { NewsTypes } from '@/modules/news/news.enum';
 import {
   buildAllocationRecommendationPromptMessages,
   fetchCoinNewsWithFallback,
-  fetchFearGreedIndexWithFallback,
+  fetchMarketRegimeWithFallback,
 } from './allocation-recommendation-context';
 
 describe('balance-recommendation-context utils', () => {
@@ -52,27 +52,41 @@ describe('balance-recommendation-context utils', () => {
     expect(onError).toHaveBeenCalledWith(error);
   });
 
-  it('should fetch feargreed and return null on failure', async () => {
-    const feargreed = { value: 50, classification: 'Neutral', timestamp: 1700000000 };
-    const feargreedService = {
-      getCompactFeargreed: jest.fn().mockResolvedValue(feargreed),
+  it('should fetch market regime and return null on failure', async () => {
+    const marketRegime = {
+      btcDominance: 55.3,
+      altcoinIndex: 46.7,
+      feargreed: {
+        index: 52,
+        classification: 'Neutral',
+        timestamp: 1700000000,
+        date: '2026-02-24',
+        timeUntilUpdate: 0,
+      },
+      asOf: new Date(),
+      source: 'live' as const,
+      isStale: false,
+      staleAgeMinutes: 0,
+    };
+    const marketRegimeService = {
+      getSnapshot: jest.fn().mockResolvedValue(marketRegime),
     };
     const errorService = {
       retryWithFallback: jest.fn(async (op: () => Promise<unknown>) => op()),
     };
     const onError = jest.fn();
 
-    const success = await fetchFearGreedIndexWithFallback({
-      feargreedService: feargreedService as any,
+    const success = await fetchMarketRegimeWithFallback({
+      marketRegimeService: marketRegimeService as any,
       errorService: errorService as any,
       onError,
     });
-    expect(success).toEqual(feargreed);
+    expect(success).toEqual(marketRegime);
 
-    const failureError = new Error('feargreed failed');
+    const failureError = new Error('market regime failed');
     errorService.retryWithFallback = jest.fn().mockRejectedValue(failureError);
-    const failed = await fetchFearGreedIndexWithFallback({
-      feargreedService: feargreedService as any,
+    const failed = await fetchMarketRegimeWithFallback({
+      marketRegimeService: marketRegimeService as any,
       errorService: errorService as any,
       onError,
     });
@@ -101,6 +115,23 @@ describe('balance-recommendation-context utils', () => {
     const allocationAuditService = {
       buildAllocationValidationGuardrailText: jest.fn().mockResolvedValue('guardrail'),
     };
+    const marketRegimeService = {
+      getSnapshot: jest.fn().mockResolvedValue({
+        btcDominance: 55,
+        altcoinIndex: 50,
+        feargreed: {
+          index: 50,
+          classification: 'Neutral',
+          timestamp: 1700000000,
+          date: '2026-02-24',
+          timeUntilUpdate: 0,
+        },
+        asOf: new Date('2026-02-24T00:00:00.000Z'),
+        source: 'live',
+        isStale: false,
+        staleAgeMinutes: 0,
+      }),
+    };
 
     const result = await buildAllocationRecommendationPromptMessages({
       symbol: 'BTC/KRW',
@@ -110,19 +141,40 @@ describe('balance-recommendation-context utils', () => {
       newsService: {
         getCompactNews: jest.fn().mockResolvedValue([{ title: 'n' }]),
       } as any,
-      feargreedService: {
-        getCompactFeargreed: jest.fn().mockResolvedValue({ value: 50 }),
-      } as any,
+      marketRegimeService: marketRegimeService as any,
       errorService: errorService as any,
       allocationAuditService: allocationAuditService as any,
       onNewsError: jest.fn(),
-      onFearGreedError: jest.fn(),
+      onMarketRegimeError: jest.fn(),
       onValidationGuardrailError: jest.fn(),
     });
 
     expect(result.messages.length).toBeGreaterThan(0);
     expect(result.marketFeatures).toEqual({ volatility: 0.1 });
+    expect(result.marketRegime?.btcDominance).toBe(55);
     expect(openaiService.addMessage).toHaveBeenCalled();
+    expect(openaiService.addMessagePair).toHaveBeenCalledWith(expect.any(Array), 'prompt.input.market_regime', {
+      btcDominance: 55,
+      altcoinIndex: 50,
+      feargreed: {
+        index: 50,
+        classification: 'Neutral',
+        timestamp: 1700000000,
+        date: '2026-02-24',
+        timeUntilUpdate: 0,
+      },
+      asOf: new Date('2026-02-24T00:00:00.000Z'),
+      source: 'live',
+      isStale: false,
+      staleAgeMinutes: 0,
+    });
+    expect(openaiService.addMessagePair).toHaveBeenCalledWith(expect.any(Array), 'prompt.input.feargreed', {
+      index: 50,
+      classification: 'Neutral',
+      timestamp: 1700000000,
+      date: '2026-02-24',
+      timeUntilUpdate: 0,
+    });
     expect(openaiService.addMessagePair).toHaveBeenCalledWith(
       expect.any(Array),
       'prompt.input.validation_allocation',
@@ -148,8 +200,8 @@ describe('balance-recommendation-context utils', () => {
       newsService: {
         getCompactNews: jest.fn().mockResolvedValue([]),
       } as any,
-      feargreedService: {
-        getCompactFeargreed: jest.fn().mockResolvedValue(null),
+      marketRegimeService: {
+        getSnapshot: jest.fn().mockRejectedValue(new Error('market regime failed')),
       } as any,
       errorService: {
         retryWithFallback: jest.fn(async (op: () => Promise<unknown>) => op()),
@@ -158,7 +210,7 @@ describe('balance-recommendation-context utils', () => {
         buildAllocationValidationGuardrailText: jest.fn().mockRejectedValue(new Error('guardrail failed')),
       } as any,
       onNewsError: jest.fn(),
-      onFearGreedError: jest.fn(),
+      onMarketRegimeError: jest.fn(),
       onValidationGuardrailError,
     });
 

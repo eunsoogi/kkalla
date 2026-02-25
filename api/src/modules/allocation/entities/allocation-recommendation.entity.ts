@@ -113,6 +113,56 @@ export class AllocationRecommendation extends BaseEntity {
   })
   reason: string | null;
 
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  btcDominance: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  altcoinIndex: number | null;
+
+  @Column({
+    type: 'datetime',
+    nullable: true,
+  })
+  marketRegimeAsOf: Date | null;
+
+  @Column({
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  marketRegimeSource: 'live' | 'cache_fallback' | null;
+
+  @Column({
+    type: 'boolean',
+    nullable: true,
+  })
+  marketRegimeIsStale: boolean | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  feargreedIndex: number | null;
+
+  @Column({
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  feargreedClassification: string | null;
+
+  @Column({
+    type: 'datetime',
+    nullable: true,
+  })
+  feargreedTimestamp: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

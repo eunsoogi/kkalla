@@ -136,6 +136,64 @@ export class AllocationAuditItem extends BaseEntity {
   recommendationPrice: number | null;
 
   @Column({
+    name: 'recommendation_btc_dominance',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationBtcDominance: number | null;
+
+  @Column({
+    name: 'recommendation_altcoin_index',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationAltcoinIndex: number | null;
+
+  @Column({
+    name: 'recommendation_market_regime_as_of',
+    type: 'datetime',
+    nullable: true,
+  })
+  recommendationMarketRegimeAsOf: Date | null;
+
+  @Column({
+    name: 'recommendation_market_regime_source',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  recommendationMarketRegimeSource: 'live' | 'cache_fallback' | null;
+
+  @Column({
+    name: 'recommendation_market_regime_is_stale',
+    type: 'boolean',
+    nullable: true,
+  })
+  recommendationMarketRegimeIsStale: boolean | null;
+
+  @Column({
+    name: 'recommendation_feargreed_index',
+    type: 'double',
+    nullable: true,
+  })
+  recommendationFeargreedIndex: number | null;
+
+  @Column({
+    name: 'recommendation_feargreed_classification',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  recommendationFeargreedClassification: string | null;
+
+  @Column({
+    name: 'recommendation_feargreed_timestamp',
+    type: 'datetime',
+    nullable: true,
+  })
+  recommendationFeargreedTimestamp: Date | null;
+
+  @Column({
     name: 'evaluated_price',
     type: 'double',
     nullable: true,

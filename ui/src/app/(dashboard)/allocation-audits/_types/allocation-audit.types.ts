@@ -50,6 +50,14 @@ export interface AllocationAuditItem {
   recommendationIntensity: number | null;
   recommendationAction: string | null;
   recommendationPrice: number | null;
+  recommendationBtcDominance: number | null;
+  recommendationAltcoinIndex: number | null;
+  recommendationMarketRegimeAsOf: string | null;
+  recommendationMarketRegimeSource: 'live' | 'cache_fallback' | null;
+  recommendationMarketRegimeIsStale: boolean | null;
+  recommendationFeargreedIndex: number | null;
+  recommendationFeargreedClassification: string | null;
+  recommendationFeargreedTimestamp: string | null;
   evaluatedPrice: number | null;
   returnPct: number | null;
   directionHit: boolean | null;
