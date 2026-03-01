@@ -731,8 +731,8 @@ export class UpbitService {
     const mergedCost =
       this.resolveOrderNotional(primaryOrder, fallbackPrice) + this.resolveOrderNotional(fallbackOrder, fallbackPrice);
     const mergedFilled =
-      (this.normalizePositiveNumber(primaryOrder.filled) ?? 0) +
-      (this.normalizePositiveNumber(fallbackOrder.filled) ?? 0);
+      this.resolveOrderFilledVolume(primaryOrder, fallbackPrice) +
+      this.resolveOrderFilledVolume(fallbackOrder, fallbackPrice);
     const mergedAmount =
       (this.normalizePositiveNumber(primaryOrder.amount) ?? 0) +
       (this.normalizePositiveNumber(fallbackOrder.amount) ?? 0);

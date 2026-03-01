@@ -309,6 +309,7 @@ describe('UpbitService', () => {
     expect(result.executionMode).toBe('limit_ioc');
     expect(result.filledAmount).toBeCloseTo(10_000_000, 4);
     expect(result.filledRatio).toBeCloseTo(1, 6);
+    expect(result.averagePrice).toBeCloseTo(100_000_000, 4);
   });
 
   it('should pass lowercase timeInForce to exchange limit orders', async () => {
