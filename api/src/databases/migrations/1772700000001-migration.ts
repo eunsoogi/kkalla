@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class Migration1772381382211 implements MigrationInterface {
+export class Migration1772700000001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const columns: TableColumn[] = [
       new TableColumn({
