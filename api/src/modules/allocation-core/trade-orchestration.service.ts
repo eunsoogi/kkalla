@@ -1305,6 +1305,15 @@ export class TradeOrchestrationService {
   }
 
   /**
+   * Checks whether exchange order status still indicates an active open order.
+   * @param status - Exchange order status text.
+   * @returns True when the order should be treated as open.
+   */
+  private isOpenOrderStatus(status: string | null | undefined): boolean {
+    return typeof status === 'string' && status.toLowerCase() === 'open';
+  }
+
+  /**
    * Shared trade execution/persistence path used by allocation and risk services.
    */
   public async executeTrade(options: ExecuteTradeOptions): Promise<Trade | null> {
@@ -1335,9 +1344,10 @@ export class TradeOrchestrationService {
         resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(order),
       },
     );
+    const orderId = this.resolvePrimaryOrderId(order);
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
+    let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
     if (!hasExecutedFill) {
-      const orderId = this.resolvePrimaryOrderId(order);
       if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
         try {
           // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
@@ -1377,7 +1387,7 @@ export class TradeOrchestrationService {
             requestedAmount,
             filledAmount,
             filledRatio,
-            orderStatus: adjustedOrder.orderStatus ?? order.status ?? 'open',
+            orderStatus: resolvedOrderStatus ?? 'open',
             expectedEdgeRate,
             estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
             spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
@@ -1395,6 +1405,43 @@ export class TradeOrchestrationService {
 
     const amount = filledAmount;
     const profit = await runtime.exchangeService.calculateProfit(request.balances, order, amount);
+
+    const shouldCancelPostOnlyRemainder =
+      adjustedOrder.executionMode === 'limit_post_only' &&
+      orderId != null &&
+      this.isOpenOrderStatus(resolvedOrderStatus) &&
+      filledRatio != null &&
+      Number.isFinite(filledRatio) &&
+      filledRatio < 1;
+    if (shouldCancelPostOnlyRemainder) {
+      try {
+        await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
+        resolvedOrderStatus = 'canceled';
+        runtime.logger.log(
+          runtime.i18n.t('logging.trade.post_only_remainder_cancelled', {
+            args: {
+              id: user.id,
+              symbol: request.symbol,
+              orderId,
+              filledRatio: formatRatePercent(filledRatio),
+            },
+          }),
+        );
+      } catch (error) {
+        runtime.logger.warn(
+          runtime.i18n.t('logging.trade.post_only_remainder_cancel_failed', {
+            args: {
+              id: user.id,
+              symbol: request.symbol,
+              orderId,
+              filledRatio: formatRatePercent(filledRatio),
+            },
+          }),
+          error,
+        );
+      }
+    }
+
     // Estimate unrealized edge lost by partial fill (for post-trade diagnostics only).
     const missedOpportunityCost =
       requestedAmount != null &&
@@ -1435,7 +1482,7 @@ export class TradeOrchestrationService {
       requestedAmount,
       filledAmount,
       filledRatio,
-      orderStatus: adjustedOrder.orderStatus ?? order.status ?? null,
+      orderStatus: resolvedOrderStatus,
       expectedEdgeRate,
       estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
       spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
@@ -1721,6 +1768,12 @@ export class TradeOrchestrationService {
       }
 
       if (request.diff > -1 + Number.EPSILON) {
+        return;
+      }
+
+      const isFullyLiquidated =
+        typeof trade.filledRatio === 'number' && Number.isFinite(trade.filledRatio) && trade.filledRatio >= 1 - 1e-6;
+      if (!isFullyLiquidated) {
         return;
       }
 

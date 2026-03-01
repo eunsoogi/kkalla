@@ -422,22 +422,22 @@ describe('TradeOrchestrationService', () => {
               diff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
-            trade: { type: OrderTypes.SELL },
+            trade: { type: OrderTypes.SELL, filledRatio: 1 },
           },
           {
             request: {
               symbol: 'XRP/KRW',
               diff: -1,
             },
-            trade: { type: OrderTypes.SELL },
+            trade: { type: OrderTypes.SELL, filledRatio: 1 },
           },
           {
             request: {
               symbol: 'ETH/KRW',
-              diff: -0.2,
+              diff: -1,
               inference: { category: Category.COIN_MINOR },
             },
-            trade: { type: OrderTypes.SELL },
+            trade: { type: OrderTypes.SELL, filledRatio: 0.4 },
           },
         ],
         OrderTypes.SELL,
@@ -451,6 +451,25 @@ describe('TradeOrchestrationService', () => {
         ]),
       );
       expect(result).toHaveLength(2);
+    });
+
+    it('should keep holding ledger entries for partial full-exit sells', () => {
+      const result = (service as any).collectLiquidatedHoldingItems(
+        [
+          {
+            request: {
+              symbol: 'BTC/KRW',
+              diff: -1,
+              inference: { category: Category.COIN_MAJOR },
+            },
+            trade: { type: OrderTypes.SELL, filledRatio: 0.6 },
+          },
+        ],
+        OrderTypes.SELL,
+        [{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }],
+      );
+
+      expect(result).toEqual([]);
     });
 
     it('should build merged holding save payload with removed symbols excluded', () => {
@@ -577,6 +596,64 @@ describe('TradeOrchestrationService', () => {
           amount: 0,
           orderStatus: 'open',
           triggerReason: 'post_only_unfilled_cancel_failed',
+        }),
+      );
+    });
+
+    it('should cancel open post-only remainder after partial fill and persist canceled status', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn((key: string) => key) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.SELL,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 30_000,
+            filledRatio: 0.3,
+            averagePrice: 99_500_000,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.SELL),
+          calculateAmount: jest.fn(),
+          calculateProfit: jest.fn().mockResolvedValue(1000),
+          cancelOrder,
+        },
+      };
+
+      await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: -1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          symbol: 'BTC/KRW',
+          orderStatus: 'canceled',
+          filledRatio: 0.3,
         }),
       );
     });

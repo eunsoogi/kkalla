@@ -223,6 +223,8 @@
     "not_exist": "사용자 {id}, {symbol} 주문 정보가 없습니다.",
     "post_only_cancel_failed": "사용자 {id}, {symbol} post-only 미체결 주문({orderId}) 취소에 실패했습니다. 추적용 레코드를 저장합니다.",
     "post_only_cancelled": "사용자 {id}, {symbol} post-only 미체결 주문({orderId})을 취소했습니다.",
+    "post_only_remainder_cancel_failed": "사용자 {id}, {symbol} post-only 부분체결 잔여 주문({orderId}) 취소에 실패했습니다. 체결률={filledRatio}",
+    "post_only_remainder_cancelled": "사용자 {id}, {symbol} post-only 부분체결 잔여 주문({orderId})을 취소했습니다. 체결률={filledRatio}",
     "save": {
       "end": "사용자 {id}, {symbol} 주문 저장 완료.",
       "start": "사용자 {id}, {symbol} 주문 저장 시작..."
