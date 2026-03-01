@@ -362,6 +362,51 @@ describe('UpbitService', () => {
     expect(result.filledRatio).toBeCloseTo(1, 8);
   });
 
+  it('should not trigger IOC fallback market order when primary IOC placement result is missing', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [
+        {
+          currency: 'KRW',
+          unit_currency: 'KRW',
+          balance: '1000000',
+        },
+        {
+          currency: 'BTC',
+          unit_currency: 'KRW',
+          balance: '1',
+          avg_buy_price: '90000000',
+        },
+      ],
+      BTC: { free: 1 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    jest.spyOn(service, 'calculateTotalPrice').mockReturnValue(100_000_000);
+    const orderSpy = jest.spyOn(service, 'order').mockResolvedValue(null);
+
+    const result = await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      diff: -0.1,
+      balances,
+      executionUrgency: 'normal',
+      expectedEdgeRate: 0.002,
+      costEstimate: {
+        feeRate: 0.0005,
+        spreadRate: 0.0004,
+        impactRate: 0.0004,
+        estimatedCostRate: 0.0013,
+      },
+    });
+
+    expect(orderSpy).toHaveBeenCalledTimes(1);
+    expect(result.executionMode).toBe('limit_ioc');
+    expect(result.orderStatus).toBeNull();
+    expect(result.filledAmount).toBe(0);
+    expect(result.filledRatio).toBe(0);
+  });
+
   it('should pass lowercase timeInForce to exchange limit orders', async () => {
     const createOrder = jest.fn().mockResolvedValue({ id: 'order-1' });
     jest.spyOn(service, 'getClient').mockResolvedValue({ createOrder } as any);

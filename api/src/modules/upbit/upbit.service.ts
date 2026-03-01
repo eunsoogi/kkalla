@@ -1030,11 +1030,15 @@ export class UpbitService {
           : requestedVolume && requestedVolume > 0
             ? filledVolume / requestedVolume
             : 0;
+      const hasPrimaryExecutedFill =
+        type === OrderTypes.BUY ? filledAmount > Number.EPSILON : filledVolume > Number.EPSILON;
 
       if (
+        primaryOrder != null &&
         executionMode === 'limit_ioc' &&
         requestedAmount > UPBIT_MINIMUM_TRADE_PRICE &&
-        filledRatio < this.LIMIT_IOC_MIN_FILL_RATIO
+        filledRatio < this.LIMIT_IOC_MIN_FILL_RATIO &&
+        hasPrimaryExecutedFill
       ) {
         if (type === OrderTypes.BUY) {
           const remainingNotional = Math.max(0, requestedAmount - filledAmount);
