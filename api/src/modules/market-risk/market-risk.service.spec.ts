@@ -3,11 +3,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { I18nService } from 'nestjs-i18n';
 
 import { RecommendationItem } from '@/modules/allocation-core/allocation-core.types';
+import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
 import {
   isNoTradeRecommendation,
   isSellAmountSufficient,
 } from '@/modules/allocation-core/helpers/allocation-recommendation';
-import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
+import { TradeOrchestrationService } from '@/modules/allocation-core/trade-orchestration.service';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
 import { AllocationRecommendation } from '../allocation/entities/allocation-recommendation.entity';
@@ -116,6 +117,7 @@ describe('MarketRiskService', () => {
             resolveAuthorizedSlotCount: jest.fn().mockResolvedValue(5),
           },
         },
+        TradeOrchestrationService,
         {
           provide: NotifyService,
           useValue: {
@@ -376,8 +378,9 @@ describe('MarketRiskService', () => {
     expect(excludedRequests).toHaveLength(1);
     expect(excludedRequests[0]).toMatchObject({
       symbol: 'CCC/KRW',
-      diff: -1,
     });
+    expect(excludedRequests[0].diff).toBeLessThan(0);
+    expect(excludedRequests[0].diff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should exclude category-quota overflow symbols in risk mode', () => {
@@ -408,8 +411,9 @@ describe('MarketRiskService', () => {
     expect(excludedRequests).toHaveLength(1);
     expect(excludedRequests[0]).toMatchObject({
       symbol: 'SOL/KRW',
-      diff: -1,
     });
+    expect(excludedRequests[0].diff).toBeLessThan(0);
+    expect(excludedRequests[0].diff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should calculate risk model signals in 0~1 range and apply regime multiplier', () => {
@@ -444,7 +448,7 @@ describe('MarketRiskService', () => {
     expect(majorSignals.modelTargetWeight).toBeCloseTo(minorSignals.modelTargetWeight, 10);
   });
 
-  it('should apply top-k scaling when creating included trade requests', () => {
+  it('should create positive included trade diff with conviction-normalized sizing', () => {
     const balances: any = { info: [] };
     const inferences = [
       {
@@ -467,7 +471,107 @@ describe('MarketRiskService', () => {
     );
 
     expect(requests).toHaveLength(1);
-    expect(requests[0].diff).toBeCloseTo(0.1, 10);
+    expect(requests[0].diff).toBeGreaterThan(0);
+    expect(requests[0].diff).toBeLessThanOrEqual(1);
+  });
+
+  it('should enforce regime-based category exposure caps when creating included trade requests in risk mode', () => {
+    const balances: any = { info: [] };
+    const currentWeights = new Map<string, number>();
+    const inferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.9,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+        confidence: 0.9,
+      },
+      {
+        symbol: 'XRP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+        confidence: 0.9,
+      },
+      {
+        symbol: 'ADA/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+        confidence: 0.9,
+      },
+    ];
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+      undefined,
+      undefined,
+      1,
+      {
+        coinMajor: 0.7,
+        coinMinor: 0.2,
+        nasdaq: 0.2,
+      },
+    );
+
+    const minorTargetSum = requests
+      .filter((item: any) => item.inference?.category === Category.COIN_MINOR)
+      .reduce((sum: number, item: any) => sum + item.diff, 0);
+    expect(minorTargetSum).toBeLessThanOrEqual(0.200001);
+  });
+
+  it('should not consume category cap when included request is skipped by cost gate in risk mode', () => {
+    const balances: any = { info: [] };
+    const currentWeights = new Map<string, number>();
+    const inferences = [
+      {
+        symbol: 'SKIP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+        expectedEdgeRate: 0.0001,
+        estimatedCostRate: 0.02,
+      },
+      {
+        symbol: 'KEEP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: true,
+        modelTargetWeight: 0.8,
+        expectedEdgeRate: 0.2,
+        estimatedCostRate: 0.0005,
+      },
+    ];
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+      undefined,
+      undefined,
+      1,
+      {
+        coinMajor: 0.7,
+        coinMinor: 0.2,
+        nasdaq: 0.2,
+      },
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('KEEP/KRW');
+    expect(requests[0].diff).toBeGreaterThan(0);
   });
 
   it('should apply category quota when creating included trade requests in risk mode', () => {
@@ -581,8 +685,9 @@ describe('MarketRiskService', () => {
     expect(excludedRequests).toHaveLength(1);
     expect(excludedRequests[0]).toMatchObject({
       symbol: 'CCC/KRW',
-      diff: -1,
     });
+    expect(excludedRequests[0].diff).toBeLessThan(0);
+    expect(excludedRequests[0].diff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should allow sell when tradable market value is unknown', () => {
@@ -592,6 +697,7 @@ describe('MarketRiskService', () => {
 
   it('should remove holdings on full liquidation even when inference intensity is positive', async () => {
     const categoryService = (service as any).categoryService;
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
     const balances: any = { info: [] };
     const user: any = { id: 'user-1' };
     const inferences = [
@@ -627,7 +733,7 @@ describe('MarketRiskService', () => {
         inference: inferences[0],
       },
     ]);
-    jest.spyOn(service as any, 'executeTrade').mockResolvedValue({
+    jest.spyOn(tradeOrchestrationService, 'executeTrade').mockResolvedValue({
       symbol: 'ETH/KRW',
       type: OrderTypes.SELL,
       amount: 10_000,
@@ -642,6 +748,7 @@ describe('MarketRiskService', () => {
 
   it('should not persist inferred buys when buy execution fails', async () => {
     const categoryService = (service as any).categoryService;
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
     const balances: any = { info: [] };
     const user: any = { id: 'user-1' };
     const inferences = [
@@ -679,7 +786,7 @@ describe('MarketRiskService', () => {
         inference: inferences[0],
       },
     ]);
-    jest.spyOn(service as any, 'executeTrade').mockResolvedValue(null);
+    jest.spyOn(tradeOrchestrationService, 'executeTrade').mockResolvedValue(null);
 
     await service.executeVolatilityTradesForUser(user, inferences as any, true);
 
@@ -687,6 +794,126 @@ describe('MarketRiskService', () => {
       user,
       expect.arrayContaining([expect.objectContaining({ symbol: 'ETH/KRW', category: Category.COIN_MINOR })]),
     );
+  });
+
+  it('should skip trade persistence when adjusted order has no executed fill in risk mode', async () => {
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
+    upbitService.adjustOrder = jest.fn().mockResolvedValue({
+      order: {
+        side: OrderTypes.BUY,
+        status: 'open',
+      },
+      filledAmount: 0,
+      filledRatio: 0,
+      requestedAmount: 100_000,
+      executionMode: 'limit_post_only',
+      orderType: 'limit',
+      timeInForce: 'po',
+      requestPrice: 100_000_000,
+      averagePrice: null,
+      orderStatus: 'open',
+      expectedEdgeRate: 0.02,
+      estimatedCostRate: 0.001,
+      spreadRate: 0.0004,
+      impactRate: 0.0004,
+      gateBypassedReason: null,
+      triggerReason: 'included_rebalance',
+    } as any);
+    upbitService.getOrderType = jest.fn().mockReturnValue(OrderTypes.BUY) as any;
+    upbitService.calculateAmount = jest.fn().mockResolvedValue(100_000) as any;
+    upbitService.calculateProfit = jest.fn().mockResolvedValue(0) as any;
+
+    const saveTradeSpy = jest.spyOn(tradeOrchestrationService as any, 'saveTrade');
+    const trade = await tradeOrchestrationService.executeTrade({
+      runtime: {
+        logger: (service as any).logger,
+        i18n: (service as any).i18n,
+        exchangeService: upbitService,
+      },
+      user: { id: 'user-1', roles: [] } as any,
+      request: {
+        symbol: 'BTC/KRW',
+        diff: 0.1,
+        balances: { info: [] } as any,
+      } as any,
+    });
+
+    expect(trade).toBeNull();
+    expect(saveTradeSpy).not.toHaveBeenCalled();
+  });
+
+  it('should cap sell and buy executions by regime turnover cap in risk mode', async () => {
+    const categoryService = (service as any).categoryService;
+    const marketRegimeService = (service as any).marketRegimeService;
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
+    const user: any = { id: 'user-1', roles: [] };
+    const balances: any = {
+      info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+    };
+    const inferences = [
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.7,
+        modelTargetWeight: 0.7,
+        action: 'buy',
+        hasStock: true,
+      },
+    ];
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValue([
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    upbitService.getBalances.mockResolvedValueOnce(balances).mockResolvedValueOnce(balances);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+    marketRegimeService.getSnapshot.mockResolvedValue({
+      btcDominance: 70,
+      altcoinIndex: 10,
+      asOf: new Date(),
+      source: 'live',
+      isStale: false,
+      staleAgeMinutes: 0,
+    });
+
+    const sellRequests = [
+      { symbol: 'SELL-1/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+      { symbol: 'SELL-2/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+      { symbol: 'SELL-3/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+    ] as any[];
+    const buyRequests = [
+      { symbol: 'BUY-1/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-2/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-3/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+    ] as any[];
+
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue(sellRequests);
+    jest.spyOn(service as any, 'generateNoTradeTrimRequests').mockReturnValue([]);
+    jest
+      .spyOn(service as any, 'generateIncludedTradeRequests')
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(buyRequests);
+    const executeTradeSpy = jest
+      .spyOn(tradeOrchestrationService, 'executeTrade')
+      .mockImplementation(async ({ request }) => {
+        return {
+          symbol: request.symbol,
+          type: request.diff < 0 ? 'sell' : 'buy',
+          amount: 10_000,
+          profit: 0,
+          inference: request.inference ?? null,
+        } as any;
+      });
+
+    await service.executeVolatilityTradesForUser(user, inferences as any, true);
+
+    expect(executeTradeSpy).toHaveBeenCalledTimes(2);
+    expect(executeTradeSpy.mock.calls.map((call) => call[0].request.symbol)).toEqual(['SELL-1/KRW', 'BUY-1/KRW']);
   });
 
   it('should override hasStock flag using the requesting user holdings', async () => {
@@ -877,6 +1104,53 @@ describe('MarketRiskService', () => {
     );
 
     expect(requests).toHaveLength(0);
+  });
+
+  it('should not consume category cap when no-trade trim request is skipped by minimum sell amount in risk mode', () => {
+    const balances: any = { info: [] };
+    const requests = (service as any).generateNoTradeTrimRequests(
+      balances,
+      [
+        {
+          symbol: 'SKIP/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'hold',
+          intensity: 0,
+          modelTargetWeight: 0.3,
+        },
+        {
+          symbol: 'KEEP/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'hold',
+          intensity: 0,
+          modelTargetWeight: 0.3,
+        },
+      ] as any,
+      5,
+      1,
+      new Map([
+        ['SKIP/KRW', 0.5],
+        ['KEEP/KRW', 0.5],
+      ]),
+      1_000_000,
+      undefined,
+      new Map([
+        ['SKIP/KRW', 1_000],
+        ['KEEP/KRW', 100_000],
+      ]),
+      1,
+      {
+        coinMajor: 0.06,
+        coinMinor: 0.8,
+        nasdaq: 0.4,
+      },
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('KEEP/KRW');
+    expect(requests[0].diff).toBeLessThan(0);
   });
 
   it('should drop inference when AI returns symbol mismatch', async () => {

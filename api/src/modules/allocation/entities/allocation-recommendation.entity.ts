@@ -15,14 +15,14 @@ import {
 
 import { Category } from '@/modules/category/category.enum';
 import { SortDirection } from '@/modules/item/item.enum';
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import {
   AllocationRecommendationAction,
   AllocationRecommendationFilter,
   RecentAllocationRecommendationRequest,
-} from '../allocation.interface';
+} from '../allocation.types';
 
 @Entity()
 @Index('idx_allocation_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })

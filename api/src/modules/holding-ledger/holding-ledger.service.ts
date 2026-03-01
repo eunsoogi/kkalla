@@ -5,7 +5,7 @@ import { In } from 'typeorm';
 import { RecommendationItem } from '../allocation-core/allocation-core.types';
 import { User } from '../user/entities/user.entity';
 import { HoldingLedger } from './entities/holding-ledger.entity';
-import { HoldingLedgerItem, HoldingLedgerRemoveItem } from './holding-ledger.interface';
+import { HoldingLedgerItem, HoldingLedgerRemoveItem } from './holding-ledger.types';
 
 @Injectable()
 export class HoldingLedgerService {

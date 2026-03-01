@@ -1,4 +1,4 @@
-import { PaginatedItem } from '../item/item.interface';
+import { PaginatedItem } from '../item/item.types';
 
 export type ReportType = 'market' | 'allocation';
 export type AllocationAuditStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -14,6 +14,24 @@ export type AllocationAuditItemSortBy =
   | 'symbol'
   | 'status'
   | 'aiVerdict';
+
+export interface DeterministicEvaluation {
+  evaluatedPrice: number | null;
+  recommendationPrice: number | null;
+  returnPct: number | null;
+  directionHit: boolean | null;
+  deterministicScore: number | null;
+  realizedTradePnl: number | null;
+  realizedTradeAmount: number | null;
+  tradeRoiPct: number | null;
+  invalidReason?: string;
+}
+
+export interface ConfidenceCalibrationSample {
+  confidence: number;
+  directionHit: boolean;
+  horizonHours: number;
+}
 
 export interface AllocationAuditRunListItem {
   id: string;

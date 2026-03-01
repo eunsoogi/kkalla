@@ -12,27 +12,14 @@ import { ErrorService } from '../error/error.service';
 import {
   AltcoinIndexClassification,
   BtcDominanceClassification,
+  CoinMarketCapOverviewDetailResponse,
   CompactFeargreed,
   Feargreed,
   FeargreedApiResponse,
   FeargreedCachePayload,
   MarketRegimeCachePayload,
   MarketRegimeSnapshot,
-} from './market-regime.interface';
-
-interface CoinMarketCapOverviewDetailResponse {
-  status?: {
-    timestamp?: string;
-  };
-  data?: {
-    marketDominance?: {
-      btcPercentage?: number;
-    };
-    altcoinIndex?: {
-      index?: number;
-    };
-  };
-}
+} from './market-regime.types';
 
 @Injectable()
 export class MarketRegimeService {

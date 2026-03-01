@@ -1,4 +1,6 @@
 import { SortDirection } from '../item/item.enum';
+import { MarketRegimeSnapshot } from '../market-regime/market-regime.types';
+import type { KrwTickerDailyData } from '../upbit/upbit.types';
 
 export interface MarketSignalFilter {
   symbol?: string;
@@ -55,4 +57,20 @@ export interface MarketSignalState {
   batchId: string;
   hasRecommendations: boolean;
   updatedAt: number;
+}
+
+export interface LatestPriceChangeOptions {
+  mode?: 'exact' | 'mixed' | 'approx';
+}
+
+export interface SaveMarketSignalOptions {
+  recommendationTime?: Date;
+  marketData?: KrwTickerDailyData | null;
+  marketRegime?: MarketRegimeSnapshot | null;
+  feargreed?: MarketRegimeSnapshot['feargreed'];
+}
+
+export interface SignalPriceResolution {
+  price?: number;
+  source: 'minute' | 'fallback' | 'none';
 }

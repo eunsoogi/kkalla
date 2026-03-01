@@ -10,7 +10,10 @@ import {
   getItemCountByCategory,
 } from '@/modules/allocation-core/helpers/recommendation-item';
 import { Category } from '@/modules/category/category.enum';
-import { MarketFeatures } from '@/modules/upbit/upbit.interface';
+import { MarketFeatures } from '@/modules/upbit/upbit.types';
+import { clamp, clamp01 } from '@/utils/math';
+
+export { clamp, clamp01 } from '@/utils/math';
 
 export interface FeatureScoreConfig {
   featureConfidenceWeight: number;
@@ -28,30 +31,6 @@ interface RecommendationFilterConfig {
 
 interface CategoryRecommendationFilterConfig extends RecommendationFilterConfig {
   categoryItemCountConfig?: CategoryItemCountConfig;
-}
-
-/**
- * Handles clamp in the allocation recommendation workflow.
- * @param value - Input value for value.
- * @param min - Input value for min.
- * @param max - Input value for max.
- * @returns Computed numeric value for the operation.
- */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-/**
- * Handles clamp01 in the allocation recommendation workflow.
- * @param value - Input value for value.
- * @returns Computed numeric value for the operation.
- */
-export function clamp01(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return clamp(value, 0, 1);
 }
 
 /**

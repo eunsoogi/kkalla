@@ -5,8 +5,8 @@ import { I18nService } from 'nestjs-i18n';
 
 import { ApikeyStatus } from '../apikey/apikey.enum';
 import { CacheService } from '../cache/cache.service';
-import { TwoPhaseRetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
+import { TwoPhaseRetryOptions } from '../error/error.types';
 import { NotifyService } from '../notify/notify.service';
 import { Schedule } from '../schedule/entities/schedule.entity';
 import { User } from '../user/entities/user.entity';
@@ -15,11 +15,15 @@ import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
 import { OrderTypes } from './upbit.enum';
 import {
   AdjustOrderRequest,
+  AdjustedOrderResult,
   KrwMarketData,
   KrwTickerDailyData,
+  OrderExecutionMode,
+  OrderExecutionUrgency,
   OrderRequest,
   UpbitConfigData,
-} from './upbit.interface';
+  UpbitOrderCostEstimate,
+} from './upbit.types';
 
 @Injectable()
 export class UpbitService {
@@ -29,6 +33,15 @@ export class UpbitService {
   private readonly MAX_PRECISION = 8;
   private readonly MINUTE_OPEN_VALUE_CACHE_TTL_SECONDS = 60 * 60 * 24;
   private readonly MINUTE_OPEN_NULL_CACHE_TTL_SECONDS = 60;
+  private readonly ORDERBOOK_CACHE_TTL_SECONDS = 5;
+  private readonly ESTIMATED_FEE_RATE = 0.0005;
+  private readonly EDGE_COST_BUFFER_RATE = 0.0005;
+  private readonly LIMIT_IOC_SPREAD_THRESHOLD = 0.003;
+  private readonly LIMIT_IOC_IMPACT_THRESHOLD = 0.005;
+  private readonly LIMIT_IOC_MIN_FILL_RATIO = 0.6;
+  private readonly LIMIT_POST_ONLY_SPREAD_THRESHOLD = 0.0015;
+  private readonly LIMIT_POST_ONLY_IMPACT_THRESHOLD = 0.0025;
+  private readonly LIMIT_POST_ONLY_EDGE_PREMIUM = 0.001;
 
   // API 호출에 대한 2단계 재시도 옵션
   private readonly retryOptions: TwoPhaseRetryOptions = {
@@ -340,6 +353,438 @@ export class UpbitService {
     return free;
   }
 
+  private getDefaultCostEstimate(): UpbitOrderCostEstimate {
+    return {
+      feeRate: this.ESTIMATED_FEE_RATE,
+      spreadRate: 0,
+      impactRate: 0,
+      estimatedCostRate: this.ESTIMATED_FEE_RATE,
+    };
+  }
+
+  private normalizePositiveNumber(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private normalizeOrderBookLevels(levels: unknown): Array<[number, number]> {
+    if (!Array.isArray(levels)) {
+      return [];
+    }
+
+    return levels
+      .map((entry) => {
+        if (!Array.isArray(entry) || entry.length < 2) {
+          return null;
+        }
+
+        const price = this.normalizePositiveNumber(entry[0]);
+        const amount = this.normalizePositiveNumber(entry[1]);
+        if (price == null || amount == null) {
+          return null;
+        }
+
+        return [price, amount] as [number, number];
+      })
+      .filter((entry): entry is [number, number] => entry !== null);
+  }
+
+  private async getOrderBook(
+    symbol: string,
+  ): Promise<{ bids: Array<[number, number]>; asks: Array<[number, number]> }> {
+    const cacheKey = `upbit:orderbook:${symbol}`;
+    const cached = await this.cacheService.get<{ bids: Array<[number, number]>; asks: Array<[number, number]> }>(
+      cacheKey,
+    );
+    if (cached) {
+      return cached;
+    }
+
+    const client = await this.getServerClient();
+    const orderBook = await this.errorService.retryWithFallback(async () => {
+      return await client.fetchOrderBook(symbol);
+    }, this.retryOptions);
+
+    const normalizedOrderBook = {
+      bids: this.normalizeOrderBookLevels(orderBook?.bids),
+      asks: this.normalizeOrderBookLevels(orderBook?.asks),
+    };
+    await this.cacheService.set(cacheKey, normalizedOrderBook, this.ORDERBOOK_CACHE_TTL_SECONDS);
+
+    return normalizedOrderBook;
+  }
+
+  private resolveReferencePrice(
+    bestBid: number | null,
+    bestAsk: number | null,
+    tickerPrice: number | null,
+    fallbackPrice: number,
+  ): number {
+    if (bestBid != null && bestAsk != null) {
+      return (bestBid + bestAsk) / 2;
+    }
+
+    if (bestAsk != null) {
+      return bestAsk;
+    }
+
+    if (bestBid != null) {
+      return bestBid;
+    }
+
+    if (tickerPrice != null) {
+      return tickerPrice;
+    }
+
+    return fallbackPrice;
+  }
+
+  private calculateBuyImpactRate(
+    levels: Array<[number, number]>,
+    targetNotional: number,
+    referencePrice: number,
+  ): number {
+    if (
+      !Number.isFinite(targetNotional) ||
+      targetNotional <= 0 ||
+      !Number.isFinite(referencePrice) ||
+      referencePrice <= 0
+    ) {
+      return 0;
+    }
+
+    let remainingNotional = targetNotional;
+    let consumedNotional = 0;
+    let consumedVolume = 0;
+
+    for (const [price, amount] of levels) {
+      if (remainingNotional <= 0) {
+        break;
+      }
+
+      const levelNotional = price * amount;
+      if (!Number.isFinite(levelNotional) || levelNotional <= 0) {
+        continue;
+      }
+
+      const takenNotional = Math.min(levelNotional, remainingNotional);
+      consumedNotional += takenNotional;
+      consumedVolume += takenNotional / price;
+      remainingNotional -= takenNotional;
+    }
+
+    if (consumedVolume <= 0) {
+      return 0;
+    }
+
+    const averageExecutionPrice = consumedNotional / consumedVolume;
+    const baseImpact = Math.max(0, (averageExecutionPrice - referencePrice) / referencePrice);
+    const depthPenalty = remainingNotional > 0 ? Math.min(0.05, (remainingNotional / targetNotional) * 0.02) : 0;
+
+    return baseImpact + depthPenalty;
+  }
+
+  private calculateSellImpactRate(
+    levels: Array<[number, number]>,
+    targetVolume: number,
+    referencePrice: number,
+  ): number {
+    if (
+      !Number.isFinite(targetVolume) ||
+      targetVolume <= 0 ||
+      !Number.isFinite(referencePrice) ||
+      referencePrice <= 0
+    ) {
+      return 0;
+    }
+
+    let remainingVolume = targetVolume;
+    let consumedNotional = 0;
+    let consumedVolume = 0;
+
+    for (const [price, amount] of levels) {
+      if (remainingVolume <= 0) {
+        break;
+      }
+
+      const takenVolume = Math.min(amount, remainingVolume);
+      consumedNotional += takenVolume * price;
+      consumedVolume += takenVolume;
+      remainingVolume -= takenVolume;
+    }
+
+    if (consumedVolume <= 0) {
+      return 0;
+    }
+
+    const averageExecutionPrice = consumedNotional / consumedVolume;
+    const baseImpact = Math.max(0, (referencePrice - averageExecutionPrice) / referencePrice);
+    const depthPenalty = remainingVolume > 0 ? Math.min(0.05, (remainingVolume / targetVolume) * 0.02) : 0;
+
+    return baseImpact + depthPenalty;
+  }
+
+  public async estimateOrderCost(
+    symbol: string,
+    type: OrderTypes,
+    requestedAmount: number,
+    fallbackPrice?: number,
+  ): Promise<UpbitOrderCostEstimate> {
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      return this.getDefaultCostEstimate();
+    }
+
+    try {
+      const [orderBook, tickerPrice] = await Promise.all([
+        this.getOrderBook(symbol),
+        this.getPrice(symbol).catch(() => null),
+      ]);
+      const bestBid = this.normalizePositiveNumber(orderBook.bids[0]?.[0] ?? null);
+      const bestAsk = this.normalizePositiveNumber(orderBook.asks[0]?.[0] ?? null);
+      const referencePrice = this.resolveReferencePrice(bestBid, bestAsk, tickerPrice, fallbackPrice ?? 0);
+
+      const spreadRate =
+        bestBid != null && bestAsk != null && referencePrice > 0
+          ? Math.max(0, (bestAsk - bestBid) / referencePrice)
+          : 0;
+      const impactRate =
+        type === OrderTypes.BUY
+          ? this.calculateBuyImpactRate(orderBook.asks, requestedAmount, referencePrice)
+          : this.calculateSellImpactRate(orderBook.bids, requestedAmount, referencePrice);
+      const estimatedCostRate = this.ESTIMATED_FEE_RATE + spreadRate + impactRate;
+
+      return {
+        feeRate: this.ESTIMATED_FEE_RATE,
+        spreadRate: Number.isFinite(spreadRate) ? spreadRate : 0,
+        impactRate: Number.isFinite(impactRate) ? impactRate : 0,
+        estimatedCostRate: Number.isFinite(estimatedCostRate) ? estimatedCostRate : this.ESTIMATED_FEE_RATE,
+      };
+    } catch {
+      return this.getDefaultCostEstimate();
+    }
+  }
+
+  private resolveExecutionMode(
+    urgency: OrderExecutionUrgency,
+    costEstimate: UpbitOrderCostEstimate,
+    expectedEdgeRate: number | null | undefined,
+  ): OrderExecutionMode {
+    if (urgency === 'urgent') {
+      return 'market';
+    }
+
+    if (
+      costEstimate.spreadRate > this.LIMIT_IOC_SPREAD_THRESHOLD ||
+      costEstimate.impactRate > this.LIMIT_IOC_IMPACT_THRESHOLD
+    ) {
+      return 'market';
+    }
+
+    if (
+      expectedEdgeRate != null &&
+      Number.isFinite(expectedEdgeRate) &&
+      expectedEdgeRate <= costEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE
+    ) {
+      return 'market';
+    }
+
+    if (
+      costEstimate.spreadRate <= this.LIMIT_POST_ONLY_SPREAD_THRESHOLD &&
+      costEstimate.impactRate <= this.LIMIT_POST_ONLY_IMPACT_THRESHOLD &&
+      expectedEdgeRate != null &&
+      Number.isFinite(expectedEdgeRate) &&
+      expectedEdgeRate > costEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE + this.LIMIT_POST_ONLY_EDGE_PREMIUM
+    ) {
+      return 'limit_post_only';
+    }
+
+    return 'limit_ioc';
+  }
+
+  private shouldSkipForEdgeCost(
+    urgency: OrderExecutionUrgency,
+    expectedEdgeRate: number | null | undefined,
+    estimatedCostRate: number,
+  ): boolean {
+    if (urgency === 'urgent') {
+      return false;
+    }
+
+    if (expectedEdgeRate == null || !Number.isFinite(expectedEdgeRate)) {
+      return false;
+    }
+
+    return expectedEdgeRate <= estimatedCostRate + this.EDGE_COST_BUFFER_RATE;
+  }
+
+  private resolveOrderNotional(order: Order | null, fallbackPrice: number): number {
+    if (!order) {
+      return 0;
+    }
+
+    const cost = this.normalizePositiveNumber(order.cost);
+    if (cost != null) {
+      return cost;
+    }
+
+    const average = this.normalizePositiveNumber(order.average);
+    const filled = this.normalizePositiveNumber(order.filled);
+    if (average != null && filled != null) {
+      return average * filled;
+    }
+
+    if (filled != null && Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return filled * fallbackPrice;
+    }
+
+    const status = typeof order.status === 'string' ? order.status.toLowerCase() : null;
+    const isFinalizedOrder = status === 'closed' || status === 'filled';
+
+    const amount = this.normalizePositiveNumber(order.amount);
+    if (isFinalizedOrder && amount != null && average != null) {
+      return amount * average;
+    }
+
+    if (isFinalizedOrder && amount != null && Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return amount * fallbackPrice;
+    }
+
+    return 0;
+  }
+
+  private resolveOrderAveragePrice(order: Order | null, fallbackPrice: number): number | null {
+    if (!order) {
+      return null;
+    }
+
+    const average = this.normalizePositiveNumber(order.average);
+    if (average != null) {
+      return average;
+    }
+
+    const cost = this.normalizePositiveNumber(order.cost);
+    const filled = this.normalizePositiveNumber(order.filled);
+    if (cost != null && filled != null) {
+      return cost / filled;
+    }
+
+    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return fallbackPrice;
+    }
+
+    return null;
+  }
+
+  private mergeOrders(primaryOrder: Order | null, fallbackOrder: Order | null, fallbackPrice: number): Order | null {
+    if (!primaryOrder && !fallbackOrder) {
+      return null;
+    }
+
+    if (!primaryOrder) {
+      return fallbackOrder;
+    }
+
+    if (!fallbackOrder) {
+      return primaryOrder;
+    }
+
+    const mergedCost =
+      this.resolveOrderNotional(primaryOrder, fallbackPrice) + this.resolveOrderNotional(fallbackOrder, fallbackPrice);
+    const mergedFilled =
+      (this.normalizePositiveNumber(primaryOrder.filled) ?? 0) +
+      (this.normalizePositiveNumber(fallbackOrder.filled) ?? 0);
+    const mergedAmount =
+      (this.normalizePositiveNumber(primaryOrder.amount) ?? 0) +
+      (this.normalizePositiveNumber(fallbackOrder.amount) ?? 0);
+
+    return {
+      ...fallbackOrder,
+      id: [primaryOrder.id, fallbackOrder.id]
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        .join(','),
+      amount: mergedAmount > 0 ? mergedAmount : fallbackOrder.amount,
+      filled: mergedFilled > 0 ? mergedFilled : fallbackOrder.filled,
+      cost: mergedCost > 0 ? mergedCost : fallbackOrder.cost,
+      average: mergedFilled > 0 && mergedCost > 0 ? mergedCost / mergedFilled : fallbackOrder.average,
+      status: fallbackOrder.status ?? primaryOrder.status ?? 'closed',
+    } as Order;
+  }
+
+  private createAdjustedOrderResult(
+    request: AdjustOrderRequest,
+    options?: {
+      order?: Order | null;
+      executionMode?: OrderExecutionMode;
+      orderType?: 'market' | 'limit';
+      timeInForce?: string | null;
+      requestPrice?: number | null;
+      requestedAmount?: number | null;
+      requestedVolume?: number | null;
+      filledAmount?: number | null;
+      filledRatio?: number | null;
+      averagePrice?: number | null;
+      orderStatus?: string | null;
+      estimatedCostRate?: number | null;
+      spreadRate?: number | null;
+      impactRate?: number | null;
+      gateBypassedReason?: string | null;
+      triggerReason?: string | null;
+    },
+  ): AdjustedOrderResult {
+    return {
+      order: options?.order ?? null,
+      executionMode: options?.executionMode ?? 'market',
+      orderType: options?.orderType ?? 'market',
+      timeInForce: options?.timeInForce ?? null,
+      requestPrice: options?.requestPrice ?? null,
+      requestedAmount: options?.requestedAmount ?? null,
+      requestedVolume: options?.requestedVolume ?? null,
+      filledAmount: options?.filledAmount ?? null,
+      filledRatio: options?.filledRatio ?? null,
+      averagePrice: options?.averagePrice ?? null,
+      orderStatus: options?.orderStatus ?? null,
+      expectedEdgeRate: request.expectedEdgeRate ?? null,
+      estimatedCostRate: options?.estimatedCostRate ?? request.costEstimate?.estimatedCostRate ?? null,
+      spreadRate: options?.spreadRate ?? request.costEstimate?.spreadRate ?? null,
+      impactRate: options?.impactRate ?? request.costEstimate?.impactRate ?? null,
+      gateBypassedReason: options?.gateBypassedReason ?? request.gateBypassedReason ?? null,
+      triggerReason: options?.triggerReason ?? request.triggerReason ?? null,
+    };
+  }
+
+  private async resolveLimitReferencePrice(
+    symbol: string,
+    type: OrderTypes,
+    executionMode: OrderExecutionMode,
+    fallbackPrice: number,
+  ): Promise<number> {
+    try {
+      const orderBook = await this.getOrderBook(symbol);
+      const topBid = this.normalizePositiveNumber(orderBook.bids[0]?.[0] ?? null);
+      const topAsk = this.normalizePositiveNumber(orderBook.asks[0]?.[0] ?? null);
+
+      if (executionMode === 'limit_post_only') {
+        if (type === OrderTypes.BUY) {
+          return topBid ?? topAsk ?? fallbackPrice;
+        }
+
+        return topAsk ?? topBid ?? fallbackPrice;
+      }
+
+      if (type === OrderTypes.BUY) {
+        return topAsk ?? topBid ?? fallbackPrice;
+      }
+
+      return topBid ?? topAsk ?? fallbackPrice;
+    } catch {
+      return fallbackPrice;
+    }
+  }
+
   public async order(user: User, request: OrderRequest): Promise<Order | null> {
     const deductionAmount = 1 / 10 ** this.MAX_PRECISION;
 
@@ -349,7 +794,32 @@ export class UpbitService {
 
       return await this.errorService.retry(
         async () => {
-          const amount = request.amount - deductionAmount * retries++;
+          const amount = Math.max(request.amount - deductionAmount * retries++, deductionAmount);
+          const executionMode = request.executionMode ?? 'market';
+
+          if (executionMode === 'limit_ioc' || executionMode === 'limit_post_only') {
+            const limitPrice = this.normalizePositiveNumber(request.limitPrice);
+            if (!limitPrice) {
+              return null;
+            }
+
+            const defaultTimeInForce = executionMode === 'limit_post_only' ? 'po' : 'ioc';
+            const timeInForce = (request.timeInForce ?? defaultTimeInForce).toLowerCase();
+            if (request.type === OrderTypes.BUY) {
+              const volume = amount / limitPrice;
+              if (!Number.isFinite(volume) || volume <= 0) {
+                return null;
+              }
+
+              return await client.createOrder(request.symbol, 'limit', request.type, volume, limitPrice, {
+                timeInForce,
+              });
+            }
+
+            return await client.createOrder(request.symbol, 'limit', request.type, amount, limitPrice, {
+              timeInForce,
+            });
+          }
 
           switch (request.type) {
             case OrderTypes.BUY:
@@ -357,6 +827,9 @@ export class UpbitService {
 
             case OrderTypes.SELL:
               return await client.createOrder(request.symbol, 'market', request.type, amount);
+
+            default:
+              return null;
           }
         },
         {
@@ -372,15 +845,18 @@ export class UpbitService {
     return null;
   }
 
-  public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<Order | null> {
+  public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<AdjustedOrderResult> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
     const { symbol, diff, balances, marketPrice: precomputedMarketPrice } = request;
     const [baseAsset] = symbol.split('/');
+    const urgency: OrderExecutionUrgency = request.executionUrgency ?? (diff < 0 ? 'urgent' : 'normal');
     const symbolExist = await this.isSymbolExist(symbol);
 
     if (!symbolExist) {
-      return null;
+      return this.createAdjustedOrderResult(request, {
+        triggerReason: request.triggerReason ?? 'symbol_not_orderable',
+      });
     }
 
     try {
@@ -395,28 +871,165 @@ export class UpbitService {
       const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(diff) * 0.9995;
       const tradeVolume = symbolTradableVolume * Math.abs(diff);
 
-      // 매수해야 할 경우
+      let type: OrderTypes | null = null;
+      let requestedAmount: number | null = null;
+      let requestedVolume: number | null = null;
+
       if (diff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
-        return await this.order(user, {
-          symbol,
-          type: OrderTypes.BUY,
-          amount: tradePrice,
+        type = OrderTypes.BUY;
+        requestedAmount = tradePrice;
+        requestedVolume = currPrice > 0 ? tradePrice / currPrice : null;
+      } else if (diff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
+        type = OrderTypes.SELL;
+        requestedAmount = tradeVolume * currPrice;
+        requestedVolume = tradeVolume;
+      } else {
+        return this.createAdjustedOrderResult(request, {
+          triggerReason: request.triggerReason ?? 'below_min_trade_amount',
+          requestedAmount: requestedAmount ?? null,
+          requestedVolume: requestedVolume ?? null,
         });
       }
-      // 매도해야 할 경우
-      else if (diff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
-        return await this.order(user, {
-          symbol,
-          type: OrderTypes.SELL,
-          amount: tradeVolume,
+
+      const dynamicCostEstimate =
+        request.costEstimate ??
+        (type === OrderTypes.BUY
+          ? await this.estimateOrderCost(symbol, type, requestedAmount, currPrice)
+          : await this.estimateOrderCost(symbol, type, requestedVolume ?? 0, currPrice));
+      const executionMode = this.resolveExecutionMode(urgency, dynamicCostEstimate, request.expectedEdgeRate);
+      const orderType: 'market' | 'limit' =
+        executionMode === 'limit_ioc' || executionMode === 'limit_post_only' ? 'limit' : 'market';
+      const timeInForce = executionMode === 'limit_post_only' ? 'po' : executionMode === 'limit_ioc' ? 'ioc' : null;
+      const gateBypassedReason =
+        urgency === 'urgent' &&
+        request.expectedEdgeRate != null &&
+        Number.isFinite(request.expectedEdgeRate) &&
+        request.expectedEdgeRate <= dynamicCostEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE
+          ? 'urgent_risk_reduction'
+          : (request.gateBypassedReason ?? null);
+
+      if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, dynamicCostEstimate.estimatedCostRate)) {
+        return this.createAdjustedOrderResult(request, {
+          executionMode,
+          orderType,
+          timeInForce,
+          requestedAmount,
+          requestedVolume,
+          estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+          spreadRate: dynamicCostEstimate.spreadRate,
+          impactRate: dynamicCostEstimate.impactRate,
+          triggerReason: request.triggerReason ?? 'edge_below_cost',
         });
       }
+
+      const requestPrice =
+        executionMode === 'limit_ioc' || executionMode === 'limit_post_only'
+          ? await this.resolveLimitReferencePrice(symbol, type, executionMode, currPrice)
+          : null;
+      const primaryOrderAmount = type === OrderTypes.BUY ? (requestedAmount ?? 0) : (requestedVolume ?? 0);
+      if (primaryOrderAmount <= 0) {
+        return this.createAdjustedOrderResult(request, {
+          executionMode,
+          orderType,
+          timeInForce,
+          requestPrice,
+          requestedAmount,
+          requestedVolume,
+          estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+          spreadRate: dynamicCostEstimate.spreadRate,
+          impactRate: dynamicCostEstimate.impactRate,
+          triggerReason: request.triggerReason ?? 'invalid_order_amount',
+        });
+      }
+
+      const primaryOrder = await this.order(user, {
+        symbol,
+        type,
+        amount: primaryOrderAmount,
+        executionMode,
+        limitPrice: requestPrice ?? undefined,
+        timeInForce: timeInForce ?? undefined,
+        costEstimate: dynamicCostEstimate,
+        expectedEdgeRate: request.expectedEdgeRate,
+        gateBypassedReason,
+        triggerReason: request.triggerReason,
+      });
+
+      let finalOrder = primaryOrder;
+      let fallbackOrder: Order | null = null;
+      let filledAmount = this.resolveOrderNotional(primaryOrder, currPrice);
+      const filledRatio = requestedAmount && requestedAmount > 0 ? filledAmount / requestedAmount : 0;
+
+      if (
+        executionMode === 'limit_ioc' &&
+        requestedAmount > UPBIT_MINIMUM_TRADE_PRICE &&
+        filledRatio < this.LIMIT_IOC_MIN_FILL_RATIO
+      ) {
+        if (type === OrderTypes.BUY) {
+          const remainingNotional = Math.max(0, requestedAmount - filledAmount);
+          if (remainingNotional > UPBIT_MINIMUM_TRADE_PRICE) {
+            fallbackOrder = await this.order(user, {
+              symbol,
+              type,
+              amount: remainingNotional,
+              executionMode: 'market',
+              costEstimate: dynamicCostEstimate,
+              expectedEdgeRate: request.expectedEdgeRate,
+              gateBypassedReason: gateBypassedReason ?? 'limit_ioc_partial_fill',
+              triggerReason: request.triggerReason,
+            });
+          }
+        } else {
+          const primaryFilledVolume = this.normalizePositiveNumber(primaryOrder?.filled) ?? 0;
+          const remainingVolume = Math.max(0, (requestedVolume ?? 0) - primaryFilledVolume);
+          if (remainingVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
+            fallbackOrder = await this.order(user, {
+              symbol,
+              type,
+              amount: remainingVolume,
+              executionMode: 'market',
+              costEstimate: dynamicCostEstimate,
+              expectedEdgeRate: request.expectedEdgeRate,
+              gateBypassedReason: gateBypassedReason ?? 'limit_ioc_partial_fill',
+              triggerReason: request.triggerReason,
+            });
+          }
+        }
+
+        finalOrder = this.mergeOrders(primaryOrder, fallbackOrder, currPrice);
+        filledAmount = this.resolveOrderNotional(finalOrder, currPrice);
+      }
+
+      const resolvedFilledRatio =
+        requestedAmount && requestedAmount > 0 && Number.isFinite(filledAmount)
+          ? Math.max(0, Math.min(1, filledAmount / requestedAmount))
+          : null;
+      const averagePrice = this.resolveOrderAveragePrice(finalOrder, requestPrice ?? currPrice);
+      const orderStatus = (finalOrder?.status ?? null) as string | null;
+
+      return this.createAdjustedOrderResult(request, {
+        order: finalOrder,
+        executionMode,
+        orderType,
+        timeInForce,
+        requestPrice,
+        requestedAmount,
+        requestedVolume,
+        filledAmount: Number.isFinite(filledAmount) ? filledAmount : null,
+        filledRatio: resolvedFilledRatio,
+        averagePrice,
+        orderStatus,
+        estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+        spreadRate: dynamicCostEstimate.spreadRate,
+        impactRate: dynamicCostEstimate.impactRate,
+        gateBypassedReason,
+      });
     } catch (error) {
       this.logger.error(this.i18n.t('logging.order.fail', { args: { id: user.id } }), error);
       await this.notifyService.notify(user, this.i18n.t('notify.order.fail', { args: request }));
     }
 
-    return null;
+    return this.createAdjustedOrderResult(request);
   }
 
   /**

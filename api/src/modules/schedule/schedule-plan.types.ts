@@ -1,4 +1,4 @@
-import { ScheduleExecutionTask } from './schedule-execution.interface';
+import { ScheduleExecutionTask } from './schedule-execution.types';
 
 export interface SchedulePlanResponse {
   task: ScheduleExecutionTask;

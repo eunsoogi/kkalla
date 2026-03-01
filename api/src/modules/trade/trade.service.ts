@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 
 import { User } from '../user/entities/user.entity';
 import { Trade } from './entities/trade.entity';
-import { TradeFilter } from './trade.interface';
+import { TradeFilter } from './trade.types';
 
 /**
  * 거래 조회 전용 서비스.

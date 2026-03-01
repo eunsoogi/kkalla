@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { AllocationAuditBadgeDto } from '@/modules/allocation-audit/dto/allocation-audit-badge.dto';
 import { Category } from '@/modules/category/category.enum';
 
-import { AllocationRecommendationAction } from '../allocation.interface';
+import { AllocationRecommendationAction } from '../allocation.types';
 
 export class AllocationRecommendationDto {
   @ApiProperty()
