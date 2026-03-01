@@ -12,7 +12,7 @@ import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { AdjustedOrderResult, MarketFeatures } from '@/modules/upbit/upbit.types';
 import { User } from '@/modules/user/entities/user.entity';
 import { clamp01 } from '@/utils/math';
-import { formatNumber } from '@/utils/number';
+import { formatNumber, formatRatePercent } from '@/utils/number';
 
 import { SHARED_REBALANCE_POLICY, SHARED_TRADE_EXECUTION_RUNTIME } from './allocation-core.constants';
 import {
@@ -1252,6 +1252,15 @@ export class TradeOrchestrationService {
                     type: runtime.i18n.t(`label.order.type.${trade.type}`),
                     amount: formatNumber(trade.amount),
                     profit: formatNumber(trade.profit),
+                    executionMode: trade.executionMode ?? '-',
+                    orderStatus: trade.orderStatus ?? '-',
+                    filledRatio: formatRatePercent(trade.filledRatio),
+                    expectedEdgeRate: formatRatePercent(trade.expectedEdgeRate),
+                    estimatedCostRate: formatRatePercent(trade.estimatedCostRate),
+                    spreadRate: formatRatePercent(trade.spreadRate),
+                    impactRate: formatRatePercent(trade.impactRate),
+                    triggerReason: trade.triggerReason ?? '-',
+                    gateBypassedReason: trade.gateBypassedReason ?? '-',
                   },
                 }),
               )
@@ -1273,6 +1282,24 @@ export class TradeOrchestrationService {
    */
   private resolveTradePolicy(policy?: TradePolicyConfig): TradePolicyConfig {
     return policy ?? this.defaultTradePolicy;
+  }
+
+  /**
+   * Resolves first cancellable order id from exchange payload.
+   * @param order - Exchange order payload.
+   * @returns Normalized order id or `null` when unavailable.
+   */
+  private resolvePrimaryOrderId(order: Order): string | null {
+    if (typeof order.id !== 'string' || order.id.trim().length < 1) {
+      return null;
+    }
+
+    const [firstOrderId] = order.id
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    return firstOrderId ?? null;
   }
 
   /**
@@ -1306,14 +1333,66 @@ export class TradeOrchestrationService {
         resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(order),
       },
     );
+    const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     if (!hasExecutedFill) {
+      const orderId = this.resolvePrimaryOrderId(order);
+      if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
+        try {
+          // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
+          await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
+          runtime.logger.log(
+            runtime.i18n.t('logging.trade.post_only_cancelled', {
+              args: {
+                id: user.id,
+                symbol: request.symbol,
+                orderId,
+              },
+            }),
+          );
+        } catch (error) {
+          runtime.logger.warn(
+            runtime.i18n.t('logging.trade.post_only_cancel_failed', {
+              args: {
+                id: user.id,
+                symbol: request.symbol,
+                orderId,
+              },
+            }),
+            error,
+          );
+          // Persist a trace record when cancellation fails so operators can investigate potential drift.
+          await this.saveTrade(user, {
+            symbol: request.symbol,
+            type,
+            amount: 0,
+            profit: 0,
+            inference: request.inference,
+            executionMode: adjustedOrder.executionMode ?? request.executionMode ?? null,
+            orderType: adjustedOrder.orderType ?? request.orderType ?? null,
+            timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
+            requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
+            averagePrice: adjustedOrder.averagePrice ?? null,
+            requestedAmount,
+            filledAmount,
+            filledRatio,
+            orderStatus: adjustedOrder.orderStatus ?? order.status ?? 'open',
+            expectedEdgeRate,
+            estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
+            spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
+            impactRate: adjustedOrder.impactRate ?? request.impactRate ?? null,
+            missedOpportunityCost: null,
+            gateBypassedReason: adjustedOrder.gateBypassedReason ?? request.gateBypassedReason ?? null,
+            triggerReason: adjustedOrder.triggerReason ?? request.triggerReason ?? 'post_only_unfilled_cancel_failed',
+          });
+        }
+        return null;
+      }
       runtime.logger.log(runtime.i18n.t('logging.trade.not_exist', { args: { id: user.id, symbol: request.symbol } }));
       return null;
     }
 
     const amount = filledAmount;
     const profit = await runtime.exchangeService.calculateProfit(request.balances, order, amount);
-    const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     // Estimate unrealized edge lost by partial fill (for post-trade diagnostics only).
     const missedOpportunityCost =
       requestedAmount != null &&

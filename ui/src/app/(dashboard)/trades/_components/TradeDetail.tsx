@@ -11,7 +11,7 @@ import { CursorItem } from '@/shared/types/pagination.types';
 import { Trade } from '@/app/(dashboard)/_shared/trades/trade.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
-import { formatNumber } from '@/utils/number';
+import { formatNumber, formatRatePercent } from '@/utils/number';
 
 import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
 import { getTradeCursorAction } from '../_actions/trade.actions';
@@ -82,6 +82,46 @@ const TradeDetailItem: React.FC<TradeDetailListContentProps> = (params) => {
                         {getDiffPrefix(item.profit)}
                         {formatNumber(item.profit)}
                       </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.executionMode')}</span>
+                      <span className='text-dark dark:text-white'>
+                        {item.executionMode ? t(`trade.executionModes.${item.executionMode}`) : '-'}
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.filledRatio')}</span>
+                      <span className='text-dark dark:text-white'>{formatRatePercent(item.filledRatio, 2)}</span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.orderStatus')}</span>
+                      <span className='text-dark dark:text-white'>{item.orderStatus ?? '-'}</span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.expectedEdgeRate')}</span>
+                      <span className='text-dark dark:text-white'>{formatRatePercent(item.expectedEdgeRate, 2)}</span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.estimatedCostRate')}</span>
+                      <span className='text-dark dark:text-white'>
+                        {formatRatePercent(item.estimatedCostRate, 2)}
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.spreadRate')}</span>
+                      <span className='text-dark dark:text-white'>{formatRatePercent(item.spreadRate, 2)}</span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.impactRate')}</span>
+                      <span className='text-dark dark:text-white'>{formatRatePercent(item.impactRate, 2)}</span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.triggerReason')}</span>
+                      <span className='text-dark dark:text-white'>{item.triggerReason ?? '-'}</span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-darklink'>{t('trade.gateBypassedReason')}</span>
+                      <span className='text-dark dark:text-white'>{item.gateBypassedReason ?? '-'}</span>
                     </div>
                   </div>
                   <div className='flex mt-3'>

@@ -845,6 +845,33 @@ export class UpbitService {
     return null;
   }
 
+  /**
+   * Attempts to cancel exchange orders for explicit post-only unfilled handling.
+   * @param user - User whose exchange client will be used.
+   * @param orderId - Order identifier (comma-separated ids are supported).
+   * @param symbol - Optional market symbol for exchange adapters requiring it.
+   */
+  public async cancelOrder(user: User, orderId: string, symbol?: string): Promise<void> {
+    const orderIds = orderId
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    if (orderIds.length < 1) {
+      return;
+    }
+
+    const client = await this.getClient(user);
+
+    await Promise.all(
+      orderIds.map((targetOrderId) =>
+        this.errorService.retryWithFallback(async () => {
+          await client.cancelOrder(targetOrderId, symbol);
+        }, this.retryOptions),
+      ),
+    );
+  }
+
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<AdjustedOrderResult> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
