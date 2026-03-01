@@ -1661,6 +1661,10 @@ export class AllocationService implements OnModuleInit {
         feargreedIndex: entity.feargreedIndex ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
+        expectedEdgeRate: entity.expectedEdgeRate ?? null,
+        estimatedCostRate: entity.estimatedCostRate ?? null,
+        spreadRate: entity.spreadRate ?? null,
+        impactRate: entity.impactRate ?? null,
         validation24h: badgeMap.get(entity.id)?.validation24h,
         validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
@@ -1706,6 +1710,10 @@ export class AllocationService implements OnModuleInit {
         feargreedIndex: entity.feargreedIndex ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
+        expectedEdgeRate: entity.expectedEdgeRate ?? null,
+        estimatedCostRate: entity.estimatedCostRate ?? null,
+        spreadRate: entity.spreadRate ?? null,
+        impactRate: entity.impactRate ?? null,
         validation24h: badgeMap.get(entity.id)?.validation24h,
         validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
@@ -1744,6 +1752,10 @@ export class AllocationService implements OnModuleInit {
     allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
     allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
     allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
+    allocationRecommendation.expectedEdgeRate = recommendation.expectedEdgeRate ?? null;
+    allocationRecommendation.estimatedCostRate = recommendation.estimatedCostRate ?? null;
+    allocationRecommendation.spreadRate = recommendation.spreadRate ?? null;
+    allocationRecommendation.impactRate = recommendation.impactRate ?? null;
     return allocationRecommendation.save();
   }
 

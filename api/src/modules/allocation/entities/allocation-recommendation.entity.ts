@@ -163,6 +163,30 @@ export class AllocationRecommendation extends BaseEntity {
   })
   feargreedTimestamp: Date | null;
 
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  expectedEdgeRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  estimatedCostRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  spreadRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  impactRate: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

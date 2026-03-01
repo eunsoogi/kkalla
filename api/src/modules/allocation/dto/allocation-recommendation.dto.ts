@@ -73,6 +73,18 @@ export class AllocationRecommendationDto {
   @ApiProperty({ required: false, nullable: true })
   feargreedTimestamp?: Date | null;
 
+  @ApiProperty({ required: false, nullable: true })
+  expectedEdgeRate?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  estimatedCostRate?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  spreadRate?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  impactRate?: number | null;
+
   @ApiProperty({ required: false, type: () => AllocationAuditBadgeDto })
   validation24h?: AllocationAuditBadgeDto;
 

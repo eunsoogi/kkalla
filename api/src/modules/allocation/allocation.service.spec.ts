@@ -1617,6 +1617,110 @@ describe('AllocationService', () => {
     expect(result[0].modelTargetWeight).toBeCloseTo(0.27, 10);
   });
 
+  it('should include telemetry fields in paginated allocation recommendation responses', async () => {
+    const recommendation = {
+      id: 'rec-1',
+      symbol: 'BTC/KRW',
+      category: Category.COIN_MAJOR,
+      intensity: 0.1,
+      prevIntensity: null,
+      buyScore: 0.5,
+      sellScore: 0.2,
+      modelTargetWeight: 0.22,
+      action: 'buy',
+      reason: 'reason',
+      createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      btcDominance: 58,
+      altcoinIndex: 43,
+      marketRegimeAsOf: new Date('2026-03-01T00:00:00.000Z'),
+      marketRegimeSource: 'live',
+      marketRegimeIsStale: false,
+      feargreedIndex: 66,
+      feargreedClassification: 'greed',
+      feargreedTimestamp: new Date('2026-03-01T00:00:00.000Z'),
+      expectedEdgeRate: 0.021,
+      estimatedCostRate: 0.0014,
+      spreadRate: 0.0005,
+      impactRate: 0.0004,
+    } as any;
+
+    jest.spyOn(AllocationRecommendation, 'paginate').mockResolvedValue({
+      items: [recommendation],
+      total: 1,
+      page: 1,
+      perPage: 10,
+      totalPages: 1,
+    });
+    jest.spyOn(service as any, 'findPreviousModelTargetWeight').mockResolvedValue(0.19);
+
+    const result = await service.paginateAllocationRecommendations({
+      page: 1,
+      perPage: 10,
+      category: Category.COIN_MAJOR,
+    } as any);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'rec-1',
+      expectedEdgeRate: 0.021,
+      estimatedCostRate: 0.0014,
+      spreadRate: 0.0005,
+      impactRate: 0.0004,
+    });
+  });
+
+  it('should include telemetry fields in cursor allocation recommendation responses', async () => {
+    const recommendation = {
+      id: 'rec-2',
+      symbol: 'ETH/KRW',
+      category: Category.COIN_MAJOR,
+      intensity: -0.1,
+      prevIntensity: null,
+      buyScore: 0.3,
+      sellScore: 0.4,
+      modelTargetWeight: 0.11,
+      action: 'sell',
+      reason: 'reason',
+      createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      btcDominance: 58,
+      altcoinIndex: 43,
+      marketRegimeAsOf: new Date('2026-03-01T00:00:00.000Z'),
+      marketRegimeSource: 'live',
+      marketRegimeIsStale: false,
+      feargreedIndex: 66,
+      feargreedClassification: 'greed',
+      feargreedTimestamp: new Date('2026-03-01T00:00:00.000Z'),
+      expectedEdgeRate: 0.018,
+      estimatedCostRate: 0.0013,
+      spreadRate: 0.00045,
+      impactRate: 0.00035,
+    } as any;
+
+    jest.spyOn(AllocationRecommendation, 'cursor').mockResolvedValue({
+      items: [recommendation],
+      total: 1,
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    jest.spyOn(service as any, 'findPreviousModelTargetWeight').mockResolvedValue(0.14);
+
+    const result = await service.cursorAllocationRecommendations({
+      perPage: 10,
+      category: Category.COIN_MAJOR,
+    } as any);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'rec-2',
+      expectedEdgeRate: 0.018,
+      estimatedCostRate: 0.0013,
+      spreadRate: 0.00045,
+      impactRate: 0.00035,
+    });
+  });
+
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {
     const profitService = (service as any).profitService;
     const notifyService = (service as any).notifyService;
