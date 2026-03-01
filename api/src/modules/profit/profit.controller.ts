@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { PaginatedItem } from '@/modules/item/item.interface';
+import { PaginatedItem } from '@/modules/item/item.types';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';

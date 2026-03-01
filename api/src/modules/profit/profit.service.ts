@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { getStartOfTodayInOffset, parseTzOffsetHours } from '@/utils/date';
 
 import { Trade } from '../trade/entities/trade.entity';
 import { User } from '../user/entities/user.entity';
-import { ProfitData, ProfitFilter } from './profit.interface';
+import { ProfitData, ProfitFilter } from './profit.types';
 
 @Injectable()
 export class ProfitService {

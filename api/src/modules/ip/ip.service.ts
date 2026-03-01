@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
 import { API_URL } from './ip.config';
-import { IpResponse } from './ip.interface';
+import { IpResponse } from './ip.types';
 
 @Injectable()
 export class IpService {

@@ -16,6 +16,13 @@ export interface AllocationRecommendation {
   prevModelTargetWeight?: number | null;
   intensity?: number;
   prevIntensity?: number | null;
+  decisionConfidence?: number;
+  expectedVolatilityPct?: number;
+  riskFlags?: string[];
+  expectedEdgeRate?: number;
+  estimatedCostRate?: number;
+  spreadRate?: number;
+  impactRate?: number;
   category: Category;
   reason: string;
   createdAt?: string;

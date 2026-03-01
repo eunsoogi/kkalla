@@ -8,6 +8,19 @@ export interface RecommendationItem {
   confidence?: number;
 }
 
+export interface CategoryExposureCaps {
+  coinMajor: number;
+  coinMinor: number;
+  nasdaq: number;
+}
+
+export interface MarketRegimePolicy {
+  exposureMultiplier: number;
+  rebalanceBandMultiplier: number;
+  turnoverCap: number;
+  categoryExposureCaps: CategoryExposureCaps;
+}
+
 export type AllocationRecommendationAction = 'buy' | 'sell' | 'hold' | 'no_trade';
 export type AllocationMode = 'new' | 'existing';
 export type TradeExecutionMessageModule = 'allocation' | 'risk';
@@ -32,6 +45,10 @@ export interface AllocationRecommendationData {
   decisionConfidence?: number;
   expectedVolatilityPct?: number;
   riskFlags?: string[];
+  expectedEdgeRate?: number;
+  estimatedCostRate?: number;
+  spreadRate?: number;
+  impactRate?: number;
   btcDominance?: number | null;
   altcoinIndex?: number | null;
   marketRegimeAsOf?: Date | null;

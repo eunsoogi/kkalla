@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 
 import { Category } from '@/modules/category/category.enum';
-import { PaginatedItem } from '@/modules/item/item.interface';
+import { PaginatedItem } from '@/modules/item/item.types';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { GetBlacklistsDto } from '../dto/get-blacklists.dto';

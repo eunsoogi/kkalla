@@ -1,9 +1,9 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 
 import { REDLOCK_OPTIONS } from './redlock.constants';
-import { RedlockModuleOptions } from './redlock.interface';
-import { RedlockModuleAsyncOptions } from './redlock.interface';
 import { RedlockService } from './redlock.service';
+import { RedlockModuleOptions } from './redlock.types';
+import { RedlockModuleAsyncOptions } from './redlock.types';
 
 @Global()
 @Module({})

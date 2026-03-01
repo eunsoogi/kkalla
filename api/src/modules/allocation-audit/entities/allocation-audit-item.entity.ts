@@ -13,7 +13,7 @@ import {
 
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
-import { AllocationAuditStatus, AllocationAuditVerdict, ReportType } from '../allocation-audit.interface';
+import { AllocationAuditStatus, AllocationAuditVerdict, ReportType } from '../allocation-audit.types';
 import { AllocationAuditRun } from './allocation-audit-run.entity';
 
 @Entity('allocation_audit_item')

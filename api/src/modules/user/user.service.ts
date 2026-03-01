@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 
-import { PaginatedItem } from '@/modules/item/item.interface';
+import { PaginatedItem } from '@/modules/item/item.types';
 
 import { RoleService } from '../role/role.service';
 import { GetUsersDto } from './dto/get-users.dto';
@@ -10,7 +10,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDto } from './dto/user.dto';
 import { User } from './entities/user.entity';
 import { UserRole } from './user.enum';
-import { UserData } from './user.interface';
+import { UserData } from './user.types';
 
 @Injectable()
 export class UserService {

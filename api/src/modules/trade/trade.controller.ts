@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.types';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
@@ -8,8 +8,8 @@ import { User } from '../user/entities/user.entity';
 import { GetTradeCursorDto } from './dto/get-trade-cursor.dto';
 import { GetTradeDto } from './dto/get-trade.dto';
 import { Trade } from './entities/trade.entity';
-import { TradeFilter } from './trade.interface';
 import { TradeService } from './trade.service';
+import { TradeFilter } from './trade.types';
 
 /**
  * 거래 조회 전용 컨트롤러.

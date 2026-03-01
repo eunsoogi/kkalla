@@ -3,7 +3,7 @@ import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nest
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { PaginatedItem } from '../item/item.interface';
+import { PaginatedItem } from '../item/item.types';
 import { Permission } from '../permission/permission.enum';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';

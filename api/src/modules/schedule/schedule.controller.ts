@@ -7,14 +7,14 @@ import { PermissionGuard } from '../auth/guards/permission.guard';
 import { Permission } from '../permission/permission.enum';
 import { User } from '../user/entities/user.entity';
 import { CreateScheduleDto } from './dto/update-schedule.dto';
+import { ScheduleExecutionService } from './schedule-execution.service';
 import {
   ScheduleExecutionResponse,
   ScheduleExecutionTask,
   ScheduleLockReleaseResponse,
   ScheduleLockStateResponse,
-} from './schedule-execution.interface';
-import { ScheduleExecutionService } from './schedule-execution.service';
-import { SchedulePlanResponse } from './schedule-plan.interface';
+} from './schedule-execution.types';
+import { SchedulePlanResponse } from './schedule-plan.types';
 import { ScheduleService } from './schedule.service';
 
 const EXECUTION_TASKS: ScheduleExecutionTask[] = [

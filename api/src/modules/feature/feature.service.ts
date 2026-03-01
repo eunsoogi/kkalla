@@ -5,8 +5,8 @@ import { I18nService } from 'nestjs-i18n';
 
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { UPBIT_ALLOCATION_RECOMMENDATION_CONFIG } from '@/modules/allocation/prompts/allocation-recommendation.prompt';
-import { MarketFeatures } from '@/modules/upbit/upbit.interface';
 import { UpbitService } from '@/modules/upbit/upbit.service';
+import { MarketFeatures } from '@/modules/upbit/upbit.types';
 import { formatObjectNumbers } from '@/utils/number';
 
 @Injectable()

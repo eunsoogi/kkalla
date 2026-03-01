@@ -17,12 +17,12 @@ import {
 
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { SortDirection } from '@/modules/item/item.enum';
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { User } from '@/modules/user/entities/user.entity';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
-import { TradeFilter } from '../trade.interface';
+import { TradeFilter } from '../trade.types';
 
 @Entity()
 @Index('idx_trade_user_id', ['user', 'id'])
@@ -70,6 +70,108 @@ export class Trade extends BaseEntity {
     default: 0,
   })
   profit: number = 0;
+
+  @Column({
+    type: 'varchar',
+    length: 24,
+    nullable: true,
+  })
+  executionMode: 'market' | 'limit_ioc' | 'limit_post_only' | null;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  orderType: 'market' | 'limit' | null;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  timeInForce: string | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  requestPrice: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  averagePrice: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  requestedAmount: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  filledAmount: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  filledRatio: number | null;
+
+  @Column({
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  orderStatus: string | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  expectedEdgeRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  estimatedCostRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  spreadRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  impactRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  missedOpportunityCost: number | null;
+
+  @Column({
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  gateBypassedReason: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  triggerReason: string | null;
 
   @ManyToOne(() => AllocationRecommendation, { nullable: true, cascade: true, eager: true, onDelete: 'SET NULL' })
   @JoinColumn()

@@ -6,6 +6,12 @@ export type ScheduleExecutionTask =
 
 export type ScheduleExecutionStatus = 'started' | 'skipped_lock';
 
+export interface LockConfig {
+  resourceName: string;
+  compatibleResourceNames?: string[];
+  duration: number;
+}
+
 export interface ScheduleExecutionResponse {
   task: ScheduleExecutionTask;
   status: ScheduleExecutionStatus;

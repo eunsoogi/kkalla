@@ -12,11 +12,11 @@ import {
 } from 'typeorm';
 
 import { SortDirection } from '@/modules/item/item.enum';
-import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { Role } from '@/modules/role/entities/role.entity';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
-import { UserFilter } from '../user.interface';
+import { UserFilter } from '../user.types';
 
 @Entity({
   orderBy: {

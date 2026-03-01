@@ -14,7 +14,7 @@ flowchart LR
   API --> OPENAI["OpenAI Responses + Batch"]
   API --> UPBIT["Upbit Exchange API"]
   API --> NEWSAPI["News Providers"]
-  API --> FGAPI["Fear & Greed Source"]
+  API --> FGAPI["Market Regime / Fear & Greed Source"]
   API --> SLACK["Slack API"]
   API --> SQS["AWS SQS"]
 ```
@@ -26,7 +26,7 @@ flowchart TB
   subgraph SRC["api/src"]
     APP["app.module.ts\nRoot composition"]
     MOD["modules/**\nNest feature modules"]
-    CORE["modules/allocation-core/**\nShared allocation domain types/helpers"]
+    CORE["modules/allocation-core/**\nShared allocation domain services/types/helpers"]
     UTL["utils/**\nCross-cutting pure utilities"]
     DBL["databases/**\nTypeORM + migrations"]
   end
@@ -40,7 +40,10 @@ flowchart TB
 Boundary contract:
 
 - `modules/**`: feature/application code, controllers, entities, services.
-- `modules/allocation-core/**`: shared types and pure helpers used by `allocation`, `market-risk`, and related parsing/pipeline code.
+- `modules/allocation-core/**`: shared services, types, and helpers used by `allocation`, `market-risk`, and trade execution pipeline code.
+- `TradeOrchestrationService` centralizes duplicated allocation/risk execution logic (market-regime policy, request generation, sell-first/buy-second execution sequencing, and holding-ledger synchronization).
+- Shared policy/runtime defaults for allocation/risk execution are defined in `modules/allocation-core/allocation-core.constants.ts`.
+- Module-local contracts are standardized as `*.types.ts` (replacing mixed `*.interface.ts` usage).
 - `utils/**`: framework-agnostic utility code. The rule "utils must not import module-layer code" is enforced by `api/src/utils/utils-boundary.spec.ts`.
 - `modules/**/prompts/*.prompt.md`: prompt source of truth; `.prompt.ts` files load markdown via `api/src/utils/prompt-loader.ts`.
 
@@ -59,10 +62,15 @@ flowchart TB
 
   subgraph DECISION["Decision Engines"]
     MI["MarketIntelligenceModule"]
+    REGIME["MarketRegimeModule"]
     ALLOC["AllocationModule"]
     RISK["MarketRiskModule"]
     AUDIT["AllocationAuditModule"]
     SCHED["ScheduleModule"]
+  end
+
+  subgraph CORE_DOMAIN["Shared Allocation Domain"]
+    ACORE["AllocationCoreModule"]
   end
 
   subgraph EXEC["Execution + Read Models"]
@@ -77,7 +85,6 @@ flowchart TB
     UPBIT_M["UpbitModule"]
     OPENAI_M["OpenaiModule"]
     NEWS_M["NewsModule"]
-    FG_M["FeargreedModule"]
     FEATURE_M["FeatureModule"]
     NOTIFY_M["NotifyModule"]
     SLACK_M["SlackModule"]
@@ -93,20 +100,21 @@ flowchart TB
   SCHED --> ALLOC
   SCHED --> AUDIT
 
+  MI --> REGIME
   MI --> OPENAI_M
   MI --> UPBIT_M
   MI --> NEWS_M
-  MI --> FG_M
   MI --> FEATURE_M
   MI --> AUDIT
   MI --> CACHE_M
   MI --> ERROR_M
   MI --> NOTIFY_M
 
+  ALLOC --> ACORE
+  ALLOC --> REGIME
   ALLOC --> OPENAI_M
   ALLOC --> UPBIT_M
   ALLOC --> NEWS_M
-  ALLOC --> FG_M
   ALLOC --> FEATURE_M
   ALLOC --> HOLD
   ALLOC --> PROFIT
@@ -117,10 +125,11 @@ flowchart TB
   ALLOC --> REDLOCK_M
   ALLOC --> SCHED
 
+  RISK --> ACORE
+  RISK --> REGIME
   RISK --> OPENAI_M
   RISK --> UPBIT_M
   RISK --> NEWS_M
-  RISK --> FG_M
   RISK --> FEATURE_M
   RISK --> HOLD
   RISK --> PROFIT
@@ -136,9 +145,11 @@ flowchart TB
   DASH --> HOLD
   DASH --> TRADE
   DASH --> PROFIT
+  DASH --> REGIME
   DASH --> NEWS_M
-  DASH --> FG_M
 
+  REGIME --> CACHE_M
+  REGIME --> ERROR_M
   OPENAI_M --> ERROR_M
   OPENAI_M --> NOTIFY_M
   UPBIT_M --> ERROR_M
@@ -151,24 +162,25 @@ flowchart TB
 
 | Module | Direct Imports | Imported By | Notes |
 | --- | ---: | ---: | --- |
-| `AllocationModule` | 17 | 1 | Allocation recommendation orchestration + SQS producer/consumer |
-| `MarketRiskModule` | 17 | 0 | Volatility monitor + risk-triggered execution |
+| `AllocationModule` | 18 | 1 | Allocation recommendation orchestration + SQS producer/consumer |
+| `MarketRiskModule` | 18 | 0 | Volatility monitor + risk-triggered execution |
 | `MarketIntelligenceModule` | 11 | 2 | Market signal generation and storage |
+| `MarketRegimeModule` | 2 | 4 | Market regime snapshot + fear/greed fallback cache |
+| `AllocationCoreModule` | 1 | 2 | Shared trade orchestration service + allocation/risk policy/types |
 | `ErrorModule` | 1 | 8 | Shared retry/fallback and error handling |
 | `AllocationAuditModule` | 4 | 4 | Validation run/item lifecycle and calibration |
-| `UpbitModule` | 3 | 5 | Exchange adapter and market data access |
+| `UpbitModule` | 3 | 6 | Exchange adapter and market data access |
 | `NotifyModule` | 1 | 7 | User/server notification abstraction |
 | `CacheModule` | 0 | 7 | Redis cache access |
 | `DashboardModule` | 6 | 0 | Aggregated read model API |
 | `ScheduleModule` | 4 | 2 | Schedule config + controlled execution |
-| `FeargreedModule` | 2 | 4 | Market sentiment adapter |
-| `NewsModule` | 2 | 4 | News adapter |
+| `NewsModule` | 2 | 5 | News adapter |
 | `OpenaiModule` | 2 | 4 | LLM calls and batch orchestration |
 | `HoldingLedgerModule` | 2 | 3 | Holdings snapshot/ledger updates |
 | `UserModule` | 1 | 3 | User aggregate and relations |
 | `RedlockModule` | 0 | 4 | Distributed locking |
-| `CategoryModule` | 0 | 3 | Category authorization/constraints |
-| `FeatureModule` | 0 | 3 | Market feature extraction |
+| `CategoryModule` | 0 | 4 | Category authorization/constraints |
+| `FeatureModule` | 2 | 3 | Market feature extraction + news context |
 | `ProfitModule` | 0 | 3 | Profit read model |
 | `AuthModule` | 2 | 0 | Authentication + role hydration |
 | `BlacklistModule` | 0 | 2 | Symbol exclusion rules |
@@ -179,7 +191,6 @@ flowchart TB
 | `HealthModule` | 0 | 0 | Health probe endpoint |
 | `IpModule` | 0 | 0 | External IP utility endpoint |
 | `PermissionModule` | 0 | 0 | Permission catalog endpoint |
-| `SequenceModule` | 0 | 0 | Sequence generator persistence |
 | `TranslateModule` | 0 | 0 | i18n translation bootstrap |
 
 ### 3.3 Explicit Reciprocal Module Dependency
@@ -193,14 +204,16 @@ No other reciprocal pair was detected in module import edges.
 
 ```text
 AllocationAuditModule -> ErrorModule, NotifyModule, OpenaiModule, UpbitModule
-AllocationModule -> AllocationAuditModule, BlacklistModule, CacheModule, CategoryModule, ErrorModule, FeargreedModule, FeatureModule, HoldingLedgerModule, NewsModule, NotifyModule, OpenaiModule, ProfitModule, RedlockModule, ScheduleModule, TradeExecutionLedgerModule, UpbitModule, UserModule
+AllocationCoreModule -> CategoryModule
+AllocationModule -> AllocationAuditModule, AllocationCoreModule, BlacklistModule, CacheModule, CategoryModule, ErrorModule, FeatureModule, HoldingLedgerModule, MarketRegimeModule, NewsModule, NotifyModule, OpenaiModule, ProfitModule, RedlockModule, ScheduleModule, TradeExecutionLedgerModule, UpbitModule, UserModule
 AuthModule -> CacheModule, UserModule
-DashboardModule -> FeargreedModule, HoldingLedgerModule, MarketIntelligenceModule, NewsModule, ProfitModule, TradeModule
+DashboardModule -> HoldingLedgerModule, MarketIntelligenceModule, MarketRegimeModule, NewsModule, ProfitModule, TradeModule
 ErrorModule -> NotifyModule
-FeargreedModule -> CacheModule, ErrorModule
+FeatureModule -> NewsModule, UpbitModule
 HoldingLedgerModule -> CategoryModule, UpbitModule
-MarketIntelligenceModule -> AllocationAuditModule, BlacklistModule, CacheModule, ErrorModule, FeargreedModule, FeatureModule, NewsModule, NotifyModule, OpenaiModule, RedlockModule, UpbitModule
-MarketRiskModule -> AllocationAuditModule, CacheModule, CategoryModule, ErrorModule, FeargreedModule, FeatureModule, HoldingLedgerModule, NewsModule, NotifyModule, OpenaiModule, ProfitModule, RedlockModule, ScheduleModule, SlackModule, TradeExecutionLedgerModule, UpbitModule, UserModule
+MarketIntelligenceModule -> AllocationAuditModule, BlacklistModule, CacheModule, ErrorModule, FeatureModule, MarketRegimeModule, NewsModule, NotifyModule, OpenaiModule, RedlockModule, UpbitModule
+MarketRegimeModule -> CacheModule, ErrorModule
+MarketRiskModule -> AllocationAuditModule, AllocationCoreModule, CacheModule, CategoryModule, ErrorModule, FeatureModule, HoldingLedgerModule, MarketRegimeModule, NewsModule, NotifyModule, OpenaiModule, ProfitModule, RedlockModule, ScheduleModule, SlackModule, TradeExecutionLedgerModule, UpbitModule, UserModule
 NewsModule -> CacheModule, ErrorModule
 NotifyModule -> SlackModule
 OpenaiModule -> ErrorModule, NotifyModule
@@ -217,7 +230,6 @@ UserModule -> RoleModule
 | `BlacklistModule` | `/api/v1/blacklists` | list/get/create/update/delete |
 | `CategoryModule` | `/api/v1/categories` | list/enabled/create/update/delete |
 | `DashboardModule` | `/api/v1/dashboard` | `GET /summary` |
-| `FeargreedModule` | `/api/v1/feargreeds` | `GET /`, `GET /history` |
 | `HoldingLedgerModule` | `/api/v1/holdings` | `GET /` |
 | `IpModule` | `/api/v1/ip` | `GET /` |
 | `MarketIntelligenceModule` | `/api/v1/market-intelligence` | `GET /market-signals`, `GET /market-signals/cursor`, `GET /latest` |
@@ -234,6 +246,8 @@ UserModule -> RoleModule
 | `AllocationModule` | `/api/v1/allocation` | `GET /allocation-recommendations`, `GET /allocation-recommendations/cursor` |
 | `AllocationAuditModule` | `/api/v1/allocation-audit` | `GET /runs`, `GET /runs/:runId/items` |
 | `HealthModule` | `/health` | `GET /` |
+
+`MarketRegimeModule` and `AllocationCoreModule` are provider-only modules and expose no direct HTTP controller.
 
 ## 5) Runtime Scenario Flows
 
@@ -269,7 +283,7 @@ sequenceDiagram
   participant MI as MarketIntelligenceService
   participant Upbit
   participant Blacklist
-  participant Context as News/Feargreed/Features/AuditGuardrail
+  participant Context as News/MarketRegime/Features/AuditGuardrail
   participant OpenAI
   participant DB as MarketSignal
   participant Cache
@@ -290,7 +304,8 @@ sequenceDiagram
 
 Key behavior:
 
-- Market context fetches use fallback wrappers (`fetchCoinNewsWithFallback`, `fetchFearGreedIndexWithFallback`).
+- Market context fetches use fallback wrappers (`fetchCoinNewsWithFallback`, `fetchMarketRegimeWithFallback`).
+- Fear/greed is carried as a `marketRegime.feargreed` snapshot and no longer fetched via a dedicated Feargreed module.
 - Validation guardrail text is injected into prompt context when available.
 - Latest signal state is cached for downstream freshness checks.
 
@@ -320,8 +335,10 @@ sequenceDiagram
 Message envelope fields used by both allocation and risk pipelines:
 
 - `version`, `module`, `runId`, `messageKey`, `userId`, `generatedAt`, `expiresAt`, `inferences`, optional `allocationMode`.
+- Runtime trade metadata persisted by execution services includes `executionMode` (`market` / `limit_ioc` / `limit_post_only`), `filledAmount`, `filledRatio`, and `orderStatus`.
+- Holding ledger buy updates are applied only for trades with positive executed fill (`filledAmount > 0` or equivalent positive fill ratio).
 
-### 5.4 Shared SQS Consumer + Ledger Pipeline (Allocation/Risk)
+### 5.4 Shared SQS Consumer + Ledger + Orchestration Pipeline (Allocation/Risk)
 
 ```mermaid
 sequenceDiagram
@@ -331,6 +348,7 @@ sequenceDiagram
   participant Parser as parseTradeExecutionMessage()
   participant Ledger as TradeExecutionLedgerService
   participant Lock as RedlockService
+  participant Orchestrator as TradeOrchestrationService
   participant Exec as executeAllocationForUser / executeVolatilityTradesForUser
   participant SQS as AWS SQS
 
@@ -348,6 +366,7 @@ sequenceDiagram
       Pipeline->>Lock: withLock(user)
       Pipeline->>Ledger: heartbeatProcessing() interval
       Pipeline->>Exec: execute locked callback
+      Exec->>Orchestrator: build snapshot + build requests + execute rebalance
       alt success
         Pipeline->>Ledger: markSucceeded
         Pipeline->>SQS: delete message
@@ -361,6 +380,10 @@ sequenceDiagram
     end
   end
 ```
+
+Key behavior:
+
+- Allocation and MarketRisk callbacks delegate shared trade-path logic to `TradeOrchestrationService` to keep execution rules consistent across schedule and volatility-triggered flows.
 
 ### 5.5 Market Risk Trigger (`MarketRiskService`)
 
@@ -434,16 +457,16 @@ sequenceDiagram
   participant Trade
   participant Holdings
   participant Signals as MarketIntelligenceService
+  participant MarketRegime as MarketRegimeService
   participant News
-  participant Feargreed
 
   Client->>Dashboard: GET /api/v1/dashboard/summary
   Dashboard->>Profit: getProfit(user)
   Dashboard->>Trade: paginateTrades(last24h)
   Dashboard->>Holdings: getHoldings(user)
   Dashboard->>Signals: getLatestWithPriceChange(10)
+  Dashboard->>MarketRegime: getSnapshot()
   Dashboard->>News: getNewsForDashboard(10)
-  Dashboard->>Feargreed: getFeargreed() + getFeargreedHistory(7)
   Dashboard->>Dashboard: Promise.allSettled + fallback merge
   Dashboard-->>Client: composite summary + optional section errors
 ```
@@ -482,6 +505,17 @@ stateDiagram-v2
   failed --> [*]
 ```
 
+### 6.3 Trade Execution Telemetry Schema
+
+`Trade` persistence now includes execution telemetry fields used by allocation/risk post-trade diagnostics:
+
+- Execution controls: `execution_mode`, `order_type`, `time_in_force`, `request_price`
+- Fill quality: `average_price`, `requested_amount`, `filled_amount`, `filled_ratio`, `order_status`
+- Cost/edge telemetry: `expected_edge_rate`, `estimated_cost_rate`, `spread_rate`, `impact_rate`, `missed_opportunity_cost`
+- Decision trace: `gate_bypassed_reason`, `trigger_reason`
+
+These columns are introduced by migration `api/src/databases/migrations/1772700000000-migration.ts`.
+
 ## 7) Data Ownership Map
 
 | Module | Primary Write Models |
@@ -500,7 +534,9 @@ stateDiagram-v2
 | `RoleModule` | `Role` |
 | `UpbitModule` | `UpbitConfig` |
 | `SlackModule` | `SlackConfig` |
-| `SequenceModule` | `Sequence` |
+| `MarketRegimeModule` | `(none, cache-backed snapshot provider)` |
+
+`SequenceModule` and the `sequence` table are removed from runtime architecture; monotonic ULID keys are generated in application code.
 
 ## 8) AI Prompt Contract
 
@@ -528,3 +564,5 @@ Loading mechanism:
 - Processing heartbeat interval in allocation/risk consumers: `60 seconds`.
 - Trade execution processing stale threshold (`TradeExecutionLedgerService`): `5 minutes`.
 - Market risk cooldowns: symbol `1,800s`, BTC global trigger `3,600s`.
+- Market regime policy can dynamically adjust exposure multiplier, rebalance band, turnover cap, and category exposure caps (`coinMajor`/`coinMinor`/`nasdaq`) used by allocation and risk trade request generation.
+- Shared allocation/risk policy and SQS runtime defaults are loaded from `modules/allocation-core/allocation-core.constants.ts` through `TradeOrchestrationService`.

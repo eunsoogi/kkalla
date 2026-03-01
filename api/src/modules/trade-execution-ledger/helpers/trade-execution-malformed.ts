@@ -2,7 +2,7 @@ import { Message, SQSClient } from '@aws-sdk/client-sqs';
 import { randomUUID } from 'crypto';
 
 import { TradeExecutionModule } from '@/modules/trade-execution-ledger/trade-execution-ledger.enum';
-import { TradeExecutionLedgerAcquireResult } from '@/modules/trade-execution-ledger/trade-execution-ledger.interface';
+import { TradeExecutionLedgerAcquireResult } from '@/modules/trade-execution-ledger/trade-execution-ledger.types';
 
 import { JsonRecord, readStringValue, stringifyUnknownError, tryParseJsonRecord } from './sqs-message';
 import { deleteSqsMessage } from './sqs-processing';

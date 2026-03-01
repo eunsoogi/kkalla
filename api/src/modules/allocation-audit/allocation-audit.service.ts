@@ -28,9 +28,11 @@ import {
   AllocationAuditStatus,
   AllocationAuditVerdict,
   AllocationValidationBadges,
+  ConfidenceCalibrationSample,
+  DeterministicEvaluation,
   MarketValidationBadges,
   ReportType,
-} from './allocation-audit.interface';
+} from './allocation-audit.types';
 import { AllocationAuditItem } from './entities/allocation-audit-item.entity';
 import { AllocationAuditRun } from './entities/allocation-audit-run.entity';
 import {
@@ -38,24 +40,6 @@ import {
   ALLOCATION_AUDIT_EVALUATOR_PROMPT,
   ALLOCATION_AUDIT_EVALUATOR_RESPONSE_SCHEMA,
 } from './prompts/allocation-audit.prompt';
-
-interface DeterministicEvaluation {
-  evaluatedPrice: number | null;
-  recommendationPrice: number | null;
-  returnPct: number | null;
-  directionHit: boolean | null;
-  deterministicScore: number | null;
-  realizedTradePnl: number | null;
-  realizedTradeAmount: number | null;
-  tradeRoiPct: number | null;
-  invalidReason?: string;
-}
-
-interface ConfidenceCalibrationSample {
-  confidence: number;
-  directionHit: boolean;
-  horizonHours: number;
-}
 
 @Injectable()
 export class AllocationAuditService {

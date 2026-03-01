@@ -14,10 +14,10 @@ import {
 } from 'typeorm';
 
 import { SortDirection } from '@/modules/item/item.enum';
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
-import { MarketSignalFilter } from '../market-intelligence.interface';
+import { MarketSignalFilter } from '../market-intelligence.types';
 
 @Entity()
 @Index('idx_market_signal_batch_id', ['batchId'])

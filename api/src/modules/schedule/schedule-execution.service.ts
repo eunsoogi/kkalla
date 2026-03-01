@@ -18,18 +18,13 @@ import {
 import { MarketIntelligenceService } from '../market-intelligence/market-intelligence.service';
 import { RedlockService } from '../redlock/redlock.service';
 import {
+  LockConfig,
   ScheduleExecutionResponse,
   ScheduleExecutionTask,
   ScheduleLockReleaseResponse,
   ScheduleLockStateResponse,
-} from './schedule-execution.interface';
-import { SchedulePlanResponse } from './schedule-plan.interface';
-
-interface LockConfig {
-  resourceName: string;
-  compatibleResourceNames?: string[];
-  duration: number;
-}
+} from './schedule-execution.types';
+import { SchedulePlanResponse } from './schedule-plan.types';
 
 @Injectable()
 export class ScheduleExecutionService {

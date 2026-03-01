@@ -1,6 +1,8 @@
+import { TradeOrchestrationService } from '../allocation-core/trade-orchestration.service';
 import { Category } from '../category/category.enum';
 import { MarketSignal } from '../market-intelligence/entities/market-signal.entity';
-import { MARKET_SIGNAL_STATE_MAX_AGE_MS } from '../market-intelligence/market-intelligence.interface';
+import { MARKET_SIGNAL_STATE_MAX_AGE_MS } from '../market-intelligence/market-intelligence.types';
+import { OrderTypes } from '../upbit/upbit.enum';
 import { AllocationService } from './allocation.service';
 import { AllocationRecommendation } from './entities/allocation-recommendation.entity';
 
@@ -8,6 +10,8 @@ describe('AllocationService', () => {
   let service: AllocationService;
   let cacheService: {
     get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
   };
 
   const originalQueueUrl = process.env.AWS_SQS_QUEUE_URL_ALLOCATION;
@@ -28,6 +32,8 @@ describe('AllocationService', () => {
   beforeEach(() => {
     cacheService = {
       get: jest.fn(),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new AllocationService(
@@ -59,6 +65,7 @@ describe('AllocationService', () => {
       {
         resolveAuthorizedSlotCount: jest.fn().mockResolvedValue(5),
       } as any,
+      new TradeOrchestrationService(),
       {
         notify: jest.fn().mockResolvedValue(undefined),
         clearClients: jest.fn(),
@@ -620,7 +627,7 @@ describe('AllocationService', () => {
     expect(majorSignals.modelTargetWeight).toBeCloseTo(minorSignals.modelTargetWeight, 10);
   });
 
-  it('should apply top-k scaling when creating included trade requests', () => {
+  it('should create positive included trade diff with conviction-normalized sizing', () => {
     const balances: any = { info: [] };
     const inferences = [
       {
@@ -643,7 +650,109 @@ describe('AllocationService', () => {
     );
 
     expect(requests).toHaveLength(1);
-    expect(requests[0].diff).toBeCloseTo(0.1, 10);
+    expect(requests[0].diff).toBeGreaterThan(0);
+    expect(requests[0].diff).toBeLessThanOrEqual(1);
+  });
+
+  it('should enforce regime-based category exposure caps when creating included trade requests', () => {
+    const balances: any = { info: [] };
+    const currentWeights = new Map<string, number>();
+    const inferences = [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 0.8,
+        confidence: 0.9,
+      },
+      {
+        symbol: 'XRP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 0.8,
+        confidence: 0.9,
+      },
+      {
+        symbol: 'ADA/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 0.8,
+        confidence: 0.9,
+      },
+    ];
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+      undefined,
+      undefined,
+      true,
+      1,
+      {
+        coinMajor: 0.7,
+        coinMinor: 0.2,
+        nasdaq: 0.2,
+      },
+    );
+
+    const minorTargetSum = requests
+      .filter((item: any) => item.inference?.category === Category.COIN_MINOR)
+      .reduce((sum: number, item: any) => sum + item.diff, 0);
+    expect(minorTargetSum).toBeLessThanOrEqual(0.200001);
+  });
+
+  it('should not consume category cap when included request is skipped by cost gate', () => {
+    const balances: any = { info: [] };
+    const currentWeights = new Map<string, number>();
+    const inferences = [
+      {
+        symbol: 'SKIP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 0.8,
+        expectedEdgeRate: 0.0001,
+        estimatedCostRate: 0.02,
+      },
+      {
+        symbol: 'KEEP/KRW',
+        category: Category.COIN_MINOR,
+        intensity: 0.9,
+        hasStock: false,
+        modelTargetWeight: 0.8,
+        expectedEdgeRate: 0.2,
+        estimatedCostRate: 0.0005,
+      },
+    ];
+
+    const requests = (service as any).generateIncludedTradeRequests(
+      balances,
+      inferences,
+      5,
+      1,
+      currentWeights,
+      1_000_000,
+      undefined,
+      undefined,
+      true,
+      1,
+      {
+        coinMajor: 0.7,
+        coinMinor: 0.2,
+        nasdaq: 0.2,
+      },
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('KEEP/KRW');
+    expect(requests[0].diff).toBeGreaterThan(0);
   });
 
   it('should generate trim-only sell request for overweight hold/no_trade recommendation', () => {
@@ -699,6 +808,54 @@ describe('AllocationService', () => {
     );
 
     expect(requests).toHaveLength(0);
+  });
+
+  it('should not consume category cap when no-trade trim request is skipped by minimum sell amount', () => {
+    const balances: any = { info: [] };
+    const requests = (service as any).generateNoTradeTrimRequests(
+      balances,
+      [
+        {
+          symbol: 'SKIP/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'hold',
+          intensity: 0,
+          modelTargetWeight: 0.3,
+        },
+        {
+          symbol: 'KEEP/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'hold',
+          intensity: 0,
+          modelTargetWeight: 0.3,
+        },
+      ] as any,
+      5,
+      1,
+      new Map([
+        ['SKIP/KRW', 0.5],
+        ['KEEP/KRW', 0.5],
+      ]),
+      1_000_000,
+      undefined,
+      new Map([
+        ['SKIP/KRW', 1_000],
+        ['KEEP/KRW', 100_000],
+      ]),
+      true,
+      1,
+      {
+        coinMajor: 0.06,
+        coinMinor: 0.8,
+        nasdaq: 0.4,
+      },
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('KEEP/KRW');
+    expect(requests[0].diff).toBeLessThan(0);
   });
 
   it('should cap included trade requests to 5 slots when minor recommendations are 7', () => {
@@ -906,7 +1063,8 @@ describe('AllocationService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('TRX/KRW');
-    expect(requests[0].diff).toBe(-1);
+    expect(requests[0].diff).toBeLessThan(0);
+    expect(requests[0].diff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should not skip excluded liquidation when tradable market value is unknown', () => {
@@ -931,7 +1089,109 @@ describe('AllocationService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('AAA/KRW');
-    expect(requests[0].diff).toBe(-1);
+    expect(requests[0].diff).toBeLessThan(0);
+    expect(requests[0].diff).toBeGreaterThanOrEqual(-1);
+  });
+
+  it('should delay missing-inference liquidation until grace window elapses', async () => {
+    const user = { id: 'user-1' } as any;
+    const request = {
+      symbol: 'TRX/KRW',
+      diff: -0.5,
+      balances: { info: [] },
+      marketPrice: 1_000_000,
+    } as any;
+
+    cacheService.get.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+
+    const first = await (service as any).applyMissingInferenceGraceWindow(user, [request], new Set<string>());
+    const second = await (service as any).applyMissingInferenceGraceWindow(user, [request], new Set<string>());
+
+    expect(first).toEqual([]);
+    expect(second).toHaveLength(1);
+    expect(second[0]).toMatchObject({
+      symbol: 'TRX/KRW',
+      triggerReason: 'missing_inference_grace_elapsed',
+    });
+    expect(cacheService.set).toHaveBeenCalledTimes(2);
+  });
+
+  it('should clear missing-inference counters for symbols that re-enter inference', async () => {
+    await (service as any).applyMissingInferenceGraceWindow({ id: 'user-1' } as any, [], new Set<string>(['BTC/KRW']));
+
+    expect(cacheService.del).toHaveBeenCalledWith('allocation:missing-inference:user-1:BTC/KRW');
+  });
+
+  it('should cap sell and buy executions by regime turnover cap in allocation mode', async () => {
+    const categoryService = (service as any).categoryService;
+    const upbitService = (service as any).upbitService;
+    const holdingLedgerService = (service as any).holdingLedgerService;
+    const marketRegimeService = (service as any).marketRegimeService;
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
+    const user: any = { id: 'user-1', roles: [] };
+    const balances: any = {
+      info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+    };
+    const inferences = [
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        intensity: 0.6,
+        modelTargetWeight: 0.6,
+        action: 'buy',
+        hasStock: false,
+      },
+    ];
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValue([]);
+    upbitService.getBalances.mockResolvedValueOnce(balances).mockResolvedValueOnce(balances);
+    upbitService.calculateTradableMarketValue = jest.fn().mockResolvedValue(1_000_000);
+    marketRegimeService.getSnapshot.mockResolvedValue({
+      btcDominance: 70,
+      altcoinIndex: 10,
+      asOf: new Date(),
+      source: 'live',
+      isStale: false,
+      staleAgeMinutes: 0,
+    });
+
+    const sellRequests = [
+      { symbol: 'SELL-1/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+      { symbol: 'SELL-2/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+      { symbol: 'SELL-3/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+    ] as any[];
+    const buyRequests = [
+      { symbol: 'BUY-1/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-2/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-3/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+    ] as any[];
+
+    jest.spyOn(service as any, 'generateNonAllocationRecommendationTradeRequests').mockReturnValue(sellRequests);
+    jest.spyOn(service as any, 'applyMissingInferenceGraceWindow').mockResolvedValue(sellRequests);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateNoTradeTrimRequests').mockReturnValue([]);
+    jest
+      .spyOn(service as any, 'generateIncludedTradeRequests')
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(buyRequests);
+    const executeTradeSpy = jest
+      .spyOn(tradeOrchestrationService, 'executeTrade')
+      .mockImplementation(async ({ request }) => {
+        return {
+          symbol: request.symbol,
+          type: request.diff < 0 ? 'sell' : 'buy',
+          amount: 10_000,
+          profit: 0,
+          inference: request.inference ?? null,
+        } as any;
+      });
+
+    await service.executeAllocationForUser(user, inferences as any, 'new');
+
+    expect(executeTradeSpy).toHaveBeenCalledTimes(2);
+    expect(executeTradeSpy.mock.calls.map((call) => call[0].request.symbol)).toEqual(['SELL-1/KRW', 'BUY-1/KRW']);
   });
 
   it('should skip inference notify when no authorized recommendations are available', async () => {
@@ -1037,6 +1297,7 @@ describe('AllocationService', () => {
     const categoryService = (service as any).categoryService;
     const upbitService = (service as any).upbitService;
     const holdingLedgerService = (service as any).holdingLedgerService;
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
     const balances: any = { info: [] };
     const user: any = { id: 'user-1', roles: [] };
 
@@ -1073,11 +1334,58 @@ describe('AllocationService', () => {
           inference: inferences[0],
         },
       ]);
-    jest.spyOn(service as any, 'executeTrade').mockResolvedValue(null);
+    jest.spyOn(tradeOrchestrationService, 'executeTrade').mockResolvedValue(null);
 
     await service.executeAllocationForUser(user, inferences as any, 'new');
 
     expect(holdingLedgerService.replaceHoldingsForUser).toHaveBeenCalledWith(user, []);
+  });
+
+  it('should skip trade persistence when adjusted order has no executed fill', async () => {
+    const upbitService = (service as any).upbitService;
+    const tradeOrchestrationService = (service as any).tradeOrchestrationService;
+    upbitService.adjustOrder = jest.fn().mockResolvedValue({
+      order: {
+        side: OrderTypes.BUY,
+        status: 'open',
+      },
+      filledAmount: 0,
+      filledRatio: 0,
+      requestedAmount: 100_000,
+      executionMode: 'limit_post_only',
+      orderType: 'limit',
+      timeInForce: 'po',
+      requestPrice: 100_000_000,
+      averagePrice: null,
+      orderStatus: 'open',
+      expectedEdgeRate: 0.02,
+      estimatedCostRate: 0.001,
+      spreadRate: 0.0004,
+      impactRate: 0.0004,
+      gateBypassedReason: null,
+      triggerReason: 'included_rebalance',
+    });
+    upbitService.getOrderType = jest.fn().mockReturnValue(OrderTypes.BUY);
+    upbitService.calculateAmount = jest.fn().mockResolvedValue(100_000);
+    upbitService.calculateProfit = jest.fn().mockResolvedValue(0);
+
+    const saveTradeSpy = jest.spyOn(tradeOrchestrationService as any, 'saveTrade');
+    const trade = await tradeOrchestrationService.executeTrade({
+      runtime: {
+        logger: (service as any).logger,
+        i18n: (service as any).i18n,
+        exchangeService: upbitService,
+      },
+      user: { id: 'user-1', roles: [] } as any,
+      request: {
+        symbol: 'BTC/KRW',
+        diff: 0.1,
+        balances: { info: [] } as any,
+      } as any,
+    });
+
+    expect(trade).toBeNull();
+    expect(saveTradeSpy).not.toHaveBeenCalled();
   });
 
   it('should block trade-request backfill in existing allocation mode', () => {
@@ -1307,6 +1615,110 @@ describe('AllocationService', () => {
     expect(result).toHaveLength(1);
     expect(result[0].action).toBe('hold');
     expect(result[0].modelTargetWeight).toBeCloseTo(0.27, 10);
+  });
+
+  it('should include telemetry fields in paginated allocation recommendation responses', async () => {
+    const recommendation = {
+      id: 'rec-1',
+      symbol: 'BTC/KRW',
+      category: Category.COIN_MAJOR,
+      intensity: 0.1,
+      prevIntensity: null,
+      buyScore: 0.5,
+      sellScore: 0.2,
+      modelTargetWeight: 0.22,
+      action: 'buy',
+      reason: 'reason',
+      createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      btcDominance: 58,
+      altcoinIndex: 43,
+      marketRegimeAsOf: new Date('2026-03-01T00:00:00.000Z'),
+      marketRegimeSource: 'live',
+      marketRegimeIsStale: false,
+      feargreedIndex: 66,
+      feargreedClassification: 'greed',
+      feargreedTimestamp: new Date('2026-03-01T00:00:00.000Z'),
+      expectedEdgeRate: 0.021,
+      estimatedCostRate: 0.0014,
+      spreadRate: 0.0005,
+      impactRate: 0.0004,
+    } as any;
+
+    jest.spyOn(AllocationRecommendation, 'paginate').mockResolvedValue({
+      items: [recommendation],
+      total: 1,
+      page: 1,
+      perPage: 10,
+      totalPages: 1,
+    });
+    jest.spyOn(service as any, 'findPreviousModelTargetWeight').mockResolvedValue(0.19);
+
+    const result = await service.paginateAllocationRecommendations({
+      page: 1,
+      perPage: 10,
+      category: Category.COIN_MAJOR,
+    } as any);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'rec-1',
+      expectedEdgeRate: 0.021,
+      estimatedCostRate: 0.0014,
+      spreadRate: 0.0005,
+      impactRate: 0.0004,
+    });
+  });
+
+  it('should include telemetry fields in cursor allocation recommendation responses', async () => {
+    const recommendation = {
+      id: 'rec-2',
+      symbol: 'ETH/KRW',
+      category: Category.COIN_MAJOR,
+      intensity: -0.1,
+      prevIntensity: null,
+      buyScore: 0.3,
+      sellScore: 0.4,
+      modelTargetWeight: 0.11,
+      action: 'sell',
+      reason: 'reason',
+      createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      btcDominance: 58,
+      altcoinIndex: 43,
+      marketRegimeAsOf: new Date('2026-03-01T00:00:00.000Z'),
+      marketRegimeSource: 'live',
+      marketRegimeIsStale: false,
+      feargreedIndex: 66,
+      feargreedClassification: 'greed',
+      feargreedTimestamp: new Date('2026-03-01T00:00:00.000Z'),
+      expectedEdgeRate: 0.018,
+      estimatedCostRate: 0.0013,
+      spreadRate: 0.00045,
+      impactRate: 0.00035,
+    } as any;
+
+    jest.spyOn(AllocationRecommendation, 'cursor').mockResolvedValue({
+      items: [recommendation],
+      total: 1,
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    jest.spyOn(service as any, 'findPreviousModelTargetWeight').mockResolvedValue(0.14);
+
+    const result = await service.cursorAllocationRecommendations({
+      perPage: 10,
+      category: Category.COIN_MAJOR,
+    } as any);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'rec-2',
+      expectedEdgeRate: 0.018,
+      estimatedCostRate: 0.0013,
+      spreadRate: 0.00045,
+      impactRate: 0.00035,
+    });
   });
 
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {

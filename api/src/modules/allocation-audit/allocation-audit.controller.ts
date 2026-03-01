@@ -4,6 +4,7 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { Permission } from '../permission/permission.enum';
+import { AllocationAuditService } from './allocation-audit.service';
 import {
   AllocationAuditItemSortBy,
   AllocationAuditRunItemPage,
@@ -12,8 +13,7 @@ import {
   AllocationAuditSortOrder,
   AllocationAuditStatus,
   ReportType,
-} from './allocation-audit.interface';
-import { AllocationAuditService } from './allocation-audit.service';
+} from './allocation-audit.types';
 
 @Controller('api/v1/allocation-audit')
 @UseGuards(GoogleTokenAuthGuard, PermissionGuard)

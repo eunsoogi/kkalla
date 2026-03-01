@@ -5,9 +5,9 @@ import { I18nService } from 'nestjs-i18n';
 import Redlock, { Lock } from 'redlock';
 
 import { REDLOCK_OPTIONS } from './redlock.constants';
-import { RedlockExecutionContext } from './redlock.interface';
-import { RedlockLockStatus } from './redlock.interface';
-import { RedlockModuleOptions } from './redlock.interface';
+import { RedlockExecutionContext } from './redlock.types';
+import { RedlockLockStatus } from './redlock.types';
+import { RedlockModuleOptions } from './redlock.types';
 
 @Injectable()
 export class RedlockService implements OnModuleDestroy {

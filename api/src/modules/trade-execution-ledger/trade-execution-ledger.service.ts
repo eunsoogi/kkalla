@@ -11,7 +11,7 @@ import {
   TradeExecutionLedgerAcquireInput,
   TradeExecutionLedgerAcquireResult,
   TradeExecutionLedgerMarkInput,
-} from './trade-execution-ledger.interface';
+} from './trade-execution-ledger.types';
 
 function isDuplicateInsertError(error: unknown): boolean {
   const code = (error as { code?: string } | null)?.code;

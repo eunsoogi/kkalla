@@ -1,9 +1,9 @@
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
-import { Feargreed, MarketRegimeSnapshot } from '@/modules/market-regime/market-regime.interface';
+import { Feargreed, MarketRegimeSnapshot } from '@/modules/market-regime/market-regime.types';
 import { NewsTypes } from '@/modules/news/news.enum';
-import { CompactNews } from '@/modules/news/news.interface';
-import { MarketFeatures } from '@/modules/upbit/upbit.interface';
+import { CompactNews } from '@/modules/news/news.types';
+import { MarketFeatures } from '@/modules/upbit/upbit.types';
 
 interface RetryFallbackExecutor {
   retryWithFallback<T>(operation: () => Promise<T>): Promise<T>;

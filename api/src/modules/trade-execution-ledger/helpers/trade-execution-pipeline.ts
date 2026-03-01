@@ -4,7 +4,7 @@ import {
   TradeExecutionLedgerStatus,
   TradeExecutionModule,
 } from '@/modules/trade-execution-ledger/trade-execution-ledger.enum';
-import { TradeExecutionLedgerAcquireResult } from '@/modules/trade-execution-ledger/trade-execution-ledger.interface';
+import { TradeExecutionLedgerAcquireResult } from '@/modules/trade-execution-ledger/trade-execution-ledger.types';
 
 import { hasPositiveAttemptCount, stringifyUnknownError } from './sqs-message';
 import {

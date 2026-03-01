@@ -2,11 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 
-import { PaginatedItem } from '../item/item.interface';
+import { PaginatedItem } from '../item/item.types';
 import { GetRolesDto } from './dto/get-roles.dto';
 import { RoleDto } from './dto/role.dto';
 import { Role } from './entities/role.entity';
-import { RoleData } from './role.interface';
+import { RoleData } from './role.types';
 
 @Injectable()
 export class RoleService {

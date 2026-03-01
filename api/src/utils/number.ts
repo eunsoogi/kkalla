@@ -3,6 +3,19 @@ export const formatNumber = (digit: number): string => {
 };
 
 /**
+ * 0~1 비율 값을 퍼센트 문자열로 포맷팅합니다.
+ * @param value 포맷팅할 비율 값
+ * @returns 퍼센트 문자열 또는 기본값('-')
+ */
+export const formatRatePercent = (value: number | null | undefined): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${(value * 100).toFixed(2)}%`;
+};
+
+/**
  * 정수 부분은 그대로 두고, 소수점 부분만 지정된 유효숫자로 제한
  * @param num 포맷팅할 숫자
  * @param precision 소수점 부분의 유효숫자 자릿수 (기본값: 3)

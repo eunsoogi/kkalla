@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { I18nService } from 'nestjs-i18n';
 
 import { NotifyService } from '../notify/notify.service';
-import { RetryOptions, TwoPhaseRetryOptions } from './error.interface';
+import { RetryOptions, TwoPhaseRetryOptions } from './error.types';
 
 @Injectable()
 export class ErrorService {

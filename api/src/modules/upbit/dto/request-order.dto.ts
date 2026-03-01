@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 import { OrderTypes } from '../upbit.enum';
+import { OrderExecutionMode } from '../upbit.types';
 
 export class RequestOrderDto {
   @ApiProperty({
@@ -24,4 +25,25 @@ export class RequestOrderDto {
     example: 1000000,
   })
   amount: number;
+
+  @ApiProperty({
+    required: false,
+    example: 'market',
+    enum: ['market', 'limit_ioc', 'limit_post_only'],
+  })
+  executionMode?: OrderExecutionMode;
+
+  @Type(() => Number)
+  @ApiProperty({
+    required: false,
+    example: 100000000,
+  })
+  limitPrice?: number;
+
+  @ApiProperty({
+    required: false,
+    example: 'ioc',
+    enum: ['ioc', 'fok', 'po'],
+  })
+  timeInForce?: 'ioc' | 'fok' | 'po';
 }

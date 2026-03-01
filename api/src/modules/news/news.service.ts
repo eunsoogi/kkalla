@@ -4,16 +4,16 @@ import { Injectable } from '@nestjs/common';
 import { I18nService } from 'nestjs-i18n';
 import { firstValueFrom } from 'rxjs';
 
-import { CursorItem } from '@/modules/item/item.interface';
+import { CursorItem } from '@/modules/item/item.types';
 
 import { CacheService } from '../cache/cache.service';
 import { Category } from '../category/category.enum';
-import { RetryOptions } from '../error/error.interface';
 import { ErrorService } from '../error/error.service';
+import { RetryOptions } from '../error/error.types';
 import { API_URL } from './news.config';
 import { NewsTypes } from './news.enum';
-import { CompactNews, News, NewsApiResponse, NewsRequest } from './news.interface';
 import { ImportanceLevel } from './news.type';
+import { CompactNews, News, NewsApiResponse, NewsRequest } from './news.types';
 
 @Injectable()
 export class NewsService {

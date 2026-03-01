@@ -3,7 +3,7 @@ import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { GetCursorDto } from '../item/dto/get-cursor.dto';
-import { CursorItem, PaginatedItem } from '../item/item.interface';
+import { CursorItem, PaginatedItem } from '../item/item.types';
 import { User } from '../user/entities/user.entity';
 import { GetNotifyLogDto } from './dto/get-notify-log.dto';
 import { GetNotifyDto } from './dto/get-notify.dto';
