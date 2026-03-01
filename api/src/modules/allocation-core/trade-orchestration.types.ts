@@ -43,6 +43,7 @@ export interface IncludedTradeRequestBuildOptions {
   policy?: TradePolicyConfig;
   balances: Balances;
   candidates: AllocationRecommendationData[];
+  targetSlotCount?: number;
   regimeMultiplier: number;
   currentWeights: Map<string, number>;
   marketPrice: number;

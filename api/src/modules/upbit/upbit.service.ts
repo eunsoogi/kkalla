@@ -679,6 +679,42 @@ export class UpbitService {
     return null;
   }
 
+  /**
+   * Resolves executed volume from mixed exchange payload shapes.
+   * @param order - Raw exchange order payload.
+   * @param fallbackPrice - Reference price used when only notional is known.
+   * @returns Executed volume (base asset units).
+   */
+  private resolveOrderFilledVolume(order: Order | null, fallbackPrice: number): number {
+    if (!order) {
+      return 0;
+    }
+
+    const filled = this.normalizePositiveNumber(order.filled);
+    if (filled != null) {
+      return filled;
+    }
+
+    const average = this.normalizePositiveNumber(order.average);
+    const cost = this.normalizePositiveNumber(order.cost);
+    if (cost != null && average != null && average > 0) {
+      return cost / average;
+    }
+
+    if (cost != null && Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return cost / fallbackPrice;
+    }
+
+    const status = typeof order.status === 'string' ? order.status.toLowerCase() : null;
+    const isFinalizedOrder = status === 'closed' || status === 'filled';
+    const amount = this.normalizePositiveNumber(order.amount);
+    if (isFinalizedOrder && amount != null) {
+      return amount;
+    }
+
+    return 0;
+  }
+
   private mergeOrders(primaryOrder: Order | null, fallbackOrder: Order | null, fallbackPrice: number): Order | null {
     if (!primaryOrder && !fallbackOrder) {
       return null;
@@ -1007,7 +1043,7 @@ export class UpbitService {
             });
           }
         } else {
-          const primaryFilledVolume = this.normalizePositiveNumber(primaryOrder?.filled) ?? 0;
+          const primaryFilledVolume = this.resolveOrderFilledVolume(primaryOrder, currPrice);
           const remainingVolume = Math.max(0, (requestedVolume ?? 0) - primaryFilledVolume);
           if (remainingVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
             fallbackOrder = await this.order(user, {

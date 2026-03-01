@@ -600,6 +600,7 @@ export class TradeOrchestrationService {
       runtime,
       balances,
       candidates,
+      targetSlotCount,
       regimeMultiplier,
       currentWeights,
       marketPrice,
@@ -629,8 +630,9 @@ export class TradeOrchestrationService {
       };
     });
     const totalConviction = convictionRows.reduce((sum, row) => sum + row.conviction, 0);
+    const targetSlotDenominator = Math.max(1, targetSlotCount ?? candidates.length);
     const targetBudget = clamp01(
-      convictionRows.reduce((sum, row) => sum + row.baseTargetWeight, 0) / Math.max(1, candidates.length),
+      convictionRows.reduce((sum, row) => sum + row.baseTargetWeight, 0) / targetSlotDenominator,
     );
     const categoryAllocatedTargetWeight = new Map<Category, number>();
 

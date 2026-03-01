@@ -246,6 +246,71 @@ describe('UpbitService', () => {
     expect(result.filledRatio).toBe(0);
   });
 
+  it('should derive IOC sell remaining volume from cost/average when filled is missing', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [
+        {
+          currency: 'KRW',
+          unit_currency: 'KRW',
+          balance: '1000000',
+        },
+        {
+          currency: 'BTC',
+          unit_currency: 'KRW',
+          balance: '1',
+          avg_buy_price: '90000000',
+        },
+      ],
+      BTC: { free: 1 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    jest.spyOn(service, 'calculateTotalPrice').mockReturnValue(100_000_000);
+    jest.spyOn(service as any, 'getOrderBook').mockResolvedValue({
+      bids: [[99_900_000, 1]],
+      asks: [[100_000_000, 1]],
+    });
+    const orderSpy = jest
+      .spyOn(service, 'order')
+      .mockResolvedValueOnce({
+        side: OrderTypes.SELL,
+        status: 'open',
+        cost: 3_000_000,
+        average: 100_000_000,
+        filled: null,
+      } as any)
+      .mockResolvedValueOnce({
+        side: OrderTypes.SELL,
+        status: 'closed',
+        cost: 7_000_000,
+        average: 100_000_000,
+        filled: 0.07,
+      } as any);
+
+    const result = await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      diff: -0.1,
+      balances,
+      executionUrgency: 'normal',
+      expectedEdgeRate: 0.002,
+      costEstimate: {
+        feeRate: 0.0005,
+        spreadRate: 0.0004,
+        impactRate: 0.0004,
+        estimatedCostRate: 0.0013,
+      },
+    });
+
+    expect(orderSpy).toHaveBeenCalledTimes(2);
+    expect(orderSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ executionMode: 'market' }));
+    expect(orderSpy.mock.calls[1][1].amount).toBeCloseTo(0.07, 8);
+    expect(result.executionMode).toBe('limit_ioc');
+    expect(result.filledAmount).toBeCloseTo(10_000_000, 4);
+    expect(result.filledRatio).toBeCloseTo(1, 6);
+  });
+
   it('should pass lowercase timeInForce to exchange limit orders', async () => {
     const createOrder = jest.fn().mockResolvedValue({ id: 'order-1' });
     jest.spyOn(service, 'getClient').mockResolvedValue({ createOrder } as any);

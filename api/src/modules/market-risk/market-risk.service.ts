@@ -1086,6 +1086,7 @@ export class MarketRiskService implements OnModuleInit {
       runtime: tradeRuntime,
       balances,
       candidates,
+      targetSlotCount: count,
       regimeMultiplier,
       currentWeights,
       marketPrice,

@@ -190,6 +190,68 @@ describe('TradeOrchestrationService', () => {
     });
   });
 
+  describe('included trade request sizing', () => {
+    it('should normalize target budget by configured slot count', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn((key: string) => key) },
+        exchangeService: {},
+      };
+      const balances: any = {
+        info: [],
+      };
+      const candidates: any[] = [
+        {
+          id: 'rec-1',
+          batchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 1,
+          hasStock: true,
+          decisionConfidence: 1,
+          expectedEdgeRate: 1,
+          estimatedCostRate: 0,
+        },
+        {
+          id: 'rec-2',
+          batchId: 'batch-1',
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 1,
+          hasStock: true,
+          decisionConfidence: 1,
+          expectedEdgeRate: 1,
+          estimatedCostRate: 0,
+        },
+      ];
+
+      const withoutSlotCount = service.buildIncludedTradeRequests({
+        runtime,
+        balances,
+        candidates,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>(),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 0.5,
+      });
+      const withSlotCount = service.buildIncludedTradeRequests({
+        runtime,
+        balances,
+        candidates,
+        targetSlotCount: 4,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>(),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 0.5,
+      });
+
+      expect(withoutSlotCount).toHaveLength(2);
+      expect(withSlotCount).toHaveLength(2);
+      expect(withoutSlotCount[0].diff).toBeCloseTo(0.25, 6);
+      expect(withSlotCount[0].diff).toBeCloseTo(0.125, 6);
+    });
+  });
+
   describe('latest recommendation metrics', () => {
     it('should build latest metrics map from latest recommendations per unique symbol', async () => {
       const findSpy = jest.spyOn(AllocationRecommendation, 'find');
