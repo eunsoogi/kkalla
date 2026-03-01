@@ -3,7 +3,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } fro
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { PaginatedItem } from '../item/item.interface';
+import { PaginatedItem } from '../item/item.types';
 import { Permission } from '../permission/permission.enum';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { GetRolesDto } from './dto/get-roles.dto';

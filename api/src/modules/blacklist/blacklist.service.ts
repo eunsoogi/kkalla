@@ -3,7 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 
 import { I18nService } from 'nestjs-i18n';
 
-import { PaginatedItem } from '../item/item.interface';
+import { PaginatedItem } from '../item/item.types';
 import { CreateBlacklistDto } from './dto/create-blacklist.dto';
 import { GetBlacklistsDto } from './dto/get-blacklists.dto';
 import { UpdateBlacklistDto } from './dto/update-blacklist.dto';

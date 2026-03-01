@@ -10,19 +10,19 @@ import { filterUniqueNonBlacklistedItems } from '@/modules/allocation-core/helpe
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { FeatureService } from '@/modules/feature/feature.service';
-import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.types';
 import { NewsService } from '@/modules/news/news.service';
 import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
-import type { KrwTickerDailyData } from '@/modules/upbit/upbit.interface';
 import { UpbitService } from '@/modules/upbit/upbit.service';
+import type { KrwTickerDailyData } from '@/modules/upbit/upbit.types';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
 import { BlacklistService } from '../blacklist/blacklist.service';
 import { Category } from '../category/category.enum';
-import { MarketRegimeSnapshot } from '../market-regime/market-regime.interface';
 import { MarketRegimeService } from '../market-regime/market-regime.service';
+import { MarketRegimeSnapshot } from '../market-regime/market-regime.types';
 import { NotifyService } from '../notify/notify.service';
 import { WithRedlock } from '../redlock/decorators/redlock.decorator';
 import { GetMarketSignalsCursorDto } from './dto/get-market-signals-cursor.dto';
@@ -32,32 +32,19 @@ import { MarketSignalDto } from './dto/market-signal.dto';
 import { MarketSignal } from './entities/market-signal.entity';
 import { MARKET_SIGNAL_LOCK, ScheduleExpression } from './market-intelligence.enum';
 import {
+  LatestPriceChangeOptions,
   MARKET_SIGNAL_STATE_CACHE_KEY,
   MARKET_SIGNAL_STATE_CACHE_TTL_SECONDS,
   MarketSignalData,
   MarketSignalState,
-} from './market-intelligence.interface';
+  SaveMarketSignalOptions,
+  SignalPriceResolution,
+} from './market-intelligence.types';
 import {
   UPBIT_MARKET_SIGNAL_CONFIG,
   UPBIT_MARKET_SIGNAL_PROMPT,
   UPBIT_MARKET_SIGNAL_RESPONSE_SCHEMA,
 } from './prompts/market-signal.prompt';
-
-interface LatestPriceChangeOptions {
-  mode?: 'exact' | 'mixed' | 'approx';
-}
-
-interface SaveMarketSignalOptions {
-  recommendationTime?: Date;
-  marketData?: KrwTickerDailyData | null;
-  marketRegime?: MarketRegimeSnapshot | null;
-  feargreed?: MarketRegimeSnapshot['feargreed'];
-}
-
-interface SignalPriceResolution {
-  price?: number;
-  source: 'minute' | 'fallback' | 'none';
-}
 
 /**
  * 시장 조사 모듈의 핵심 서비스.

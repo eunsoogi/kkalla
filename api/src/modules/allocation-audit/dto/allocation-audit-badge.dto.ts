@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { AllocationAuditStatus, AllocationAuditVerdict } from '../allocation-audit.interface';
+import { AllocationAuditStatus, AllocationAuditVerdict } from '../allocation-audit.types';
 
 export class AllocationAuditBadgeDto {
   @ApiProperty({

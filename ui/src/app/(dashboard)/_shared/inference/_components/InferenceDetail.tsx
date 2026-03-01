@@ -11,6 +11,7 @@ import { SortDirection } from '@/enums/sort.enum';
 import { AllocationAuditBadge, AllocationRecommendation, MarketSignal } from '@/app/(dashboard)/_shared/inference/_types/inference.types';
 import { CursorItem } from '@/shared/types/pagination.types';
 import { formatDate } from '@/utils/date';
+import { formatRatePercent } from '@/utils/number';
 
 import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
 import { getAllocationRecommendationsCursorAction, getMarketSignalsCursorAction } from '../_actions/inference.actions';
@@ -26,19 +27,6 @@ interface InferenceDetailListContentProps {
   startDate?: Date;
   endDate?: Date;
 }
-
-/**
- * Formats rate percent for the dashboard UI flow.
- * @param rate - Input value for rate.
- * @returns Formatted string output for the operation.
- */
-const formatRatePercent = (rate?: number | null): string => {
-  if (rate == null || !Number.isFinite(rate)) {
-    return '-';
-  }
-
-  return `${Math.floor(rate * 100)}%`;
-};
 
 /**
  * Normalizes current ratio for the dashboard UI flow.
@@ -137,6 +125,32 @@ const formatMarketRegimeAsOf = (value?: string | Date | null): string => {
 };
 
 /**
+ * Formats absolute percent value where input is already 0~100 scale.
+ * @param value - Input percent value.
+ * @returns Formatted string output for the operation.
+ */
+const formatAbsolutePercent = (value?: number | null): string => {
+  if (value == null || !Number.isFinite(value)) {
+    return '-';
+  }
+
+  return `${Number(value.toFixed(2)).toString()}%`;
+};
+
+/**
+ * Formats risk flag list for dashboard badge text.
+ * @param value - Input risk flags.
+ * @returns Joined string output for the operation.
+ */
+const formatRiskFlags = (value?: string[] | null): string => {
+  if (!Array.isArray(value) || value.length < 1) {
+    return '-';
+  }
+
+  return value.join(', ');
+};
+
+/**
  * Renders the Inference Detail Item UI for the dashboard UI.
  * @param params - Input values for the dashboard UI operation.
  * @returns Rendered React element for this view.
@@ -183,7 +197,7 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                     <div className='flex flex-col gap-3'>
                       <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
                       {type === 'allocation' ? (
-                        <div className='flex items-center gap-2'>
+                        <div className='flex flex-wrap items-center gap-2'>
                           {(() => {
                             const allocationItem = item as AllocationRecommendation;
                             const currentRatio = resolveCurrentRatio(allocationItem);
@@ -290,6 +304,55 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
                               </Badge>
                             </div>
                           )}
+                        </div>
+                      )}
+                      {type === 'allocation' && (
+                        <div className='flex flex-wrap items-center gap-2'>
+                          {(() => {
+                            const allocationItem = item as AllocationRecommendation;
+                            return (
+                              <>
+                                <Badge color='gray'>
+                                  {`${t('inference.decisionConfidence')} ${formatRatePercent(
+                                    allocationItem.decisionConfidence ?? null,
+                                    2,
+                                  )}`}
+                                </Badge>
+                                <Badge color='gray'>
+                                  {`${t('inference.expectedVolatilityPct')} ${formatAbsolutePercent(
+                                    allocationItem.expectedVolatilityPct ?? null,
+                                  )}`}
+                                </Badge>
+                                <Badge color='gray'>
+                                  {`${t('inference.expectedEdgeRate')} ${formatRatePercent(
+                                    allocationItem.expectedEdgeRate ?? null,
+                                    2,
+                                  )}`}
+                                </Badge>
+                                <Badge color='gray'>
+                                  {`${t('inference.estimatedCostRate')} ${formatRatePercent(
+                                    allocationItem.estimatedCostRate ?? null,
+                                    2,
+                                  )}`}
+                                </Badge>
+                                <Badge color='gray'>
+                                  {`${t('inference.spreadRate')} ${formatRatePercent(
+                                    allocationItem.spreadRate ?? null,
+                                    2,
+                                  )}`}
+                                </Badge>
+                                <Badge color='gray'>
+                                  {`${t('inference.impactRate')} ${formatRatePercent(
+                                    allocationItem.impactRate ?? null,
+                                    2,
+                                  )}`}
+                                </Badge>
+                                <Badge color='gray'>
+                                  {`${t('inference.riskFlags')} ${formatRiskFlags(allocationItem.riskFlags)}`}
+                                </Badge>
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                       <div className='flex flex-wrap items-center gap-2'>

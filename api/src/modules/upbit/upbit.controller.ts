@@ -24,11 +24,16 @@ export class UpbitController {
 
   @Post('order/adjust')
   @UseGuards(GoogleTokenAuthGuard)
-  public async postAdjustOrder(@CurrentUser() user: User, @Body() request: RequestAdjustOrderDto): Promise<Order> {
-    return this.upbitService.adjustOrder(user, {
+  public async postAdjustOrder(
+    @CurrentUser() user: User,
+    @Body() request: RequestAdjustOrderDto,
+  ): Promise<Order | null> {
+    const adjusted = await this.upbitService.adjustOrder(user, {
       ...request,
       balances: await this.upbitService.getBalances(user),
     });
+
+    return adjusted.order;
   }
 
   @Post('config')

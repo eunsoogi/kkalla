@@ -18,7 +18,7 @@
   "order": {
     "fail": "{symbol} 주문에 실패했습니다.",
     "result": "다음과 같이 매매했습니다.\n\n{transactions}",
-    "transaction": "> {symbol} {type}, 거래금: {amount}, 수익금: {profit}"
+    "transaction": "> {symbol} {type}, 거래금: {amount}, 수익금: {profit}, 실행: {executionMode}, 체결률: {filledRatio}, 상태: {orderStatus}, 기대엣지: {expectedEdgeRate}, 추정비용: {estimatedCostRate}, 스프레드: {spreadRate}, 임팩트: {impactRate}, 트리거: {triggerReason}, 게이트우회: {gateBypassedReason}"
   },
   "profit": {
     "result": "수익금: {profit}"

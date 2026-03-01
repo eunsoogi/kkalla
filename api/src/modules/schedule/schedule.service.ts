@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { User } from '@/modules/user/entities/user.entity';
 
 import { Schedule } from './entities/schedule.entity';
-import { ScheduleData } from './schedule.interface';
+import { ScheduleData } from './schedule.types';
 
 /**
  * 스케줄 관리 모듈의 핵심 서비스.

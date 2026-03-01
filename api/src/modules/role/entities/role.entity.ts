@@ -11,12 +11,12 @@ import {
 } from 'typeorm';
 
 import { SortDirection } from '@/modules/item/item.enum';
-import { ItemRequest, PaginatedItem } from '@/modules/item/item.interface';
+import { ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
 import { Permission } from '../../permission/permission.enum';
 import { User } from '../../user/entities/user.entity';
-import { RoleFilter } from '../role.interface';
+import { RoleFilter } from '../role.types';
 
 @Entity()
 export class Role extends BaseEntity {

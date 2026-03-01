@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.types';
 
 import { GoogleTokenAuthGuard } from '../auth/guards/google.guard';
 import { AllocationService } from './allocation.service';

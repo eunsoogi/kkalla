@@ -6,7 +6,7 @@ import { I18nService } from 'nestjs-i18n';
 import { ApikeyStatus } from '../apikey/apikey.enum';
 import { User } from '../user/entities/user.entity';
 import { SlackConfig } from './entities/slack-config.entity';
-import { SlackConfigData, SlackMessage, SlackServerConfig } from './slack.interface';
+import { SlackConfigData, SlackMessage, SlackServerConfig } from './slack.types';
 
 @Injectable()
 export class SlackService {

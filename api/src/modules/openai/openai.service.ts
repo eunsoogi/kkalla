@@ -13,12 +13,7 @@ import type {
 import { ErrorService } from '../error/error.service';
 import { NotifyService } from '../notify/notify.service';
 import type { CitationRef } from './openai-citation.util';
-import type { ResponseCreateConfig } from './openai.interface';
-
-export interface ResponseOutputWithCitations {
-  text: string;
-  citations: CitationRef[];
-}
+import type { ResponseCreateConfig, ResponseOutputWithCitations } from './openai.types';
 
 @Injectable()
 export class OpenaiService {

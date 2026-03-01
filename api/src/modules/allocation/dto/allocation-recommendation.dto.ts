@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { AllocationAuditBadgeDto } from '@/modules/allocation-audit/dto/allocation-audit-badge.dto';
 import { Category } from '@/modules/category/category.enum';
 
-import { AllocationRecommendationAction } from '../allocation.interface';
+import { AllocationRecommendationAction } from '../allocation.types';
 
 export class AllocationRecommendationDto {
   @ApiProperty()
@@ -72,6 +72,18 @@ export class AllocationRecommendationDto {
 
   @ApiProperty({ required: false, nullable: true })
   feargreedTimestamp?: Date | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  expectedEdgeRate?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  estimatedCostRate?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  spreadRate?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  impactRate?: number | null;
 
   @ApiProperty({ required: false, type: () => AllocationAuditBadgeDto })
   validation24h?: AllocationAuditBadgeDto;

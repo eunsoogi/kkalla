@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
-import { PaginatedItem } from '../item/item.interface';
+import { PaginatedItem } from '../item/item.types';
 import { Permission } from '../permission/permission.enum';
 import { BlacklistService } from './blacklist.service';
 import { BlacklistDto } from './dto/blacklist.dto';

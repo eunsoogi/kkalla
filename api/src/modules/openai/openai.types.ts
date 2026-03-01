@@ -2,6 +2,12 @@
  * Responses API 전용 타입 (Chat Completions 레거시 미사용)
  * 입력 메시지는 OpenAI SDK 타입 사용: EasyInputMessage, ResponseInput (openai/resources/responses)
  */
+import type { CitationRef } from './openai-citation.util';
+
+export interface ResponseOutputWithCitations {
+  text: string;
+  citations: CitationRef[];
+}
 
 /** Responses API에서 사용할 도구 (설정으로 지정) */
 export type ResponseTool = { type: 'web_search' };

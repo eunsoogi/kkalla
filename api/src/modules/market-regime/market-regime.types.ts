@@ -58,3 +58,17 @@ export interface FeargreedCachePayload {
   timeUntilUpdate: number;
   diff: number;
 }
+
+export interface CoinMarketCapOverviewDetailResponse {
+  status?: {
+    timestamp?: string;
+  };
+  data?: {
+    marketDominance?: {
+      btcPercentage?: number;
+    };
+    altcoinIndex?: {
+      index?: number;
+    };
+  };
+}

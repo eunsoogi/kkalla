@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '../item/item.interface';
+import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '../item/item.types';
 import { SlackService } from '../slack/slack.service';
 import { User } from '../user/entities/user.entity';
 import { Notify } from './entities/notify.entity';
-import { NotifyData } from './notify.interface';
+import { NotifyData } from './notify.types';
 
 @Injectable()
 export class NotifyService {

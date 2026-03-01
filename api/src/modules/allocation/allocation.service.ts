@@ -1,55 +1,23 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
-import { Message, SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { Message, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { Balances } from 'ccxt';
 import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
 
-import {
-  buildCurrentWeightMap,
-  buildOrderableSymbolSet,
-  buildTradableMarketValueMap,
-} from '@/modules/allocation-core/helpers/allocation-holdings';
-import { resolveMarketRegimeMultiplier } from '@/modules/allocation-core/helpers/allocation-market-regime';
-import {
-  calculateAllocationBand,
-  calculateAllocationModelSignals,
-  calculateRegimeAdjustedTargetWeight,
-  calculateRelativeDiff,
-  clamp01,
-  filterExcludedRecommendationsByCategory,
-  filterIncludedRecommendationsByCategory,
-  isNoTradeRecommendation,
-  isOrderableSymbol,
-  isSellAmountSufficient,
-  normalizeAllocationRecommendationResponsePayload,
-  passesCostGate,
-  resolveAvailableKrwBalance,
-  scaleBuyRequestsToAvailableKrw,
-  shouldReallocate,
-  toPercentString,
-} from '@/modules/allocation-core/helpers/allocation-recommendation';
-import { buildAllocationRecommendationPromptMessages } from '@/modules/allocation-core/helpers/allocation-recommendation-context';
-import { buildLatestAllocationRecommendationMetricsMap } from '@/modules/allocation-core/helpers/allocation-recommendation-metrics';
-import {
-  applyHeldAssetFlags,
-  filterAuthorizedRecommendationItems,
-  filterUniqueNonBlacklistedItems,
-} from '@/modules/allocation-core/helpers/recommendation-item';
+import { CategoryExposureCaps } from '@/modules/allocation-core/allocation-core.types';
 import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
+import { toPercentString } from '@/modules/allocation-core/helpers/allocation-recommendation';
+import { TradeOrchestrationService } from '@/modules/allocation-core/trade-orchestration.service';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
 import { FeatureService } from '@/modules/feature/feature.service';
-import {
-  buildMergedHoldingsForSave,
-  collectExecutedBuyHoldingItems,
-  collectLiquidatedHoldingItems,
-} from '@/modules/holding-ledger/helpers/holding-ledger-trade';
-import { CursorItem, PaginatedItem } from '@/modules/item/item.interface';
+import { CursorItem, PaginatedItem } from '@/modules/item/item.types';
 import { NewsService } from '@/modules/news/news.service';
 import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
+import { createSharedSqsClient } from '@/modules/trade-execution-ledger/helpers/sqs-client';
 import { startSqsConsumer } from '@/modules/trade-execution-ledger/helpers/sqs-consumer';
 import { readStringValue, stringifyUnknownError } from '@/modules/trade-execution-ledger/helpers/sqs-message';
 import { isNonRetryableExecutionError } from '@/modules/trade-execution-ledger/helpers/sqs-processing';
@@ -57,7 +25,6 @@ import { markMalformedMessageAsNonRetryable } from '@/modules/trade-execution-le
 import { parseQueuedInference } from '@/modules/trade-execution-ledger/helpers/trade-execution-message';
 import { parseTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-parser';
 import { processTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-pipeline';
-import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { generateMonotonicUlid } from '@/utils/id';
 import { formatNumber } from '@/utils/number';
 import { normalizeKrwSymbol } from '@/utils/symbol';
@@ -72,7 +39,7 @@ import {
   MARKET_SIGNAL_STATE_CACHE_KEY,
   MARKET_SIGNAL_STATE_MAX_AGE_MS,
   MarketSignalState,
-} from '../market-intelligence/market-intelligence.interface';
+} from '../market-intelligence/market-intelligence.types';
 import { MarketRegimeService } from '../market-regime/market-regime.service';
 import { NotifyService } from '../notify/notify.service';
 import { ProfitService } from '../profit/profit.service';
@@ -82,11 +49,9 @@ import { ScheduleService } from '../schedule/schedule.service';
 import { TradeExecutionModule } from '../trade-execution-ledger/trade-execution-ledger.enum';
 import { TradeExecutionLedgerService } from '../trade-execution-ledger/trade-execution-ledger.service';
 import { Trade } from '../trade/entities/trade.entity';
-import { TradeData, TradeRequest } from '../trade/trade.interface';
-import { UPBIT_MINIMUM_TRADE_PRICE } from '../upbit/upbit.constant';
-import { OrderTypes } from '../upbit/upbit.enum';
-import { MarketFeatures } from '../upbit/upbit.interface';
+import { TradeRequest } from '../trade/trade.types';
 import { UpbitService } from '../upbit/upbit.service';
+import { MarketFeatures } from '../upbit/upbit.types';
 import { User } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
 import {
@@ -101,7 +66,7 @@ import {
   QueueTradeExecutionMessageV2,
   RecommendationItem,
   TradeExecutionMessageV2,
-} from './allocation.interface';
+} from './allocation.types';
 import { AllocationRecommendationDto } from './dto/allocation-recommendation.dto';
 import { GetAllocationRecommendationsCursorDto } from './dto/get-allocation-recommendations-cursor.dto';
 import { GetAllocationRecommendationsPaginationDto } from './dto/get-allocation-recommendations-pagination.dto';
@@ -123,39 +88,15 @@ import {
 export class AllocationService implements OnModuleInit {
   private readonly logger = new Logger(AllocationService.name);
 
-  private readonly MINIMUM_TRADE_INTENSITY = 0;
-  private readonly AI_SIGNAL_WEIGHT = 0.7;
-  private readonly FEATURE_SIGNAL_WEIGHT = 0.3;
-  private readonly FEATURE_CONFIDENCE_WEIGHT = 0.3;
-  private readonly FEATURE_MOMENTUM_WEIGHT = 0.25;
-  private readonly FEATURE_LIQUIDITY_WEIGHT = 0.2;
-  private readonly FEATURE_VOLATILITY_WEIGHT = 0.15;
-  private readonly FEATURE_STABILITY_WEIGHT = 0.1;
-  private readonly VOLATILITY_REFERENCE = 0.12;
-  private readonly SELL_SCORE_THRESHOLD = 0.6;
-  private readonly MIN_ALLOCATION_BAND = 0.01;
-  private readonly ALLOCATION_BAND_RATIO = 0.1;
-  private readonly ESTIMATED_FEE_RATE = 0.0005;
-  private readonly ESTIMATED_SLIPPAGE_RATE = 0.001;
-  private readonly COST_GUARD_MULTIPLIER = 2;
+  private readonly MISSING_INFERENCE_GRACE_CYCLES = 2;
+  private readonly MISSING_INFERENCE_TTL_SECONDS = 60 * 60 * 24;
   private readonly MIN_RECOMMEND_WEIGHT = 0.05;
   private readonly MIN_RECOMMEND_CONFIDENCE = 0.45;
-  private readonly MIN_ALLOCATION_CONFIDENCE = 0.35;
-  private readonly QUEUE_MESSAGE_VERSION = 2 as const;
-  private readonly MESSAGE_TTL_MS = 30 * 60 * 1000;
-  private readonly USER_TRADE_LOCK_DURATION_MS = 5 * 60 * 1000;
-  private readonly PROCESSING_HEARTBEAT_INTERVAL_MS = 60 * 1000;
   private readonly COIN_MAJOR = ['BTC/KRW', 'ETH/KRW'] as const;
   private readonly DEFAULT_ALLOCATION_MODE: AllocationMode = 'new';
 
   // Amazon SQS
-  private readonly sqs = new SQSClient({
-    region: process.env.AWS_REGION,
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  });
+  private readonly sqs = createSharedSqsClient();
 
   private readonly queueUrl = process.env.AWS_SQS_QUEUE_URL_ALLOCATION;
   private readonly acceptedLegacyQueueModules = ['rebalance'];
@@ -170,6 +111,7 @@ export class AllocationService implements OnModuleInit {
     private readonly scheduleService: ScheduleService,
     private readonly categoryService: CategoryService,
     private readonly allocationSlotService: AllocationSlotService,
+    private readonly tradeOrchestrationService: TradeOrchestrationService,
     private readonly notifyService: NotifyService,
     private readonly profitService: ProfitService,
     private readonly newsService: NewsService,
@@ -219,20 +161,23 @@ export class AllocationService implements OnModuleInit {
    */
   private async handleMessage(message: Message): Promise<void> {
     const messageId = message.MessageId;
+    const processingHeartbeatIntervalMs = this.tradeOrchestrationService.getProcessingHeartbeatIntervalMs();
+    const messageTtlMs = this.tradeOrchestrationService.getMessageTtlMs();
+    const userTradeLockDurationMs = this.tradeOrchestrationService.getUserTradeLockDurationMs();
     this.logger.log(this.i18n.t('logging.sqs.message.start', { args: { id: messageId } }));
     await processTradeExecutionMessage<TradeExecutionMessageV2>({
       module: TradeExecutionModule.ALLOCATION,
       message,
       sqs: this.sqs,
       queueUrl: this.queueUrl,
-      heartbeatIntervalMs: this.PROCESSING_HEARTBEAT_INTERVAL_MS,
+      heartbeatIntervalMs: processingHeartbeatIntervalMs,
       parseMessage: (messageBody) => this.parseAllocationMessage(messageBody),
       onMalformedMessage: async (targetMessage, error) => {
         await markMalformedMessageAsNonRetryable(
           {
             message: targetMessage,
             module: TradeExecutionModule.ALLOCATION,
-            messageTtlMs: this.MESSAGE_TTL_MS,
+            messageTtlMs,
             sqs: this.sqs,
             queueUrl: this.queueUrl,
             ledgerService: this.tradeExecutionLedgerService,
@@ -251,7 +196,7 @@ export class AllocationService implements OnModuleInit {
       },
       ledgerService: this.tradeExecutionLedgerService,
       withUserLock: (userId, callback) =>
-        this.redlockService.withLock(`trade:user:${userId}`, this.USER_TRADE_LOCK_DURATION_MS, callback),
+        this.redlockService.withLock(`trade:user:${userId}`, userTradeLockDurationMs, callback),
       executeLocked: async (parsedMessage, assertLockOrThrow) => {
         assertLockOrThrow();
         const user = await this.userService.findById(parsedMessage.userId);
@@ -343,7 +288,7 @@ export class AllocationService implements OnModuleInit {
     return parseTradeExecutionMessage({
       module: TradeExecutionModule.ALLOCATION,
       moduleLabel: 'allocation',
-      queueMessageVersion: this.QUEUE_MESSAGE_VERSION,
+      queueMessageVersion: this.tradeOrchestrationService.getQueueMessageVersion(),
       messageBody,
       acceptedModuleAliases: this.acceptedLegacyQueueModules,
       parseInference: parseQueuedInference,
@@ -599,9 +544,11 @@ export class AllocationService implements OnModuleInit {
     inferenceSymbolsByUserId?: Map<string, Set<string>>,
   ): Promise<void> {
     try {
+      const queueMessageVersion = this.tradeOrchestrationService.getQueueMessageVersion();
+      const messageTtlMs = this.tradeOrchestrationService.getMessageTtlMs();
       const runId = randomUUID();
       const generatedAt = new Date();
-      const expiresAt = new Date(generatedAt.getTime() + this.MESSAGE_TTL_MS);
+      const expiresAt = new Date(generatedAt.getTime() + messageTtlMs);
       const targets = users
         .map((user) => ({
           user,
@@ -626,7 +573,7 @@ export class AllocationService implements OnModuleInit {
           new SendMessageCommand({
             QueueUrl: this.queueUrl,
             MessageBody: JSON.stringify({
-              version: this.QUEUE_MESSAGE_VERSION,
+              version: queueMessageVersion,
               module: this.outboundQueueModuleLabel,
               runId,
               messageKey: `${runId}:${user.id}`,
@@ -706,12 +653,12 @@ export class AllocationService implements OnModuleInit {
     assertLockOrThrow();
 
     const holdingItems = await this.holdingLedgerService.fetchHoldingsByUser(user);
-    const holdingScopedRecommendations = applyHeldAssetFlags(inferences, holdingItems);
+    const holdingScopedRecommendations = this.tradeOrchestrationService.applyHeldAssetFlags(inferences, holdingItems);
     assertLockOrThrow();
 
     // 권한이 있는 추천만 필터링: 사용자가 거래할 수 있는 카테고리만 포함
     const enabledCategories = await this.categoryService.findEnabledByUser(user);
-    const authorizedRecommendations = filterAuthorizedRecommendationItems(
+    const authorizedRecommendations = this.tradeOrchestrationService.filterAuthorizedRecommendationItems(
       user,
       holdingScopedRecommendations,
       enabledCategories,
@@ -765,238 +712,178 @@ export class AllocationService implements OnModuleInit {
       return [];
     }
 
-    const orderableSymbols = await buildOrderableSymbolSet(
-      [
-        ...authorizedRecommendations.map((recommendation) => recommendation.symbol),
-        ...balances.info.map((item) => `${item.currency}/${item.unit_currency}`),
-      ],
-      {
-        isSymbolExist: (symbol) => this.upbitService.isSymbolExist(symbol),
-        onAllCheckFailed: () =>
-          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_failed')),
-        onPartialCheck: () =>
-          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_partial')),
-      },
-    );
-    assertLockOrThrow();
-    // 거래 가능한 총 평가금액은 사용자당 1회만 계산해 모든 주문에서 재사용
-    const marketPrice = await this.upbitService.calculateTradableMarketValue(balances, orderableSymbols);
-    assertLockOrThrow();
+    const referenceSymbols = authorizedRecommendations.map((recommendation) => recommendation.symbol);
+    const tradeRuntime = {
+      logger: this.logger,
+      i18n: this.i18n,
+      exchangeService: this.upbitService,
+    };
+    const executionSnapshot = await this.tradeOrchestrationService.buildTradeExecutionSnapshot({
+      runtime: tradeRuntime,
+      balances,
+      referenceSymbols,
+      assertLockOrThrow,
+    });
     // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
-    const regimeMultiplier = await resolveMarketRegimeMultiplier(() =>
+    const regimePolicy = await this.tradeOrchestrationService.resolveMarketRegimePolicy(() =>
       this.errorService.retryWithFallback(() => this.marketRegimeService.getSnapshot()),
     );
-    assertLockOrThrow();
-    // 현재가 기준 자산 배분 비중 맵 (심볼 -> 현재 비중)
-    const currentWeights = await buildCurrentWeightMap(
-      balances,
-      marketPrice,
-      (symbol) => this.upbitService.getPrice(symbol),
-      orderableSymbols,
-    );
-    assertLockOrThrow();
-    const tradableMarketValueMap = await buildTradableMarketValueMap(
-      balances,
-      (symbol) => this.upbitService.getPrice(symbol),
-      orderableSymbols,
-    );
+    const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
 
     // 편입/편출 결정 분리
     // 1. 추론에 없는 기존 보유 종목 매도 요청 (완전 매도)
-    const nonAllocationRecommendationTradeRequests: TradeRequest[] =
+    const rawNonAllocationRecommendationTradeRequests: TradeRequest[] =
       this.generateNonAllocationRecommendationTradeRequests(
         balances,
         authorizedRecommendations,
-        marketPrice,
-        orderableSymbols,
-        tradableMarketValueMap,
+        executionSnapshot.marketPrice,
+        executionSnapshot.orderableSymbols,
+        executionSnapshot.tradableMarketValueMap,
       );
-
-    // 2. 편출 대상 종목 매도 요청 (추론에서 제외된 종목)
-    const excludedTradeRequests: TradeRequest[] = this.generateExcludedTradeRequests(
-      balances,
-      authorizedRecommendations,
-      slotCount,
-      marketPrice,
-      orderableSymbols,
-      tradableMarketValueMap,
-      allowBackfill,
-    );
-
-    // 3. 편입 대상 종목 매수/매도 요청 (목표 비율 조정)
-    const includedTradeRequests: TradeRequest[] = this.generateIncludedTradeRequests(
-      balances,
-      authorizedRecommendations,
-      slotCount,
-      regimeMultiplier,
-      currentWeights,
-      marketPrice,
-      orderableSymbols,
-      tradableMarketValueMap,
-      allowBackfill,
-    );
-    const noTradeTrimRequests: TradeRequest[] = this.generateNoTradeTrimRequests(
-      balances,
-      authorizedRecommendations,
-      slotCount,
-      regimeMultiplier,
-      currentWeights,
-      marketPrice,
-      orderableSymbols,
-      tradableMarketValueMap,
-      allowBackfill,
-    );
-    const includedSellRequests = includedTradeRequests.filter((item) => item.diff < 0);
-    const sellRequests = [
-      ...nonAllocationRecommendationTradeRequests,
-      ...excludedTradeRequests,
-      ...includedSellRequests,
-      ...noTradeTrimRequests,
-    ];
-
-    // 주문 정책: 매도 순차 실행
-    const sellExecutions = await executeTradesSequentiallyWithRequests(
-      sellRequests,
-      (request) => this.executeTrade(user, request),
-      assertLockOrThrow,
-    );
-    assertLockOrThrow();
-    const sellTrades = sellExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
-
-    // 주문 정책: 매도 완료 후 잔고 재조회
-    const refreshedBalances = await this.upbitService.getBalances(user);
-    assertLockOrThrow();
-
-    let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
-    if (refreshedBalances) {
-      const refreshedOrderableSymbols = await buildOrderableSymbolSet(
-        [
-          ...authorizedRecommendations.map((recommendation) => recommendation.symbol),
-          ...refreshedBalances.info.map((item) => `${item.currency}/${item.unit_currency}`),
-        ],
-        {
-          isSymbolExist: (symbol) => this.upbitService.isSymbolExist(symbol),
-          onAllCheckFailed: () =>
-            this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_failed')),
-          onPartialCheck: () =>
-            this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_partial')),
-        },
-      );
-      assertLockOrThrow();
-      const refreshedMarketPrice = await this.upbitService.calculateTradableMarketValue(
-        refreshedBalances,
-        refreshedOrderableSymbols,
-      );
-      assertLockOrThrow();
-      const refreshedCurrentWeights = await buildCurrentWeightMap(
-        refreshedBalances,
-        refreshedMarketPrice,
-        (symbol) => this.upbitService.getPrice(symbol),
-        refreshedOrderableSymbols,
-      );
-      assertLockOrThrow();
-      const refreshedTradableMarketValueMap = await buildTradableMarketValueMap(
-        refreshedBalances,
-        (symbol) => this.upbitService.getPrice(symbol),
-        refreshedOrderableSymbols,
-      );
-      assertLockOrThrow();
-
-      const refreshedIncludedTradeRequests = this.generateIncludedTradeRequests(
-        refreshedBalances,
-        authorizedRecommendations,
-        slotCount,
-        regimeMultiplier,
-        refreshedCurrentWeights,
-        refreshedMarketPrice,
-        refreshedOrderableSymbols,
-        refreshedTradableMarketValueMap,
-        allowBackfill,
-      );
-      const buyRequests = refreshedIncludedTradeRequests.filter((item) => item.diff > 0);
-      const availableKrw = resolveAvailableKrwBalance(refreshedBalances);
-      const scaledBuyRequests = scaleBuyRequestsToAvailableKrw(buyRequests, availableKrw, {
-        tradableMarketValueMap: refreshedTradableMarketValueMap,
-        fallbackMarketPrice: refreshedMarketPrice,
-        minimumTradePrice: UPBIT_MINIMUM_TRADE_PRICE,
-        onBudgetInsufficient: ({ availableKrw: targetAvailableKrw, totalEstimated, requestedCount }) => {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.buy_budget_insufficient', {
-              args: {
-                availableKrw: targetAvailableKrw,
-                totalEstimated,
-                requestedCount,
-              },
-            }),
-          );
-        },
-        onBudgetScaled: ({ availableKrw: targetAvailableKrw, totalEstimated, scale, requestedCount }) => {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.buy_budget_scaled', {
-              args: {
-                availableKrw: targetAvailableKrw,
-                totalEstimated,
-                scale,
-                requestedCount,
-              },
-            }),
-          );
-        },
-      });
-
-      // 주문 정책: 매수 순차 실행
-      buyExecutions = await executeTradesSequentiallyWithRequests(
-        scaledBuyRequests,
-        (request) => this.executeTrade(user, request),
-        assertLockOrThrow,
-      );
-      assertLockOrThrow();
-    }
-
-    const buyTrades = buyExecutions.map((execution) => execution.trade).filter((item): item is Trade => !!item);
-    const existingHoldings = await this.holdingLedgerService.fetchHoldingsByUser(user);
-    assertLockOrThrow();
-    const liquidatedItems = collectLiquidatedHoldingItems(sellExecutions, OrderTypes.SELL, existingHoldings);
-    const executedBuyItems = collectExecutedBuyHoldingItems(buyExecutions, OrderTypes.BUY);
-    await this.holdingLedgerService.replaceHoldingsForUser(
+    const nonAllocationRecommendationTradeRequests = await this.applyMissingInferenceGraceWindow(
       user,
-      buildMergedHoldingsForSave(existingHoldings, liquidatedItems, executedBuyItems),
+      rawNonAllocationRecommendationTradeRequests,
+      new Set(authorizedRecommendations.map((recommendation) => recommendation.symbol)),
     );
     assertLockOrThrow();
 
-    // 실행된 거래 중 null 제거 (주문이 생성되지 않은 경우)
-    const allTrades: Trade[] = [...sellTrades, ...buyTrades];
+    // 공통 오케스트레이션 서비스로 매도/매수/원장 반영/알림 흐름을 위임한다.
+    return this.tradeOrchestrationService.executeRebalanceTrades({
+      runtime: tradeRuntime,
+      holdingLedgerService: this.holdingLedgerService,
+      notifyService: this.notifyService,
+      user,
+      referenceSymbols,
+      initialSnapshot: executionSnapshot,
+      turnoverCap: regimePolicy.turnoverCap,
+      additionalSellRequests: nonAllocationRecommendationTradeRequests,
+      assertLockOrThrow,
+      buildExcludedRequests: (snapshot) =>
+        this.generateExcludedTradeRequests(
+          snapshot.balances,
+          authorizedRecommendations,
+          slotCount,
+          snapshot.marketPrice,
+          snapshot.orderableSymbols,
+          snapshot.tradableMarketValueMap,
+          allowBackfill,
+        ),
+      buildIncludedRequests: (snapshot) =>
+        this.generateIncludedTradeRequests(
+          snapshot.balances,
+          authorizedRecommendations,
+          slotCount,
+          regimeMultiplier,
+          snapshot.currentWeights,
+          snapshot.marketPrice,
+          snapshot.orderableSymbols,
+          snapshot.tradableMarketValueMap,
+          allowBackfill,
+          regimePolicy.rebalanceBandMultiplier,
+          regimePolicy.categoryExposureCaps,
+        ),
+      buildNoTradeTrimRequests: (snapshot) =>
+        this.generateNoTradeTrimRequests(
+          snapshot.balances,
+          authorizedRecommendations,
+          slotCount,
+          regimeMultiplier,
+          snapshot.currentWeights,
+          snapshot.marketPrice,
+          snapshot.orderableSymbols,
+          snapshot.tradableMarketValueMap,
+          allowBackfill,
+          regimePolicy.rebalanceBandMultiplier,
+          regimePolicy.categoryExposureCaps,
+        ),
+    });
+  }
 
-    // 거래가 실행된 경우 사용자에게 알림 전송
-    if (allTrades.length > 0) {
-      await this.notifyService.notify(
-        user,
-        this.i18n.t('notify.order.result', {
-          args: {
-            transactions: allTrades
-              .map((trade) =>
-                this.i18n.t('notify.order.transaction', {
-                  args: {
-                    symbol: trade.symbol,
-                    type: this.i18n.t(`label.order.type.${trade.type}`),
-                    amount: formatNumber(trade.amount),
-                    profit: formatNumber(trade.profit),
-                  },
-                }),
-              )
-              .join('\n'),
-          },
-        }),
-      );
-      assertLockOrThrow();
-    }
+  private getMissingInferenceCacheKey(userId: string, symbol: string): string {
+    return `allocation:missing-inference:${userId}:${symbol}`;
+  }
 
-    // 클라이언트 캐시 초기화 (메모리 누수 방지)
-    this.upbitService.clearClients();
-    this.notifyService.clearClients();
+  /**
+   * Increments per-symbol "missing from inference" counter.
+   * @param userId - User identifier.
+   * @param symbol - Target symbol.
+   * @returns Incremented missing counter value.
+   */
+  private async increaseMissingInferenceCount(userId: string, symbol: string): Promise<number> {
+    const cacheKey = this.getMissingInferenceCacheKey(userId, symbol);
+    const previous = Number((await this.cacheService.get<number>(cacheKey)) ?? 0);
+    const next = Number.isFinite(previous) ? previous + 1 : 1;
+    await this.cacheService.set(cacheKey, next, this.MISSING_INFERENCE_TTL_SECONDS);
+    return next;
+  }
 
-    return allTrades;
+  /**
+   * Clears per-symbol missing counter once symbol reappears in inference output.
+   * @param userId - User identifier.
+   * @param symbol - Target symbol.
+   */
+  private async clearMissingInferenceCount(userId: string, symbol: string): Promise<void> {
+    const cacheKey = this.getMissingInferenceCacheKey(userId, symbol);
+    await this.cacheService.del(cacheKey);
+  }
+
+  private deriveTradeCostTelemetry(
+    marketFeatures: MarketFeatures | null,
+    expectedVolatilityPct: number,
+    decisionConfidence: number,
+  ): Pick<AllocationRecommendationData, 'expectedEdgeRate' | 'estimatedCostRate' | 'spreadRate' | 'impactRate'> {
+    return this.tradeOrchestrationService.deriveTradeCostTelemetry(
+      marketFeatures,
+      expectedVolatilityPct,
+      decisionConfidence,
+    );
+  }
+
+  /**
+   * Applies missing-inference grace window before forced liquidation.
+   * @param user - User context.
+   * @param requests - Missing-inference sell requests.
+   * @param includedSymbols - Symbols present in current inference set.
+   * @returns Sell requests that passed grace-window gating.
+   */
+  private async applyMissingInferenceGraceWindow(
+    user: User,
+    requests: TradeRequest[],
+    includedSymbols: Set<string>,
+  ): Promise<TradeRequest[]> {
+    // Any symbol present in this cycle should reset its missing counter immediately.
+    await Promise.all(
+      Array.from(includedSymbols).map(async (symbol) => {
+        try {
+          await this.clearMissingInferenceCount(user.id, symbol);
+        } catch (error) {
+          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.missing_clear_failed'), error);
+        }
+      }),
+    );
+
+    const gatedRequests = await Promise.all(
+      requests.map(async (request) => {
+        try {
+          const missingCount = await this.increaseMissingInferenceCount(user.id, request.symbol);
+          // Keep holding during grace window to avoid churn from transient inference omissions.
+          if (missingCount < this.MISSING_INFERENCE_GRACE_CYCLES) {
+            return null;
+          }
+
+          return {
+            ...request,
+            triggerReason: 'missing_inference_grace_elapsed',
+          };
+        } catch (error) {
+          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.missing_count_failed'), error);
+          return request;
+        }
+      }),
+    );
+
+    return gatedRequests.filter((item): item is TradeRequest => item != null);
   }
 
   /**
@@ -1016,33 +903,14 @@ export class AllocationService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
   ): TradeRequest[] {
-    // 추론에 없는 기존 보유 종목 매도 요청 생성
-    const tradeRequests: TradeRequest[] = balances.info
-      .filter((item) => {
-        const tradableBalance = parseFloat(item.balance || 0);
-        const symbol = `${item.currency}/${item.unit_currency}`;
-        // 필터링 조건:
-        // 1. KRW가 아닌 종목 (currency !== unit_currency)
-        // 2. 거래 가능 잔고가 존재
-        // 3. 추론 결과에 포함되지 않은 종목
-        // 4. KRW/거래가능 심볼
-        // 5. 최소 주문 금액 이상
-        return (
-          item.currency !== item.unit_currency &&
-          tradableBalance > 0 &&
-          !inferences.some((inference) => inference.symbol === symbol) &&
-          isOrderableSymbol(symbol, orderableSymbols) &&
-          isSellAmountSufficient(symbol, -1, UPBIT_MINIMUM_TRADE_PRICE, tradableMarketValueMap)
-        );
-      })
-      .map((item) => ({
-        symbol: `${item.currency}/${item.unit_currency}`,
-        diff: -1, // -1은 완전 매도를 의미
-        balances,
-        marketPrice,
-      }));
-
-    return tradeRequests;
+    return this.tradeOrchestrationService.buildMissingInferenceSellRequests({
+      balances,
+      inferences,
+      marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
+      triggerReason: 'missing_from_inference',
+    });
   }
 
   /**
@@ -1067,107 +935,35 @@ export class AllocationService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
     allowBackfill: boolean = true,
+    rebalanceBandMultiplier: number = 1,
+    categoryExposureCaps?: CategoryExposureCaps,
   ): TradeRequest[] {
-    // 편입 대상 종목 선정 (최대 count개)
-    const filteredAllocationRecommendations = filterIncludedRecommendationsByCategory(inferences, {
-      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-      minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-    })
+    const tradeRuntime = {
+      logger: this.logger,
+      i18n: this.i18n,
+      exchangeService: this.upbitService,
+    };
+    const candidates = this.tradeOrchestrationService
+      .filterIncludedRecommendations(inferences)
       .filter((inference) => allowBackfill || inference.hasStock)
       .slice(0, count);
-    const topK = Math.max(1, count);
 
-    // 편입 거래 요청 생성
-    const tradeRequests: TradeRequest[] = filteredAllocationRecommendations
-      .map((inference) => {
-        if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
-          return null;
-        }
-
-        const baseTargetWeight = this.calculateTargetWeight(inference, regimeMultiplier);
-        const targetWeight = clamp01(baseTargetWeight / topK);
-        const currentWeight = currentWeights.get(inference.symbol) ?? 0;
-        const deltaWeight = targetWeight - currentWeight;
-
-        // 목표와 현재 비중 차이가 작으면 불필요한 재조정을 생략
-        if (!shouldReallocate(targetWeight, deltaWeight, this.MIN_ALLOCATION_BAND, this.ALLOCATION_BAND_RATIO)) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.skip_allocation_band', {
-              args: {
-                symbol: inference.symbol,
-                targetWeight,
-                currentWeight,
-                deltaWeight,
-                requiredBand: calculateAllocationBand(
-                  targetWeight,
-                  this.MIN_ALLOCATION_BAND,
-                  this.ALLOCATION_BAND_RATIO,
-                ),
-              },
-            }),
-          );
-          return null;
-        }
-
-        // 예상 거래비용(수수료+슬리피지)보다 작은 조정은 생략
-        if (
-          !passesCostGate(
-            deltaWeight,
-            this.ESTIMATED_FEE_RATE,
-            this.ESTIMATED_SLIPPAGE_RATE,
-            this.COST_GUARD_MULTIPLIER,
-          )
-        ) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.skip_cost_gate', {
-              args: {
-                symbol: inference.symbol,
-                deltaWeight,
-                minEdge: (this.ESTIMATED_FEE_RATE + this.ESTIMATED_SLIPPAGE_RATE) * this.COST_GUARD_MULTIPLIER,
-              },
-            }),
-          );
-          return null;
-        }
-
-        const diff = calculateRelativeDiff(targetWeight, currentWeight);
-        if (!Number.isFinite(diff) || Math.abs(diff) < Number.EPSILON) {
-          return null;
-        }
-
-        this.logger.log(
-          this.i18n.t('logging.inference.allocationRecommendation.trade_delta', {
-            args: {
-              symbol: inference.symbol,
-              targetWeight,
-              currentWeight,
-              deltaWeight,
-              diff,
-            },
-          }),
-        );
-
-        if (
-          diff < 0 &&
-          !isSellAmountSufficient(inference.symbol, diff, UPBIT_MINIMUM_TRADE_PRICE, tradableMarketValueMap)
-        ) {
-          return null;
-        }
-
-        const tradeRequest: TradeRequest = {
-          symbol: inference.symbol,
-          diff,
-          balances,
-          marketPrice,
-          inference,
-        };
-
-        return tradeRequest;
-      })
-      .filter((item): item is TradeRequest => item !== null)
-      .sort((a, b) => a.diff - b.diff); // 오름차순으로 정렬 (차이가 작은 것부터 처리)
-
-    return tradeRequests;
+    // 공통 서비스의 편입 요청 계산을 사용해 allocation/risk sizing 규칙을 일치시킨다.
+    return this.tradeOrchestrationService.buildIncludedTradeRequests({
+      runtime: tradeRuntime,
+      balances,
+      candidates,
+      targetSlotCount: count,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
+      calculateTargetWeight: (inference, targetRegimeMultiplier) =>
+        this.calculateTargetWeight(inference, targetRegimeMultiplier),
+      orderableSymbols,
+      tradableMarketValueMap,
+      rebalanceBandMultiplier,
+      categoryExposureCaps,
+    });
   }
 
   /**
@@ -1190,52 +986,47 @@ export class AllocationService implements OnModuleInit {
     tradableMarketValueMap?: Map<string, number>,
     allowBackfill: boolean = true,
   ): TradeRequest[] {
-    const includedAllocationRecommendations = filterIncludedRecommendationsByCategory(inferences, {
-      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-      minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-    }).filter((inference) => allowBackfill || inference.hasStock);
+    const tradeRuntime = {
+      logger: this.logger,
+      i18n: this.i18n,
+      exchangeService: this.upbitService,
+    };
+    const includedAllocationRecommendations = this.tradeOrchestrationService
+      .filterIncludedRecommendations(inferences)
+      .filter((inference) => allowBackfill || inference.hasStock);
 
     // 편출 대상 종목 선정:
     // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
     // 2. 편출 대상 종목들 (편입 대상에 포함되지 않은 종목)
     const filteredAllocationRecommendations = [
       ...includedAllocationRecommendations.slice(count),
-      ...filterExcludedRecommendationsByCategory(inferences, {
-        minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-        minAllocationConfidence: this.MIN_ALLOCATION_CONFIDENCE,
-      }),
+      ...this.tradeOrchestrationService.filterExcludedRecommendations(inferences),
     ];
 
-    // 편출 거래 요청 생성: 모두 완전 매도(diff: -1)
-    const tradeRequests: TradeRequest[] = filteredAllocationRecommendations
-      .filter(
-        (inference) =>
-          isOrderableSymbol(inference.symbol, orderableSymbols) &&
-          isSellAmountSufficient(inference.symbol, -1, UPBIT_MINIMUM_TRADE_PRICE, tradableMarketValueMap),
-      )
-      .map((inference) => ({
-        symbol: inference.symbol,
-        diff: -1, // -1은 완전 매도를 의미
-        balances,
-        marketPrice,
-        inference,
-      }));
-
-    return tradeRequests;
+    return this.tradeOrchestrationService.buildExcludedTradeRequests({
+      runtime: tradeRuntime,
+      balances,
+      candidates: filteredAllocationRecommendations,
+      marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
+    });
   }
 
   /**
-   * Builds no trade trim requests used in the allocation recommendation flow.
-   * @param balances - Input value for balances.
-   * @param inferences - Input value for inferences.
-   * @param count - Input value for count.
-   * @param regimeMultiplier - Input value for regime multiplier.
-   * @param currentWeights - Input value for current weights.
-   * @param marketPrice - Input value for market price.
-   * @param orderableSymbols - Asset symbol to process.
-   * @param tradableMarketValueMap - Input value for tradable market value map.
-   * @param allowBackfill - Input value for allow backfill.
-   * @returns Processed collection for downstream workflow steps.
+   * Builds trim-down sell requests for held assets marked as `no_trade`.
+   * @param balances - User balance snapshot.
+   * @param inferences - Recommendation payloads.
+   * @param count - Effective top-K denominator for target sizing.
+   * @param regimeMultiplier - Market-regime exposure multiplier.
+   * @param currentWeights - Current portfolio weight map.
+   * @param marketPrice - Portfolio market value baseline.
+   * @param orderableSymbols - Optional orderable symbol set.
+   * @param tradableMarketValueMap - Optional per-symbol tradable market value map.
+   * @param allowBackfill - Whether non-held items can enter candidate set.
+   * @param rebalanceBandMultiplier - Market-regime rebalance band multiplier.
+   * @param categoryExposureCaps - Optional category exposure caps.
+   * @returns No-trade trim sell requests.
    */
   private generateNoTradeTrimRequests(
     balances: Balances,
@@ -1247,160 +1038,44 @@ export class AllocationService implements OnModuleInit {
     orderableSymbols?: Set<string>,
     tradableMarketValueMap?: Map<string, number>,
     allowBackfill: boolean = true,
+    rebalanceBandMultiplier: number = 1,
+    categoryExposureCaps?: CategoryExposureCaps,
   ): TradeRequest[] {
-    const topK = Math.max(1, count);
+    const tradeRuntime = {
+      logger: this.logger,
+      i18n: this.i18n,
+      exchangeService: this.upbitService,
+    };
+    const candidates = inferences.filter(
+      (inference) =>
+        (allowBackfill || inference.hasStock) &&
+        inference.hasStock &&
+        this.tradeOrchestrationService.isNoTradeRecommendation(inference),
+    );
 
-    return inferences
-      .filter(
-        (inference) =>
-          (allowBackfill || inference.hasStock) &&
-          inference.hasStock &&
-          isNoTradeRecommendation(inference, this.MIN_ALLOCATION_CONFIDENCE),
-      )
-      .map((inference) => {
-        if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'not_orderable',
-              },
-            }),
-          );
-          return null;
-        }
-
-        if (inference.modelTargetWeight == null || !Number.isFinite(inference.modelTargetWeight)) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'missing_target_weight',
-              },
-            }),
-          );
-          return null;
-        }
-
-        const targetWeight = clamp01(clamp01(inference.modelTargetWeight) * regimeMultiplier) / topK;
-        const currentWeight = currentWeights.get(inference.symbol) ?? 0;
-        const deltaWeight = targetWeight - currentWeight;
-        if (deltaWeight >= 0) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'not_overweight',
-                targetWeight,
-                currentWeight,
-                deltaWeight,
-              },
-            }),
-          );
-          return null;
-        }
-
-        if (!shouldReallocate(targetWeight, deltaWeight, this.MIN_ALLOCATION_BAND, this.ALLOCATION_BAND_RATIO)) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'allocation_band',
-                targetWeight,
-                currentWeight,
-                deltaWeight,
-                requiredBand: calculateAllocationBand(
-                  targetWeight,
-                  this.MIN_ALLOCATION_BAND,
-                  this.ALLOCATION_BAND_RATIO,
-                ),
-              },
-            }),
-          );
-          return null;
-        }
-
-        if (
-          !passesCostGate(
-            deltaWeight,
-            this.ESTIMATED_FEE_RATE,
-            this.ESTIMATED_SLIPPAGE_RATE,
-            this.COST_GUARD_MULTIPLIER,
-          )
-        ) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'cost_gate',
-                deltaWeight,
-                minEdge: (this.ESTIMATED_FEE_RATE + this.ESTIMATED_SLIPPAGE_RATE) * this.COST_GUARD_MULTIPLIER,
-              },
-            }),
-          );
-          return null;
-        }
-
-        const diff = calculateRelativeDiff(targetWeight, currentWeight);
-        if (!Number.isFinite(diff) || diff >= 0 || Math.abs(diff) < Number.EPSILON) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'invalid_diff',
-                targetWeight,
-                currentWeight,
-                diff,
-              },
-            }),
-          );
-          return null;
-        }
-
-        if (!isSellAmountSufficient(inference.symbol, diff, UPBIT_MINIMUM_TRADE_PRICE, tradableMarketValueMap)) {
-          this.logger.log(
-            this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
-              args: {
-                symbol: inference.symbol,
-                reason: 'minimum_sell_amount',
-                diff,
-              },
-            }),
-          );
-          return null;
-        }
-
-        this.logger.log(
-          this.i18n.t('logging.inference.allocationRecommendation.no_trade_trim', {
-            args: {
-              symbol: inference.symbol,
-              targetWeight,
-              currentWeight,
-              deltaWeight,
-              diff,
-            },
-          }),
-        );
-
-        return {
-          symbol: inference.symbol,
-          diff,
-          balances,
-          marketPrice,
-          inference,
-        };
-      })
-      .filter((item): item is TradeRequest => item !== null)
-      .sort((a, b) => a.diff - b.diff);
+    // Delegate exact diff/band/cost-gate logic to shared orchestration for consistency.
+    return this.tradeOrchestrationService.buildNoTradeTrimRequests({
+      runtime: tradeRuntime,
+      balances,
+      candidates,
+      topK: count,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
+      rebalanceBandMultiplier,
+      categoryExposureCaps,
+    });
   }
 
   /**
-   * Calculates model signals for the allocation recommendation flow.
-   * @param intensity - Input value for intensity.
-   * @param category - Input value for category.
-   * @param marketFeatures - Input value for market features.
-   * @param symbol - Asset symbol to process.
-   * @returns Result produced by the allocation recommendation flow.
+   * Calculates model signal bundle and emits telemetry log.
+   * @param intensity - Model intensity score.
+   * @param category - Asset category.
+   * @param marketFeatures - Optional market feature payload.
+   * @param symbol - Optional symbol for logging.
+   * @returns Model signal bundle (buy/sell score, target weight, action).
    */
   private calculateModelSignals(
     intensity: number,
@@ -1408,22 +1083,8 @@ export class AllocationService implements OnModuleInit {
     marketFeatures: MarketFeatures | null,
     symbol?: string,
   ) {
-    const { featureScore, buyScore, sellScore, modelTargetWeight, action } = calculateAllocationModelSignals({
-      intensity,
-      marketFeatures,
-      featureScoreConfig: {
-        featureConfidenceWeight: this.FEATURE_CONFIDENCE_WEIGHT,
-        featureMomentumWeight: this.FEATURE_MOMENTUM_WEIGHT,
-        featureLiquidityWeight: this.FEATURE_LIQUIDITY_WEIGHT,
-        featureVolatilityWeight: this.FEATURE_VOLATILITY_WEIGHT,
-        featureStabilityWeight: this.FEATURE_STABILITY_WEIGHT,
-        volatilityReference: this.VOLATILITY_REFERENCE,
-      },
-      aiSignalWeight: this.AI_SIGNAL_WEIGHT,
-      featureSignalWeight: this.FEATURE_SIGNAL_WEIGHT,
-      minimumTradeIntensity: this.MINIMUM_TRADE_INTENSITY,
-      sellScoreThreshold: this.SELL_SCORE_THRESHOLD,
-    });
+    const { featureScore, buyScore, sellScore, modelTargetWeight, action } =
+      this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures);
     this.logger.log(
       this.i18n.t('logging.inference.allocationRecommendation.model_signal', {
         args: {
@@ -1448,12 +1109,12 @@ export class AllocationService implements OnModuleInit {
   }
 
   /**
-   * Normalizes neutral model target weight for the allocation recommendation flow.
-   * @param previousModelTargetWeight - Input value for previous model target weight.
-   * @param suggestedWeight - Input value for suggested weight.
-   * @param fallbackModelTargetWeight - Input value for fallback model target weight.
-   * @param hasStock - Input value for has stock.
-   * @returns Computed numeric value for the operation.
+   * Resolves target weight for neutral/no-trade outputs.
+   * @param previousModelTargetWeight - Previous model target weight.
+   * @param suggestedWeight - Suggested target weight from external hint.
+   * @param fallbackModelTargetWeight - Model-derived fallback target weight.
+   * @param hasStock - Whether the user currently holds the symbol.
+   * @returns Normalized neutral target weight.
    */
   private resolveNeutralModelTargetWeight(
     previousModelTargetWeight: number | null | undefined,
@@ -1468,7 +1129,7 @@ export class AllocationService implements OnModuleInit {
         continue;
       }
 
-      const clamped = clamp01(Number(candidate));
+      const clamped = this.tradeOrchestrationService.clampToUnitInterval(Number(candidate));
       if (hasStock && clamped <= 0) {
         continue;
       }
@@ -1480,18 +1141,21 @@ export class AllocationService implements OnModuleInit {
   }
 
   /**
-   * Calculates target weight for the allocation recommendation flow.
-   * @param inference - Input value for inference.
-   * @param regimeMultiplier - Input value for regime multiplier.
-   * @returns Computed numeric value for the operation.
+   * Resolves final per-symbol target weight.
+   * @param inference - Recommendation payload.
+   * @param regimeMultiplier - Market-regime exposure multiplier.
+   * @returns Final regime-adjusted target weight.
    */
   private calculateTargetWeight(inference: AllocationRecommendationData, regimeMultiplier: number): number {
     const baseTargetWeight =
       inference.modelTargetWeight != null && Number.isFinite(inference.modelTargetWeight)
-        ? clamp01(inference.modelTargetWeight)
+        ? this.tradeOrchestrationService.clampToUnitInterval(inference.modelTargetWeight)
         : this.calculateModelSignals(inference.intensity, inference.category, null, inference.symbol).modelTargetWeight;
 
-    const modelTargetWeight = calculateRegimeAdjustedTargetWeight(baseTargetWeight, regimeMultiplier);
+    const modelTargetWeight = this.tradeOrchestrationService.calculateRegimeAdjustedTargetWeight(
+      baseTargetWeight,
+      regimeMultiplier,
+    );
     if (modelTargetWeight <= 0) {
       return 0;
     }
@@ -1506,81 +1170,6 @@ export class AllocationService implements OnModuleInit {
       }),
     );
     return modelTargetWeight;
-  }
-
-  /**
-   * 개별 거래 실행
-   *
-   * - 거래 요청을 받아 실제 주문을 생성하고 실행합니다.
-   * - 주문 타입(매수/매도), 수량, 수익을 계산하여 Trade 엔티티에 저장합니다.
-   *
-   * @param user 사용자
-   * @param request 거래 요청
-   * @returns 생성된 Trade 엔티티 (주문이 없으면 null)
-   */
-  private async executeTrade(user: User, request: TradeRequest): Promise<Trade> {
-    this.logger.log(this.i18n.t('logging.trade.start', { args: { id: user.id, symbol: request.symbol } }));
-
-    // 주문 생성 및 조정: diff 값에 따라 매수/매도 주문 생성
-    const order = await this.upbitService.adjustOrder(user, request);
-
-    // 주문이 생성되지 않은 경우 (예: 잔고 부족, 최소 주문 금액 미달 등)
-    if (!order) {
-      this.logger.log(this.i18n.t('logging.trade.not_exist', { args: { id: user.id, symbol: request.symbol } }));
-      return null;
-    }
-
-    this.logger.log(this.i18n.t('logging.trade.calculate.start', { args: { id: user.id, symbol: request.symbol } }));
-
-    // 주문 정보 계산: 타입(매수/매도), 수량, 수익
-    const type = this.upbitService.getOrderType(order);
-    const amount = await this.upbitService.calculateAmount(order);
-    const profit = await this.upbitService.calculateProfit(request.balances, order, amount);
-
-    this.logger.log(
-      this.i18n.t('logging.trade.calculate.end', {
-        args: {
-          id: user.id,
-          symbol: request.symbol,
-          type: this.i18n.t(`label.order.type.${type}`),
-          amount,
-          profit,
-        },
-      }),
-    );
-
-    this.logger.log(this.i18n.t('logging.trade.save.start', { args: { id: user.id, symbol: request.symbol } }));
-
-    // 거래 정보를 데이터베이스에 저장
-    const trade = await this.saveTrade(user, {
-      symbol: request.symbol,
-      type,
-      amount,
-      profit,
-      inference: request.inference,
-    });
-
-    this.logger.log(this.i18n.t('logging.trade.save.end', { args: { id: user.id, symbol: request.symbol } }));
-
-    return trade;
-  }
-
-  /**
-   * 거래 엔티티 저장
-   *
-   * - 실행된 거래 정보를 데이터베이스에 저장합니다.
-   *
-   * @param user 사용자
-   * @param data 거래 데이터 (심볼, 타입, 수량, 수익, 추론 정보)
-   * @returns 저장된 Trade 엔티티
-   */
-  private async saveTrade(user: User, data: TradeData): Promise<Trade> {
-    const trade = new Trade();
-
-    Object.assign(trade, data);
-    trade.user = user;
-
-    return trade.save();
   }
 
   /**
@@ -1715,7 +1304,7 @@ export class AllocationService implements OnModuleInit {
       )
       .sort((a, b) => Number(b.weight) * Number(b.confidence) - Number(a.weight) * Number(a.confidence));
 
-    const orderableSymbols = await buildOrderableSymbolSet(
+    const orderableSymbols = await this.tradeOrchestrationService.buildOrderableSymbolSet(
       filteredRecommendations.map((recommendation) => recommendation.symbol),
       {
         isSymbolExist: (symbol) => this.upbitService.isSymbolExist(symbol),
@@ -1727,7 +1316,9 @@ export class AllocationService implements OnModuleInit {
     );
 
     return filteredRecommendations
-      .filter((recommendation) => isOrderableSymbol(recommendation.symbol, orderableSymbols))
+      .filter((recommendation) =>
+        this.tradeOrchestrationService.isOrderableSymbol(recommendation.symbol, orderableSymbols),
+      )
       .map((recommendation) => ({
         symbol: recommendation.symbol,
         category: Category.COIN_MINOR,
@@ -1747,7 +1338,7 @@ export class AllocationService implements OnModuleInit {
       if (!Number.isFinite(tunedConfidence)) {
         return this.MIN_RECOMMEND_CONFIDENCE;
       }
-      return clamp01(tunedConfidence);
+      return this.tradeOrchestrationService.clampToUnitInterval(tunedConfidence);
     } catch (error) {
       this.logger.warn(
         this.i18n.t('logging.schedule.allocationRecommendation.minimum_confidence_resolve_failed', {
@@ -1771,7 +1362,10 @@ export class AllocationService implements OnModuleInit {
    */
   private async filterAllocationRecommendations(items: RecommendationItem[]): Promise<RecommendationItem[]> {
     const blacklist = await this.blacklistService.findAll();
-    const { items: filteredItems, filteredSymbols } = filterUniqueNonBlacklistedItems(items, blacklist);
+    const { items: filteredItems, filteredSymbols } = this.tradeOrchestrationService.filterUniqueNonBlacklistedItems(
+      items,
+      blacklist,
+    );
 
     if (filteredSymbols.length > 0) {
       this.logger.log(
@@ -1799,13 +1393,14 @@ export class AllocationService implements OnModuleInit {
    */
   public async allocationRecommendation(items: RecommendationItem[]): Promise<AllocationRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.allocationRecommendation.start', { args: { count: items.length } }));
-    const latestRecommendationMetricsBySymbol = await buildLatestAllocationRecommendationMetricsMap({
-      recommendationItems: items,
-      errorService: this.errorService,
-      onError: (error) => {
-        this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
-      },
-    });
+    const latestRecommendationMetricsBySymbol =
+      await this.tradeOrchestrationService.buildLatestRecommendationMetricsMap({
+        recommendationItems: items,
+        errorService: this.errorService,
+        onError: (error) => {
+          this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
+        },
+      });
 
     // 각 종목에 대한 실시간 API 호출을 병렬로 처리
     const inferenceResults = await Promise.all(
@@ -1825,7 +1420,7 @@ export class AllocationService implements OnModuleInit {
           }
 
           const { messages, marketFeatures, marketRegime, feargreed } =
-            await buildAllocationRecommendationPromptMessages({
+            await this.tradeOrchestrationService.buildRecommendationPromptMessages({
               symbol: targetSymbol,
               prompt: UPBIT_ALLOCATION_RECOMMENDATION_PROMPT,
               openaiService: this.openaiService,
@@ -1866,19 +1461,22 @@ export class AllocationService implements OnModuleInit {
             return null;
           }
           const responseData = JSON.parse(outputText);
-          const normalizedResponse = normalizeAllocationRecommendationResponsePayload(responseData, {
-            expectedSymbol: targetSymbol,
-            onSymbolMismatch: ({ outputSymbol, expectedSymbol }) => {
-              this.logger.warn(
-                this.i18n.t('logging.inference.allocationRecommendation.symbol_mismatch_fallback', {
-                  args: {
-                    outputSymbol,
-                    expectedSymbol,
-                  },
-                }),
-              );
+          const normalizedResponse = this.tradeOrchestrationService.normalizeRecommendationResponsePayload(
+            responseData,
+            {
+              expectedSymbol: targetSymbol,
+              onSymbolMismatch: ({ outputSymbol, expectedSymbol }) => {
+                this.logger.warn(
+                  this.i18n.t('logging.inference.allocationRecommendation.symbol_mismatch_fallback', {
+                    args: {
+                      outputSymbol,
+                      expectedSymbol,
+                    },
+                  }),
+                );
+              },
             },
-          });
+          );
           if (!normalizedResponse) {
             return null;
           }
@@ -1890,9 +1488,14 @@ export class AllocationService implements OnModuleInit {
             latestRecommendationMetricsBySymbol.get(targetSymbol) ??
             latestRecommendationMetricsBySymbol.get(item.symbol);
           const decisionConfidence = normalizedResponse.confidence;
+          const tradeCostTelemetry = this.deriveTradeCostTelemetry(
+            marketFeatures,
+            normalizedResponse.expectedVolatilityPct,
+            decisionConfidence,
+          );
 
           let action: AllocationRecommendationAction = modelSignals.action;
-          let modelTargetWeight = clamp01(modelSignals.modelTargetWeight);
+          let modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
           const neutralModelTargetWeight = this.resolveNeutralModelTargetWeight(
             latestMetricsBySymbol?.modelTargetWeight ?? null,
             item?.weight,
@@ -1905,7 +1508,10 @@ export class AllocationService implements OnModuleInit {
             modelTargetWeight = 0;
           } else if (normalizedResponse.action === 'buy') {
             action = 'buy';
-            modelTargetWeight = Math.max(modelTargetWeight, clamp01(safeIntensity));
+            modelTargetWeight = Math.max(
+              modelTargetWeight,
+              this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
+            );
           } else if (normalizedResponse.action === 'hold') {
             action = 'hold';
             modelTargetWeight = neutralModelTargetWeight;
@@ -1914,7 +1520,7 @@ export class AllocationService implements OnModuleInit {
             modelTargetWeight = neutralModelTargetWeight;
           }
 
-          if (decisionConfidence < this.MIN_ALLOCATION_CONFIDENCE) {
+          if (decisionConfidence < this.tradeOrchestrationService.getMinimumAllocationConfidence()) {
             action = 'no_trade';
             modelTargetWeight = neutralModelTargetWeight;
           }
@@ -1949,6 +1555,10 @@ export class AllocationService implements OnModuleInit {
             sellScore: modelSignals.sellScore,
             modelTargetWeight,
             action,
+            expectedEdgeRate: tradeCostTelemetry.expectedEdgeRate,
+            estimatedCostRate: tradeCostTelemetry.estimatedCostRate,
+            spreadRate: tradeCostTelemetry.spreadRate,
+            impactRate: tradeCostTelemetry.impactRate,
           };
         });
       }),
@@ -2002,6 +1612,10 @@ export class AllocationService implements OnModuleInit {
       decisionConfidence: validResults[index].decisionConfidence,
       expectedVolatilityPct: validResults[index].expectedVolatilityPct,
       riskFlags: validResults[index].riskFlags,
+      expectedEdgeRate: validResults[index].expectedEdgeRate,
+      estimatedCostRate: validResults[index].estimatedCostRate,
+      spreadRate: validResults[index].spreadRate,
+      impactRate: validResults[index].impactRate,
       btcDominance: saved.btcDominance,
       altcoinIndex: saved.altcoinIndex,
       marketRegimeAsOf: saved.marketRegimeAsOf,
@@ -2047,6 +1661,10 @@ export class AllocationService implements OnModuleInit {
         feargreedIndex: entity.feargreedIndex ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
+        expectedEdgeRate: entity.expectedEdgeRate ?? null,
+        estimatedCostRate: entity.estimatedCostRate ?? null,
+        spreadRate: entity.spreadRate ?? null,
+        impactRate: entity.impactRate ?? null,
         validation24h: badgeMap.get(entity.id)?.validation24h,
         validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
@@ -2092,6 +1710,10 @@ export class AllocationService implements OnModuleInit {
         feargreedIndex: entity.feargreedIndex ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
+        expectedEdgeRate: entity.expectedEdgeRate ?? null,
+        estimatedCostRate: entity.estimatedCostRate ?? null,
+        spreadRate: entity.spreadRate ?? null,
+        impactRate: entity.impactRate ?? null,
         validation24h: badgeMap.get(entity.id)?.validation24h,
         validation72h: badgeMap.get(entity.id)?.validation72h,
       })),
@@ -2130,6 +1752,10 @@ export class AllocationService implements OnModuleInit {
     allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
     allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
     allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
+    allocationRecommendation.expectedEdgeRate = recommendation.expectedEdgeRate ?? null;
+    allocationRecommendation.estimatedCostRate = recommendation.estimatedCostRate ?? null;
+    allocationRecommendation.spreadRate = recommendation.spreadRate ?? null;
+    allocationRecommendation.impactRate = recommendation.impactRate ?? null;
     return allocationRecommendation.save();
   }
 
