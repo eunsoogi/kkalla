@@ -738,6 +738,8 @@ describe('MarketRiskService', () => {
       type: OrderTypes.SELL,
       amount: 10_000,
       profit: 0,
+      filledAmount: 10_000,
+      filledRatio: 1,
       inference: inferences[0],
     });
 
