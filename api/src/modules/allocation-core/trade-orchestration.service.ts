@@ -134,7 +134,7 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Shared staged-exit medium diff used by missing-inference liquidation flow.
+   * Shared staged-exit medium diff used by partial de-risking flows.
    */
   public getStagedExitMediumDiff(): number {
     return this.defaultTradePolicy.stagedExitMedium;
@@ -186,12 +186,11 @@ export class TradeOrchestrationService {
   ): Pick<AllocationRecommendationData, 'expectedEdgeRate' | 'estimatedCostRate' | 'spreadRate' | 'impactRate'> {
     const normalizedLiquidity = clamp01((marketFeatures?.liquidityScore ?? 0) / 10);
     const normalizedVolatility = clamp01(expectedVolatilityPct);
+    const normalizedTrendPersistence = clamp01((marketFeatures?.prediction?.trendPersistence ?? 50) / 100);
     const spreadRate = Math.max(0.0003, (1 - normalizedLiquidity) * 0.003);
     const impactRate = Math.max(0.0002, normalizedVolatility * (1 - normalizedLiquidity) * 0.5);
     const estimatedCostRate = this.defaultTradePolicy.estimatedFeeRate + spreadRate + impactRate;
-    const expectedEdgeRate = clamp01(
-      clamp01(decisionConfidence) * Math.max(0, clamp01(marketFeatures?.prediction?.trendPersistence ?? 50) - 0.3),
-    );
+    const expectedEdgeRate = clamp01(clamp01(decisionConfidence) * Math.max(0, normalizedTrendPersistence - 0.3));
 
     return {
       expectedEdgeRate,
@@ -520,7 +519,7 @@ export class TradeOrchestrationService {
       tradableMarketValueMap,
       triggerReason = 'missing_from_inference',
     } = options;
-    const stagedExitDiff = this.defaultTradePolicy.stagedExitMedium;
+    const fullExitDiff = this.defaultTradePolicy.stagedExitFull;
 
     return balances.info
       .filter((item) => {
@@ -534,7 +533,7 @@ export class TradeOrchestrationService {
           isOrderableSymbol(symbol, orderableSymbols) &&
           isSellAmountSufficient(
             symbol,
-            stagedExitDiff,
+            fullExitDiff,
             this.defaultTradePolicy.minimumTradePrice,
             tradableMarketValueMap,
           )
@@ -542,7 +541,7 @@ export class TradeOrchestrationService {
       })
       .map((item) => ({
         symbol: `${item.currency}/${item.unit_currency}`,
-        diff: stagedExitDiff,
+        diff: fullExitDiff,
         balances,
         marketPrice,
         executionUrgency: 'urgent' as const,

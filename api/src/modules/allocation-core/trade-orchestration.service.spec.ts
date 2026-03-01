@@ -154,6 +154,42 @@ describe('TradeOrchestrationService', () => {
     });
   });
 
+  describe('trade telemetry and liquidation requests', () => {
+    it('should normalize trend persistence from 0-100 scale before edge-rate calculation', () => {
+      const telemetry = service.deriveTradeCostTelemetry(
+        {
+          liquidityScore: 8,
+          prediction: {
+            trendPersistence: 70,
+          },
+        } as any,
+        0.12,
+        1,
+      );
+
+      expect(telemetry.expectedEdgeRate).toBeCloseTo(0.4, 10);
+    });
+
+    it('should build missing-inference sell requests as full liquidation', () => {
+      const balances: any = {
+        info: [
+          { currency: 'KRW', unit_currency: 'KRW', balance: '1000000' },
+          { currency: 'BTC', unit_currency: 'KRW', balance: '0.1' },
+        ],
+      };
+
+      const requests = service.buildMissingInferenceSellRequests({
+        balances,
+        inferences: [],
+        marketPrice: 1000000,
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].symbol).toBe('BTC/KRW');
+      expect(requests[0].diff).toBe(-1);
+    });
+  });
+
   describe('latest recommendation metrics', () => {
     it('should build latest metrics map from latest recommendations per unique symbol', async () => {
       const findSpy = jest.spyOn(AllocationRecommendation, 'find');
