@@ -312,6 +312,56 @@ describe('UpbitService', () => {
     expect(result.averagePrice).toBeCloseTo(100_000_000, 4);
   });
 
+  it('should derive sell filled ratio from executed volume even when notional is below reference price', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [
+        {
+          currency: 'KRW',
+          unit_currency: 'KRW',
+          balance: '1000000',
+        },
+        {
+          currency: 'BTC',
+          unit_currency: 'KRW',
+          balance: '1',
+          avg_buy_price: '90000000',
+        },
+      ],
+      BTC: { free: 1 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    jest.spyOn(service, 'calculateTotalPrice').mockReturnValue(100_000_000);
+    jest.spyOn(service, 'order').mockResolvedValue({
+      side: OrderTypes.SELL,
+      status: 'closed',
+      amount: 0.1,
+      filled: 0.1,
+      cost: 9_000_000,
+      average: 90_000_000,
+    } as any);
+
+    const result = await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      diff: -0.1,
+      balances,
+      executionUrgency: 'urgent',
+      expectedEdgeRate: 0.001,
+      costEstimate: {
+        feeRate: 0.0005,
+        spreadRate: 0.0004,
+        impactRate: 0.0004,
+        estimatedCostRate: 0.0013,
+      },
+    });
+
+    expect(result.executionMode).toBe('market');
+    expect(result.filledAmount).toBeCloseTo(9_000_000, 4);
+    expect(result.filledRatio).toBeCloseTo(1, 8);
+  });
+
   it('should pass lowercase timeInForce to exchange limit orders', async () => {
     const createOrder = jest.fn().mockResolvedValue({ id: 'order-1' });
     jest.spyOn(service, 'getClient').mockResolvedValue({ createOrder } as any);

@@ -1021,7 +1021,15 @@ export class UpbitService {
       let finalOrder = primaryOrder;
       let fallbackOrder: Order | null = null;
       let filledAmount = this.resolveOrderNotional(primaryOrder, currPrice);
-      const filledRatio = requestedAmount && requestedAmount > 0 ? filledAmount / requestedAmount : 0;
+      let filledVolume = this.resolveOrderFilledVolume(primaryOrder, currPrice);
+      const filledRatio =
+        type === OrderTypes.BUY
+          ? requestedAmount && requestedAmount > 0
+            ? filledAmount / requestedAmount
+            : 0
+          : requestedVolume && requestedVolume > 0
+            ? filledVolume / requestedVolume
+            : 0;
 
       if (
         executionMode === 'limit_ioc' &&
@@ -1061,12 +1069,17 @@ export class UpbitService {
 
         finalOrder = this.mergeOrders(primaryOrder, fallbackOrder, currPrice);
         filledAmount = this.resolveOrderNotional(finalOrder, currPrice);
+        filledVolume = this.resolveOrderFilledVolume(finalOrder, currPrice);
       }
 
       const resolvedFilledRatio =
-        requestedAmount && requestedAmount > 0 && Number.isFinite(filledAmount)
-          ? Math.max(0, Math.min(1, filledAmount / requestedAmount))
-          : null;
+        type === OrderTypes.BUY
+          ? requestedAmount && requestedAmount > 0 && Number.isFinite(filledAmount)
+            ? Math.max(0, Math.min(1, filledAmount / requestedAmount))
+            : null
+          : requestedVolume && requestedVolume > 0 && Number.isFinite(filledVolume)
+            ? Math.max(0, Math.min(1, filledVolume / requestedVolume))
+            : null;
       const averagePrice = this.resolveOrderAveragePrice(finalOrder, requestPrice ?? currPrice);
       const orderStatus = (finalOrder?.status ?? null) as string | null;
 
