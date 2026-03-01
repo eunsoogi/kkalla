@@ -170,6 +170,23 @@ describe('TradeOrchestrationService', () => {
       expect(telemetry.expectedEdgeRate).toBeCloseTo(0.4, 10);
     });
 
+    it('should normalize expected volatility from percent scale before cost-rate calculation', () => {
+      const telemetry = service.deriveTradeCostTelemetry(
+        {
+          liquidityScore: 8,
+          prediction: {
+            trendPersistence: 70,
+          },
+        } as any,
+        3,
+        1,
+      );
+
+      expect(telemetry.impactRate).toBeGreaterThan(0.002);
+      expect(telemetry.impactRate).toBeLessThan(0.004);
+      expect(telemetry.estimatedCostRate).toBeLessThan(0.01);
+    });
+
     it('should build missing-inference sell requests as full liquidation', () => {
       const balances: any = {
         info: [

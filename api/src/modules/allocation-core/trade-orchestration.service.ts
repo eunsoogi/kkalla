@@ -185,7 +185,7 @@ export class TradeOrchestrationService {
     decisionConfidence: number,
   ): Pick<AllocationRecommendationData, 'expectedEdgeRate' | 'estimatedCostRate' | 'spreadRate' | 'impactRate'> {
     const normalizedLiquidity = clamp01((marketFeatures?.liquidityScore ?? 0) / 10);
-    const normalizedVolatility = clamp01(expectedVolatilityPct);
+    const normalizedVolatility = this.normalizeExpectedVolatilityRate(expectedVolatilityPct);
     const normalizedTrendPersistence = clamp01((marketFeatures?.prediction?.trendPersistence ?? 50) / 100);
     const spreadRate = Math.max(0.0003, (1 - normalizedLiquidity) * 0.003);
     const impactRate = Math.max(0.0002, normalizedVolatility * (1 - normalizedLiquidity) * 0.5);
@@ -1596,15 +1596,15 @@ export class TradeOrchestrationService {
       return { diff, triggerReason: null };
     }
 
-    const expectedVolatility = Number(inference.expectedVolatilityPct ?? 0);
+    const expectedVolatilityRate = this.normalizeExpectedVolatilityRate(inference.expectedVolatilityPct);
     const decisionConfidence = clamp01(inference.decisionConfidence ?? inference.confidence ?? 0.5);
     const sellScore = clamp01(inference.sellScore ?? 0);
     const buyScore = clamp01(inference.buyScore ?? 0);
     const previousTarget = clamp01(inference.prevModelTargetWeight ?? 0);
     const currentTarget = clamp01(inference.modelTargetWeight ?? 0);
 
-    if (sellScore >= 0.75 && expectedVolatility >= 0.03) {
-      const stopLossFloor = Math.max(policy.payoffOverlayStopLossMin, -Math.min(1, expectedVolatility * 4));
+    if (sellScore >= 0.75 && expectedVolatilityRate >= 0.03) {
+      const stopLossFloor = Math.max(policy.payoffOverlayStopLossMin, -Math.min(1, expectedVolatilityRate * 4));
       return {
         diff: Math.min(diff, stopLossFloor),
         triggerReason: 'volatility_stop_loss',
@@ -1620,6 +1620,19 @@ export class TradeOrchestrationService {
     }
 
     return { diff, triggerReason: null };
+  }
+
+  /**
+   * Normalizes expected volatility from prompt percent scale to 0-1 rate.
+   * @param expectedVolatilityPct - Volatility value represented as percentage points (e.g. `3` for `3%`).
+   * @returns Normalized volatility rate in 0-1 range.
+   */
+  private normalizeExpectedVolatilityRate(expectedVolatilityPct: number | null | undefined): number {
+    if (expectedVolatilityPct == null || !Number.isFinite(expectedVolatilityPct)) {
+      return 0;
+    }
+
+    return clamp01(Math.max(0, expectedVolatilityPct) / 100);
   }
 
   /**
