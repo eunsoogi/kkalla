@@ -408,7 +408,7 @@ const MarketDetailPanel: React.FC<MarketDetailPanelProps> = ({ item, t, pointUni
     >
       <div className='space-y-5'>
         <InferenceDetailSection title={t('report.section.reason')}>
-          <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{item.reason.trim() || '-'}</p>
+          <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{item.reason?.trim() || '-'}</p>
         </InferenceDetailSection>
         <InferenceDetailSection title={t('report.section.validation')}>
           <DetailMetricGrid items={validationMetrics} />
@@ -562,7 +562,7 @@ const AllocationDetailPanel: React.FC<AllocationDetailPanelProps> = ({ item, t, 
           )}
         </InferenceDetailSection>
         <InferenceDetailSection title={t('report.section.reason')}>
-          <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{item.reason.trim() || '-'}</p>
+          <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{item.reason?.trim() || '-'}</p>
         </InferenceDetailSection>
         <InferenceDetailSection title={t('report.section.validation')}>
           <DetailMetricGrid items={validationMetrics} />
