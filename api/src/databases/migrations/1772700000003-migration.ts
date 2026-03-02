@@ -14,31 +14,50 @@ export class Migration1772700000003 implements MigrationInterface {
     trade: ['expected_edge_rate', 'estimated_cost_rate', 'spread_rate', 'impact_rate'],
   };
 
-  private buildRescaleCondition(column: string, columns: string[]): string {
+  private buildRescaleCondition(column: string, columns: string[], alias: string): string {
+    const qualifiedColumn = `\`${alias}\`.\`${column}\``;
     const legacySiblingColumns = columns.filter((item) => item !== column);
     if (legacySiblingColumns.length === 0) {
-      return `ABS(\`${column}\`) > 1`;
+      return `ABS(${qualifiedColumn}) > 1`;
     }
 
-    const legacySiblingCondition = legacySiblingColumns.map((item) => `ABS(\`${item}\`) > 1`).join(' OR ');
+    const legacySiblingCondition = legacySiblingColumns.map((item) => `ABS(\`${alias}\`.\`${item}\`) > 1`).join(' OR ');
 
     // Keep already-normalized boundary(1/-1) values unless the same row clearly contains legacy (>1) rate columns.
-    return `(ABS(\`${column}\`) > 1 OR (ABS(\`${column}\`) = 1 AND (${legacySiblingCondition})))`;
+    return `(ABS(${qualifiedColumn}) > 1 OR (ABS(${qualifiedColumn}) = 1 AND (${legacySiblingCondition})))`;
   }
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    for (const [table, columns] of Object.entries(this.rateColumnsByTable)) {
-      for (const column of columns) {
+    for (const [table, configuredColumns] of Object.entries(this.rateColumnsByTable)) {
+      const existingColumns: string[] = [];
+      for (const column of configuredColumns) {
         const exists = await queryRunner.hasColumn(table, column);
-        if (!exists) {
-          continue;
+        if (exists) {
+          existingColumns.push(column);
         }
-
-        const rescaleCondition = this.buildRescaleCondition(column, columns);
-        await queryRunner.query(
-          `UPDATE \`${table}\` SET \`${column}\` = \`${column}\` / 100 WHERE \`${column}\` IS NOT NULL AND ${rescaleCondition}`,
-        );
       }
+
+      if (existingColumns.length === 0) {
+        continue;
+      }
+
+      const setClause = existingColumns
+        .map((column) => {
+          const rescaleCondition = this.buildRescaleCondition(column, existingColumns, 'source');
+          return `\`current\`.\`${column}\` = CASE WHEN \`source\`.\`${column}\` IS NOT NULL AND ${rescaleCondition} THEN \`source\`.\`${column}\` / 100 ELSE \`source\`.\`${column}\` END`;
+        })
+        .join(', ');
+
+      const whereClause = existingColumns
+        .map((column) => {
+          const rescaleCondition = this.buildRescaleCondition(column, existingColumns, 'source');
+          return `(\`source\`.\`${column}\` IS NOT NULL AND ${rescaleCondition})`;
+        })
+        .join(' OR ');
+
+      await queryRunner.query(
+        `UPDATE \`${table}\` \`current\` INNER JOIN \`${table}\` \`source\` ON \`source\`.\`id\` = \`current\`.\`id\` SET ${setClause} WHERE ${whereClause}`,
+      );
     }
   }
 
