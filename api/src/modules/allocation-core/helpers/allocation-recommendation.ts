@@ -188,18 +188,31 @@ interface NormalizeAllocationRecommendationResponseOptions {
   onSymbolMismatch?: (args: { outputSymbol: string; expectedSymbol: string }) => void;
 }
 
+interface NormalizePercentToRateOptions {
+  legacyPercentagePointHint?: boolean;
+}
+
+const VOLATILITY_LEGACY_HEURISTIC_THRESHOLD = 0.5;
+
 /**
  * Normalizes percent-like values to 0~1 rate scale.
  * Supports legacy percentage-point(0~100) inputs while preserving rate(-1~1) boundary values.
  * @param value - Percent-like input value.
  * @returns Normalized rate value.
  */
-const normalizePercentToRate = (value: number): number => {
+const normalizePercentToRate = (value: number, options: NormalizePercentToRateOptions = {}): number => {
   if (!Number.isFinite(value)) {
     return 0;
   }
 
-  const scaled = Math.abs(value) > 1 ? value / 100 : value;
+  const absoluteValue = Math.abs(value);
+  const shouldRescaleByExplicitHint = options.legacyPercentagePointHint === true;
+  const shouldRescaleByMagnitude = absoluteValue > 1;
+  // Volatility rates near 1 are uncommon in this domain; treat them as likely legacy percentage-points.
+  const shouldRescaleByHeuristic = absoluteValue >= VOLATILITY_LEGACY_HEURISTIC_THRESHOLD && absoluteValue < 1;
+
+  const scaled =
+    shouldRescaleByExplicitHint || shouldRescaleByMagnitude || shouldRescaleByHeuristic ? value / 100 : value;
   return clamp(scaled, -1, 1);
 };
 
@@ -233,13 +246,16 @@ export function normalizeAllocationRecommendationResponsePayload(
   const intensity = Number(parsed.intensity);
   const confidence = Number(parsed.confidence);
   const expectedVolatilityPct = Number(parsed.expectedVolatilityPct);
+  const legacyPercentagePointHint = Number.isFinite(confidence) && confidence > 1;
   const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
 
   return {
     action: normalizeAllocationRecommendationAction(parsed.action),
     intensity: Number.isFinite(intensity) ? clamp(intensity, -1, 1) : 0,
     confidence: Number.isFinite(confidence) ? clamp01(confidence) : 0,
-    expectedVolatilityPct: Number.isFinite(expectedVolatilityPct) ? normalizePercentToRate(expectedVolatilityPct) : 0,
+    expectedVolatilityPct: Number.isFinite(expectedVolatilityPct)
+      ? normalizePercentToRate(expectedVolatilityPct, { legacyPercentagePointHint })
+      : 0,
     riskFlags: Array.isArray(parsed.riskFlags)
       ? parsed.riskFlags.filter((item): item is string => typeof item === 'string').slice(0, 10)
       : [],

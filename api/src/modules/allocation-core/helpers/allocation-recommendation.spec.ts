@@ -101,6 +101,32 @@ describe('balance-recommendation utils', () => {
     expect(minusBoundary?.expectedVolatilityPct).toBe(-1);
   });
 
+  it('should rescale likely legacy sub-1 expected volatility values', () => {
+    const normalized = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        expectedVolatilityPct: 0.8,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+
+    expect(normalized?.expectedVolatilityPct).toBeCloseTo(0.008, 10);
+  });
+
+  it('should rescale boundary expected volatility when legacy hint is detected', () => {
+    const normalized = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        confidence: 80,
+        expectedVolatilityPct: 1,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+
+    expect(normalized?.confidence).toBe(1);
+    expect(normalized?.expectedVolatilityPct).toBeCloseTo(0.01, 10);
+  });
+
   it('should keep payload and invoke mismatch callback when drop option is disabled', () => {
     const onSymbolMismatch = jest.fn();
     const normalized = normalizeAllocationRecommendationResponsePayload(

@@ -14,17 +14,31 @@ export class Migration1772700000003 implements MigrationInterface {
     trade: ['expected_edge_rate', 'estimated_cost_rate', 'spread_rate', 'impact_rate'],
   };
 
+  private readonly legacySubUnitHeuristicColumns = new Set<string>([
+    'expected_volatility_pct',
+    'expected_edge_rate',
+    'estimated_cost_rate',
+    'spread_rate',
+    'impact_rate',
+  ]);
+
   private buildRescaleCondition(column: string, columns: string[], alias: string): string {
     const qualifiedColumn = `\`${alias}\`.\`${column}\``;
     const legacySiblingColumns = columns.filter((item) => item !== column);
     if (legacySiblingColumns.length === 0) {
+      if (this.legacySubUnitHeuristicColumns.has(column)) {
+        return `(ABS(${qualifiedColumn}) > 1 OR (ABS(${qualifiedColumn}) >= 0.5 AND ABS(${qualifiedColumn}) < 1))`;
+      }
       return `ABS(${qualifiedColumn}) > 1`;
     }
 
     const legacySiblingCondition = legacySiblingColumns.map((item) => `ABS(\`${alias}\`.\`${item}\`) > 1`).join(' OR ');
+    const heuristicSubUnitCondition = this.legacySubUnitHeuristicColumns.has(column)
+      ? ` OR (ABS(${qualifiedColumn}) >= 0.5 AND ABS(${qualifiedColumn}) < 1)`
+      : '';
 
-    // Keep already-normalized boundary(1/-1) values unless the same row clearly contains legacy (>1) rate columns.
-    return `(ABS(${qualifiedColumn}) > 1 OR (ABS(${qualifiedColumn}) = 1 AND (${legacySiblingCondition})))`;
+    // Preserve normalized rows, but rescale likely legacy rows (direct >1, sibling legacy hints, or high sub-unit heuristic).
+    return `(ABS(${qualifiedColumn}) > 1 OR (ABS(${qualifiedColumn}) <= 1 AND (${legacySiblingCondition}))${heuristicSubUnitCondition})`;
   }
 
   public async up(queryRunner: QueryRunner): Promise<void> {
