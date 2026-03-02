@@ -64,7 +64,7 @@ describe('balance-recommendation utils', () => {
         action: 'invalid-action',
         intensity: 1.4,
         confidence: -0.3,
-        expectedVolatilityPct: -1,
+        expectedVolatilityPct: -120,
         riskFlags: ['r1', 2, 'r2'],
         reason: '  keep trend  ',
       },
@@ -75,10 +75,56 @@ describe('balance-recommendation utils', () => {
       action: 'hold',
       intensity: 1,
       confidence: 0,
-      expectedVolatilityPct: 0,
+      expectedVolatilityPct: -1,
       riskFlags: ['r1', 'r2'],
       reason: 'keep trend',
     });
+  });
+
+  it('should preserve 1/-1 expected volatility values as normalized rate boundaries', () => {
+    const plusBoundary = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        expectedVolatilityPct: 1,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+    const minusBoundary = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        expectedVolatilityPct: -1,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+
+    expect(plusBoundary?.expectedVolatilityPct).toBe(1);
+    expect(minusBoundary?.expectedVolatilityPct).toBe(-1);
+  });
+
+  it('should rescale likely legacy sub-1 expected volatility values', () => {
+    const normalized = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        expectedVolatilityPct: 0.8,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+
+    expect(normalized?.expectedVolatilityPct).toBeCloseTo(0.008, 10);
+  });
+
+  it('should rescale boundary expected volatility when legacy hint is detected', () => {
+    const normalized = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        confidence: 80,
+        expectedVolatilityPct: 1,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+
+    expect(normalized?.confidence).toBe(1);
+    expect(normalized?.expectedVolatilityPct).toBeCloseTo(0.01, 10);
   });
 
   it('should keep payload and invoke mismatch callback when drop option is disabled', () => {

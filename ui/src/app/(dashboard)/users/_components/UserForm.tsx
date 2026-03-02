@@ -11,10 +11,7 @@ import { Role } from '@/shared/types/role.types';
 import { User } from '@/app/(dashboard)/users/_types/user.types';
 
 import { getRolesAction, getUserAction, updateUserAction } from '../_actions/user.actions';
-
-interface UserFormProps {
-  id: string;
-}
+import type { UserFormProps } from './user-form.types';
 
 /**
  * Renders the User Form Skeleton UI for the dashboard UI.

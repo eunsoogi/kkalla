@@ -164,6 +164,27 @@ export class AllocationRecommendation extends BaseEntity {
   feargreedTimestamp: Date | null;
 
   @Column({
+    name: 'decision_confidence',
+    type: 'double',
+    nullable: true,
+  })
+  decisionConfidence: number | null;
+
+  @Column({
+    name: 'expected_volatility_pct',
+    type: 'double',
+    nullable: true,
+  })
+  expectedVolatilityPct: number | null;
+
+  @Column({
+    name: 'risk_flags',
+    type: 'simple-json',
+    nullable: true,
+  })
+  riskFlags: string[] | null;
+
+  @Column({
     type: 'double',
     nullable: true,
   })

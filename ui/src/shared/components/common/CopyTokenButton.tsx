@@ -5,10 +5,7 @@ import { Icon } from '@iconify/react';
 import { Button } from 'flowbite-react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-
-interface CopyTokenButtonProps {
-  className?: string;
-}
+import type { CopyTokenButtonProps } from './copy-button.types';
 
 /**
  * Renders the Copy Token Button UI for the dashboard UI.

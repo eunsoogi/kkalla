@@ -181,7 +181,7 @@
   },
   "inference": {
     "confidence": "신뢰도",
-    "decisionConfidence": "결정 신뢰도",
+    "decisionConfidence": "신뢰도",
     "estimatedCostRate": "추정 비용률",
     "expectedEdgeRate": "기대 엣지",
     "expectedVolatilityPct": "예상 변동성",
@@ -260,6 +260,36 @@
   },
   "pagination": "{total}개 중 {start}부터 {end}까지 결과 표시",
   "profile": "프로필",
+  "report": {
+    "action": {
+      "collapse": "접기",
+      "expand": "더보기"
+    },
+    "empty": {
+      "selectItem": "왼쪽 목록에서 항목을 선택하면 상세가 표시됩니다."
+    },
+    "exception": {
+      "partialFill": "부분 체결",
+      "regimeStale": "시장 국면 지연",
+      "risk": "리스크 플래그",
+      "validationFailed": "검증 실패",
+      "validationRunning": "검증 진행중"
+    },
+    "section": {
+      "cost": "비용/엣지",
+      "reason": "근거",
+      "regime": "시장 국면",
+      "summary": "요약",
+      "validation": "검증"
+    },
+    "tab": {
+      "cost": "비용/엣지",
+      "reason": "근거",
+      "regime": "시장 국면",
+      "summary": "요약",
+      "validation": "검증"
+    }
+  },
   "role": {
     "create": "권한 추가",
     "delete_confirm": "정말로 이 권한을 삭제하시겠습니까?",
@@ -429,11 +459,50 @@
     "gateBypassedReason": "게이트 우회 사유",
     "impactRate": "임팩트 비용률",
     "orderStatus": "주문 상태",
+    "orderStatuses": {
+      "canceled": "취소",
+      "cancelled": "취소",
+      "closed": "종료",
+      "done": "체결 완료",
+      "filled": "전체 체결",
+      "open": "주문 접수",
+      "partially_filled": "부분 체결",
+      "wait": "대기"
+    },
     "profit": "수익금",
+    "gateBypassedReasons": {
+      "earnings": "실적 이벤트 영향",
+      "latency": "지연 보정",
+      "limit_ioc_partial_fill": "IOC 부분 체결 후 보완",
+      "urgent_risk_reduction": "긴급 리스크 축소 우선",
+      "volatility": "변동성 우회"
+    },
     "reason": "트리거/우회",
     "spreadRate": "스프레드 비용률",
     "telemetry": "엣지/비용/스프레드/임팩트",
     "triggerReason": "트리거 사유",
+    "triggerReasons": {
+      "below_min_trade_amount": "최소 주문 금액 미달",
+      "breakout-fail": "돌파 실패",
+      "edge_below_cost": "기대 엣지가 비용 대비 부족",
+      "excluded_staged_exit": "제외 종목 단계적 축소",
+      "included_rebalance": "리밸런싱 포함 종목",
+      "invalid_order_amount": "주문 수량/금액 계산 오류",
+      "macro-rebound": "거시 반등 대응",
+      "mean-revert": "평균 회귀",
+      "missing_from_inference": "추론 누락 종목 정리",
+      "missing_inference_grace_elapsed": "추론 누락 유예 종료",
+      "momentum": "모멘텀",
+      "no_trade_trim": "무거래 종목 비중 축소",
+      "post_only_unfilled_cancel_failed": "Post-Only 미체결 취소 실패",
+      "profit-take": "이익 실현",
+      "risk-reduce": "리스크 축소",
+      "stop-loss": "손절",
+      "symbol_not_orderable": "주문 불가 종목",
+      "trailing_take_profit": "트레일링 익절",
+      "trend-follow": "추세 추종",
+      "volatility_stop_loss": "변동성 손절"
+    },
     "type": "거래",
     "types": {
       "buy": "매수",

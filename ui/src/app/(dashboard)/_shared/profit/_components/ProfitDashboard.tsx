@@ -5,12 +5,7 @@ import { useTranslations } from 'next-intl';
 
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatNumber } from '@/utils/number';
-
-interface ProfitDashboardProps {
-  isLoading?: boolean;
-  profit?: number;
-  todayProfit?: number;
-}
+import type { ProfitDashboardProps } from './profit-dashboard.types';
 
 /**
  * Renders the Profit Dashboard Skeleton UI for the dashboard UI.

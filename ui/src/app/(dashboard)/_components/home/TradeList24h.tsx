@@ -2,38 +2,33 @@
 import React from 'react';
 
 import { useRouter } from 'next/navigation';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
+import { TradeTypeText } from '@/app/(dashboard)/_shared/trades/TradeTypeText';
 import { Trade } from '@/app/(dashboard)/_shared/trades/trade.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber } from '@/utils/number';
-
-import { TRADE_STYLES } from '@/app/(dashboard)/_shared/trades/trade.styles';
+import type { TradeList24hProps } from './home.types';
 
 /**
- * Renders the Trade List24h Skeleton UI for the dashboard UI.
- * @returns Rendered React element for this view.
+ * Renders the trade list 24h skeleton.
+ * @returns Rendered React element.
  */
 export const TradeList24hSkeleton = () => (
-  <div className='animate-pulse px-4 py-6 space-y-3'>
-    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
-    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2' />
-    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6' />
+  <div className='animate-pulse space-y-3 px-4 py-6'>
+    <div className='h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700' />
+    <div className='h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-700' />
+    <div className='h-4 w-5/6 rounded bg-gray-200 dark:bg-gray-700' />
   </div>
 );
 
-interface TradeList24hProps {
-  items?: Trade[];
-  isLoading?: boolean;
-}
-
 /**
- * Renders the Trade List24h UI for the dashboard UI.
- * @param params - Input values for the dashboard UI operation.
- * @returns Rendered React element for this view.
+ * Renders the trade list for last 24h.
+ * @param params - Input values.
+ * @returns Rendered React element.
  */
 export function TradeList24h({ items = [], isLoading = false }: TradeList24hProps) {
   const t = useTranslations();
@@ -41,13 +36,13 @@ export function TradeList24h({ items = [], isLoading = false }: TradeList24hProp
 
   if (isLoading) {
     return (
-      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
-        <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
+      <div className='relative w-full min-h-0 overflow-hidden rounded-xl bg-white px-0 pt-6 shadow-md dark:bg-dark dark:shadow-dark-md'>
+        <div className='mb-4 flex items-center justify-between px-4 sm:px-6'>
           <h5 className='card-title text-dark dark:text-white'>{t('dashboard.trades24h')}</h5>
           <button
             type='button'
             onClick={() => router.push('/trades')}
-            className='cursor-pointer text-sm text-primary-600 hover:underline dark:text-primary-400 py-2 px-1 min-h-[44px] min-w-[44px] flex items-center justify-end'
+            className='flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-end px-1 py-2 text-sm text-primary-600 hover:underline dark:text-primary-400'
           >
             {t('dashboard.viewAll')}
           </button>
@@ -58,21 +53,21 @@ export function TradeList24h({ items = [], isLoading = false }: TradeList24hProp
   }
 
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
-      <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
+    <div className='relative w-full min-h-0 overflow-hidden rounded-xl bg-white px-0 pt-6 shadow-md dark:bg-dark dark:shadow-dark-md'>
+      <div className='mb-4 flex items-center justify-between px-4 sm:px-6'>
         <h5 className='card-title text-dark dark:text-white'>{t('dashboard.trades24h')}</h5>
         <button
           type='button'
           onClick={() => router.push('/trades')}
-          className='cursor-pointer text-sm text-primary-600 hover:underline dark:text-primary-400 py-2 px-1 min-h-[44px] min-w-[44px] flex items-center justify-end'
+          className='flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-end px-1 py-2 text-sm text-primary-600 hover:underline dark:text-primary-400'
         >
           {t('dashboard.viewAll')}
         </button>
       </div>
       <SimpleBar className='min-h-0'>
-        <div className='overflow-x-auto min-w-0'>
-          <Table hoverable className='w-full text-left min-w-[480px]'>
-            <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700'>
+        <div className='min-w-0 overflow-x-auto'>
+          <Table hoverable className='min-w-[480px] w-full text-left'>
+            <TableHead className='border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400'>
               <TableRow>
                 <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('trade.type')}</TableHeadCell>
                 <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('trade.date')}</TableHeadCell>
@@ -84,7 +79,7 @@ export function TradeList24h({ items = [], isLoading = false }: TradeList24hProp
             <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className='px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm'>
+                  <TableCell colSpan={5} className='px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400'>
                     {t('dashboard.emptyTrades24h')}
                   </TableCell>
                 </TableRow>
@@ -95,7 +90,7 @@ export function TradeList24h({ items = [], isLoading = false }: TradeList24hProp
                     className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   >
                     <TableCell className='px-4 py-3 whitespace-nowrap'>
-                      <Badge className={TRADE_STYLES[item.type]?.badgeStyle ?? ''}>{t(`trade.types.${item.type}`)}</Badge>
+                      <TradeTypeText type={item.type} label={t(`trade.types.${item.type}`)} />
                     </TableCell>
                     <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
                       {formatDate(new Date(item.createdAt))}

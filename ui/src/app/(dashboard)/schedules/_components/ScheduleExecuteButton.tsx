@@ -6,24 +6,8 @@ import { useTranslations } from 'next-intl';
 
 import { PermissionGuard } from '@/app/(dashboard)/_shared/auth/PermissionGuard';
 import { Permission } from '@/shared/types/permission.types';
-import type { ScheduleExecutionPlanResponse, ScheduleLockStateResponse } from '../_types/schedule-execution.types';
 import type { ScheduleActionState, ScheduleLockActionState } from '../_actions/schedule.actions';
-
-interface ScheduleExecuteButtonProps {
-  type: 'marketSignal' | 'allocationRecommendationExisting' | 'allocationRecommendationNew' | 'allocationAudit';
-  isPending: boolean;
-  isReleasePending: boolean;
-  onExecute: () => void;
-  onReleaseLock: () => void;
-  result?: ScheduleActionState;
-  lockState?: ScheduleLockStateResponse;
-  lockResult?: ScheduleLockActionState;
-  plan?: ScheduleExecutionPlanResponse;
-  isPlanLoading: boolean;
-  isLockLoading: boolean;
-  highlightRunAt?: string;
-  highlightRemainingText?: string;
-}
+import type { ScheduleExecuteButtonProps } from './schedule-execute-button.types';
 
 /**
  * Renders the Schedule Execute Button UI for the dashboard UI.

@@ -9,6 +9,25 @@ export function formatDate(timestamp: number): string {
   return new Date(timestamp * 1000).toISOString();
 }
 
+/**
+ * UNIX epoch seconds 값을 Date로 변환합니다.
+ * @param value 초 단위 timestamp
+ * @returns Date 또는 undefined
+ */
+export function fromUnixSeconds(value: unknown): Date | undefined {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) {
+    return undefined;
+  }
+
+  const parsed = new Date(seconds * 1000);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
 /** TZ_OFFSET(예: "+09:00", "-05:00")을 시간 수로 파싱. 없으면 0(UTC). */
 export function parseTzOffsetHours(tzOffset: string | undefined): number {
   if (!tzOffset) return 0;

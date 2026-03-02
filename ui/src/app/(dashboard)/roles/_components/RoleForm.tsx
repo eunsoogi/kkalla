@@ -12,10 +12,7 @@ import { Permission } from '@/shared/types/permission.types';
 import { Role } from '@/shared/types/role.types';
 
 import { createRoleAction, deleteRoleAction, getPermissionsAction, getRoleAction, updateRoleAction } from '../_actions/role.actions';
-
-interface RoleFormProps {
-  id?: string;
-}
+import type { RoleFormProps } from './role-form.types';
 
 /**
  * Renders the Role Form Skeleton UI for the dashboard UI.

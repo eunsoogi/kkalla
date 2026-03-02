@@ -12,7 +12,7 @@ import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { AdjustedOrderResult, MarketFeatures } from '@/modules/upbit/upbit.types';
 import { User } from '@/modules/user/entities/user.entity';
 import { clamp01 } from '@/utils/math';
-import { formatNumber, formatRatePercent } from '@/utils/number';
+import { formatNumber, formatPercent } from '@/utils/number';
 
 import { SHARED_REBALANCE_POLICY, SHARED_TRADE_EXECUTION_RUNTIME } from './allocation-core.constants';
 import {
@@ -63,6 +63,7 @@ import {
   TradeExecutionFillMetrics,
   TradeExecutionSnapshot,
   TradePolicyConfig,
+  TradeRuntimeContext,
 } from './trade-orchestration.types';
 
 /**
@@ -1255,12 +1256,12 @@ export class TradeOrchestrationService {
                     amount: formatNumber(trade.amount),
                     profit: formatNumber(trade.profit),
                     executionMode: trade.executionMode ?? '-',
-                    orderStatus: trade.orderStatus ?? '-',
-                    filledRatio: formatRatePercent(trade.filledRatio),
-                    expectedEdgeRate: formatRatePercent(trade.expectedEdgeRate),
-                    estimatedCostRate: formatRatePercent(trade.estimatedCostRate),
-                    spreadRate: formatRatePercent(trade.spreadRate),
-                    impactRate: formatRatePercent(trade.impactRate),
+                    orderStatus: this.resolveOrderStatusLabel(runtime, trade.orderStatus),
+                    filledRatio: formatPercent(trade.filledRatio),
+                    expectedEdgeRate: formatPercent(trade.expectedEdgeRate),
+                    estimatedCostRate: formatPercent(trade.estimatedCostRate),
+                    spreadRate: formatPercent(trade.spreadRate),
+                    impactRate: formatPercent(trade.impactRate),
                     triggerReason: trade.triggerReason ?? '-',
                     gateBypassedReason: trade.gateBypassedReason ?? '-',
                   },
@@ -1284,6 +1285,39 @@ export class TradeOrchestrationService {
    */
   private resolveTradePolicy(policy?: TradePolicyConfig): TradePolicyConfig {
     return policy ?? this.defaultTradePolicy;
+  }
+
+  /**
+   * Maps raw order-status keys to localized labels used in notifications.
+   * @param runtime - Runtime services including i18n.
+   * @param status - Raw exchange order status.
+   * @returns Localized status label or raw fallback.
+   */
+  private resolveOrderStatusLabel(runtime: TradeRuntimeContext, status: string | null | undefined): string {
+    if (!status) {
+      return '-';
+    }
+
+    switch (status) {
+      case 'open':
+        return runtime.i18n.t('label.order.status.open');
+      case 'closed':
+        return runtime.i18n.t('label.order.status.closed');
+      case 'canceled':
+        return runtime.i18n.t('label.order.status.canceled');
+      case 'cancelled':
+        return runtime.i18n.t('label.order.status.cancelled');
+      case 'partially_filled':
+        return runtime.i18n.t('label.order.status.partially_filled');
+      case 'filled':
+        return runtime.i18n.t('label.order.status.filled');
+      case 'wait':
+        return runtime.i18n.t('label.order.status.wait');
+      case 'done':
+        return runtime.i18n.t('label.order.status.done');
+      default:
+        return status;
+    }
   }
 
   /**
@@ -1423,7 +1457,7 @@ export class TradeOrchestrationService {
               id: user.id,
               symbol: request.symbol,
               orderId,
-              filledRatio: formatRatePercent(filledRatio),
+              filledRatio: formatPercent(filledRatio),
             },
           }),
         );
@@ -1434,7 +1468,7 @@ export class TradeOrchestrationService {
               id: user.id,
               symbol: request.symbol,
               orderId,
-              filledRatio: formatRatePercent(filledRatio),
+              filledRatio: formatPercent(filledRatio),
             },
           }),
           error,
@@ -1623,8 +1657,9 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Normalizes expected volatility from prompt percent scale to 0-1 rate.
-   * @param expectedVolatilityPct - Volatility value represented as percentage points (e.g. `3` for `3%`).
+   * Normalizes expected volatility to 0-1 rate.
+   * Supports both percentage-point and rate inputs.
+   * @param expectedVolatilityPct - Volatility value in percentage-point or rate scale.
    * @returns Normalized volatility rate in 0-1 range.
    */
   private normalizeExpectedVolatilityRate(expectedVolatilityPct: number | null | undefined): number {
@@ -1632,7 +1667,8 @@ export class TradeOrchestrationService {
       return 0;
     }
 
-    return clamp01(Math.max(0, expectedVolatilityPct) / 100);
+    const asRate = Math.abs(expectedVolatilityPct) > 1 ? expectedVolatilityPct / 100 : expectedVolatilityPct;
+    return clamp01(Math.max(0, asRate));
   }
 
   /**

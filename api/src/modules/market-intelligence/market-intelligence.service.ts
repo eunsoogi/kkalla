@@ -16,6 +16,9 @@ import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import type { KrwTickerDailyData } from '@/modules/upbit/upbit.types';
+import { fromUnixSeconds } from '@/utils/date';
+import { toFiniteNumber, toPositiveNumber } from '@/utils/number';
+import { buildMinuteLookupCandidateSet, resolveDailyFallbackPrice } from '@/utils/price';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
@@ -36,7 +39,9 @@ import {
   MARKET_SIGNAL_STATE_CACHE_KEY,
   MARKET_SIGNAL_STATE_CACHE_TTL_SECONDS,
   MarketSignalData,
+  MarketSignalInferenceItem,
   MarketSignalState,
+  MinuteLookupMode,
   SaveMarketSignalOptions,
   SignalPriceResolution,
 } from './market-intelligence.types';
@@ -272,9 +277,9 @@ export class MarketIntelligenceService {
       id: saved.id,
       batchId: saved.batchId,
       symbol: saved.symbol,
-      weight: saved.weight,
+      weight: Number(saved.weight),
       reason: toUserFacingText(saved.reason),
-      confidence: saved.confidence,
+      confidence: Number(saved.confidence),
       btcDominance: saved.btcDominance,
       altcoinIndex: saved.altcoinIndex,
       marketRegimeAsOf: saved.marketRegimeAsOf,
@@ -401,12 +406,12 @@ export class MarketIntelligenceService {
         batchId: entity.batchId,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
-        btcDominance: this.toFiniteNumber(entity.btcDominance) ?? null,
-        altcoinIndex: this.toFiniteNumber(entity.altcoinIndex) ?? null,
+        btcDominance: toFiniteNumber(entity.btcDominance) ?? null,
+        altcoinIndex: toFiniteNumber(entity.altcoinIndex) ?? null,
         marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
         marketRegimeSource: entity.marketRegimeSource ?? null,
         marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
-        feargreedIndex: this.toFiniteNumber(entity.feargreedIndex) ?? null,
+        feargreedIndex: toFiniteNumber(entity.feargreedIndex) ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
         validation24h: validation.validation24h,
@@ -439,12 +444,12 @@ export class MarketIntelligenceService {
       batchId: entity.batchId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
-      btcDominance: this.toFiniteNumber(entity.btcDominance) ?? null,
-      altcoinIndex: this.toFiniteNumber(entity.altcoinIndex) ?? null,
+      btcDominance: toFiniteNumber(entity.btcDominance) ?? null,
+      altcoinIndex: toFiniteNumber(entity.altcoinIndex) ?? null,
       marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
       marketRegimeSource: entity.marketRegimeSource ?? null,
       marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
-      feargreedIndex: this.toFiniteNumber(entity.feargreedIndex) ?? null,
+      feargreedIndex: toFiniteNumber(entity.feargreedIndex) ?? null,
       feargreedClassification: entity.feargreedClassification ?? null,
       feargreedTimestamp: entity.feargreedTimestamp ?? null,
     }));
@@ -490,7 +495,7 @@ export class MarketIntelligenceService {
     marketSignal.feargreedClassification =
       options?.feargreed?.classification ?? recommendation.feargreedClassification ?? null;
     marketSignal.feargreedTimestamp =
-      this.fromUnixSeconds(options?.feargreed?.timestamp) ?? recommendation.feargreedTimestamp ?? null;
+      fromUnixSeconds(options?.feargreed?.timestamp) ?? recommendation.feargreedTimestamp ?? null;
     return marketSignal.save();
   }
 
@@ -513,18 +518,18 @@ export class MarketIntelligenceService {
     const badgeMap = await this.getMarketValidationBadgeMapSafe(items.map((entity) => entity.id));
     const marketDataMap = await this.upbitService.getTickerAndDailyDataBatch(items.map((item) => item.symbol));
 
-    const recentCandidateSet = this.buildMinuteLookupCandidateSet(items, mode);
+    const recentCandidateSet = buildMinuteLookupCandidateSet(items, mode);
 
     const result: MarketSignalWithChangeDto[] = await Promise.all(
       items.map(async (entity) => {
         let recommendationPrice: number | undefined =
-          this.toPositiveNumber(entity.recommendationPrice) ?? backfilledPriceMap.get(entity.id);
+          toPositiveNumber(entity.recommendationPrice) ?? backfilledPriceMap.get(entity.id);
         let currentPrice: number | undefined;
         let priceChangePct: number | undefined;
 
         try {
           const marketData = marketDataMap.get(entity.symbol);
-          currentPrice = this.toFiniteNumber(marketData?.ticker?.last);
+          currentPrice = toFiniteNumber(marketData?.ticker?.last);
 
           if (recommendationPrice == null) {
             const shouldUseMinutePrice = mode === 'exact' || (mode === 'mixed' && recentCandidateSet.has(entity.id));
@@ -553,12 +558,12 @@ export class MarketIntelligenceService {
           batchId: entity.batchId,
           createdAt: entity.createdAt,
           updatedAt: entity.updatedAt,
-          btcDominance: this.toFiniteNumber(entity.btcDominance) ?? null,
-          altcoinIndex: this.toFiniteNumber(entity.altcoinIndex) ?? null,
+          btcDominance: toFiniteNumber(entity.btcDominance) ?? null,
+          altcoinIndex: toFiniteNumber(entity.altcoinIndex) ?? null,
           marketRegimeAsOf: entity.marketRegimeAsOf ?? null,
           marketRegimeSource: entity.marketRegimeSource ?? null,
           marketRegimeIsStale: entity.marketRegimeIsStale ?? null,
-          feargreedIndex: this.toFiniteNumber(entity.feargreedIndex) ?? null,
+          feargreedIndex: toFiniteNumber(entity.feargreedIndex) ?? null,
           feargreedClassification: entity.feargreedClassification ?? null,
           feargreedTimestamp: entity.feargreedTimestamp ?? null,
           recommendationPrice,
@@ -579,15 +584,15 @@ export class MarketIntelligenceService {
    */
   private async backfillLatestBatchSignalPrices(
     latestBatchItems: MarketSignal[],
-    mode: 'exact' | 'mixed' | 'approx',
+    mode: MinuteLookupMode,
   ): Promise<Map<string, number>> {
-    const targets = latestBatchItems.filter((item) => this.toPositiveNumber(item.recommendationPrice) == null);
+    const targets = latestBatchItems.filter((item) => toPositiveNumber(item.recommendationPrice) == null);
     if (targets.length < 1) {
       return new Map();
     }
 
     const marketDataMap = await this.upbitService.getTickerAndDailyDataBatch(targets.map((item) => item.symbol));
-    const recentCandidateSet = this.buildMinuteLookupCandidateSet(targets, mode);
+    const recentCandidateSet = buildMinuteLookupCandidateSet(targets, mode);
 
     const entries = await Promise.all(
       targets.map(async (item): Promise<[string, number] | null> => {
@@ -646,34 +651,6 @@ export class MarketIntelligenceService {
   }
 
   /**
-   * Builds minute lookup candidate set used in the market signal flow.
-   * @param items - Collection of items used by the market signal flow.
-   * @param mode - Input value for mode.
-   * @returns Formatted string output for the operation.
-   */
-  private buildMinuteLookupCandidateSet(
-    items: Array<Pick<MarketSignal, 'id' | 'createdAt'>>,
-    mode: 'exact' | 'mixed' | 'approx',
-  ): Set<string> {
-    if (mode === 'exact') {
-      return new Set(items.map((item) => item.id));
-    }
-
-    if (mode !== 'mixed') {
-      return new Set();
-    }
-
-    const now = Date.now();
-    return new Set(
-      items
-        .filter((item) => now - new Date(item.createdAt).getTime() <= 24 * 60 * 60 * 1000)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 3)
-        .map((item) => item.id),
-    );
-  }
-
-  /**
    * Normalizes signal price at time for the market signal flow.
    * @param symbol - Asset symbol to process.
    * @param createdAt - Input value for created at.
@@ -706,7 +683,7 @@ export class MarketIntelligenceService {
     allowMinuteLookup = true,
   ): Promise<SignalPriceResolution> {
     if (allowMinuteLookup) {
-      const minutePrice = this.toPositiveNumber(await this.upbitService.getMinuteCandleAt(symbol, createdAt));
+      const minutePrice = toPositiveNumber(await this.upbitService.getMinuteCandleAt(symbol, createdAt));
       if (minutePrice != null) {
         return { price: minutePrice, source: 'minute' };
       }
@@ -721,82 +698,15 @@ export class MarketIntelligenceService {
       }
     }
 
-    const currentPrice = this.toFiniteNumber(marketDataRef?.ticker?.last);
-    const fallbackPrice = this.toPositiveNumber(
-      this.resolveDailyFallbackPrice(marketDataRef?.candles1d || [], createdAt, currentPrice),
+    const currentPrice = toFiniteNumber(marketDataRef?.ticker?.last);
+    const fallbackPrice = toPositiveNumber(
+      resolveDailyFallbackPrice(marketDataRef?.candles1d || [], createdAt, currentPrice),
     );
     if (fallbackPrice != null) {
       return { price: fallbackPrice, source: 'fallback' };
     }
 
     return { source: 'none' };
-  }
-
-  /**
-   * Normalizes daily fallback price for the market signal flow.
-   * @param candles1d - Input value for candles1d.
-   * @param createdAt - Input value for created at.
-   * @param currentPrice - Input value for current price.
-   * @returns Computed numeric value for the operation.
-   */
-  private resolveDailyFallbackPrice(candles1d: number[][], createdAt: Date, currentPrice?: number): number | undefined {
-    if (candles1d.length < 1) {
-      return currentPrice;
-    }
-
-    const recDateStr = new Date(createdAt).toISOString().slice(0, 10);
-    const candleSameDay = candles1d.find((candle) => new Date(candle[0]).toISOString().slice(0, 10) === recDateStr);
-
-    if (candleSameDay && candleSameDay.length >= 5) {
-      return Number(candleSameDay[4]);
-    }
-
-    const lastCandle = candles1d[candles1d.length - 1];
-    if (lastCandle && lastCandle.length >= 5) {
-      return Number(lastCandle[4]);
-    }
-
-    return currentPrice;
-  }
-
-  /**
-   * Normalizes finite number for the market signal flow.
-   * @param value - Input value for value.
-   * @returns Computed numeric value for the operation.
-   */
-  private toFiniteNumber(value: unknown): number | undefined {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-
-  /**
-   * Normalizes positive number for the market signal flow.
-   * @param value - Input value for value.
-   * @returns Computed numeric value for the operation.
-   */
-  private toPositiveNumber(value: unknown): number | undefined {
-    const parsed = this.toFiniteNumber(value);
-    if (parsed == null || parsed <= 0) {
-      return undefined;
-    }
-    return parsed;
-  }
-
-  /**
-   * Converts unix seconds to date for the market signal flow.
-   * @param value - Unix seconds value.
-   * @returns Converted date value.
-   */
-  private fromUnixSeconds(value: unknown): Date | undefined {
-    const seconds = this.toFiniteNumber(value);
-    if (seconds == null) {
-      return undefined;
-    }
-    const parsed = new Date(seconds * 1000);
-    if (Number.isNaN(parsed.getTime())) {
-      return undefined;
-    }
-    return parsed;
   }
 
   /**
@@ -820,25 +730,9 @@ export class MarketIntelligenceService {
    * @returns Computed numeric value for the operation.
    */
   private normalizeMarketSignals(
-    recommendations: Array<{
-      symbol: string;
-      weight: number;
-      confidence: number;
-      cashWeight: number;
-      regime: 'risk_on' | 'neutral' | 'risk_off';
-      riskFlags: string[];
-      reason: string;
-    }> | null,
+    recommendations: MarketSignalInferenceItem[] | null,
     allowedSymbols?: string[],
-  ): Array<{
-    symbol: string;
-    weight: number;
-    confidence: number;
-    cashWeight: number;
-    regime: 'risk_on' | 'neutral' | 'risk_off';
-    riskFlags: string[];
-    reason: string;
-  }> {
+  ): MarketSignalInferenceItem[] {
     if (!Array.isArray(recommendations)) {
       return [];
     }

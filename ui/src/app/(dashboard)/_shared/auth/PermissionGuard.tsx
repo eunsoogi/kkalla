@@ -1,15 +1,10 @@
 'use client';
-import React, { ReactNode } from 'react';
+import React from 'react';
 
 import { useSession } from 'next-auth/react';
 
 import { usePermissions } from '@/hooks/usePermissions';
-
-interface PermissionGuardProps {
-  permissions: string[];
-  children: ReactNode;
-  fallback?: ReactNode;
-}
+import type { PermissionGuardProps } from './auth.types';
 
 /**
  * Renders the Permission Guard UI for the dashboard UI.

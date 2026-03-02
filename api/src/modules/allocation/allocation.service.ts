@@ -1661,6 +1661,9 @@ export class AllocationService implements OnModuleInit {
         feargreedIndex: entity.feargreedIndex ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
+        decisionConfidence: entity.decisionConfidence ?? null,
+        expectedVolatilityPct: entity.expectedVolatilityPct ?? null,
+        riskFlags: entity.riskFlags ?? null,
         expectedEdgeRate: entity.expectedEdgeRate ?? null,
         estimatedCostRate: entity.estimatedCostRate ?? null,
         spreadRate: entity.spreadRate ?? null,
@@ -1710,6 +1713,9 @@ export class AllocationService implements OnModuleInit {
         feargreedIndex: entity.feargreedIndex ?? null,
         feargreedClassification: entity.feargreedClassification ?? null,
         feargreedTimestamp: entity.feargreedTimestamp ?? null,
+        decisionConfidence: entity.decisionConfidence ?? null,
+        expectedVolatilityPct: entity.expectedVolatilityPct ?? null,
+        riskFlags: entity.riskFlags ?? null,
         expectedEdgeRate: entity.expectedEdgeRate ?? null,
         estimatedCostRate: entity.estimatedCostRate ?? null,
         spreadRate: entity.spreadRate ?? null,
@@ -1752,6 +1758,9 @@ export class AllocationService implements OnModuleInit {
     allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
     allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
     allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
+    allocationRecommendation.decisionConfidence = recommendation.decisionConfidence ?? null;
+    allocationRecommendation.expectedVolatilityPct = recommendation.expectedVolatilityPct ?? null;
+    allocationRecommendation.riskFlags = recommendation.riskFlags ?? null;
     allocationRecommendation.expectedEdgeRate = recommendation.expectedEdgeRate ?? null;
     allocationRecommendation.estimatedCostRate = recommendation.estimatedCostRate ?? null;
     allocationRecommendation.spreadRate = recommendation.spreadRate ?? null;

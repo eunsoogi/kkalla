@@ -1,3 +1,5 @@
+import type { MinuteLookupCandidate, MinuteLookupMode } from '@/utils/price.types';
+
 import { SortDirection } from '../item/item.enum';
 import { MarketRegimeSnapshot } from '../market-regime/market-regime.types';
 import type { KrwTickerDailyData } from '../upbit/upbit.types';
@@ -13,14 +15,29 @@ export interface MarketSignalFilter {
   sortDirection?: SortDirection;
 }
 
+export type MarketSignalRegime = 'risk_on' | 'neutral' | 'risk_off';
+export type MarketSignalRegimeSource = 'live' | 'cache_fallback';
+export type SignalPriceSource = 'minute' | 'fallback' | 'none';
+export type { MinuteLookupCandidate, MinuteLookupMode };
+
 export interface MarketSignal {
   symbol: string;
   reason: string;
   confidence: number;
   weight: number;
   cashWeight?: number;
-  regime?: 'risk_on' | 'neutral' | 'risk_off';
+  regime?: MarketSignalRegime;
   riskFlags?: string[];
+}
+
+export interface MarketSignalInferenceItem {
+  symbol: string;
+  weight: number;
+  confidence: number;
+  cashWeight: number;
+  regime: MarketSignalRegime;
+  riskFlags: string[];
+  reason: string;
 }
 
 export interface MarketSignalResponse {
@@ -37,12 +54,12 @@ export interface MarketSignalData {
   confidence: number;
   recommendationPrice?: number | null;
   cashWeight?: number;
-  regime?: 'risk_on' | 'neutral' | 'risk_off';
+  regime?: MarketSignalRegime;
   riskFlags?: string[];
   btcDominance?: number | null;
   altcoinIndex?: number | null;
   marketRegimeAsOf?: Date | null;
-  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeSource?: MarketSignalRegimeSource | null;
   marketRegimeIsStale?: boolean | null;
   feargreedIndex?: number | null;
   feargreedClassification?: string | null;
@@ -60,7 +77,7 @@ export interface MarketSignalState {
 }
 
 export interface LatestPriceChangeOptions {
-  mode?: 'exact' | 'mixed' | 'approx';
+  mode?: MinuteLookupMode;
 }
 
 export interface SaveMarketSignalOptions {
@@ -72,5 +89,5 @@ export interface SaveMarketSignalOptions {
 
 export interface SignalPriceResolution {
   price?: number;
-  source: 'minute' | 'fallback' | 'none';
+  source: SignalPriceSource;
 }

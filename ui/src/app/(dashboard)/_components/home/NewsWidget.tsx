@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
-import { News } from '@/app/(dashboard)/_shared/news/news.types';
 import { formatDate } from '@/utils/date';
+import type { NewsWidgetProps } from './home.types';
 
 import { NEWS_STYLES } from '@/app/(dashboard)/_shared/news/news.styles';
 
@@ -27,11 +27,6 @@ export const NewsWidgetSkeleton = () => (
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3' />
   </div>
 );
-
-interface NewsWidgetProps {
-  items?: News[];
-  isLoading?: boolean;
-}
 
 /**
  * Renders the News Widget UI for the dashboard UI.

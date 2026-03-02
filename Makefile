@@ -48,6 +48,9 @@ create-cluster:
 		-v $(PWD)/api/src:/app/api/src \
 		-v $(PWD)/ui/src:/app/ui/src \
 		-v $(PWD)/ui/public:/app/ui/public \
+		-v $(PWD)/ui/tailwind.config.ts:/app/ui/tailwind.config.ts \
+		-v $(PWD)/ui/postcss.config.mjs:/app/ui/postcss.config.mjs \
+		-v $(PWD)/ui/next.config.mjs:/app/ui/next.config.mjs \
 		-p 3306:3306@loadbalancer \
 		-p 3001:3001@loadbalancer \
 		-p 3000:3000@loadbalancer \

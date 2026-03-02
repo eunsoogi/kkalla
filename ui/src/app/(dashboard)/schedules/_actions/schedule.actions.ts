@@ -11,6 +11,13 @@ import {
 } from '../_types/schedule-execution.types';
 import { getClient } from '@/utils/api';
 
+const SCHEDULE_EXECUTION_TASKS: ScheduleExecutionTask[] = [
+  'marketSignal',
+  'allocationRecommendationExisting',
+  'allocationRecommendationNew',
+  'allocationAudit',
+];
+
 type ScheduleActionStatus = ScheduleExecutionStatus | 'failed';
 
 export interface ScheduleActionState {
@@ -29,13 +36,6 @@ export interface ScheduleLockActionState {
   message: string;
   recoveredRunningCount?: number;
 }
-
-const SCHEDULE_EXECUTION_TASKS: ScheduleExecutionTask[] = [
-  'marketSignal',
-  'allocationRecommendationExisting',
-  'allocationRecommendationNew',
-  'allocationAudit',
-];
 
 /**
  * Checks schedule execution task in the dashboard UI context.
