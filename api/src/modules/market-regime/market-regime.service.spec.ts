@@ -1,5 +1,7 @@
 import { of } from 'rxjs';
 
+import { translateKoMessage } from '@/test-utils/i18n.mock';
+
 import { MarketRegimeService } from './market-regime.service';
 
 describe('MarketRegimeService', () => {
@@ -11,10 +13,7 @@ describe('MarketRegimeService', () => {
 
   const buildService = () => {
     const i18n = {
-      t: jest.fn((key: string, options?: { args?: Record<string, unknown> }) => {
-        const args = options?.args ?? {};
-        return `${key} ${JSON.stringify(args)}`;
-      }),
+      t: jest.fn(translateKoMessage),
     };
     const errorService = {
       retry: jest.fn(async (operation: () => Promise<unknown>) => operation()),

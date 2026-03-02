@@ -1,3 +1,5 @@
+import { translateKoMessage } from '@/test-utils/i18n.mock';
+
 import { TradeOrchestrationService } from '../allocation-core/trade-orchestration.service';
 import { Category } from '../category/category.enum';
 import { MarketSignal } from '../market-intelligence/entities/market-signal.entity';
@@ -38,7 +40,7 @@ describe('AllocationService', () => {
 
     service = new AllocationService(
       {
-        t: jest.fn((key: string) => key),
+        t: jest.fn(translateKoMessage),
       } as any,
       {
         findAll: jest.fn().mockResolvedValue([]),

@@ -1,3 +1,5 @@
+import { translateKoMessage } from '@/test-utils/i18n.mock';
+
 import { OrderTypes } from './upbit.enum';
 import { UpbitService } from './upbit.service';
 
@@ -13,7 +15,7 @@ describe('UpbitService', () => {
     cacheService.set.mockResolvedValue(undefined);
     service = new UpbitService(
       {
-        t: jest.fn((key: string) => key),
+        t: jest.fn(translateKoMessage),
       } as any,
       {
         retry: jest.fn(),

@@ -3,6 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { I18nService } from 'nestjs-i18n';
 import { Lock } from 'redlock';
 
+import { translateKoMessage } from '@/test-utils/i18n.mock';
+
 import { REDLOCK_OPTIONS } from './redlock.constants';
 import { RedlockService } from './redlock.service';
 
@@ -50,7 +52,7 @@ describe('RedlockService', () => {
         {
           provide: I18nService,
           useValue: {
-            t: jest.fn((key: string) => key),
+            t: jest.fn(translateKoMessage),
           },
         },
       ],

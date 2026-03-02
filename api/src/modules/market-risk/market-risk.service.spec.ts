@@ -9,6 +9,7 @@ import {
   isSellAmountSufficient,
 } from '@/modules/allocation-core/helpers/allocation-recommendation';
 import { TradeOrchestrationService } from '@/modules/allocation-core/trade-orchestration.service';
+import { translateKoMessage } from '@/test-utils/i18n.mock';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
 import { AllocationRecommendation } from '../allocation/entities/allocation-recommendation.entity';
@@ -134,7 +135,7 @@ describe('MarketRiskService', () => {
         {
           provide: I18nService,
           useValue: {
-            t: jest.fn((key: string) => key),
+            t: jest.fn(translateKoMessage),
           },
         },
         {

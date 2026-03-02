@@ -1,3 +1,5 @@
+import { translateKoMessage } from '@/test-utils/i18n.mock';
+
 import { GoogleTokenStrategy } from './google.strategy';
 
 describe('GoogleTokenStrategy', () => {
@@ -10,7 +12,7 @@ describe('GoogleTokenStrategy', () => {
     set: jest.fn().mockResolvedValue(undefined),
   };
   const i18n = {
-    t: jest.fn((key: string) => key),
+    t: jest.fn(translateKoMessage),
   };
 
   let strategy: GoogleTokenStrategy;
