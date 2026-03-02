@@ -1667,7 +1667,7 @@ export class TradeOrchestrationService {
       return 0;
     }
 
-    const asRate = Math.abs(expectedVolatilityPct) >= 1 ? expectedVolatilityPct / 100 : expectedVolatilityPct;
+    const asRate = Math.abs(expectedVolatilityPct) > 1 ? expectedVolatilityPct / 100 : expectedVolatilityPct;
     return clamp01(Math.max(0, asRate));
   }
 

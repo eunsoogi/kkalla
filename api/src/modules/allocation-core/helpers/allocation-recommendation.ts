@@ -190,7 +190,7 @@ interface NormalizeAllocationRecommendationResponseOptions {
 
 /**
  * Normalizes percent-like values to 0~1 rate scale.
- * Supports both percentage-point(0~100) and rate(0~1) inputs.
+ * Supports legacy percentage-point(0~100) inputs while preserving rate(-1~1) boundary values.
  * @param value - Percent-like input value.
  * @returns Normalized rate value.
  */
@@ -199,7 +199,7 @@ const normalizePercentToRate = (value: number): number => {
     return 0;
   }
 
-  const scaled = Math.abs(value) >= 1 ? value / 100 : value;
+  const scaled = Math.abs(value) > 1 ? value / 100 : value;
   return clamp(scaled, -1, 1);
 };
 

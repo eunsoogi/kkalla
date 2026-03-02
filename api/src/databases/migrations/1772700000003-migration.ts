@@ -22,7 +22,7 @@ export class Migration1772700000003 implements MigrationInterface {
         }
 
         await queryRunner.query(
-          `UPDATE \`${table}\` SET \`${column}\` = \`${column}\` / 100 WHERE \`${column}\` IS NOT NULL AND ABS(\`${column}\`) > 1`,
+          `UPDATE \`${table}\` SET \`${column}\` = \`${column}\` / 100 WHERE \`${column}\` IS NOT NULL AND ABS(\`${column}\`) >= 1`,
         );
       }
     }

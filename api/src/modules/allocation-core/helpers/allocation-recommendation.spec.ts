@@ -64,7 +64,7 @@ describe('balance-recommendation utils', () => {
         action: 'invalid-action',
         intensity: 1.4,
         confidence: -0.3,
-        expectedVolatilityPct: -1,
+        expectedVolatilityPct: -120,
         riskFlags: ['r1', 2, 'r2'],
         reason: '  keep trend  ',
       },
@@ -75,10 +75,30 @@ describe('balance-recommendation utils', () => {
       action: 'hold',
       intensity: 1,
       confidence: 0,
-      expectedVolatilityPct: -0.01,
+      expectedVolatilityPct: -1,
       riskFlags: ['r1', 'r2'],
       reason: 'keep trend',
     });
+  });
+
+  it('should preserve 1/-1 expected volatility values as normalized rate boundaries', () => {
+    const plusBoundary = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        expectedVolatilityPct: 1,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+    const minusBoundary = normalizeAllocationRecommendationResponsePayload(
+      {
+        symbol: 'BTC/KRW',
+        expectedVolatilityPct: -1,
+      },
+      { expectedSymbol: 'BTC/KRW' },
+    );
+
+    expect(plusBoundary?.expectedVolatilityPct).toBe(1);
+    expect(minusBoundary?.expectedVolatilityPct).toBe(-1);
   });
 
   it('should keep payload and invoke mismatch callback when drop option is disabled', () => {
