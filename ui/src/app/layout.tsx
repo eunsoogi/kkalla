@@ -40,7 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     themeModeCookie === 'light' || themeModeCookie === 'dark' || themeModeCookie === 'auto'
       ? themeModeCookie
       : 'auto';
-  const initialTheme = resolvedThemeCookie === 'dark' ? 'dark' : '';
+  const initialTheme = themeModeCookie === 'dark' || resolvedThemeCookie === 'dark' ? 'dark' : '';
 
   return (
     <html lang={locale} className={initialTheme} suppressHydrationWarning>
