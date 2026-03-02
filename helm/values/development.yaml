@@ -43,29 +43,11 @@ ui:
     - name: public
       hostPath:
         path: /app/ui/public
-    - name: tailwind-config
-      hostPath:
-        path: /app/ui/tailwind.config.ts
-    - name: postcss-config
-      hostPath:
-        path: /app/ui/postcss.config.mjs
-    - name: next-config
-      hostPath:
-        path: /app/ui/next.config.mjs
   volumeMounts:
     - name: src
       mountPath: /app/src
     - name: public
       mountPath: /app/public
-    - name: tailwind-config
-      mountPath: /app/tailwind.config.ts
-      readOnly: true
-    - name: postcss-config
-      mountPath: /app/postcss.config.mjs
-      readOnly: true
-    - name: next-config
-      mountPath: /app/next.config.mjs
-      readOnly: true
   autoscaling:
     enabled: false
   service:
