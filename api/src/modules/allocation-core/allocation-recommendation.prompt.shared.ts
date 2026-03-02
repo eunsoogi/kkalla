@@ -34,6 +34,7 @@ export const UPBIT_ALLOCATION_RECOMMENDATION_SHARED_RESPONSE_SCHEMA = {
     expectedVolatilityPct: {
       type: 'number',
       minimum: 0,
+      maximum: 1,
     },
     riskFlags: {
       type: 'array',

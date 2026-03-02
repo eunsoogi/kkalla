@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.1.0",
   "scripts": {
     "build": "next build",
-    "start:dev": "next dev",
+    "start:dev": "CHOKIDAR_USEPOLLING=1 next dev",
     "start:prod": "next start",
     "lint": "eslint 'src/**/*.{ts,tsx}' --fix",
     "prettier": "prettier 'src/**/*.{ts,tsx}' --write"

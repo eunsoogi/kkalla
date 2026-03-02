@@ -8,12 +8,7 @@ import { useTranslations } from 'next-intl';
 import { getSlackConfigAction, getSlackStatusAction } from '@/app/(dashboard)/_shared/settings/_actions/settings.actions';
 import { ApikeyStatus } from '@/enums/apikey.enum';
 import { SlackConfig, initialState as initialSlackConfigState } from '@/app/(dashboard)/notify/_types/slack.types';
-
-interface ChecklistItem {
-  label: string;
-  detail: string;
-  complete: boolean;
-}
+import type { ChecklistItem } from './slack-progress-panel.types';
 
 /**
  * Renders the Slack Progress Panel UI for the dashboard UI.

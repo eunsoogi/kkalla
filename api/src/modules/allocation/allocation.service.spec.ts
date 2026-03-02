@@ -1639,6 +1639,9 @@ describe('AllocationService', () => {
       feargreedIndex: 66,
       feargreedClassification: 'greed',
       feargreedTimestamp: new Date('2026-03-01T00:00:00.000Z'),
+      decisionConfidence: 0.82,
+      expectedVolatilityPct: 0.024,
+      riskFlags: ['macro', 'regulatory'],
       expectedEdgeRate: 0.021,
       estimatedCostRate: 0.0014,
       spreadRate: 0.0005,
@@ -1663,6 +1666,9 @@ describe('AllocationService', () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
       id: 'rec-1',
+      decisionConfidence: 0.82,
+      expectedVolatilityPct: 0.024,
+      riskFlags: ['macro', 'regulatory'],
       expectedEdgeRate: 0.021,
       estimatedCostRate: 0.0014,
       spreadRate: 0.0005,
@@ -1692,10 +1698,13 @@ describe('AllocationService', () => {
       feargreedIndex: 66,
       feargreedClassification: 'greed',
       feargreedTimestamp: new Date('2026-03-01T00:00:00.000Z'),
-      expectedEdgeRate: 0.018,
-      estimatedCostRate: 0.0013,
-      spreadRate: 0.00045,
-      impactRate: 0.00035,
+      decisionConfidence: -0.3,
+      expectedVolatilityPct: -0.025,
+      riskFlags: ['event-risk', 7, '   ', 'liquidity'],
+      expectedEdgeRate: -0.018,
+      estimatedCostRate: -0.0013,
+      spreadRate: -0.00045,
+      impactRate: -0.00035,
     } as any;
 
     jest.spyOn(AllocationRecommendation, 'cursor').mockResolvedValue({
@@ -1714,11 +1723,34 @@ describe('AllocationService', () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
       id: 'rec-2',
-      expectedEdgeRate: 0.018,
-      estimatedCostRate: 0.0013,
-      spreadRate: 0.00045,
-      impactRate: 0.00035,
+      decisionConfidence: -0.3,
+      expectedVolatilityPct: -0.025,
+      riskFlags: ['event-risk', 7, '   ', 'liquidity'],
+      expectedEdgeRate: -0.018,
+      estimatedCostRate: -0.0013,
+      spreadRate: -0.00045,
+      impactRate: -0.00035,
     });
+  });
+
+  it('should store expectedVolatilityPct as 0~1 rate scale', async () => {
+    const saveSpy = jest.spyOn(AllocationRecommendation.prototype, 'save').mockImplementation(async function (
+      this: any,
+    ) {
+      return this;
+    });
+
+    await service.saveAllocationRecommendation({
+      batchId: 'batch-telemetry-save',
+      symbol: 'BTC/KRW',
+      category: Category.COIN_MAJOR,
+      intensity: 0.3,
+      action: 'buy',
+      expectedVolatilityPct: 0.024,
+    } as any);
+
+    const saved = saveSpy.mock.instances[0] as any;
+    expect(saved?.expectedVolatilityPct).toBeCloseTo(0.024, 10);
   });
 
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {

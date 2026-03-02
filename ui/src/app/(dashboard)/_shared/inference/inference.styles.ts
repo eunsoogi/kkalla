@@ -1,58 +1,52 @@
+import type { CSSProperties } from 'react';
+
+import { getNeutralScaleStyle, getReportToneStyle, getValidationTone } from '@/utils/status-tone';
+
 /**
- * Retrieves rate color for the dashboard UI flow.
- * @param rate - Input value for rate.
- * @returns Result produced by the dashboard UI flow.
+ * Retrieves signed-rate tone color for legacy consumers.
+ * @param rate - Signed value.
+ * @returns CSS style object.
  */
-export const getRateColor = (rate: number) => {
-  // rate를 0~1 범위로 정규화
-  const normalizedRate = (rate + 1) / 2;
+export const getRateColor = (rate: number): CSSProperties => {
+  if (!Number.isFinite(rate)) {
+    return getReportToneStyle('neutral');
+  }
 
-  const red = Math.round(255 * (1 - normalizedRate));
-  const green = Math.round(255 * normalizedRate);
+  if (rate > 0) {
+    return getReportToneStyle('positive');
+  }
 
-  return {
-    backgroundColor: `rgb(${red}, ${green}, 64)`,
-    color: 'white',
-  };
+  if (rate < 0) {
+    return getReportToneStyle('negative');
+  }
+
+  return getReportToneStyle('neutral');
 };
 
 /**
- * Retrieves weight color for the dashboard UI flow.
- * @param weight - Input value for weight.
- * @returns Result produced by the dashboard UI flow.
+ * Retrieves weight color style on neutral scale.
+ * @param weight - Weight value (0~1).
+ * @returns CSS style object.
  */
-export const getWeightColor = (weight: number) => {
-  if (weight > 0.7) return { backgroundColor: '#7E22CE', color: 'white' }; // purple-700
-  if (weight > 0.4) return { backgroundColor: '#9333EA', color: 'white' }; // purple-600
-  return { backgroundColor: '#A855F7', color: 'white' }; // purple-500
+export const getWeightColor = (weight: number): CSSProperties => {
+  return getNeutralScaleStyle(weight);
 };
 
 /**
- * Retrieves confidence color for the dashboard UI flow.
- * @param confidence - Identifier for the target resource.
- * @returns Result produced by the dashboard UI flow.
+ * Retrieves confidence color style on neutral scale.
+ * @param confidence - Confidence value (0~1).
+ * @returns CSS style object.
  */
-export const getConfidenceColor = (confidence: number) => {
-  if (confidence > 0.7) return { backgroundColor: '#312E81', color: 'white' }; // indigo-900
-  if (confidence > 0.4) return { backgroundColor: '#4338CA', color: 'white' }; // indigo-700
-  return { backgroundColor: '#4F46E5', color: 'white' }; // indigo-600
+export const getConfidenceColor = (confidence: number): CSSProperties => {
+  return getNeutralScaleStyle(confidence);
 };
 
 /**
- * Retrieves validation color for the dashboard UI flow.
- * @param status - Input value for status.
- * @param verdict - Input value for verdict.
- * @returns Result produced by the dashboard UI flow.
+ * Retrieves validation status color style.
+ * @param status - Validation status.
+ * @param verdict - Validation verdict.
+ * @returns CSS style object.
  */
-export const getValidationColor = (status: string, verdict?: string | null) => {
-  if (status === 'pending') return { backgroundColor: '#6B7280', color: 'white' }; // gray-500
-  if (status === 'running') return { backgroundColor: '#0EA5E9', color: 'white' }; // sky-500
-  if (status === 'failed') return { backgroundColor: '#DC2626', color: 'white' }; // red-600
-
-  if (verdict === 'good') return { backgroundColor: '#15803D', color: 'white' }; // green-700
-  if (verdict === 'mixed') return { backgroundColor: '#D97706', color: 'white' }; // amber-600
-  if (verdict === 'bad') return { backgroundColor: '#B91C1C', color: 'white' }; // red-700
-  if (verdict === 'invalid') return { backgroundColor: '#4B5563', color: 'white' }; // gray-600
-
-  return { backgroundColor: '#1F2937', color: 'white' }; // gray-800
+export const getValidationColor = (status: string, verdict?: string | null): CSSProperties => {
+  return getReportToneStyle(getValidationTone(status, verdict));
 };

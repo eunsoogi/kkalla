@@ -12,10 +12,7 @@ import { Category } from '@/enums/category.enum';
 import { Blacklist } from '@/app/(dashboard)/blacklists/_types/blacklist.types';
 
 import { createBlacklistAction, deleteBlacklistAction, getBlacklistAction, updateBlacklistAction } from '../_actions/blacklist.actions';
-
-interface BlacklistFormProps {
-  id?: string;
-}
+import type { BlacklistFormProps } from './blacklist-form.types';
 
 /**
  * Renders the Blacklist Form Skeleton UI for the dashboard UI.

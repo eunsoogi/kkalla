@@ -1,8 +1,11 @@
-export const TRADE_STYLES = {
-  buy: {
-    badgeStyle: 'text-success bg-lightsuccess dark:text-white dark:bg-success',
+import { TradeTypes } from '@/enums/trade.enum';
+import type { ReportTone } from '@/utils/status-tone.types';
+
+export const TRADE_STYLES: Record<TradeTypes, { tone: ReportTone }> = {
+  [TradeTypes.BUY]: {
+    tone: 'positive',
   },
-  sell: {
-    badgeStyle: 'text-error bg-lighterror dark:text-white dark:bg-error',
+  [TradeTypes.SELL]: {
+    tone: 'negative',
   },
-} as const;
+};

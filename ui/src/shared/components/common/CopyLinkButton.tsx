@@ -4,10 +4,7 @@ import React from 'react';
 import { Icon } from '@iconify/react';
 import { Tooltip } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
-
-interface CopyLinkButtonProps {
-  path: string;
-}
+import type { CopyLinkButtonProps } from './copy-button.types';
 
 /**
  * Renders the Copy Link Button UI for the dashboard UI.

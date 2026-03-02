@@ -8,14 +8,14 @@ import SimpleBar from 'simplebar-react';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
 
-import type { HoldingWithDailyChange } from '@/app/(dashboard)/_components/home/_types/dashboard-summary.types';
+import type { HoldingRowProps, HoldingsListProps } from './home.types';
 
 /**
  * Renders the Holding Row UI for the dashboard UI.
  * @param params - Input values for the dashboard UI operation.
  * @returns Rendered React element for this view.
  */
-const HoldingRow = ({ item }: { item: HoldingWithDailyChange }) => (
+const HoldingRow = ({ item }: HoldingRowProps) => (
   <TableRow className='border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
     <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>{item.symbol}</TableCell>
     <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
@@ -45,11 +45,6 @@ export const HoldingsListSkeleton = () => (
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6' />
   </div>
 );
-
-interface HoldingsListProps {
-  items?: HoldingWithDailyChange[];
-  isLoading?: boolean;
-}
 
 /**
  * Renders the Holdings List UI for the dashboard UI.

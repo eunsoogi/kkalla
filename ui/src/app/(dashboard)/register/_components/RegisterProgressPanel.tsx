@@ -10,12 +10,7 @@ import { getScheduleAction, getUpbitStatusAction } from '@/app/(dashboard)/_shar
 import { ApikeyStatus } from '@/enums/apikey.enum';
 import { Category } from '@/app/(dashboard)/register/_types/category.types';
 import { Schedule, initialState as initialScheduleState } from '@/app/(dashboard)/register/_types/schedule.types';
-
-interface ChecklistItem {
-  label: string;
-  detail: string;
-  complete: boolean;
-}
+import type { ChecklistItem } from './register.types';
 
 /**
  * Renders the Register Progress Panel UI for the dashboard UI.

@@ -3,11 +3,35 @@ export const formatNumber = (digit: number): string => {
 };
 
 /**
+ * 유한 숫자만 안전하게 반환합니다.
+ * @param value 파싱 대상 값
+ * @returns 유효한 숫자 또는 null
+ */
+export const toFiniteNumber = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
+ * 0보다 큰 유한 숫자만 안전하게 반환합니다.
+ * @param value 파싱 대상 값
+ * @returns 양수 숫자 또는 null
+ */
+export const toPositiveNumber = (value: unknown): number | null => {
+  const parsed = toFiniteNumber(value);
+  if (parsed == null || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+};
+
+/**
  * 0~1 비율 값을 퍼센트 문자열로 포맷팅합니다.
  * @param value 포맷팅할 비율 값
  * @returns 퍼센트 문자열 또는 기본값('-')
  */
-export const formatRatePercent = (value: number | null | undefined): string => {
+export const formatPercent = (value: number | null | undefined): string => {
   if (value == null || !Number.isFinite(value)) {
     return '-';
   }

@@ -1,88 +1,24 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
 
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
-import remarkGfm from 'remark-gfm';
 import SimpleBar from 'simplebar-react';
 
-import { getConfidenceColor, getWeightColor } from '@/app/(dashboard)/_shared/inference/inference.styles';
-import type { MarketReportWithChange } from '@/app/(dashboard)/_components/home/_types/dashboard-summary.types';
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
-import { formatPrice } from '@/utils/number';
+import { formatPercent, formatPrice } from '@/utils/number';
+import type { MarketReportListProps, MarketReportRowProps } from './home.types';
 
 import { ContentModal } from '@/app/(dashboard)/_shared/ui/ContentModal';
-
-const MARKET_REPORT_PREVIEW_ALLOWED_ELEMENTS = ['a', 'br', 'code', 'del', 'em', 'li', 'ol', 'p', 'strong', 'ul'] as const;
-
-/**
- * Formats market regime percent value for dashboard view.
- * @param value - Numeric percent value.
- * @returns Formatted percent string.
- */
-const formatRegimePercent = (value?: number | null): string => {
-  if (value == null || !Number.isFinite(value)) {
-    return '-';
-  }
-
-  return `${value.toFixed(2)}%`;
-};
+import { getDiffColor, getDiffPrefix } from '@/utils/color';
 
 /**
- * Formats market regime score value for dashboard view.
- * @param value - Numeric score value.
- * @returns Formatted score string.
+ * Renders the market report table row.
+ * @param params - Input values.
+ * @returns Rendered React element.
  */
-const formatRegimeScore = (value: number | null | undefined, pointUnitLabel: string): string => {
-  if (value == null || !Number.isFinite(value)) {
-    return '-';
-  }
-
-  return `${Number(value.toFixed(2)).toString()}${pointUnitLabel}`;
-};
-
-/**
- * Formats market regime snapshot timestamp for dashboard view.
- * @param value - Snapshot asOf value.
- * @returns Formatted timestamp string.
- */
-const formatRegimeAsOf = (value?: string | Date | null): string => {
-  if (!value) {
-    return '-';
-  }
-
-  const parsed = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return '-';
-  }
-
-  return formatDate(parsed);
-};
-
-/**
- * Renders the Market Report Row UI for the dashboard UI.
- * @param params - Input values for the dashboard UI operation.
- * @returns Rendered React element for this view.
- */
-const MarketReportRow = ({
-  item,
-  t,
-  onRowClick,
-}: {
-  item: MarketReportWithChange;
-  t: (k: string) => string;
-  onRowClick: (id: string) => void;
-}) => {
-  const weightPct = Math.floor((item.weight ?? 0) * 100);
-  const confidencePct = Math.floor((item.confidence ?? 0) * 100);
-  const weightStyle = getWeightColor(item.weight ?? 0);
-  const confidenceStyle = getConfidenceColor(item.confidence ?? 0);
-  const marketRegimeAsOf = formatRegimeAsOf(item.marketRegimeAsOf);
-  const pointUnitLabel = t('unitPoint');
-
+const MarketReportRow = ({ item, onRowClick }: MarketReportRowProps) => {
   return (
     <TableRow
       role='button'
@@ -92,86 +28,11 @@ const MarketReportRow = ({
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onRowClick(item.id)}
     >
       <TableCell className='px-4 py-3 whitespace-nowrap font-medium text-dark dark:text-white'>{item.symbol}</TableCell>
-      <TableCell className='px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[320px] min-w-0'>
-        <div className='flex flex-col gap-y-2'>
-          <div className='inline-flex shrink-0 items-center' style={{ gap: '0.375rem' }}>
-            <span
-              className='rounded px-1.5 py-0.5 text-xs font-medium'
-              style={{ backgroundColor: weightStyle.backgroundColor, color: weightStyle.color }}
-              title={t('inference.weight')}
-            >
-              {weightPct}%
-            </span>
-            <span
-              className='rounded px-1.5 py-0.5 text-xs font-medium'
-              style={{ backgroundColor: confidenceStyle.backgroundColor, color: confidenceStyle.color }}
-              title={t('inference.confidence')}
-            >
-              {confidencePct}%
-            </span>
-          </div>
-          <span
-            className='block wrap-break-word text-gray-600 dark:text-gray-400'
-            style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              allowedElements={MARKET_REPORT_PREVIEW_ALLOWED_ELEMENTS}
-              unwrapDisallowed
-              components={{
-                p: ({ children }) => (
-                  <>
-                    {children}{' '}
-                  </>
-                ),
-                ul: ({ children }) => (
-                  <>
-                    {children}{' '}
-                  </>
-                ),
-                ol: ({ children }) => (
-                  <>
-                    {children}{' '}
-                  </>
-                ),
-                li: ({ children }) => (
-                  <>
-                    • {children}{' '}
-                  </>
-                ),
-                a: ({ children }) => <span className='underline decoration-dotted'>{children}</span>,
-                code: ({ children }) => (
-                  <code className='rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800'>
-                    {children}
-                  </code>
-                ),
-              }}
-            >
-              {item.reason}
-            </ReactMarkdown>
-          </span>
-          <div className='flex flex-wrap items-center gap-1.5 text-[11px] leading-4'>
-            <span className='rounded bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-200'>
-              {`${t('dashboard.marketRegimeBtc')}: ${formatRegimePercent(item.btcDominance)}`}
-            </span>
-            <span className='rounded bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-200'>
-              {`${t('dashboard.marketRegimeAlt')}: ${formatRegimeScore(item.altcoinIndex, pointUnitLabel)}`}
-            </span>
-            <span className='rounded bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:bg-gray-800 dark:text-gray-200'>
-              {`${t('dashboard.marketRegimeAsOf')}: ${marketRegimeAsOf}`}
-            </span>
-            {item.marketRegimeIsStale === true && (
-              <span className='rounded bg-red-100 px-1.5 py-0.5 text-red-800 dark:bg-red-900/40 dark:text-red-200'>
-                {t('dashboard.marketRegimeStale')}
-              </span>
-            )}
-          </div>
-        </div>
+      <TableCell className='px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300'>
+        {formatPercent(item.confidence, 2)}
+      </TableCell>
+      <TableCell className='px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300'>
+        {formatPercent(item.weight, 2)}
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
         {item.recommendationPrice != null ? formatPrice(item.recommendationPrice) : '-'}
@@ -179,7 +40,7 @@ const MarketReportRow = ({
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
         {item.currentPrice != null ? formatPrice(item.currentPrice) : '-'}
       </TableCell>
-      <TableCell className='px-4 py-3 whitespace-nowrap'>
+      <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
         {item.priceChangePct != null ? (
           <span className={getDiffColor(item.priceChangePct)}>
             {getDiffPrefix(item.priceChangePct)}
@@ -189,46 +50,45 @@ const MarketReportRow = ({
           '-'
         )}
       </TableCell>
+      <TableCell className='px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300'>
+        {item.createdAt ? formatDate(new Date(item.createdAt)) : '-'}
+      </TableCell>
     </TableRow>
   );
 };
 
 /**
- * Renders the Market Report List Skeleton UI for the dashboard UI.
- * @returns Rendered React element for this view.
+ * Renders the market report list skeleton.
+ * @returns Rendered React element.
  */
 export const MarketReportListSkeleton = () => (
-  <div className='animate-pulse px-4 py-6 space-y-3'>
-    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
-    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2' />
-    <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6' />
+  <div className='animate-pulse space-y-3 px-4 py-6'>
+    <div className='h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700' />
+    <div className='h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-700' />
+    <div className='h-4 w-5/6 rounded bg-gray-200 dark:bg-gray-700' />
   </div>
 );
 
-interface MarketReportListProps {
-  items?: MarketReportWithChange[];
-  isLoading?: boolean;
-}
-
 /**
- * Renders the Market Report List UI for the dashboard UI.
- * @param params - Input values for the dashboard UI operation.
- * @returns Rendered React element for this view.
+ * Renders the market report list.
+ * @param params - Input values.
+ * @returns Rendered React element.
  */
 export function MarketReportList({ items = [], isLoading = false }: MarketReportListProps) {
   const t = useTranslations();
   const router = useRouter();
   const [openId, setOpenId] = React.useState<string | null>(null);
+  const selected = items.find((item) => item.id === openId) ?? null;
 
   if (isLoading) {
     return (
-      <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
-        <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
+      <div className='relative w-full min-h-0 overflow-hidden rounded-xl bg-white px-0 pt-6 shadow-md dark:bg-dark dark:shadow-dark-md'>
+        <div className='mb-4 flex items-center justify-between px-4 sm:px-6'>
           <h5 className='card-title text-dark dark:text-white'>{t('dashboard.marketReport')}</h5>
           <button
             type='button'
             onClick={() => router.push('/market-signals')}
-            className='cursor-pointer text-sm text-primary-600 hover:underline dark:text-primary-400 py-2 px-1 min-h-[44px] min-w-[44px] flex items-center justify-end'
+            className='flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-end px-1 py-2 text-sm text-primary-600 hover:underline dark:text-primary-400'
           >
             {t('dashboard.viewAll')}
           </button>
@@ -239,60 +99,53 @@ export function MarketReportList({ items = [], isLoading = false }: MarketReport
   }
 
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark pt-6 px-0 relative w-full min-h-0 overflow-hidden'>
-      <div className='px-4 sm:px-6 flex items-center justify-between mb-4'>
+    <div className='relative w-full min-h-0 overflow-hidden rounded-xl bg-white px-0 pt-6 shadow-md dark:bg-dark dark:shadow-dark-md'>
+      <div className='mb-4 flex items-center justify-between px-4 sm:px-6'>
         <h5 className='card-title text-dark dark:text-white'>{t('dashboard.marketReport')}</h5>
         <button
           type='button'
           onClick={() => router.push('/market-signals')}
-          className='cursor-pointer text-sm text-primary-600 hover:underline dark:text-primary-400 py-2 px-1 min-h-[44px] min-w-[44px] flex items-center justify-end'
+          className='flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-end px-1 py-2 text-sm text-primary-600 hover:underline dark:text-primary-400'
         >
           {t('dashboard.viewAll')}
         </button>
       </div>
       {items.length === 0 ? (
-        <div className='px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm'>
-          {t('dashboard.emptyMarketReport')}
-        </div>
+        <div className='px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400'>{t('dashboard.emptyMarketReport')}</div>
       ) : (
         <SimpleBar className='min-h-0'>
-          <div className='overflow-x-auto min-w-0'>
-            <Table hoverable className='w-full text-left'>
-              <TableHead className='text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700'>
+          <div className='min-w-0 overflow-x-auto'>
+            <Table hoverable className='min-w-[1080px] w-full text-left'>
+              <TableHead className='border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400'>
                 <TableRow>
                   <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnSymbol')}</TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnReason')}</TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('inference.confidence')}</TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('inference.weight')}</TableHeadCell>
                   <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
                     {t('dashboard.columnRecommendationPrice')}
                   </TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
-                    {t('dashboard.columnCurrentPrice')}
-                  </TableHeadCell>
-                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>
-                    {t('dashboard.columnChangePct')}
-                  </TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnCurrentPrice')}</TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnChangePct')}</TableHeadCell>
+                  <TableHeadCell className='px-4 py-3 whitespace-nowrap'>{t('dashboard.columnTime')}</TableHeadCell>
                 </TableRow>
               </TableHead>
               <TableBody className='divide-y divide-gray-200 dark:divide-gray-700'>
                 {items.map((item) => (
-                  <MarketReportRow key={item.id} item={item} t={t} onRowClick={(id) => setOpenId(id || null)} />
+                  <MarketReportRow key={item.id} item={item} onRowClick={setOpenId} />
                 ))}
               </TableBody>
             </Table>
           </div>
         </SimpleBar>
       )}
-      {items.map((item) => (
-        <ContentModal
-          key={item.id}
-          show={openId === item.id}
-          onClose={() => setOpenId(null)}
-          title={t('dashboard.columnReason')}
-          renderMarkdown
-        >
-          {item.reason}
-        </ContentModal>
-      ))}
+      <ContentModal
+        show={selected != null}
+        onClose={() => setOpenId(null)}
+        title={selected?.symbol ?? ''}
+        renderMarkdown
+      >
+        {selected?.reason ?? '-'}
+      </ContentModal>
     </div>
   );
 }

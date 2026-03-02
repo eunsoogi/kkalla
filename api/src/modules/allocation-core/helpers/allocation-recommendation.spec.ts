@@ -75,7 +75,7 @@ describe('balance-recommendation utils', () => {
       action: 'hold',
       intensity: 1,
       confidence: 0,
-      expectedVolatilityPct: 0,
+      expectedVolatilityPct: -0.01,
       riskFlags: ['r1', 'r2'],
       reason: 'keep trend',
     });

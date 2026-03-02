@@ -3,11 +3,7 @@ import React from 'react';
 import { Badge } from 'flowbite-react';
 
 import { stringToColor } from '@/utils/color';
-
-interface ColoredBadgeProps {
-  text: string;
-  className?: string;
-}
+import type { ColoredBadgeProps } from './colored-badge.types';
 
 /**
  * Renders the Colored Badge UI for the dashboard UI.

@@ -73,16 +73,29 @@ export class AllocationRecommendationDto {
   @ApiProperty({ required: false, nullable: true })
   feargreedTimestamp?: Date | null;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({ required: false, nullable: true, description: '0~1 비율 값' })
+  decisionConfidence?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: '0~1 비율 값 (예: 0.024 = 2.4%)',
+  })
+  expectedVolatilityPct?: number | null;
+
+  @ApiProperty({ required: false, nullable: true, type: [String] })
+  riskFlags?: string[] | null;
+
+  @ApiProperty({ required: false, nullable: true, description: '0~1 비율 값' })
   expectedEdgeRate?: number | null;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({ required: false, nullable: true, description: '0~1 비율 값' })
   estimatedCostRate?: number | null;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({ required: false, nullable: true, description: '0~1 비율 값' })
   spreadRate?: number | null;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({ required: false, nullable: true, description: '0~1 비율 값' })
   impactRate?: number | null;
 
   @ApiProperty({ required: false, type: () => AllocationAuditBadgeDto })

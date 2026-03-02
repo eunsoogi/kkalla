@@ -24,6 +24,7 @@ import {
   ScheduleExecutionTask,
   ScheduleLockStateResponse,
 } from './_types/schedule-execution.types';
+import type { NextRunHighlight } from './_types/schedule-page.types';
 
 const SCHEDULE_EXECUTION_PERMISSIONS = [
   Permission.EXEC_SCHEDULE_MARKET_SIGNAL,
@@ -38,13 +39,6 @@ const TASK_PERMISSION_MAP: Record<ScheduleExecutionTask, Permission> = {
   allocationRecommendationNew: Permission.EXEC_SCHEDULE_ALLOCATION_RECOMMENDATION_NEW,
   allocationAudit: Permission.EXEC_SCHEDULE_ALLOCATION_AUDIT,
 };
-
-interface NextRunHighlight {
-  task: ScheduleExecutionTask;
-  time: string;
-  timezone: string;
-  minutesUntil: number;
-}
 
 const LOCK_REFRESH_INTERVAL_MS = 15_000;
 

@@ -1,46 +1,60 @@
 'use client';
-import React, { Fragment, Suspense, useCallback } from 'react';
+import React, { Suspense, useCallback, useMemo, useState } from 'react';
 
-import { Icon } from '@iconify/react/dist/iconify.js';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Badge } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 
-import { Category } from '@/enums/category.enum';
-import { SortDirection } from '@/enums/sort.enum';
-import { AllocationAuditBadge, AllocationRecommendation, MarketSignal } from '@/app/(dashboard)/_shared/inference/_types/inference.types';
+import { MetricRow } from '@/app/(dashboard)/_shared/report-ui/MetricRow';
+import { ExceptionChips } from '@/app/(dashboard)/_shared/report-ui/ExceptionChips';
+import { DetailMetricGrid } from '@/app/(dashboard)/_shared/report-ui/DetailMetricGrid';
+import { ReportDetailPane } from '@/app/(dashboard)/_shared/report-ui/ReportDetailPane';
+import { ReportListPane } from '@/app/(dashboard)/_shared/report-ui/ReportListPane';
+import { ReportMasterDetailLayout } from '@/app/(dashboard)/_shared/report-ui/ReportMasterDetailLayout';
+import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
+import type { ExceptionChipViewItem } from '@/app/(dashboard)/_shared/report-ui/report-master-detail.types';
+import type { ReportMetricItem } from '@/app/(dashboard)/_shared/report-ui/report-ui.types';
+import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
+import {
+  AllocationAuditBadge,
+  AllocationRecommendation,
+  MarketSignal,
+} from '@/app/(dashboard)/_shared/inference/_types/inference.types';
 import { CursorItem } from '@/shared/types/pagination.types';
 import { formatDate } from '@/utils/date';
-import { formatRatePercent } from '@/utils/number';
+import { formatPercent } from '@/utils/number';
+import {
+  resolveExceptionChipTypes,
+} from '@/utils/report-priority';
+import type { ExceptionChipType } from '@/utils/report-priority.types';
+import { getExceptionTone, getValidationTone } from '@/utils/status-tone';
 
-import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
+import type {
+  AllocationDetailPanelProps,
+  AllocationListItemProps,
+  InferenceDetailEmptyProps,
+  InferenceDetailListContentProps,
+  InferenceDetailProps,
+  MarketDetailPanelProps,
+  MarketListItemProps,
+  Recommendation,
+  Translator,
+} from './inference-detail.types';
 import { getAllocationRecommendationsCursorAction, getMarketSignalsCursorAction } from '../_actions/inference.actions';
-import { getConfidenceColor, getValidationColor, getWeightColor } from '../inference.styles';
-
-type Recommendation = MarketSignal | AllocationRecommendation;
-
-interface InferenceDetailListContentProps {
-  type: 'market' | 'allocation';
-  symbol?: string;
-  category?: Category;
-  sortDirection: SortDirection;
-  startDate?: Date;
-  endDate?: Date;
-}
+import { getConfidenceColor, getWeightColor } from '../inference.styles';
 
 /**
- * Normalizes current ratio for the dashboard UI flow.
- * @param item - Input value for item.
- * @returns Computed numeric value for the operation.
+ * Normalizes current ratio for allocation recommendation.
+ * @param item - Allocation recommendation row.
+ * @returns Ratio value or null.
  */
 const resolveCurrentRatio = (item: AllocationRecommendation): number | null => {
   return Number.isFinite(item.modelTargetWeight) ? item.modelTargetWeight : null;
 };
 
 /**
- * Normalizes prev ratio for the dashboard UI flow.
- * @param item - Input value for item.
- * @returns Computed numeric value for the operation.
+ * Normalizes previous ratio for allocation recommendation.
+ * @param item - Allocation recommendation row.
+ * @returns Ratio value or null.
  */
 const resolvePrevRatio = (item: AllocationRecommendation): number | null => {
   if (item.prevModelTargetWeight != null && Number.isFinite(item.prevModelTargetWeight)) {
@@ -51,12 +65,12 @@ const resolvePrevRatio = (item: AllocationRecommendation): number | null => {
 };
 
 /**
- * Retrieves validation label for the dashboard UI flow.
- * @param t - Input value for t.
- * @param badge - Input value for badge.
- * @returns Formatted string output for the operation.
+ * Retrieves validation label.
+ * @param t - Translator.
+ * @param badge - Validation badge data.
+ * @returns Localized label.
  */
-const getValidationLabel = (t: (key: string) => string, badge: AllocationAuditBadge): string => {
+const getValidationLabel = (t: Translator, badge: AllocationAuditBadge): string => {
   if (badge.status === 'pending') return t('inference.validationPending');
   if (badge.status === 'running') return t('inference.validationRunning');
   if (badge.status === 'failed') return t('inference.validationFailed');
@@ -68,9 +82,28 @@ const getValidationLabel = (t: (key: string) => string, badge: AllocationAuditBa
 };
 
 /**
- * Formats market regime percent value for inference detail.
- * @param value - Input value for percent.
- * @returns Formatted string output for the operation.
+ * Formats validation text.
+ * @param t - Translator.
+ * @param badge - Validation badge data.
+ * @returns Display text.
+ */
+const formatValidationText = (t: Translator, badge?: AllocationAuditBadge | null): string => {
+  if (!badge) {
+    return '-';
+  }
+
+  const label = getValidationLabel(t, badge);
+  if (typeof badge.overallScore === 'number') {
+    return `${label} ${(badge.overallScore * 100).toFixed(0)}%`;
+  }
+
+  return label;
+};
+
+/**
+ * Formats market regime percent.
+ * @param value - Percent value.
+ * @returns Formatted output.
  */
 const formatMarketRegimePercent = (value?: number | null): string => {
   if (value == null || !Number.isFinite(value)) {
@@ -81,9 +114,10 @@ const formatMarketRegimePercent = (value?: number | null): string => {
 };
 
 /**
- * Formats market regime score value for inference detail.
- * @param value - Input value for score.
- * @returns Formatted string output for the operation.
+ * Formats market regime score.
+ * @param value - Score value.
+ * @param pointUnitLabel - Unit label.
+ * @returns Formatted output.
  */
 const formatMarketRegimeScore = (value: number | null | undefined, pointUnitLabel: string): string => {
   if (value == null || !Number.isFinite(value)) {
@@ -94,22 +128,23 @@ const formatMarketRegimeScore = (value: number | null | undefined, pointUnitLabe
 };
 
 /**
- * Formats feargreed score for inference detail.
- * @param value - Input value for score.
- * @returns Formatted string output for the operation.
+ * Formats fear-greed score.
+ * @param value - Score value.
+ * @param pointUnitLabel - Unit label.
+ * @returns Formatted output.
  */
-const formatFeargreedScore = (value?: number | null): string => {
+const formatFeargreedScore = (value: number | null | undefined, pointUnitLabel: string): string => {
   if (value == null || !Number.isFinite(value)) {
     return '-';
   }
 
-  return value.toFixed(0);
+  return `${value.toFixed(0)}${pointUnitLabel}`;
 };
 
 /**
- * Formats market regime asOf for inference detail.
- * @param value - Input value for asOf.
- * @returns Formatted string output for the operation.
+ * Formats market regime timestamp.
+ * @param value - Timestamp value.
+ * @returns Formatted output.
  */
 const formatMarketRegimeAsOf = (value?: string | Date | null): string => {
   if (!value) {
@@ -125,35 +160,433 @@ const formatMarketRegimeAsOf = (value?: string | Date | null): string => {
 };
 
 /**
- * Formats absolute percent value where input is already 0~100 scale.
- * @param value - Input percent value.
- * @returns Formatted string output for the operation.
+ * Resolves localized exception label.
+ * @param t - Translator.
+ * @param type - Exception type.
+ * @returns Localized label.
  */
-const formatAbsolutePercent = (value?: number | null): string => {
-  if (value == null || !Number.isFinite(value)) {
-    return '-';
-  }
-
-  return `${Number(value.toFixed(2)).toString()}%`;
+const getExceptionLabel = (t: Translator, type: ExceptionChipType): string => {
+  if (type === 'validationFailed') return t('report.exception.validationFailed');
+  if (type === 'validationRunning') return t('report.exception.validationRunning');
+  if (type === 'regimeStale') return t('report.exception.regimeStale');
+  if (type === 'risk') return t('report.exception.risk');
+  if (type === 'partialFill') return t('report.exception.partialFill');
+  return '-';
 };
 
 /**
- * Formats risk flag list for dashboard badge text.
- * @param value - Input risk flags.
- * @returns Joined string output for the operation.
+ * Creates exception chips for list/detail header.
+ * @param t - Translator.
+ * @param chipTypes - Exception types.
+ * @returns Exception chip view items.
  */
-const formatRiskFlags = (value?: string[] | null): string => {
-  if (!Array.isArray(value) || value.length < 1) {
-    return '-';
-  }
-
-  return value.join(', ');
+const toExceptionChips = (t: Translator, chipTypes: ExceptionChipType[]): ExceptionChipViewItem[] => {
+  return chipTypes.map((type) => ({
+    key: type,
+    label: getExceptionLabel(t, type),
+    tone: getExceptionTone(type),
+  }));
 };
 
 /**
- * Renders the Inference Detail Item UI for the dashboard UI.
- * @param params - Input values for the dashboard UI operation.
- * @returns Rendered React element for this view.
+ * Renders inference detail empty state.
+ * @param params - Empty state props.
+ * @returns Rendered React element.
+ */
+const InferenceDetailEmpty: React.FC<InferenceDetailEmptyProps> = ({ t }) => {
+  return (
+    <div className='flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-6 text-sm text-gray-500 shadow-sm dark:border-gray-600 dark:bg-dark dark:text-gray-400'>
+      {t('report.empty.selectItem')}
+    </div>
+  );
+};
+
+const InferenceDetailSection: React.FC<{ title: string; titleRight?: React.ReactNode; children: React.ReactNode }> = ({
+  title,
+  titleRight,
+  children,
+}) => {
+  return (
+    <section className='space-y-2'>
+      <div className='flex items-center justify-between gap-2'>
+        <p className='text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400'>{title}</p>
+        {titleRight}
+      </div>
+      {children}
+    </section>
+  );
+};
+
+/**
+ * Renders market list item.
+ * @param params - Market list item props.
+ * @returns Rendered React element.
+ */
+const MarketListItem: React.FC<MarketListItemProps> = ({ item, t, isSelected, onSelect }) => {
+  const summaryMetrics: ReportMetricItem[] = [
+    {
+      key: 'confidence',
+      label: t('inference.confidence'),
+      value: formatPercent(item.confidence, 2),
+      tone: 'neutral',
+      style: getConfidenceColor(item.confidence),
+    },
+    {
+      key: 'weight',
+      label: t('inference.weight'),
+      value: formatPercent(item.weight, 2),
+      tone: 'neutral',
+      style: getWeightColor(item.weight),
+    },
+  ];
+
+  return (
+    <button
+      type='button'
+      aria-selected={isSelected}
+      onClick={() => onSelect(item.id)}
+      className={`w-full cursor-pointer rounded-lg border p-3 text-left transition ${
+        isSelected
+          ? 'border-[var(--color-report-tab-active-border)] bg-[var(--color-report-tab-active-bg)]'
+          : 'border-gray-200 bg-white hover:border-[var(--color-report-tab-active-border)] dark:border-gray-700 dark:bg-dark'
+      }`}
+    >
+      <div className='flex items-start justify-between gap-3'>
+        <h4 className='text-base font-semibold text-dark dark:text-white'>{item.symbol}</h4>
+        <span className='text-sm text-gray-500 dark:text-gray-400'>
+          {item.createdAt ? formatDate(new Date(item.createdAt)) : '-'}
+        </span>
+      </div>
+
+      <div className='mt-2'>
+        <MetricRow items={summaryMetrics} />
+      </div>
+    </button>
+  );
+};
+
+/**
+ * Renders allocation list item.
+ * @param params - Allocation list item props.
+ * @returns Rendered React element.
+ */
+const AllocationListItem: React.FC<AllocationListItemProps> = ({ item, t, isSelected, onSelect }) => {
+  const currentRatio = resolveCurrentRatio(item);
+  const prevRatio = resolvePrevRatio(item);
+
+  const summaryMetrics: ReportMetricItem[] = [
+    {
+      key: 'ratio',
+      label: t('inference.rate'),
+      value: `${formatPercent(prevRatio)} -> ${formatPercent(currentRatio)}`,
+      tone: 'neutral',
+      style: getWeightColor(currentRatio ?? 0),
+    },
+    {
+      key: 'decisionConfidence',
+      label: t('inference.confidence'),
+      value: formatPercent(item.decisionConfidence ?? null, 2),
+      tone: 'neutral',
+      style: getConfidenceColor(item.decisionConfidence ?? 0),
+    },
+    {
+      key: 'expectedVolatilityPct',
+      label: t('inference.expectedVolatilityPct'),
+      value: formatPercent(item.expectedVolatilityPct ?? null, 2),
+      tone: 'neutral',
+      style: getWeightColor(item.expectedVolatilityPct ?? 0),
+    },
+  ];
+
+  const exceptionChips = toExceptionChips(
+    t,
+    resolveExceptionChipTypes({
+      validation24h: item.validation24h,
+      validation72h: item.validation72h,
+    }),
+  );
+
+  return (
+    <button
+      type='button'
+      aria-selected={isSelected}
+      onClick={() => onSelect(item.id)}
+      className={`w-full cursor-pointer rounded-lg border p-3 text-left transition ${
+        isSelected
+          ? 'border-[var(--color-report-tab-active-border)] bg-[var(--color-report-tab-active-bg)]'
+          : 'border-gray-200 bg-white hover:border-[var(--color-report-tab-active-border)] dark:border-gray-700 dark:bg-dark'
+      }`}
+    >
+      <div className='flex items-start justify-between gap-3'>
+        <h4 className='text-base font-semibold text-dark dark:text-white'>{item.symbol}</h4>
+        <span className='text-sm text-gray-500 dark:text-gray-400'>
+          {item.createdAt ? formatDate(new Date(item.createdAt)) : '-'}
+        </span>
+      </div>
+
+      <div className='mt-2'>
+        <MetricRow items={summaryMetrics} />
+      </div>
+      <ExceptionChips chips={exceptionChips} className='mt-2' />
+    </button>
+  );
+};
+
+/**
+ * Renders market detail panel.
+ * @param params - Market detail props.
+ * @returns Rendered React element.
+ */
+const MarketDetailPanel: React.FC<MarketDetailPanelProps> = ({ item, t, pointUnitLabel }) => {
+  const summaryMetrics: ReportMetricItem[] = [
+    {
+      key: 'confidence',
+      label: t('inference.confidence'),
+      value: formatPercent(item.confidence, 2),
+      tone: 'neutral',
+      style: getConfidenceColor(item.confidence),
+    },
+    {
+      key: 'weight',
+      label: t('inference.weight'),
+      value: formatPercent(item.weight, 2),
+      tone: 'neutral',
+      style: getWeightColor(item.weight),
+    },
+  ];
+
+  const validationMetrics: ReportMetricItem[] = [
+    {
+      key: 'validation24h',
+      label: t('inference.validation24h'),
+      value: formatValidationText(t, item.validation24h),
+      tone: getValidationTone(item.validation24h?.status, item.validation24h?.verdict ?? null),
+    },
+    {
+      key: 'validation72h',
+      label: t('inference.validation72h'),
+      value: formatValidationText(t, item.validation72h),
+      tone: getValidationTone(item.validation72h?.status, item.validation72h?.verdict ?? null),
+    },
+  ];
+
+  const regimeMetrics: ReportMetricItem[] = [
+    {
+      key: 'btcDominance',
+      label: t('inference.marketRegimeBtc'),
+      value: formatMarketRegimePercent(item.btcDominance ?? null),
+      tone: 'neutral',
+    },
+    {
+      key: 'altcoinIndex',
+      label: t('inference.marketRegimeAlt'),
+      value: formatMarketRegimeScore(item.altcoinIndex ?? null, pointUnitLabel),
+      tone: 'neutral',
+    },
+    {
+      key: 'feargreed',
+      label: t('inference.marketRegimeFeargreed'),
+      value: formatFeargreedScore(item.feargreedIndex ?? null, pointUnitLabel),
+      tone: 'neutral',
+    },
+    {
+      key: 'asOf',
+      label: t('inference.marketRegimeAsOf'),
+      value: formatMarketRegimeAsOf(item.marketRegimeAsOf ?? null),
+      tone: 'neutral',
+    },
+  ];
+
+  const staleMessage = item.marketRegimeIsStale ? getExceptionLabel(t, 'regimeStale') : null;
+
+  return (
+    <ReportDetailPane
+      title={item.symbol}
+      createdAtLabel={t('createdAt')}
+      createdAtValue={item.createdAt ? formatDate(new Date(item.createdAt)) : '-'}
+      headerMetrics={summaryMetrics}
+    >
+      <div className='space-y-5'>
+        <InferenceDetailSection title={t('report.section.reason')}>
+          <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{item.reason.trim() || '-'}</p>
+        </InferenceDetailSection>
+        <InferenceDetailSection title={t('report.section.validation')}>
+          <DetailMetricGrid items={validationMetrics} />
+        </InferenceDetailSection>
+        <InferenceDetailSection title={t('report.section.regime')}>
+          <div className='space-y-3'>
+            <DetailMetricGrid items={regimeMetrics} />
+            {staleMessage ? (
+              <p className='text-sm font-medium text-amber-600 dark:text-amber-300'>{staleMessage}</p>
+            ) : null}
+          </div>
+        </InferenceDetailSection>
+      </div>
+    </ReportDetailPane>
+  );
+};
+
+/**
+ * Renders allocation detail panel.
+ * @param params - Allocation detail props.
+ * @returns Rendered React element.
+ */
+const AllocationDetailPanel: React.FC<AllocationDetailPanelProps> = ({ item, t, pointUnitLabel }) => {
+  const currentRatio = resolveCurrentRatio(item);
+  const prevRatio = resolvePrevRatio(item);
+  const riskFlagList = (item.riskFlags ?? [])
+    .map((flag) => (typeof flag === 'string' ? flag.trim() : ''))
+    .filter((flag) => flag.length > 0);
+
+  const headerMetrics: ReportMetricItem[] = [
+    {
+      key: 'ratio',
+      label: t('inference.rate'),
+      value: `${formatPercent(prevRatio)} -> ${formatPercent(currentRatio)}`,
+      tone: 'neutral',
+      style: getWeightColor(currentRatio ?? 0),
+    },
+    {
+      key: 'decisionConfidence',
+      label: t('inference.confidence'),
+      value: formatPercent(item.decisionConfidence ?? null, 2),
+      tone: 'neutral',
+      style: getConfidenceColor(item.decisionConfidence ?? 0),
+    },
+    {
+      key: 'expectedVolatilityPct',
+      label: t('inference.expectedVolatilityPct'),
+      value: formatPercent(item.expectedVolatilityPct ?? null, 2),
+      tone: 'neutral',
+      style: getWeightColor(item.expectedVolatilityPct ?? 0),
+    },
+  ];
+
+  const validationMetrics: ReportMetricItem[] = [
+    {
+      key: 'validation24h',
+      label: t('inference.validation24h'),
+      value: formatValidationText(t, item.validation24h),
+      tone: getValidationTone(item.validation24h?.status, item.validation24h?.verdict ?? null),
+    },
+    {
+      key: 'validation72h',
+      label: t('inference.validation72h'),
+      value: formatValidationText(t, item.validation72h),
+      tone: getValidationTone(item.validation72h?.status, item.validation72h?.verdict ?? null),
+    },
+  ];
+
+  const costMetrics: ReportMetricItem[] = [
+    {
+      key: 'expectedEdgeRate',
+      label: t('inference.expectedEdgeRate'),
+      value: formatPercent(item.expectedEdgeRate ?? null, 2),
+      tone: 'neutral',
+    },
+    {
+      key: 'estimatedCostRate',
+      label: t('inference.estimatedCostRate'),
+      value: formatPercent(item.estimatedCostRate ?? null, 2),
+      tone: 'neutral',
+    },
+    {
+      key: 'spreadRate',
+      label: t('inference.spreadRate'),
+      value: formatPercent(item.spreadRate ?? null, 2),
+      tone: 'neutral',
+    },
+    {
+      key: 'impactRate',
+      label: t('inference.impactRate'),
+      value: formatPercent(item.impactRate ?? null, 2),
+      tone: 'neutral',
+    },
+  ];
+
+  const regimeMetrics: ReportMetricItem[] = [
+    {
+      key: 'btcDominance',
+      label: t('inference.marketRegimeBtc'),
+      value: formatMarketRegimePercent(item.btcDominance ?? null),
+      tone: 'neutral',
+    },
+    {
+      key: 'altcoinIndex',
+      label: t('inference.marketRegimeAlt'),
+      value: formatMarketRegimeScore(item.altcoinIndex ?? null, pointUnitLabel),
+      tone: 'neutral',
+    },
+    {
+      key: 'feargreed',
+      label: t('inference.marketRegimeFeargreed'),
+      value: formatFeargreedScore(item.feargreedIndex ?? null, pointUnitLabel),
+      tone: 'neutral',
+    },
+    {
+      key: 'asOf',
+      label: t('inference.marketRegimeAsOf'),
+      value: formatMarketRegimeAsOf(item.marketRegimeAsOf ?? null),
+      tone: 'neutral',
+    },
+  ];
+
+  const exceptionChips = toExceptionChips(
+    t,
+    resolveExceptionChipTypes({
+      validation24h: item.validation24h,
+      validation72h: item.validation72h,
+    }),
+  );
+
+  const regimeStale = item.marketRegimeIsStale === true;
+
+  return (
+    <ReportDetailPane
+      title={item.symbol}
+      createdAtLabel={t('createdAt')}
+      createdAtValue={item.createdAt ? formatDate(new Date(item.createdAt)) : '-'}
+      headerMetrics={headerMetrics}
+      exceptionChips={exceptionChips}
+    >
+      <div className='space-y-5'>
+        <InferenceDetailSection title={t('inference.riskFlags')}>
+          {riskFlagList.length > 0 ? (
+            <ul className='list-disc space-y-1 pl-5 text-sm leading-6 text-gray-600 dark:text-gray-300'>
+              {riskFlagList.map((flag) => (
+                <li key={flag}>{flag}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className='text-sm leading-6 text-gray-500 dark:text-gray-400'>-</p>
+          )}
+        </InferenceDetailSection>
+        <InferenceDetailSection title={t('report.section.reason')}>
+          <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{item.reason.trim() || '-'}</p>
+        </InferenceDetailSection>
+        <InferenceDetailSection title={t('report.section.validation')}>
+          <DetailMetricGrid items={validationMetrics} />
+        </InferenceDetailSection>
+        <InferenceDetailSection title={t('report.section.cost')}>
+          <DetailMetricGrid items={costMetrics} />
+        </InferenceDetailSection>
+        <InferenceDetailSection
+          title={t('report.section.regime')}
+          titleRight={regimeStale ? <StatusPill value={t('inference.marketRegimeStale')} tone='warning' /> : undefined}
+        >
+          <div className='space-y-3'>
+            <DetailMetricGrid items={regimeMetrics} />
+          </div>
+        </InferenceDetailSection>
+      </div>
+    </ReportDetailPane>
+  );
+};
+
+/**
+ * Renders inference detail list content.
+ * @param params - Input params.
+ * @returns Rendered React element.
  */
 const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, ...params }) => {
   const t = useTranslations();
@@ -172,261 +605,120 @@ const InferenceDetailItem: React.FC<InferenceDetailListContentProps> = ({ type, 
     initialPageParam: null,
   });
 
+  const items = useMemo(() => {
+    return data?.pages.flatMap((page) => page.items) ?? [];
+  }, [data?.pages]);
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileDetailTargetId, setMobileDetailTargetId] = useState<string | null>(null);
+
+  const selectedItem = useMemo(() => {
+    if (items.length === 0) {
+      return null;
+    }
+
+    if (!selectedId) {
+      return items[0];
+    }
+
+    return items.find((item) => item.id === selectedId) ?? items[0];
+  }, [items, selectedId]);
+
   const handleIntersect = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches) {
+      setMobileDetailTargetId(id);
+    }
+  };
+
+  const selectedItemId = selectedItem?.id ?? null;
+
+  const listPane = (
+    <ReportListPane>
+      {items.length === 0 ? (
+        <p className='py-10 text-center text-sm text-gray-500 dark:text-gray-400'>{t('nothing')}</p>
+      ) : (
+        <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText={t('loading')}>
+          <div className='flex flex-col gap-3'>
+            {items.map((item) =>
+              type === 'allocation' ? (
+                <AllocationListItem
+                  key={item.id}
+                  item={item as AllocationRecommendation}
+                  t={t}
+                  isSelected={item.id === selectedItemId}
+                  onSelect={handleSelect}
+                />
+              ) : (
+                <MarketListItem
+                  key={item.id}
+                  item={item as MarketSignal}
+                  t={t}
+                  isSelected={item.id === selectedItemId}
+                  onSelect={handleSelect}
+                />
+              ),
+            )}
+          </div>
+        </InfinityScroll>
+      )}
+    </ReportListPane>
+  );
+
+  const detailPane = !selectedItem ? (
+    <InferenceDetailEmpty t={t} />
+  ) : type === 'allocation' ? (
+    <AllocationDetailPanel
+      item={selectedItem as AllocationRecommendation}
+      t={t}
+      pointUnitLabel={pointUnitLabel}
+    />
+  ) : (
+    <MarketDetailPanel
+      item={selectedItem as MarketSignal}
+      t={t}
+      pointUnitLabel={pointUnitLabel}
+    />
+  );
+
   return (
-    <InfinityScroll onIntersect={handleIntersect} isLoading={isFetchingNextPage} loadingText={t('loading')}>
-      <div className='flex flex-col gap-x-4 gap-y-6 lg:gap-6 mt-6'>
-        {data?.pages.map((page, i) => (
-          <Fragment key={i}>
-            {page.items.map((item) => (
-              <div
-                key={item.id}
-                className={`
-                  rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark
-                  relative w-full break-words
-                `}
-              >
-                <div className='relative'></div>
-                <div className='p-6'>
-                  <div className='flex flex-row justify-between items-start'>
-                    <div className='flex flex-col gap-3'>
-                      <h4 className='text-dark dark:text-white'>{item.symbol}</h4>
-                      {type === 'allocation' ? (
-                        <div className='flex flex-wrap items-center gap-2'>
-                          {(() => {
-                            const allocationItem = item as AllocationRecommendation;
-                            const currentRatio = resolveCurrentRatio(allocationItem);
-                            const prevRatio = resolvePrevRatio(allocationItem);
-                            return (
-                              <>
-                                <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.rate')}:</span>
-                                <Badge style={getWeightColor(currentRatio ?? 0)}>
-                                  {`${formatRatePercent(prevRatio)} -> ${formatRatePercent(currentRatio)}`}
-                                </Badge>
-                                {(allocationItem.validation24h ?? null) && (
-                                  <div className='flex items-center gap-2'>
-                                    <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                      {t('inference.validation24h')}:
-                                    </span>
-                                    <Badge
-                                      style={getValidationColor(
-                                        allocationItem.validation24h!.status,
-                                        allocationItem.validation24h!.verdict,
-                                      )}
-                                    >
-                                      {`${getValidationLabel(t, allocationItem.validation24h!)}${
-                                        typeof allocationItem.validation24h?.overallScore === 'number'
-                                          ? ` ${(allocationItem.validation24h.overallScore * 100).toFixed(0)}%`
-                                          : ''
-                                      }`}
-                                    </Badge>
-                                  </div>
-                                )}
-                                {(allocationItem.validation72h ?? null) && (
-                                  <div className='flex items-center gap-2'>
-                                    <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                      {t('inference.validation72h')}:
-                                    </span>
-                                    <Badge
-                                      style={getValidationColor(
-                                        allocationItem.validation72h!.status,
-                                        allocationItem.validation72h!.verdict,
-                                      )}
-                                    >
-                                      {`${getValidationLabel(t, allocationItem.validation72h!)}${
-                                        typeof allocationItem.validation72h?.overallScore === 'number'
-                                          ? ` ${(allocationItem.validation72h.overallScore * 100).toFixed(0)}%`
-                                          : ''
-                                      }`}
-                                    </Badge>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <div className='flex items-center gap-4'>
-                          <div className='flex items-center gap-2'>
-                            <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.weight')}:</span>
-                            <Badge
-                              style={getWeightColor((item as MarketSignal).weight)}
-                            >{`${Math.floor((item as MarketSignal).weight * 100)}%`}</Badge>
-                          </div>
-                          <div className='flex items-center gap-2'>
-                            <span className='text-xs text-gray-600 dark:text-gray-400'>
-                              {t('inference.confidence')}:
-                            </span>
-                            <Badge
-                              style={getConfidenceColor((item as MarketSignal).confidence)}
-                            >{`${Math.floor((item as MarketSignal).confidence * 100)}%`}</Badge>
-                          </div>
-                          {(item as MarketSignal).validation24h && (
-                            <div className='flex items-center gap-2'>
-                              <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                {t('inference.validation24h')}:
-                              </span>
-                              <Badge
-                                style={getValidationColor(
-                                  (item as MarketSignal).validation24h!.status,
-                                  (item as MarketSignal).validation24h!.verdict,
-                                )}
-                              >
-                                {`${getValidationLabel(t, (item as MarketSignal).validation24h!)}${
-                                  typeof (item as MarketSignal).validation24h?.overallScore === 'number'
-                                    ? ` ${((item as MarketSignal).validation24h!.overallScore! * 100).toFixed(0)}%`
-                                    : ''
-                                }`}
-                              </Badge>
-                            </div>
-                          )}
-                          {(item as MarketSignal).validation72h && (
-                            <div className='flex items-center gap-2'>
-                              <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                {t('inference.validation72h')}:
-                              </span>
-                              <Badge
-                                style={getValidationColor(
-                                  (item as MarketSignal).validation72h!.status,
-                                  (item as MarketSignal).validation72h!.verdict,
-                                )}
-                              >
-                                {`${getValidationLabel(t, (item as MarketSignal).validation72h!)}${
-                                  typeof (item as MarketSignal).validation72h?.overallScore === 'number'
-                                    ? ` ${((item as MarketSignal).validation72h!.overallScore! * 100).toFixed(0)}%`
-                                    : ''
-                                }`}
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {type === 'allocation' && (
-                        <div className='flex flex-wrap items-center gap-2'>
-                          {(() => {
-                            const allocationItem = item as AllocationRecommendation;
-                            return (
-                              <>
-                                <Badge color='gray'>
-                                  {`${t('inference.decisionConfidence')} ${formatRatePercent(
-                                    allocationItem.decisionConfidence ?? null,
-                                    2,
-                                  )}`}
-                                </Badge>
-                                <Badge color='gray'>
-                                  {`${t('inference.expectedVolatilityPct')} ${formatAbsolutePercent(
-                                    allocationItem.expectedVolatilityPct ?? null,
-                                  )}`}
-                                </Badge>
-                                <Badge color='gray'>
-                                  {`${t('inference.expectedEdgeRate')} ${formatRatePercent(
-                                    allocationItem.expectedEdgeRate ?? null,
-                                    2,
-                                  )}`}
-                                </Badge>
-                                <Badge color='gray'>
-                                  {`${t('inference.estimatedCostRate')} ${formatRatePercent(
-                                    allocationItem.estimatedCostRate ?? null,
-                                    2,
-                                  )}`}
-                                </Badge>
-                                <Badge color='gray'>
-                                  {`${t('inference.spreadRate')} ${formatRatePercent(
-                                    allocationItem.spreadRate ?? null,
-                                    2,
-                                  )}`}
-                                </Badge>
-                                <Badge color='gray'>
-                                  {`${t('inference.impactRate')} ${formatRatePercent(
-                                    allocationItem.impactRate ?? null,
-                                    2,
-                                  )}`}
-                                </Badge>
-                                <Badge color='gray'>
-                                  {`${t('inference.riskFlags')} ${formatRiskFlags(allocationItem.riskFlags)}`}
-                                </Badge>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                      <div className='flex flex-wrap items-center gap-2'>
-                        <span className='text-xs text-gray-600 dark:text-gray-400'>{t('inference.marketRegime')}:</span>
-                        <Badge color='gray'>
-                          {`${t('inference.marketRegimeBtc')} ${formatMarketRegimePercent(item.btcDominance ?? null)}`}
-                        </Badge>
-                        <Badge color='gray'>
-                          {`${t('inference.marketRegimeAlt')} ${formatMarketRegimeScore(item.altcoinIndex ?? null, pointUnitLabel)}`}
-                        </Badge>
-                        <Badge color='gray'>
-                          {`${t('inference.marketRegimeFeargreed')} ${formatFeargreedScore(item.feargreedIndex ?? null)}`}
-                        </Badge>
-                        <Badge color='gray'>{`${t('inference.marketRegimeAsOf')} ${formatMarketRegimeAsOf(item.marketRegimeAsOf ?? null)}`}</Badge>
-                        {item.marketRegimeIsStale === true && (
-                          <Badge color='failure'>{t('inference.marketRegimeStale')}</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <p className='text-gray-600 dark:text-gray-400 mt-4 whitespace-pre-wrap'>
-                    <span className='font-medium text-gray-700 dark:text-gray-300'>{t('inference.reason')}:</span>{' '}
-                    {item.reason && item.reason.trim().length > 0 ? item.reason : '-'}
-                  </p>
-                  <div className='flex mt-3'>
-                    <div className='flex gap-1 items-center ms-auto'>
-                      <Icon icon='mdi:circle-small' className='text-darklink' width={20} height={20} />
-                      <time className='text-sm text-darklink'>
-                        {item.createdAt && formatDate(new Date(item.createdAt))}
-                      </time>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Fragment>
-        ))}
-      </div>
-    </InfinityScroll>
+    <ReportMasterDetailLayout
+      listPane={listPane}
+      detailPane={detailPane}
+      mobileDetailOpen={selectedItem != null && mobileDetailTargetId === selectedItem.id}
+      mobileDetailTitle={selectedItem?.symbol ?? t('report.empty.selectItem')}
+      onMobileDetailClose={() => setMobileDetailTargetId(null)}
+    />
   );
 };
 
 /**
- * Renders the Inference Detail Skeleton UI for the dashboard UI.
- * @returns Rendered React element for this view.
+ * Renders the inference detail skeleton.
+ * @returns Rendered React element.
  */
 export const InferenceDetailSkeleton: React.FC = () => {
   return (
-    <div className='rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-dark relative w-full break-words animate-pulse'>
-      <div className='p-6'>
-        <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4'></div>
-        <div className='h-20 bg-gray-200 dark:bg-gray-700 rounded'></div>
-        <div className='flex justify-end mt-4'>
-          <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-24'></div>
-        </div>
+    <div className='animate-pulse rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-dark'>
+      <div className='mb-4 h-4 w-1/4 rounded bg-gray-200 dark:bg-gray-700'></div>
+      <div className='h-20 rounded bg-gray-200 dark:bg-gray-700'></div>
+      <div className='mt-4 flex justify-end'>
+        <div className='h-4 w-24 rounded bg-gray-200 dark:bg-gray-700'></div>
       </div>
     </div>
   );
 };
 
-interface InferenceDetailProps {
-  type: 'market' | 'allocation';
-  symbol?: string;
-  category?: Category;
-  decision?: string;
-  sortDirection: SortDirection;
-  startDate?: Date;
-  endDate?: Date;
-}
-
 /**
- * Renders the Inference Detail UI for the dashboard UI.
- * @param params - Input values for the dashboard UI operation.
- * @returns Rendered React element for this view.
+ * Renders inference detail page body.
+ * @param params - Input values.
+ * @returns Rendered React element.
  */
 export const InferenceDetail: React.FC<InferenceDetailProps> = ({
   type,

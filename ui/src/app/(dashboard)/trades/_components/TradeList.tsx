@@ -2,15 +2,17 @@
 import React, { Suspense } from 'react';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Badge, Table, TableBody, TableHead, TableHeadCell, TableRow, TableCell } from 'flowbite-react';
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
+import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
 import { PaginatedItem } from '@/shared/types/pagination.types';
 import { Trade, initialState } from '@/app/(dashboard)/_shared/trades/trade.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
-import { formatNumber, formatRatePercent } from '@/utils/number';
+import { formatNumber, formatPercent } from '@/utils/number';
+import { resolveGateBypassedReasonLabel, resolveOrderStatusLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
 
 import { getTradeAction } from '../_actions/trade.actions';
 import { TRADE_STYLES } from '@/app/(dashboard)/_shared/trades/trade.styles';
@@ -44,17 +46,22 @@ const TradeContent = () => {
 export const TradeListItem: React.FC<Trade> = (item) => {
   const t = useTranslations();
   const executionModeLabel = item.executionMode ? t(`trade.executionModes.${item.executionMode}`) : '-';
-  const executionSummary = `${executionModeLabel} / ${formatRatePercent(item.filledRatio, 2)} / ${item.orderStatus ?? '-'}`;
-  const telemetrySummary = `${formatRatePercent(item.expectedEdgeRate, 2)} / ${formatRatePercent(
+  const orderStatusLabel = resolveOrderStatusLabel(t, item.orderStatus);
+  const executionSummary = `${executionModeLabel} / ${formatPercent(item.filledRatio, 2)} / ${orderStatusLabel}`;
+  const telemetrySummary = `${formatPercent(item.expectedEdgeRate, 2)} / ${formatPercent(
     item.estimatedCostRate,
     2,
-  )} / ${formatRatePercent(item.spreadRate, 2)} / ${formatRatePercent(item.impactRate, 2)}`;
-  const reasonSummary = item.triggerReason ?? item.gateBypassedReason ?? '-';
+  )} / ${formatPercent(item.spreadRate, 2)} / ${formatPercent(item.impactRate, 2)}`;
+  const reasonSummary = item.triggerReason
+    ? resolveTriggerReasonLabel(t, item.triggerReason)
+    : item.gateBypassedReason
+      ? resolveGateBypassedReasonLabel(t, item.gateBypassedReason)
+      : '-';
 
   return (
     <TableRow>
       <TableCell className='whitespace-nowrap'>
-        <Badge className={TRADE_STYLES[item.type].badgeStyle}>{t(`trade.types.${item.type}`)}</Badge>
+        <StatusPill value={t(`trade.types.${item.type}`)} tone={TRADE_STYLES[item.type].tone} />
       </TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{item.symbol}</TableCell>

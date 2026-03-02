@@ -3,7 +3,6 @@ import React from 'react';
 
 import { useTranslations } from 'next-intl';
 
-import { MarketRegimeFeargreed } from '@/app/(dashboard)/_components/home/_types/market-regime.types';
 import {
   getAltcoinSeasonGaugeSegments,
   getBtcDominanceGaugeSegments,
@@ -13,6 +12,7 @@ import {
   getFeargreedGaugeSegments,
 } from '@/utils/color';
 import { formatDate } from '@/utils/date';
+import type { FeargreedGaugeProps, FeargreedWidgetProps, MarketRegimeGaugeType, MarketRegimeWidgetProps } from './home.types';
 
 /**
  * Formats asOf date for dashboard widget.
@@ -31,8 +31,6 @@ const formatAsOf = (value?: string | Date | null): string => {
 
   return formatDate(parsed);
 };
-
-type MarketRegimeGaugeType = 'btcDominance' | 'altcoinSeasonIndex';
 
 const VISIBLE_ARC_DASH = 180;
 
@@ -164,12 +162,6 @@ const MarketRegimeGauge = ({
   );
 };
 
-interface FeargreedGaugeProps {
-  item?: MarketRegimeFeargreed | null;
-  gaugeId?: string;
-  pointUnitLabel: string;
-}
-
 /**
  * Renders the Feargreed gauge body for the dashboard UI.
  * @param params - Input values for the dashboard UI operation.
@@ -205,14 +197,6 @@ const FeargreedGauge = ({ item = null, gaugeId = 'feargreed', pointUnitLabel }: 
     />
   );
 };
-
-interface FeargreedWidgetProps {
-  title: string;
-  item?: MarketRegimeFeargreed | null;
-  asOf?: string | Date | null;
-  isLoading?: boolean;
-  gaugeId?: string;
-}
 
 /**
  * Renders the Feargreed Widget UI for the dashboard UI.
@@ -260,16 +244,6 @@ export const MarketRegimeWidgetSkeleton = () => (
     <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6' />
   </div>
 );
-
-interface MarketRegimeWidgetProps {
-  title: string;
-  stateLabel: string;
-  gaugeId: string;
-  type: MarketRegimeGaugeType;
-  value?: number | null;
-  asOf?: string | Date | null;
-  isLoading?: boolean;
-}
 
 /**
  * Renders the Market Regime Widget UI for the dashboard UI.

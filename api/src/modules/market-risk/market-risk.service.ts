@@ -1461,6 +1461,13 @@ export class MarketRiskService implements OnModuleInit {
     allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
     allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
     allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
+    allocationRecommendation.decisionConfidence = recommendation.decisionConfidence ?? null;
+    allocationRecommendation.expectedVolatilityPct = recommendation.expectedVolatilityPct ?? null;
+    allocationRecommendation.riskFlags = recommendation.riskFlags ?? null;
+    allocationRecommendation.expectedEdgeRate = recommendation.expectedEdgeRate ?? null;
+    allocationRecommendation.estimatedCostRate = recommendation.estimatedCostRate ?? null;
+    allocationRecommendation.spreadRate = recommendation.spreadRate ?? null;
+    allocationRecommendation.impactRate = recommendation.impactRate ?? null;
     return allocationRecommendation.save();
   }
 }

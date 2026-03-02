@@ -5,12 +5,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Checkbox, Label, ToggleSwitch } from 'flowbite-react';
 import { useTranslations } from 'next-intl';
 import { Schedule, initialState } from '@/app/(dashboard)/register/_types/schedule.types';
+import type { ScheduleToggleSwitchProps } from './register.types';
 
 import { getScheduleAction, postScheduleAction } from '@/app/(dashboard)/_shared/settings/_actions/settings.actions';
-
-type ScheduleToggleSwitchProps = {
-  isRiskAcknowledged: boolean;
-};
 
 /**
  * Renders the Schedule Toggle Switch UI for the dashboard UI.

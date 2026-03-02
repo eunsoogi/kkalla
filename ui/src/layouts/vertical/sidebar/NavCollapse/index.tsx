@@ -7,10 +7,7 @@ import { twMerge } from 'tailwind-merge';
 
 import NavItems from '../NavItems';
 import { ChildItem, CollapseChildItem } from '../Sidebaritems';
-
-interface NavCollapseProps {
-  item: CollapseChildItem;
-}
+import type { NavCollapseProps } from './nav-collapse.types';
 
 const isCollapseChild = (child: ChildItem): child is CollapseChildItem =>
   Array.isArray((child as CollapseChildItem).children);

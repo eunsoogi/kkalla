@@ -9,7 +9,7 @@
   - action: string ("buy" | "sell" | "hold" | "no_trade")
   - intensity: number (-1 ~ 1)
   - confidence: number (0 ~ 1)
-  - expectedVolatilityPct: number (예상 변동성 %, 0 이상)
+  - expectedVolatilityPct: number (예상 변동성 비율, 0 ~ 1. 예: 0.024 = 2.4%)
   - riskFlags: string[] (리스크 키워드 목록, 없으면 빈 배열)
   - reason: string
     - 최소 2개의 독립 근거를 포함합니다. (예: 추세/지지저항/거래량/이벤트/거시 중 2개 이상)
