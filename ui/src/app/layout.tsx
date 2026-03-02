@@ -30,18 +30,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await getMessages();
   const requestNow = new Date().toISOString();
 
-  // 서버 사이드에서 쿠키를 읽어서 초기 dark mode 상태 결정
+  // 서버 사이드에서 쿠키를 읽어 초기 theme mode를 결정한다.
   const cookieStore = await cookies();
-  const themeCookie = cookieStore.get('flowbite-theme')?.value ||
-                       cookieStore.get('color-theme')?.value ||
-                       cookieStore.get('theme')?.value;
-  const initialTheme = themeCookie === 'dark' ? 'dark' : '';
+  const themeCookie = cookieStore.get('flowbite-theme-mode')?.value ||
+    cookieStore.get('flowbite-theme')?.value ||
+    cookieStore.get('color-theme')?.value ||
+    cookieStore.get('theme')?.value;
+  const isLightMode = themeCookie === 'light';
+  const initialTheme = isLightMode ? '' : 'dark';
 
   return (
     <html lang={locale} className={initialTheme} suppressHydrationWarning>
       <head>
         <link rel='icon' href='/favicon.svg' type='image/svg+xml' />
-        <ThemeModeScript />
+        <ThemeModeScript defaultMode={isLightMode ? 'light' : 'dark'} />
       </head>
       <body className={`${manrope.className}`}>
         <ThemeProvider theme={customTheme as any} root>
