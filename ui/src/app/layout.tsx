@@ -36,14 +36,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     cookieStore.get('flowbite-theme')?.value ||
     cookieStore.get('color-theme')?.value ||
     cookieStore.get('theme')?.value;
-  const isLightMode = themeCookie === 'light';
-  const initialTheme = isLightMode ? '' : 'dark';
+  const isDarkMode = themeCookie === 'dark';
+  const defaultThemeMode =
+    themeCookie === 'light' || themeCookie === 'dark' || themeCookie === 'auto' ? themeCookie : 'auto';
+  const initialTheme = isDarkMode ? 'dark' : '';
 
   return (
     <html lang={locale} className={initialTheme} suppressHydrationWarning>
       <head>
         <link rel='icon' href='/favicon.svg' type='image/svg+xml' />
-        <ThemeModeScript defaultMode={isLightMode ? 'light' : 'dark'} />
+        <ThemeModeScript defaultMode={defaultThemeMode} />
       </head>
       <body className={`${manrope.className}`}>
         <ThemeProvider theme={customTheme as any} root>
