@@ -10,7 +10,8 @@ export class Migration1772700000003 implements MigrationInterface {
       'spread_rate',
       'impact_rate',
     ],
-    trade: ['filled_ratio', 'expected_edge_rate', 'estimated_cost_rate', 'spread_rate', 'impact_rate'],
+    // filled_ratio has been persisted as 0~1 fill fraction; do not rescale it.
+    trade: ['expected_edge_rate', 'estimated_cost_rate', 'spread_rate', 'impact_rate'],
   };
 
   public async up(queryRunner: QueryRunner): Promise<void> {
