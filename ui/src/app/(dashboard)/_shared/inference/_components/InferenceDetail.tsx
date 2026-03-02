@@ -5,13 +5,11 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 import { MetricRow } from '@/app/(dashboard)/_shared/report-ui/MetricRow';
-import { ExceptionChips } from '@/app/(dashboard)/_shared/report-ui/ExceptionChips';
 import { DetailMetricGrid } from '@/app/(dashboard)/_shared/report-ui/DetailMetricGrid';
 import { ReportDetailPane } from '@/app/(dashboard)/_shared/report-ui/ReportDetailPane';
 import { ReportListPane } from '@/app/(dashboard)/_shared/report-ui/ReportListPane';
 import { ReportMasterDetailLayout } from '@/app/(dashboard)/_shared/report-ui/ReportMasterDetailLayout';
 import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
-import type { ExceptionChipViewItem } from '@/app/(dashboard)/_shared/report-ui/report-master-detail.types';
 import type { ReportMetricItem } from '@/app/(dashboard)/_shared/report-ui/report-ui.types';
 import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
 import {
@@ -22,11 +20,7 @@ import {
 import { CursorItem } from '@/shared/types/pagination.types';
 import { formatDate } from '@/utils/date';
 import { formatPercent } from '@/utils/number';
-import {
-  resolveExceptionChipTypes,
-} from '@/utils/report-priority';
-import type { ExceptionChipType } from '@/utils/report-priority.types';
-import { getExceptionTone, getValidationTone } from '@/utils/status-tone';
+import { getValidationTone } from '@/utils/status-tone';
 
 import type {
   AllocationDetailPanelProps,
@@ -159,34 +153,7 @@ const formatMarketRegimeAsOf = (value?: string | Date | null): string => {
   return formatDate(parsed);
 };
 
-/**
- * Resolves localized exception label.
- * @param t - Translator.
- * @param type - Exception type.
- * @returns Localized label.
- */
-const getExceptionLabel = (t: Translator, type: ExceptionChipType): string => {
-  if (type === 'validationFailed') return t('report.exception.validationFailed');
-  if (type === 'validationRunning') return t('report.exception.validationRunning');
-  if (type === 'regimeStale') return t('report.exception.regimeStale');
-  if (type === 'risk') return t('report.exception.risk');
-  if (type === 'partialFill') return t('report.exception.partialFill');
-  return '-';
-};
-
-/**
- * Creates exception chips for list/detail header.
- * @param t - Translator.
- * @param chipTypes - Exception types.
- * @returns Exception chip view items.
- */
-const toExceptionChips = (t: Translator, chipTypes: ExceptionChipType[]): ExceptionChipViewItem[] => {
-  return chipTypes.map((type) => ({
-    key: type,
-    label: getExceptionLabel(t, type),
-    tone: getExceptionTone(type),
-  }));
-};
+const getRegimeStaleLabel = (t: Translator): string => t('report.exception.regimeStale');
 
 /**
  * Renders inference detail empty state.
@@ -298,14 +265,6 @@ const AllocationListItem: React.FC<AllocationListItemProps> = ({ item, t, isSele
     },
   ];
 
-  const exceptionChips = toExceptionChips(
-    t,
-    resolveExceptionChipTypes({
-      validation24h: item.validation24h,
-      validation72h: item.validation72h,
-    }),
-  );
-
   return (
     <button
       type='button'
@@ -327,7 +286,6 @@ const AllocationListItem: React.FC<AllocationListItemProps> = ({ item, t, isSele
       <div className='mt-2'>
         <MetricRow items={summaryMetrics} />
       </div>
-      <ExceptionChips chips={exceptionChips} className='mt-2' />
     </button>
   );
 };
@@ -397,7 +355,7 @@ const MarketDetailPanel: React.FC<MarketDetailPanelProps> = ({ item, t, pointUni
     },
   ];
 
-  const staleMessage = item.marketRegimeIsStale ? getExceptionLabel(t, 'regimeStale') : null;
+  const staleMessage = item.marketRegimeIsStale ? getRegimeStaleLabel(t) : null;
 
   return (
     <ReportDetailPane
@@ -531,14 +489,6 @@ const AllocationDetailPanel: React.FC<AllocationDetailPanelProps> = ({ item, t, 
     },
   ];
 
-  const exceptionChips = toExceptionChips(
-    t,
-    resolveExceptionChipTypes({
-      validation24h: item.validation24h,
-      validation72h: item.validation72h,
-    }),
-  );
-
   const regimeStale = item.marketRegimeIsStale === true;
 
   return (
@@ -547,7 +497,6 @@ const AllocationDetailPanel: React.FC<AllocationDetailPanelProps> = ({ item, t, 
       createdAtLabel={t('createdAt')}
       createdAtValue={item.createdAt ? formatDate(new Date(item.createdAt)) : '-'}
       headerMetrics={headerMetrics}
-      exceptionChips={exceptionChips}
     >
       <div className='space-y-5'>
         <InferenceDetailSection title={t('inference.riskFlags')}>
