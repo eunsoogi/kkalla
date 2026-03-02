@@ -1,3 +1,5 @@
+import { translateKoMessage } from '@/test-utils/i18n.mock';
+
 import { MarketSignal } from './entities/market-signal.entity';
 import { MarketIntelligenceService } from './market-intelligence.service';
 
@@ -25,7 +27,7 @@ describe('MarketIntelligenceService', () => {
       execute: persistExecuteMock,
     } as any);
     service = new MarketIntelligenceService(
-      { t: jest.fn((key: string) => key) } as any,
+      { t: jest.fn(translateKoMessage) } as any,
       {} as any,
       {} as any,
       upbitService as any,

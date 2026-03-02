@@ -1,6 +1,7 @@
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { Category } from '@/modules/category/category.enum';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
+import { translateKoMessage } from '@/test-utils/i18n.mock';
 
 import { TradeOrchestrationService } from './trade-orchestration.service';
 
@@ -211,7 +212,7 @@ describe('TradeOrchestrationService', () => {
     it('should normalize target budget by configured slot count', () => {
       const runtime: any = {
         logger: { log: jest.fn() },
-        i18n: { t: jest.fn((key: string) => key) },
+        i18n: { t: jest.fn(translateKoMessage) },
         exchangeService: {},
       };
       const balances: any = {
@@ -512,7 +513,7 @@ describe('TradeOrchestrationService', () => {
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade');
       const runtime: any = {
         logger: { log: jest.fn(), warn: jest.fn() },
-        i18n: { t: jest.fn((key: string) => key) },
+        i18n: { t: jest.fn(translateKoMessage) },
         exchangeService: {
           adjustOrder: jest.fn().mockResolvedValue({
             order: {
@@ -563,7 +564,7 @@ describe('TradeOrchestrationService', () => {
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
       const runtime: any = {
         logger: { log: jest.fn(), warn: jest.fn() },
-        i18n: { t: jest.fn((key: string) => key) },
+        i18n: { t: jest.fn(translateKoMessage) },
         exchangeService: {
           adjustOrder: jest.fn().mockResolvedValue({
             order: {
@@ -622,7 +623,7 @@ describe('TradeOrchestrationService', () => {
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
       const runtime: any = {
         logger: { log: jest.fn(), warn: jest.fn() },
-        i18n: { t: jest.fn((key: string) => key) },
+        i18n: { t: jest.fn(translateKoMessage) },
         exchangeService: {
           adjustOrder: jest.fn().mockResolvedValue({
             order: {
