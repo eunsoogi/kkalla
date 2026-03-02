@@ -32,14 +32,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   // 서버 사이드에서 쿠키를 읽어 초기 theme mode를 결정한다.
   const cookieStore = await cookies();
-  const themeCookie = cookieStore.get('flowbite-theme-mode')?.value ||
-    cookieStore.get('flowbite-theme')?.value ||
+  const themeModeCookie = cookieStore.get('flowbite-theme-mode')?.value;
+  const resolvedThemeCookie = cookieStore.get('flowbite-theme')?.value ||
     cookieStore.get('color-theme')?.value ||
     cookieStore.get('theme')?.value;
-  const isDarkMode = themeCookie === 'dark';
   const defaultThemeMode =
-    themeCookie === 'light' || themeCookie === 'dark' || themeCookie === 'auto' ? themeCookie : 'auto';
-  const initialTheme = isDarkMode ? 'dark' : '';
+    themeModeCookie === 'light' || themeModeCookie === 'dark' || themeModeCookie === 'auto'
+      ? themeModeCookie
+      : 'auto';
+  const initialTheme = resolvedThemeCookie === 'dark' ? 'dark' : '';
 
   return (
     <html lang={locale} className={initialTheme} suppressHydrationWarning>
