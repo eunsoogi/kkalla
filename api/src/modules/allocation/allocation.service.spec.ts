@@ -306,7 +306,11 @@ describe('AllocationService', () => {
     expect(holdingLedgerService.fetchHoldingsByUser).toHaveBeenNthCalledWith(1, users[0]);
     expect(holdingLedgerService.fetchHoldingsByUser).toHaveBeenNthCalledWith(2, users[1]);
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
-    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{ symbol: string; hasStock: boolean }>;
+    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{
+      symbol: string;
+      hasStock: boolean;
+      holdingWeightBaseline?: number;
+    }>;
     const scheduledSymbols = scheduledItems.map((item) => item.symbol);
     expect(scheduledSymbols).toEqual(
       expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW', 'BTC/KRW', 'ETH/KRW']),
@@ -315,6 +319,8 @@ describe('AllocationService', () => {
     const user2Item = scheduledItems.find((item) => item.symbol === 'USER2_ONLY/KRW');
     expect(user1Item?.hasStock).toBe(false);
     expect(user2Item?.hasStock).toBe(false);
+    expect(user1Item?.holdingWeightBaseline).toBeGreaterThan(0);
+    expect(user2Item?.holdingWeightBaseline).toBeGreaterThan(0);
     expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'new', expect.any(Map));
 
     const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
@@ -1691,6 +1697,55 @@ describe('AllocationService', () => {
         category: Category.COIN_MAJOR,
         hasStock: true,
         weight: 0.3,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'sell',
+        modelTargetWeight: 0,
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('sell');
+    expect(result[0].modelTargetWeight).toBe(0);
+    expect(result[0].prevModelTargetWeight).toBeNull();
+  });
+
+  it('should derive sell action when hasStock is normalized but holding baseline is provided', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        intensity: -0.8,
+        confidence: 0.95,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-sell-holding-baseline-1',
+        seq: 5,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.allocationRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: false,
+        weight: 0.3,
+        holdingWeightBaseline: 0.3,
       },
     ]);
 

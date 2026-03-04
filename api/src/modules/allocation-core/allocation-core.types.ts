@@ -6,6 +6,7 @@ export interface RecommendationItem {
   hasStock: boolean;
   weight?: number;
   confidence?: number;
+  holdingWeightBaseline?: number;
 }
 
 export interface CategoryExposureCaps {

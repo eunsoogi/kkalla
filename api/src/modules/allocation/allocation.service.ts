@@ -372,6 +372,10 @@ export class AllocationService implements OnModuleInit {
           // 공통 추론 입력에서는 사용자별 보유 여부가 섞이지 않도록 중립값으로 정규화한다.
           // 실제 사용자별 보유 컨텍스트는 executeAllocationForUser 단계에서 사용자 보유 원장를 다시 조회해 적용한다.
           hasStock: false,
+          // hasStock 정규화 이후에도 "기존 보유 종목"의 추론 baseline은 유지해 bearish 신호 시 hold로 오분류되지 않도록 한다.
+          holdingWeightBaseline: this.tradeOrchestrationService.clampToUnitInterval(
+            recommendMetadata?.weight ?? item.weight ?? this.MIN_RECOMMEND_WEIGHT,
+          ),
           // holding/recommend 심볼이 겹치면 recommend의 weight/confidence를 유지한다.
           weight: recommendMetadata?.weight ?? item.weight,
           confidence: recommendMetadata?.confidence ?? item.confidence,
@@ -1519,9 +1523,13 @@ export class AllocationService implements OnModuleInit {
           const currentHoldingWeight = item?.hasStock
             ? this.tradeOrchestrationService.clampToUnitInterval(item?.weight ?? 0)
             : 0;
+          const holdingWeightBaseline =
+            item?.holdingWeightBaseline != null && Number.isFinite(item.holdingWeightBaseline)
+              ? this.tradeOrchestrationService.clampToUnitInterval(item.holdingWeightBaseline)
+              : null;
           const previousModelTargetWeight = latestMetricsBySymbol?.modelTargetWeight ?? null;
           const inferenceActionBaselineWeight =
-            previousModelTargetWeight ?? (item?.hasStock ? currentHoldingWeight : null);
+            previousModelTargetWeight ?? holdingWeightBaseline ?? (item?.hasStock ? currentHoldingWeight : null);
           const modelSignals = this.calculateModelSignals(
             safeIntensity,
             item.category,
