@@ -1390,7 +1390,9 @@ export class TradeOrchestrationService {
               adjustedRequestedAmount: adjustedOrder.requestedAmount,
               requestRequestedAmount: request.requestedAmount,
               adjustedFilledAmount: null,
-              adjustedFilledRatio: this.resolveFilledRatioFromOrder(refreshedOrder),
+              // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
+              adjustedFilledRatio:
+                type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
               resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
             }));
           resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
