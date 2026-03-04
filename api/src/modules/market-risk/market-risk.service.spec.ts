@@ -1323,6 +1323,54 @@ describe('MarketRiskService', () => {
     expect(isNoTradeRecommendation(result[0], 0.35)).toBe(true);
   });
 
+  it('should fallback to holding weight baseline when previous target is missing on bearish inference', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        intensity: -0.8,
+        confidence: 0.95,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-sell-fallback-1',
+        seq: 4,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.allocationRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+        weight: 0.3,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'sell',
+        modelTargetWeight: 0,
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('sell');
+    expect(result[0].modelTargetWeight).toBe(0);
+    expect(result[0].prevModelTargetWeight).toBeNull();
+  });
+
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {
     const profitService = (service as any).profitService;
     const notifyService = (service as any).notifyService;

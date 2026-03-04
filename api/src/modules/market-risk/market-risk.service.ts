@@ -1347,13 +1347,18 @@ export class MarketRiskService implements OnModuleInit {
           const latestMetricsBySymbol =
             latestRecommendationMetricsBySymbol.get(targetSymbol) ??
             latestRecommendationMetricsBySymbol.get(item.symbol);
+          const currentHoldingWeight = item?.hasStock
+            ? this.tradeOrchestrationService.clampToUnitInterval(item?.weight ?? 0)
+            : 0;
           const previousModelTargetWeight = latestMetricsBySymbol?.modelTargetWeight ?? null;
+          const inferenceActionBaselineWeight =
+            previousModelTargetWeight ?? (item?.hasStock ? currentHoldingWeight : null);
           const modelSignals = this.calculateModelSignals(
             safeIntensity,
             item.category,
             marketFeatures,
             targetSymbol,
-            previousModelTargetWeight,
+            inferenceActionBaselineWeight,
           );
           const decisionConfidence = normalizedResponse.confidence;
           const tradeCostTelemetry = this.deriveTradeCostTelemetry(
@@ -1370,7 +1375,7 @@ export class MarketRiskService implements OnModuleInit {
           );
           const inferenceModelTargetWeight = modelTargetWeight <= Number.EPSILON ? 0 : buyCandidateTargetWeight;
           const inferenceModelAction = this.tradeOrchestrationService.resolveInferenceRecommendationAction(
-            previousModelTargetWeight,
+            inferenceActionBaselineWeight,
             inferenceModelTargetWeight,
           );
           const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
@@ -1382,7 +1387,7 @@ export class MarketRiskService implements OnModuleInit {
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
             modelAction: inferenceModelAction,
             decisionConfidence,
-            currentHoldingWeight: previousModelTargetWeight,
+            currentHoldingWeight: inferenceActionBaselineWeight,
             nextModelTargetWeight: inferenceModelTargetWeight,
             minRecommendWeight,
           });
