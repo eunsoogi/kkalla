@@ -521,7 +521,7 @@ describe('TradeOrchestrationService', () => {
       expect(payload).toEqual([{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR, index: 0 }]);
     });
 
-    it('should build inferred hold items only when current weight already satisfies target', () => {
+    it('should build inferred hold items for currently held inferred candidates', () => {
       const items = service.buildInferredHoldingItems({
         candidates: [
           {
@@ -548,35 +548,42 @@ describe('TradeOrchestrationService', () => {
         orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW', 'XRP/KRW']),
       });
 
-      expect(items).toEqual([{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }]);
+      expect(items).toEqual([
+        { symbol: 'BTC/KRW', category: Category.COIN_MAJOR },
+        { symbol: 'ETH/KRW', category: Category.COIN_MAJOR },
+      ]);
     });
 
-    it('should use slot-normalized included targets when inferring hold sync', () => {
+    it('should keep currently held buy/no-trade inferred candidates in hold sync', () => {
       const items = service.buildInferredHoldingItems({
         candidates: [
           {
             symbol: 'BTC/KRW',
             category: Category.COIN_MAJOR,
             action: 'buy',
-            decisionConfidence: 1,
-            confidence: 1,
           },
           {
             symbol: 'ETH/KRW',
             category: Category.COIN_MAJOR,
+            action: 'no_trade',
+            decisionConfidence: 0.1,
+            confidence: 0.1,
+          },
+          {
+            symbol: 'XRP/KRW',
+            category: Category.COIN_MAJOR,
             action: 'buy',
-            decisionConfidence: 1,
-            confidence: 1,
           },
         ] as any,
         currentWeights: new Map<string, number>([
-          ['BTC/KRW', 0.11],
-          ['ETH/KRW', 0.1],
+          ['BTC/KRW', 0.001],
+          ['ETH/KRW', 0.002],
+          ['XRP/KRW', 0],
         ]),
         regimeMultiplier: 1,
         targetSlotCount: 5,
         calculateTargetWeight: () => 0.5,
-        orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW']),
+        orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW', 'XRP/KRW']),
       });
 
       expect(items).toEqual([

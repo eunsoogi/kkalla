@@ -938,43 +938,18 @@ export class TradeOrchestrationService {
 
   /**
    * Builds inferred holding items for ledger sync when no order is needed.
-   * Keeps only symbols that are currently held and already meet inferred target weight.
+   * Keeps currently held inferred symbols so ledger stays in sync even when no order executes.
    */
   public buildInferredHoldingItems(options: BuildInferredHoldingItemsOptions): HoldingLedgerRemoveItem[] {
-    const {
-      candidates,
-      currentWeights,
-      regimeMultiplier,
-      calculateTargetWeight,
-      targetSlotCount,
-      categoryExposureCaps,
-      orderableSymbols,
-    } = options;
+    const { candidates, currentWeights, orderableSymbols } = options;
     const uniqueCandidates = Array.from(
       new Map(candidates.map((inference) => [`${inference.symbol}:${inference.category}`, inference])).values(),
     );
-    const noTradeCandidates = uniqueCandidates.filter((inference) =>
-      isNoTradeRecommendation(inference, this.defaultTradePolicy.minimumAllocationConfidence),
-    );
-    const includedCandidates = uniqueCandidates.filter(
-      (inference) => !isNoTradeRecommendation(inference, this.defaultTradePolicy.minimumAllocationConfidence),
-    );
     const inferredMap = new Map<string, HoldingLedgerRemoveItem>();
 
-    const addWhenCurrentWeightSatisfiesTarget = (
-      inference: AllocationRecommendationData,
-      targetWeight: number,
-    ): void => {
+    const addWhenCurrentlyHeld = (inference: AllocationRecommendationData): void => {
       const currentWeight = currentWeights.get(inference.symbol) ?? 0;
       if (!Number.isFinite(currentWeight) || currentWeight <= Number.EPSILON) {
-        return;
-      }
-
-      if (!Number.isFinite(targetWeight) || targetWeight <= Number.EPSILON) {
-        return;
-      }
-
-      if (currentWeight + Number.EPSILON < targetWeight) {
         return;
       }
 
@@ -985,71 +960,12 @@ export class TradeOrchestrationService {
       });
     };
 
-    if (includedCandidates.length > 0) {
-      const convictionRows = includedCandidates.map((inference) => {
-        const baseTargetWeight = calculateTargetWeight(inference, regimeMultiplier);
-        const conviction = Math.max(
-          Number.EPSILON,
-          baseTargetWeight * clamp01(inference.decisionConfidence ?? inference.confidence ?? 1),
-        );
-
-        return {
-          inference,
-          baseTargetWeight,
-          conviction,
-        };
-      });
-      const totalConviction = convictionRows.reduce((sum, row) => sum + row.conviction, 0);
-      const targetSlotDenominator = Math.max(1, targetSlotCount ?? includedCandidates.length);
-      const targetBudget = clamp01(
-        convictionRows.reduce((sum, row) => sum + row.baseTargetWeight, 0) / targetSlotDenominator,
-      );
-      const categoryAllocatedTargetWeight = new Map<Category, number>();
-
-      convictionRows.forEach(({ inference, baseTargetWeight, conviction }) => {
-        if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
-          return;
-        }
-
-        const normalizedWeight = totalConviction > 0 ? conviction / totalConviction : baseTargetWeight;
-        const uncappedTargetWeight = clamp01(normalizedWeight * targetBudget);
-        const categoryTargetWeightAllocation = this.allocateCategoryCappedTargetWeight({
-          category: inference.category,
-          uncappedTargetWeight,
-          categoryAllocatedTargetWeight,
-          categoryExposureCaps,
-        });
-
-        categoryTargetWeightAllocation.commit();
-        addWhenCurrentWeightSatisfiesTarget(inference, categoryTargetWeightAllocation.targetWeight);
-      });
-    }
-
-    if (noTradeCandidates.length > 0) {
-      const normalizedTopK = Math.max(1, targetSlotCount ?? noTradeCandidates.length);
-      const categoryAllocatedTargetWeight = new Map<Category, number>();
-
-      noTradeCandidates.forEach((inference) => {
-        if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
-          return;
-        }
-
-        if (inference.modelTargetWeight == null || !Number.isFinite(inference.modelTargetWeight)) {
-          return;
-        }
-
-        const uncappedTargetWeight = clamp01(clamp01(inference.modelTargetWeight) * regimeMultiplier) / normalizedTopK;
-        const categoryTargetWeightAllocation = this.allocateCategoryCappedTargetWeight({
-          category: inference.category,
-          uncappedTargetWeight,
-          categoryAllocatedTargetWeight,
-          categoryExposureCaps,
-        });
-
-        categoryTargetWeightAllocation.commit();
-        addWhenCurrentWeightSatisfiesTarget(inference, categoryTargetWeightAllocation.targetWeight);
-      });
-    }
+    uniqueCandidates.forEach((inference) => {
+      if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
+        return;
+      }
+      addWhenCurrentlyHeld(inference);
+    });
 
     return Array.from(inferredMap.values());
   }
