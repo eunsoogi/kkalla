@@ -893,6 +893,14 @@ export class MarketRiskService implements OnModuleInit {
           regimePolicy.rebalanceBandMultiplier,
           regimePolicy.categoryExposureCaps,
         ),
+      buildInferredHoldingItems: (snapshot) =>
+        this.buildInferredHoldingItemsForLedger(
+          heldAllocationRecommendations,
+          slotCount,
+          regimeMultiplier,
+          snapshot.currentWeights,
+          snapshot.orderableSymbols,
+        ),
     });
   }
 
@@ -1191,6 +1199,31 @@ export class MarketRiskService implements OnModuleInit {
       tradableMarketValueMap,
       rebalanceBandMultiplier,
       categoryExposureCaps,
+    });
+  }
+
+  /**
+   * Builds inferred holding items for ledger sync when no additional order is required.
+   */
+  private buildInferredHoldingItemsForLedger(
+    inferences: AllocationRecommendationData[],
+    count: number,
+    regimeMultiplier: number,
+    currentWeights: Map<string, number>,
+    orderableSymbols: Set<string>,
+  ) {
+    const includedCandidates = this.buildHeldIncludedRecommendationsByCategory(inferences).slice(0, count);
+    const noTradeCandidates = inferences.filter(
+      (inference) => inference.hasStock && this.tradeOrchestrationService.isNoTradeRecommendation(inference),
+    );
+
+    return this.tradeOrchestrationService.buildInferredHoldingItems({
+      candidates: [...includedCandidates, ...noTradeCandidates],
+      currentWeights,
+      regimeMultiplier,
+      calculateTargetWeight: (inference, targetRegimeMultiplier) =>
+        this.calculateTargetWeight(inference, targetRegimeMultiplier),
+      orderableSymbols,
     });
   }
 

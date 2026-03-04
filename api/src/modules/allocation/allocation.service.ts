@@ -797,6 +797,15 @@ export class AllocationService implements OnModuleInit {
           regimePolicy.rebalanceBandMultiplier,
           regimePolicy.categoryExposureCaps,
         ),
+      buildInferredHoldingItems: (snapshot) =>
+        this.buildInferredHoldingItemsForLedger(
+          authorizedRecommendations,
+          slotCount,
+          regimeMultiplier,
+          snapshot.currentWeights,
+          snapshot.orderableSymbols,
+          allowBackfill,
+        ),
     });
   }
 
@@ -1066,6 +1075,48 @@ export class AllocationService implements OnModuleInit {
       tradableMarketValueMap,
       rebalanceBandMultiplier,
       categoryExposureCaps,
+    });
+  }
+
+  /**
+   * Builds holding-ledger candidates when inferred target is already satisfied without new orders.
+   */
+  private buildInferredHoldingItemsForLedger(
+    inferences: AllocationRecommendationData[],
+    count: number,
+    regimeMultiplier: number,
+    currentWeights: Map<string, number>,
+    orderableSymbols: Set<string>,
+    allowBackfill: boolean = true,
+  ) {
+    const includedCandidates = this.tradeOrchestrationService
+      .filterIncludedRecommendations(inferences)
+      .filter(
+        (inference) =>
+          allowBackfill ||
+          inference.hasStock ||
+          (currentWeights.get(inference.symbol) ?? 0) > Number.EPSILON,
+      )
+      .slice(0, count);
+    const noTradeCandidates = inferences.filter((inference) => {
+      if (!this.tradeOrchestrationService.isNoTradeRecommendation(inference)) {
+        return false;
+      }
+
+      if (allowBackfill || inference.hasStock) {
+        return true;
+      }
+
+      return (currentWeights.get(inference.symbol) ?? 0) > Number.EPSILON;
+    });
+
+    return this.tradeOrchestrationService.buildInferredHoldingItems({
+      candidates: [...includedCandidates, ...noTradeCandidates],
+      currentWeights,
+      regimeMultiplier,
+      calculateTargetWeight: (inference, targetRegimeMultiplier) =>
+        this.calculateTargetWeight(inference, targetRegimeMultiplier),
+      orderableSymbols,
     });
   }
 

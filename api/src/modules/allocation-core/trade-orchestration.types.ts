@@ -79,6 +79,14 @@ export interface NoTradeTrimRequestBuildOptions {
   categoryExposureCaps?: CategoryExposureCaps;
 }
 
+export interface BuildInferredHoldingItemsOptions {
+  candidates: AllocationRecommendationData[];
+  currentWeights: Map<string, number>;
+  regimeMultiplier: number;
+  calculateTargetWeight: (inference: AllocationRecommendationData, regimeMultiplier: number) => number;
+  orderableSymbols?: Set<string>;
+}
+
 export interface TradeExecutionSnapshot {
   balances: Balances;
   orderableSymbols: Set<string>;
@@ -114,6 +122,7 @@ export interface ExecuteRebalanceTradesOptions {
   buildExcludedRequests: (snapshot: TradeExecutionSnapshot) => TradeRequest[];
   buildIncludedRequests: (snapshot: TradeExecutionSnapshot) => TradeRequest[];
   buildNoTradeTrimRequests: (snapshot: TradeExecutionSnapshot) => TradeRequest[];
+  buildInferredHoldingItems?: (snapshot: TradeExecutionSnapshot) => HoldingLedgerRemoveItem[];
 }
 
 export interface ExecutionRequestLike {

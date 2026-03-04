@@ -43,6 +43,7 @@ import {
   filterUniqueNonBlacklistedItems,
 } from './helpers/recommendation-item';
 import {
+  BuildInferredHoldingItemsOptions,
   BuildLatestRecommendationMetricsMapOptions,
   BuildOrderableSymbolSetOptions,
   BuildTradeExecutionSnapshotOptions,
@@ -934,6 +935,43 @@ export class TradeOrchestrationService {
   }
 
   /**
+   * Builds inferred holding items for ledger sync when no order is needed.
+   * Keeps only symbols that are currently held and already meet inferred target weight.
+   */
+  public buildInferredHoldingItems(options: BuildInferredHoldingItemsOptions): HoldingLedgerRemoveItem[] {
+    const { candidates, currentWeights, regimeMultiplier, calculateTargetWeight, orderableSymbols } = options;
+    const inferredMap = new Map<string, HoldingLedgerRemoveItem>();
+
+    candidates.forEach((inference) => {
+      if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
+        return;
+      }
+
+      const currentWeight = currentWeights.get(inference.symbol) ?? 0;
+      if (!Number.isFinite(currentWeight) || currentWeight <= Number.EPSILON) {
+        return;
+      }
+
+      const targetWeight = calculateTargetWeight(inference, regimeMultiplier);
+      if (!Number.isFinite(targetWeight) || targetWeight <= Number.EPSILON) {
+        return;
+      }
+
+      if (currentWeight + Number.EPSILON < targetWeight) {
+        return;
+      }
+
+      const key = `${inference.symbol}:${inference.category}`;
+      inferredMap.set(key, {
+        symbol: inference.symbol,
+        category: inference.category,
+      });
+    });
+
+    return Array.from(inferredMap.values());
+  }
+
+  /**
    * Shared orderable symbol set resolver used by allocation/risk flows.
    */
   public async buildOrderableSymbolSet(
@@ -1141,6 +1179,7 @@ export class TradeOrchestrationService {
       buildExcludedRequests,
       buildIncludedRequests,
       buildNoTradeTrimRequests,
+      buildInferredHoldingItems,
     } = options;
     const policy = this.resolveTradePolicy(options.policy);
 
@@ -1234,10 +1273,11 @@ export class TradeOrchestrationService {
     assertLockOrThrow();
     const liquidatedItems = this.collectLiquidatedHoldingItems(sellExecutions, OrderTypes.SELL, existingHoldings);
     const executedBuyItems = this.collectExecutedBuyHoldingItems(buyExecutions, OrderTypes.BUY);
+    const inferredHoldItems = buildInferredHoldingItems?.(initialSnapshot) ?? [];
     // Holding ledger is replaced from execution result to keep category/symbol pairs canonical.
     await holdingLedgerService.replaceHoldingsForUser(
       user,
-      this.buildMergedHoldingsForSave(existingHoldings, liquidatedItems, executedBuyItems),
+      this.buildMergedHoldingsForSave(existingHoldings, liquidatedItems, executedBuyItems, inferredHoldItems),
     );
     assertLockOrThrow();
 
@@ -1344,7 +1384,12 @@ export class TradeOrchestrationService {
    * @returns True when the order should be treated as open.
    */
   private isOpenOrderStatus(status: string | null | undefined): boolean {
-    return typeof status === 'string' && status.toLowerCase() === 'open';
+    if (typeof status !== 'string') {
+      return false;
+    }
+
+    const normalized = status.toLowerCase();
+    return normalized === 'open' || normalized === 'wait';
   }
 
   /**
@@ -1381,25 +1426,29 @@ export class TradeOrchestrationService {
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
     let resolvedAveragePrice = adjustedOrder.averagePrice ?? null;
-    if (!hasExecutedFill) {
-      if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
-        const refreshedOrder = await runtime.exchangeService.fetchOrder(user, orderId, request.symbol);
-        if (refreshedOrder) {
-          executionOrder = refreshedOrder;
-          ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
-            await this.resolveTradeExecutionFillMetrics({
-              adjustedRequestedAmount: adjustedOrder.requestedAmount,
-              requestRequestedAmount: request.requestedAmount,
-              adjustedFilledAmount: null,
-              // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
-              adjustedFilledRatio:
-                type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
-              resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
-            }));
-          resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
-          resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
-        }
+    const refreshPostOnlyExecution = async (targetOrderId: string): Promise<boolean> => {
+      const refreshedOrder = await runtime.exchangeService.fetchOrder(user, targetOrderId, request.symbol);
+      if (!refreshedOrder) {
+        return false;
       }
+
+      executionOrder = refreshedOrder;
+      ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
+        adjustedRequestedAmount: adjustedOrder.requestedAmount,
+        requestRequestedAmount: request.requestedAmount,
+        adjustedFilledAmount: null,
+        // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
+        adjustedFilledRatio: type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
+        resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
+      }));
+      resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
+      resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
+
+      return true;
+    };
+
+    if (!hasExecutedFill && adjustedOrder.executionMode === 'limit_post_only' && orderId) {
+      await refreshPostOnlyExecution(orderId);
     }
 
     if (!hasExecutedFill) {
@@ -1412,6 +1461,7 @@ export class TradeOrchestrationService {
           );
           return null;
         }
+        let cancelFailed = false;
         try {
           // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
           await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
@@ -1435,35 +1485,47 @@ export class TradeOrchestrationService {
             }),
             error,
           );
-          // Persist a trace record when cancellation fails so operators can investigate potential drift.
-          await this.saveTrade(user, {
-            symbol: request.symbol,
-            type,
-            amount: 0,
-            profit: 0,
-            inference: request.inference,
-            executionMode: adjustedOrder.executionMode ?? request.executionMode ?? null,
-            orderType: adjustedOrder.orderType ?? request.orderType ?? null,
-            timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
-            requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
-            averagePrice: resolvedAveragePrice,
-            requestedAmount,
-            filledAmount,
-            filledRatio,
-            orderStatus: resolvedOrderStatus ?? 'open',
-            expectedEdgeRate,
-            estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
-            spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
-            impactRate: adjustedOrder.impactRate ?? request.impactRate ?? null,
-            missedOpportunityCost: null,
-            gateBypassedReason: adjustedOrder.gateBypassedReason ?? request.gateBypassedReason ?? null,
-            triggerReason: adjustedOrder.triggerReason ?? request.triggerReason ?? 'post_only_unfilled_cancel_failed',
-          });
+          cancelFailed = true;
         }
+        await refreshPostOnlyExecution(orderId);
+
+        if (!hasExecutedFill) {
+          if (cancelFailed) {
+            // Persist a trace record when cancellation fails so operators can investigate potential drift.
+            await this.saveTrade(user, {
+              symbol: request.symbol,
+              type,
+              amount: 0,
+              profit: 0,
+              inference: request.inference,
+              executionMode: adjustedOrder.executionMode ?? request.executionMode ?? null,
+              orderType: adjustedOrder.orderType ?? request.orderType ?? null,
+              timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
+              requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
+              averagePrice: resolvedAveragePrice,
+              requestedAmount,
+              filledAmount,
+              filledRatio,
+              orderStatus: resolvedOrderStatus ?? 'open',
+              expectedEdgeRate,
+              estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
+              spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
+              impactRate: adjustedOrder.impactRate ?? request.impactRate ?? null,
+              missedOpportunityCost: null,
+              gateBypassedReason: adjustedOrder.gateBypassedReason ?? request.gateBypassedReason ?? null,
+              triggerReason: adjustedOrder.triggerReason ?? request.triggerReason ?? 'post_only_unfilled_cancel_failed',
+            });
+          }
+          return null;
+        }
+      } else {
+        runtime.logger.log(
+          runtime.i18n.t('logging.trade.not_exist', {
+            args: { id: user.id, symbol: request.symbol },
+          }),
+        );
         return null;
       }
-      runtime.logger.log(runtime.i18n.t('logging.trade.not_exist', { args: { id: user.id, symbol: request.symbol } }));
-      return null;
     }
 
     const amount = filledAmount;
@@ -1921,6 +1983,7 @@ export class TradeOrchestrationService {
     existingHoldings: T[],
     liquidatedItems: HoldingLedgerRemoveItem[],
     executedBuyItems: HoldingLedgerRemoveItem[],
+    inferredHoldItems: HoldingLedgerRemoveItem[] = [],
   ): HoldingLedgerSaveItem[] {
     const removedKeySet = new Set(liquidatedItems.map((item) => `${item.symbol}:${item.category}`));
     const merged = new Map<string, HoldingLedgerRemoveItem>();
@@ -1933,6 +1996,13 @@ export class TradeOrchestrationService {
     });
 
     executedBuyItems.forEach((item) => {
+      const key = `${item.symbol}:${item.category}`;
+      if (!removedKeySet.has(key)) {
+        merged.set(key, item);
+      }
+    });
+
+    inferredHoldItems.forEach((item) => {
       const key = `${item.symbol}:${item.category}`;
       if (!removedKeySet.has(key)) {
         merged.set(key, item);

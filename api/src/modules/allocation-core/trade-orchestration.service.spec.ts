@@ -505,9 +505,180 @@ describe('TradeOrchestrationService', () => {
         { symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 1 },
       ]);
     });
+
+    it('should include inferred hold items even when no trade is executed', () => {
+      const payload = (service as any).buildMergedHoldingsForSave(
+        [],
+        [],
+        [],
+        [{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR }],
+      );
+
+      expect(payload).toEqual([{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR, index: 0 }]);
+    });
+
+    it('should build inferred hold items only when current weight already satisfies target', () => {
+      const items = service.buildInferredHoldingItems({
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+          },
+          {
+            symbol: 'ETH/KRW',
+            category: Category.COIN_MAJOR,
+          },
+          {
+            symbol: 'XRP/KRW',
+            category: Category.COIN_MINOR,
+          },
+        ] as any,
+        currentWeights: new Map<string, number>([
+          ['BTC/KRW', 0.2],
+          ['ETH/KRW', 0.05],
+          ['XRP/KRW', 0],
+        ]),
+        regimeMultiplier: 1,
+        calculateTargetWeight: (inference) => (inference.symbol === 'ETH/KRW' ? 0.1 : 0.1),
+        orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW', 'XRP/KRW']),
+      });
+
+      expect(items).toEqual([{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }]);
+    });
+
+    it('should merge inferred hold items from executeRebalanceTrades when no trade runs', async () => {
+      const user = { id: 'user-1' } as any;
+      const replaceHoldingsForUser = jest.fn().mockResolvedValue([]);
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser,
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(null),
+          clearClients: jest.fn(),
+        },
+      };
+
+      const result = await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['XAUT/KRW'],
+        initialSnapshot: {
+          balances: { info: [] } as any,
+          orderableSymbols: new Set(['XAUT/KRW']),
+          marketPrice: 1_000_000,
+          currentWeights: new Map<string, number>([['XAUT/KRW', 0.1]]),
+          tradableMarketValueMap: new Map<string, number>(),
+        },
+        turnoverCap: 1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: () => [],
+        buildNoTradeTrimRequests: () => [],
+        buildInferredHoldingItems: () => [{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR }],
+      });
+
+      expect(result).toEqual([]);
+      expect(replaceHoldingsForUser).toHaveBeenCalledWith(user, [
+        { symbol: 'XAUT/KRW', category: Category.COIN_MINOR, index: 0 },
+      ]);
+    });
   });
 
   describe('post-only unfilled handling', () => {
+    it('should persist trade when post-only order fills after cancel reconciliation', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const fetchOrder = jest
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'open',
+          amount: 0.001,
+          filled: 0,
+          average: null,
+          cost: null,
+        })
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'canceled',
+          amount: 0.001,
+          filled: 0.001,
+          average: 95_000_000,
+          cost: 95_000,
+        });
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(95_000),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder,
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(fetchOrder).toHaveBeenCalledTimes(2);
+      expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          symbol: 'BTC/KRW',
+          amount: 95_000,
+          orderStatus: 'canceled',
+          filledAmount: 95_000,
+          filledRatio: 0.95,
+        }),
+      );
+    });
+
     it('should cancel unfilled post-only orders and return null', async () => {
       const cancelOrder = jest.fn().mockResolvedValue(undefined);
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade');
