@@ -298,7 +298,7 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(holdScoped[0].action).toBe('hold');
-      expect(holdScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
+      expect(holdScoped[0].modelTargetWeight).toBeCloseTo(0.21, 6);
       expect(buyScoped[0].action).toBe('buy');
       expect(buyScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
     });
@@ -399,6 +399,49 @@ describe('TradeOrchestrationService', () => {
         topK: 5,
         regimeMultiplier: 1,
         currentWeights: new Map<string, number>([['BTC/KRW', 0.05]]),
+        marketPrice: 1_000_000,
+      });
+
+      expect(requests).toHaveLength(0);
+    });
+
+    it('should persist current holding weight when sell is downgraded to hold by min threshold', () => {
+      const currentWeights = new Map<string, number>([['BTC/KRW', 0.2]]);
+      const scoped = service.applyUserScopedRecommendationActions({
+        inferences: [
+          {
+            id: 'rec-hold-sell-downgrade',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 0.18,
+            buyScore: 0.18,
+            sellScore: 0.7,
+            modelTargetWeight: 0.18,
+            action: 'sell',
+            hasStock: true,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        currentWeights,
+        targetSlotCount: 1,
+      });
+
+      expect(scoped[0].action).toBe('hold');
+      expect(scoped[0].modelTargetWeight).toBeCloseTo(0.2, 6);
+
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+      const requests = service.buildNoTradeTrimRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: scoped,
+        topK: 5,
+        regimeMultiplier: 1,
+        currentWeights,
         marketPrice: 1_000_000,
       });
 

@@ -216,11 +216,12 @@ export class TradeOrchestrationService {
         minRecommendWeight,
         targetSlotCount,
       });
+      const resolvedModelTargetWeight = action === 'hold' ? currentHoldingWeight : nextModelTargetWeight;
 
       return {
         ...inference,
         action,
-        modelTargetWeight: nextModelTargetWeight,
+        modelTargetWeight: resolvedModelTargetWeight,
       };
     });
   }
