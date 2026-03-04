@@ -38,7 +38,7 @@ interface CategoryRecommendationFilterConfig extends RecommendationFilterConfig 
  * @param item - Input value for item.
  * @returns Computed numeric value for the operation.
  */
-export function getRecommendationScore(item: Pick<AllocationRecommendationData, 'weight' | 'confidence'>): number {
+function getRecommendationScore(item: Pick<AllocationRecommendationData, 'weight' | 'confidence'>): number {
   const weight = item.weight ?? 0.1;
   const confidence = item.confidence ?? 0.7;
   return weight * 0.6 + confidence * 0.4;
@@ -49,7 +49,7 @@ export function getRecommendationScore(item: Pick<AllocationRecommendationData, 
  * @param item - Input value for item.
  * @returns Computed numeric value for the operation.
  */
-export function getBuyPriorityScore(item: Pick<AllocationRecommendationData, 'buyScore' | 'intensity'>): number {
+function getBuyPriorityScore(item: Pick<AllocationRecommendationData, 'buyScore' | 'intensity'>): number {
   if (item.buyScore != null && Number.isFinite(item.buyScore)) {
     return clamp01(item.buyScore);
   }
@@ -163,9 +163,26 @@ export function normalizeAllocationRecommendationAction(action: unknown): Alloca
   return 'hold';
 }
 
+/**
+ * Resolves i18n key for recommendation action labels.
+ * @param action - Recommendation action.
+ * @returns i18n key for user-facing action label.
+ */
+export function resolveAllocationRecommendationActionLabelKey(action: AllocationRecommendationAction): string {
+  switch (action) {
+    case 'buy':
+      return 'notify.allocationRecommendation.actionLabel.buy';
+    case 'sell':
+      return 'notify.allocationRecommendation.actionLabel.sell';
+    case 'no_trade':
+    case 'hold':
+    default:
+      return 'notify.allocationRecommendation.actionLabel.hold';
+  }
+}
+
 interface ParsedAllocationRecommendationResponse {
   symbol?: unknown;
-  action?: unknown;
   intensity?: unknown;
   confidence?: unknown;
   expectedVolatilityPct?: unknown;
@@ -174,7 +191,6 @@ interface ParsedAllocationRecommendationResponse {
 }
 
 export interface NormalizedAllocationRecommendationResponse {
-  action: AllocationRecommendationAction;
   intensity: number;
   confidence: number;
   expectedVolatilityPct: number;
@@ -250,7 +266,6 @@ export function normalizeAllocationRecommendationResponsePayload(
   const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
 
   return {
-    action: normalizeAllocationRecommendationAction(parsed.action),
     intensity: Number.isFinite(intensity) ? clamp(intensity, -1, 1) : 0,
     confidence: Number.isFinite(confidence) ? clamp01(confidence) : 0,
     expectedVolatilityPct: Number.isFinite(expectedVolatilityPct)
@@ -287,6 +302,90 @@ export function resolveAllocationRecommendationAction(
   }
 
   return 'buy';
+}
+
+/**
+ * Resolves server-side recommendation action without relying on model payload action.
+ * @param modelAction - Model-derived action signal.
+ * @param decisionConfidence - Decision confidence score.
+ * @param minimumAllocationConfidence - Minimum confidence threshold for trading.
+ * @returns Normalized recommendation action.
+ */
+interface ResolveServerRecommendationActionOptions {
+  modelAction: AllocationRecommendationAction;
+  decisionConfidence: number;
+  minimumAllocationConfidence: number;
+  previousModelTargetWeight?: number | null;
+  nextModelTargetWeight?: number | null;
+  minRecommendWeight?: number;
+}
+
+export function resolveServerRecommendationAction(
+  options: ResolveServerRecommendationActionOptions,
+): AllocationRecommendationAction {
+  if (options.decisionConfidence < options.minimumAllocationConfidence) {
+    return 'hold';
+  }
+
+  const resolvedModelAction = options.modelAction === 'no_trade' ? 'hold' : options.modelAction;
+  if (resolvedModelAction === 'hold') {
+    return 'hold';
+  }
+
+  const minRecommendWeight = clamp01(options.minRecommendWeight ?? 0);
+  if (minRecommendWeight <= 0) {
+    return resolvedModelAction;
+  }
+
+  const previousWeight = Number.isFinite(options.previousModelTargetWeight)
+    ? clamp01(Number(options.previousModelTargetWeight))
+    : 0;
+  const nextWeight =
+    resolvedModelAction === 'sell'
+      ? 0
+      : Number.isFinite(options.nextModelTargetWeight)
+        ? clamp01(Number(options.nextModelTargetWeight))
+        : 0;
+
+  if (Math.abs(nextWeight - previousWeight) < minRecommendWeight) {
+    return 'hold';
+  }
+
+  return resolvedModelAction;
+}
+
+/**
+ * Resolves target weight for neutral/no-trade outputs.
+ * @param previousModelTargetWeight - Previous model target weight.
+ * @param suggestedWeight - Suggested target weight from external hint.
+ * @param fallbackModelTargetWeight - Model-derived fallback target weight.
+ * @param hasStock - Whether the user currently holds the symbol.
+ * @param minRecommendWeight - Minimum fallback target weight for held symbols.
+ * @returns Normalized neutral target weight.
+ */
+export function resolveNeutralModelTargetWeight(
+  previousModelTargetWeight: number | null | undefined,
+  suggestedWeight: number | null | undefined,
+  fallbackModelTargetWeight: number,
+  hasStock: boolean,
+  minRecommendWeight: number,
+): number {
+  const candidates = [previousModelTargetWeight, suggestedWeight, fallbackModelTargetWeight];
+
+  for (const candidate of candidates) {
+    if (!Number.isFinite(candidate)) {
+      continue;
+    }
+
+    const clamped = clamp01(Number(candidate));
+    if (hasStock && clamped <= 0) {
+      continue;
+    }
+
+    return clamped;
+  }
+
+  return hasStock ? clamp01(minRecommendWeight) : 0;
 }
 
 interface CalculateAllocationModelSignalsOptions {

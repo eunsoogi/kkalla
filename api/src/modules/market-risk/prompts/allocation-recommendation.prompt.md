@@ -6,7 +6,6 @@
 - JSON 객체만 출력합니다.
 - 필드:
   - symbol: string (입력된 대상 심볼과 정확히 동일해야 하며, 형식은 "BASE/KRW")
-  - action: string ("buy" | "sell" | "hold" | "no_trade")
   - intensity: number (-1 ~ 1)
   - confidence: number (0 ~ 1)
   - expectedVolatilityPct: number (예상 변동성 비율, 0 ~ 1. 예: 0.024 = 2.4%)

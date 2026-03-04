@@ -7,7 +7,6 @@ import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
 
 import {
-  AllocationRecommendationAction,
   AllocationRecommendationData,
   CategoryExposureCaps,
   QueueTradeExecutionMessageV2,
@@ -15,7 +14,10 @@ import {
   TradeExecutionMessageV2,
 } from '@/modules/allocation-core/allocation-core.types';
 import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
-import { toPercentString } from '@/modules/allocation-core/helpers/allocation-recommendation';
+import {
+  resolveAllocationRecommendationActionLabelKey,
+  toPercentString,
+} from '@/modules/allocation-core/helpers/allocation-recommendation';
 import { TradeOrchestrationService } from '@/modules/allocation-core/trade-orchestration.service';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
@@ -800,6 +802,7 @@ export class MarketRiskService implements OnModuleInit {
                   symbol: recommendation.symbol,
                   prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
                   modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
+                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
                   reason: toUserFacingText(recommendation.reason ?? '') || '-',
                 },
               }),
@@ -1345,29 +1348,25 @@ export class MarketRiskService implements OnModuleInit {
             decisionConfidence,
           );
 
-          let action: AllocationRecommendationAction = modelSignals.action;
-          let modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
-
-          if (normalizedResponse.action === 'sell') {
-            action = 'sell';
-            modelTargetWeight = 0;
-          } else if (normalizedResponse.action === 'buy') {
-            action = 'buy';
-            modelTargetWeight = Math.max(
-              modelTargetWeight,
-              this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
-            );
-          } else if (normalizedResponse.action === 'hold') {
-            action = 'hold';
-          } else if (normalizedResponse.action === 'no_trade') {
-            action = 'no_trade';
-            modelTargetWeight = 0;
-          }
-
-          if (decisionConfidence < this.tradeOrchestrationService.getMinimumAllocationConfidence()) {
-            action = 'no_trade';
-            modelTargetWeight = 0;
-          }
+          const modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
+          const buyCandidateTargetWeight = Math.max(
+            modelTargetWeight,
+            this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
+          );
+          const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
+            latestMetricsBySymbol?.modelTargetWeight ?? null,
+            item?.weight,
+            modelTargetWeight,
+            item?.hasStock || false,
+          );
+          const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
+            modelAction: modelSignals.action,
+            decisionConfidence,
+            previousModelTargetWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
+          });
+          const resolvedModelTargetWeight =
+            action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;
 
           // 추론 결과와 아이템 병합
           return {
@@ -1397,7 +1396,7 @@ export class MarketRiskService implements OnModuleInit {
                 : null,
             buyScore: modelSignals.buyScore,
             sellScore: modelSignals.sellScore,
-            modelTargetWeight,
+            modelTargetWeight: resolvedModelTargetWeight,
             action,
             expectedEdgeRate: tradeCostTelemetry.expectedEdgeRate,
             estimatedCostRate: tradeCostTelemetry.estimatedCostRate,

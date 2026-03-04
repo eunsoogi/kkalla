@@ -16,6 +16,7 @@ import { formatNumber, formatPercent } from '@/utils/number';
 
 import { SHARED_REBALANCE_POLICY, SHARED_TRADE_EXECUTION_RUNTIME } from './allocation-core.constants';
 import {
+  AllocationRecommendationAction,
   AllocationRecommendationData,
   CategoryExposureCaps,
   MarketRegimePolicy,
@@ -33,6 +34,8 @@ import {
   isSellAmountSufficient,
   normalizeAllocationRecommendationResponsePayload,
   resolveAvailableKrwBalance,
+  resolveNeutralModelTargetWeight,
+  resolveServerRecommendationAction,
   scaleBuyRequestsToAvailableKrw,
   shouldReallocate,
 } from './helpers/allocation-recommendation';
@@ -131,10 +134,53 @@ export class TradeOrchestrationService {
   }
 
   /**
+   * Shared minimum recommend weight used by allocation/risk neutral fallback.
+   */
+  public getMinimumRecommendWeight(): number {
+    return SHARED_REBALANCE_POLICY.minRecommendWeight;
+  }
+
+  /**
    * Shared minimum trade intensity threshold used by allocation/risk recommendation filtering.
    */
   public getMinimumTradeIntensity(): number {
     return this.minimumTradeIntensity;
+  }
+
+  /**
+   * Shared server-side action resolution for allocation/risk recommendation outputs.
+   */
+  public resolveServerRecommendationAction(options: {
+    modelAction: AllocationRecommendationAction;
+    decisionConfidence: number;
+    previousModelTargetWeight?: number | null;
+    nextModelTargetWeight?: number | null;
+    minRecommendWeight?: number;
+  }): AllocationRecommendationAction {
+    return resolveServerRecommendationAction({
+      ...options,
+      minimumAllocationConfidence: this.defaultTradePolicy.minimumAllocationConfidence,
+      minRecommendWeight: options.minRecommendWeight ?? SHARED_REBALANCE_POLICY.minRecommendWeight,
+    });
+  }
+
+  /**
+   * Shared neutral target-weight resolution for hold/non-trading outputs.
+   */
+  public resolveNeutralModelTargetWeight(
+    previousModelTargetWeight: number | null | undefined,
+    suggestedWeight: number | null | undefined,
+    fallbackModelTargetWeight: number,
+    hasStock: boolean,
+    minRecommendWeight: number = SHARED_REBALANCE_POLICY.minRecommendWeight,
+  ): number {
+    return resolveNeutralModelTargetWeight(
+      previousModelTargetWeight,
+      suggestedWeight,
+      fallbackModelTargetWeight,
+      hasStock,
+      minRecommendWeight,
+    );
   }
 
   /**

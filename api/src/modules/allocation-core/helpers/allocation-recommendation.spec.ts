@@ -17,11 +17,13 @@ import {
   isNoTradeRecommendation,
   isOrderableSymbol,
   isSellAmountSufficient,
-  normalizeAllocationRecommendationAction,
   normalizeAllocationRecommendationResponsePayload,
   passesCostGate,
   resolveAllocationRecommendationAction,
+  resolveAllocationRecommendationActionLabelKey,
   resolveAvailableKrwBalance,
+  resolveNeutralModelTargetWeight,
+  resolveServerRecommendationAction,
   scaleBuyRequestsToAvailableKrw,
   sortAllocationRecommendationsByPriority,
   toPercentString,
@@ -52,16 +54,10 @@ describe('balance-recommendation utils', () => {
     expect(clamp01(Number.NaN)).toBe(0);
   });
 
-  it('should normalize action values', () => {
-    expect(normalizeAllocationRecommendationAction('buy')).toBe('buy');
-    expect(normalizeAllocationRecommendationAction('invalid')).toBe('hold');
-  });
-
   it('should normalize recommendation response payload with clamped values', () => {
     const normalized = normalizeAllocationRecommendationResponsePayload(
       {
         symbol: 'BTC/KRW',
-        action: 'invalid-action',
         intensity: 1.4,
         confidence: -0.3,
         expectedVolatilityPct: -120,
@@ -72,7 +68,6 @@ describe('balance-recommendation utils', () => {
     );
 
     expect(normalized).toEqual({
-      action: 'hold',
       intensity: 1,
       confidence: 0,
       expectedVolatilityPct: -1,
@@ -132,7 +127,6 @@ describe('balance-recommendation utils', () => {
     const normalized = normalizeAllocationRecommendationResponsePayload(
       {
         symbol: 'ETH/KRW',
-        action: 'buy',
         intensity: 0.3,
       },
       {
@@ -153,7 +147,6 @@ describe('balance-recommendation utils', () => {
     const normalized = normalizeAllocationRecommendationResponsePayload(
       {
         symbol: 'ETH/KRW',
-        action: 'buy',
         intensity: 0.3,
       },
       {
@@ -175,6 +168,71 @@ describe('balance-recommendation utils', () => {
     expect(resolveAllocationRecommendationAction(-0.1, 0.2, 0, 0, 0.6)).toBe('sell');
     expect(resolveAllocationRecommendationAction(0.2, 0.7, 0, 0, 0.6)).toBe('sell');
     expect(resolveAllocationRecommendationAction(0.2, 0.2, 0, 0, 0.6)).toBe('hold');
+  });
+
+  it('should resolve action label key with no-trade fallback to hold label', () => {
+    expect(resolveAllocationRecommendationActionLabelKey('buy')).toBe(
+      'notify.allocationRecommendation.actionLabel.buy',
+    );
+    expect(resolveAllocationRecommendationActionLabelKey('sell')).toBe(
+      'notify.allocationRecommendation.actionLabel.sell',
+    );
+    expect(resolveAllocationRecommendationActionLabelKey('hold')).toBe(
+      'notify.allocationRecommendation.actionLabel.hold',
+    );
+    expect(resolveAllocationRecommendationActionLabelKey('no_trade')).toBe(
+      'notify.allocationRecommendation.actionLabel.hold',
+    );
+  });
+
+  it('should resolve server action by confidence and model action', () => {
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'buy',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+      }),
+    ).toBe('buy');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'no_trade',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+      }),
+    ).toBe('hold');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'sell',
+        decisionConfidence: 0.2,
+        minimumAllocationConfidence: 0.35,
+      }),
+    ).toBe('hold');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'buy',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+        previousModelTargetWeight: 0.21,
+        nextModelTargetWeight: 0.25,
+        minRecommendWeight: 0.05,
+      }),
+    ).toBe('hold');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'buy',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+        previousModelTargetWeight: 0.19,
+        nextModelTargetWeight: 0.25,
+        minRecommendWeight: 0.05,
+      }),
+    ).toBe('buy');
+  });
+
+  it('should resolve neutral target weight with held-symbol fallback', () => {
+    expect(resolveNeutralModelTargetWeight(0.25, 0.1, 0.2, true, 0.05)).toBe(0.25);
+    expect(resolveNeutralModelTargetWeight(null, null, 0, true, 0.05)).toBe(0.05);
+    expect(resolveNeutralModelTargetWeight(null, null, 0, false, 0.05)).toBe(0);
   });
 
   it('should classify no-trade/included recommendation', () => {

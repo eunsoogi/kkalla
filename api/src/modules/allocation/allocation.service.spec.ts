@@ -1219,6 +1219,35 @@ describe('AllocationService', () => {
     expect(notifyService.clearClients).toHaveBeenCalledTimes(1);
   });
 
+  it('should include localized recommendation action label in allocation notify message', async () => {
+    const categoryService = (service as any).categoryService;
+    const notifyService = (service as any).notifyService;
+    const upbitService = (service as any).upbitService;
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValue(null);
+
+    await service.executeAllocationForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          action: 'hold',
+          modelTargetWeight: 0.25,
+          prevModelTargetWeight: 0,
+          reason: '변동성으로 관망',
+          hasStock: false,
+        },
+      ] as any,
+      'new',
+    );
+
+    expect(notifyService.notify).toHaveBeenCalledTimes(1);
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 보류');
+  });
+
   it('should override hasStock flag using the requesting user holdings', async () => {
     const categoryService = (service as any).categoryService;
     const upbitService = (service as any).upbitService;
@@ -1567,7 +1596,7 @@ describe('AllocationService', () => {
     expect(result[0].reason).toBe('근거 문장');
   });
 
-  it('should keep hold action as non-trading and carry forward target weight', async () => {
+  it('should derive sell action from bearish intensity without OpenAI action', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -1583,7 +1612,6 @@ describe('AllocationService', () => {
     openaiService.getResponseOutput.mockReturnValue({
       text: JSON.stringify({
         symbol: 'BTC/KRW',
-        action: 'hold',
         intensity: -0.8,
         confidence: 0.95,
       }),
@@ -1610,13 +1638,134 @@ describe('AllocationService', () => {
 
     expect(saveSpy).toHaveBeenCalledWith(
       expect.objectContaining({
+        action: 'sell',
+        modelTargetWeight: 0,
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('sell');
+    expect(result[0].modelTargetWeight).toBe(0);
+  });
+
+  it('should convert low-confidence signal to hold without OpenAI action field', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        intensity: 0.24,
+        confidence: 0.2,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-hold-low-confidence-1',
+        seq: 4,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.allocationRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: false,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        symbol: 'BTC/KRW',
         action: 'hold',
-        modelTargetWeight: 0.27,
+        decisionConfidence: 0.2,
       }),
     );
     expect(result).toHaveLength(1);
     expect(result[0].action).toBe('hold');
-    expect(result[0].modelTargetWeight).toBeCloseTo(0.27, 10);
+  });
+
+  it('should apply minimum weight threshold before slot split for buy action', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest
+      .spyOn(AllocationRecommendation, 'find')
+      .mockResolvedValueOnce([
+        {
+          modelTargetWeight: 0.21,
+          intensity: 0,
+        } as any,
+      ])
+      .mockResolvedValueOnce([
+        {
+          modelTargetWeight: 0.19,
+          intensity: 0,
+        } as any,
+      ]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        intensity: 0.25,
+        confidence: 0.9,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-min-weight-pre-slot-hold-1',
+        seq: 5,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const holdResult = await service.allocationRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'hold',
+        modelTargetWeight: 0.21,
+      }),
+    );
+    expect(holdResult).toHaveLength(1);
+    expect(holdResult[0].action).toBe('hold');
+
+    const buyResult = await service.allocationRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: 'buy',
+        modelTargetWeight: 0.25,
+      }),
+    );
+    expect(buyResult).toHaveLength(1);
+    expect(buyResult[0].action).toBe('buy');
   });
 
   it('should include telemetry fields in paginated allocation recommendation responses', async () => {
