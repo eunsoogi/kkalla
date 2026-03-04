@@ -1025,6 +1025,42 @@ describe('MarketRiskService', () => {
     expect(holdingLedgerService.replaceHoldingsForUser).not.toHaveBeenCalled();
   });
 
+  it('should include localized recommendation action label in market-risk notify message', async () => {
+    const categoryService = (service as any).categoryService;
+    const notifyService = (service as any).notifyService;
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValue([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    upbitService.getBalances.mockResolvedValue(null);
+
+    await service.executeVolatilityTradesForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          id: 'inference-1',
+          batchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          action: 'hold',
+          modelTargetWeight: 0.25,
+          prevModelTargetWeight: 0,
+          reason: '변동성으로 관망',
+          hasStock: true,
+        },
+      ] as any,
+    );
+
+    expect(notifyService.notify).toHaveBeenCalledTimes(1);
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 보류');
+  });
+
   it('should block trade-request backfill in risk mode', () => {
     const requests = (service as any).generateIncludedTradeRequests(
       { info: [] } as any,
@@ -1235,7 +1271,7 @@ describe('MarketRiskService', () => {
     expect(result[0].reason).toBe('변동성 근거');
   });
 
-  it('should preserve hold action as non-trading in volatility recommendation mapping', async () => {
+  it('should convert low-confidence signal to hold without OpenAI action field', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -1246,16 +1282,15 @@ describe('MarketRiskService', () => {
     openaiService.getResponseOutput.mockReturnValue({
       text: JSON.stringify({
         symbol: 'BTC/KRW',
-        action: 'hold',
-        intensity: -0.8,
-        confidence: 0.95,
+        intensity: 0.24,
+        confidence: 0.2,
       }),
       citations: [],
     });
 
     const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
       return {
-        id: 'saved-hold-1',
+        id: 'saved-hold-low-confidence-1',
         seq: 3,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -1271,7 +1306,7 @@ describe('MarketRiskService', () => {
       },
     ]);
 
-    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ action: 'hold' }));
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ action: 'hold', decisionConfidence: 0.2 }));
     expect(result).toHaveLength(1);
     expect(result[0].action).toBe('hold');
     expect(isNoTradeRecommendation(result[0], 0.35)).toBe(true);

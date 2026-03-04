@@ -8,7 +8,10 @@ import { I18nService } from 'nestjs-i18n';
 
 import { CategoryExposureCaps } from '@/modules/allocation-core/allocation-core.types';
 import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
-import { toPercentString } from '@/modules/allocation-core/helpers/allocation-recommendation';
+import {
+  resolveAllocationRecommendationActionLabelKey,
+  toPercentString,
+} from '@/modules/allocation-core/helpers/allocation-recommendation';
 import { TradeOrchestrationService } from '@/modules/allocation-core/trade-orchestration.service';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
@@ -61,7 +64,6 @@ import {
 } from './allocation.enum';
 import {
   AllocationMode,
-  AllocationRecommendationAction,
   AllocationRecommendationData,
   QueueTradeExecutionMessageV2,
   RecommendationItem,
@@ -685,6 +687,7 @@ export class AllocationService implements OnModuleInit {
                   symbol: recommendation.symbol,
                   prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
                   modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
+                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
                   reason: toUserFacingText(recommendation.reason ?? '') || '-',
                 },
               }),
@@ -1162,38 +1165,6 @@ export class AllocationService implements OnModuleInit {
   }
 
   /**
-   * Resolves target weight for neutral/no-trade outputs.
-   * @param previousModelTargetWeight - Previous model target weight.
-   * @param suggestedWeight - Suggested target weight from external hint.
-   * @param fallbackModelTargetWeight - Model-derived fallback target weight.
-   * @param hasStock - Whether the user currently holds the symbol.
-   * @returns Normalized neutral target weight.
-   */
-  private resolveNeutralModelTargetWeight(
-    previousModelTargetWeight: number | null | undefined,
-    suggestedWeight: number | null | undefined,
-    fallbackModelTargetWeight: number,
-    hasStock: boolean,
-  ): number {
-    const candidates = [previousModelTargetWeight, suggestedWeight, fallbackModelTargetWeight];
-
-    for (const candidate of candidates) {
-      if (!Number.isFinite(candidate)) {
-        continue;
-      }
-
-      const clamped = this.tradeOrchestrationService.clampToUnitInterval(Number(candidate));
-      if (hasStock && clamped <= 0) {
-        continue;
-      }
-
-      return clamped;
-    }
-
-    return hasStock ? this.MIN_RECOMMEND_WEIGHT : 0;
-  }
-
-  /**
    * Resolves final per-symbol target weight.
    * @param inference - Recommendation payload.
    * @param regimeMultiplier - Market-regime exposure multiplier.
@@ -1547,36 +1518,27 @@ export class AllocationService implements OnModuleInit {
             decisionConfidence,
           );
 
-          let action: AllocationRecommendationAction = modelSignals.action;
-          let modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
-          const neutralModelTargetWeight = this.resolveNeutralModelTargetWeight(
+          const modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
+          const buyCandidateTargetWeight = Math.max(
+            modelTargetWeight,
+            this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
+          );
+          const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
             latestMetricsBySymbol?.modelTargetWeight ?? null,
             item?.weight,
             modelTargetWeight,
             item?.hasStock || false,
+            this.MIN_RECOMMEND_WEIGHT,
           );
-
-          if (normalizedResponse.action === 'sell') {
-            action = 'sell';
-            modelTargetWeight = 0;
-          } else if (normalizedResponse.action === 'buy') {
-            action = 'buy';
-            modelTargetWeight = Math.max(
-              modelTargetWeight,
-              this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
-            );
-          } else if (normalizedResponse.action === 'hold') {
-            action = 'hold';
-            modelTargetWeight = neutralModelTargetWeight;
-          } else if (normalizedResponse.action === 'no_trade') {
-            action = 'no_trade';
-            modelTargetWeight = neutralModelTargetWeight;
-          }
-
-          if (decisionConfidence < this.tradeOrchestrationService.getMinimumAllocationConfidence()) {
-            action = 'no_trade';
-            modelTargetWeight = neutralModelTargetWeight;
-          }
+          const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
+            modelAction: modelSignals.action,
+            decisionConfidence,
+            previousModelTargetWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
+            minRecommendWeight: this.MIN_RECOMMEND_WEIGHT,
+          });
+          const resolvedModelTargetWeight =
+            action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;
 
           // 추론 결과와 아이템 병합
           return {
@@ -1606,7 +1568,7 @@ export class AllocationService implements OnModuleInit {
                 : null,
             buyScore: modelSignals.buyScore,
             sellScore: modelSignals.sellScore,
-            modelTargetWeight,
+            modelTargetWeight: resolvedModelTargetWeight,
             action,
             expectedEdgeRate: tradeCostTelemetry.expectedEdgeRate,
             estimatedCostRate: tradeCostTelemetry.estimatedCostRate,

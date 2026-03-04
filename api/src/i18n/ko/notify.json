@@ -6,7 +6,12 @@
   },
   "allocationRecommendation": {
     "result": "자산 배분 추천이 생성되었습니다.\n\n{transactions}",
-    "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight})\n> 근거: {reason}"
+    "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight}) {actionLabel}\n> 근거: {reason}",
+    "actionLabel": {
+      "buy": "매수",
+      "sell": "매도",
+      "hold": "보류"
+    }
   },
   "balance": {
     "fail": "계좌 조회에 실패했습니다."

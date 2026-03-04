@@ -17,10 +17,6 @@ export const UPBIT_ALLOCATION_RECOMMENDATION_SHARED_RESPONSE_SCHEMA = {
     symbol: {
       type: 'string',
     },
-    action: {
-      type: 'string',
-      enum: ['buy', 'sell', 'hold', 'no_trade'],
-    },
     intensity: {
       type: 'number',
       minimum: -1,
@@ -48,6 +44,6 @@ export const UPBIT_ALLOCATION_RECOMMENDATION_SHARED_RESPONSE_SCHEMA = {
       type: 'string',
     },
   },
-  required: ['symbol', 'action', 'intensity', 'confidence', 'expectedVolatilityPct', 'riskFlags', 'reason'],
+  required: ['symbol', 'intensity', 'confidence', 'expectedVolatilityPct', 'riskFlags', 'reason'],
   additionalProperties: false,
 };

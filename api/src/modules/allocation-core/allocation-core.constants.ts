@@ -17,6 +17,7 @@ export const SHARED_REBALANCE_POLICY = {
   estimatedFeeRate: 0.0005,
   estimatedSlippageRate: 0.001,
   edgeRiskBufferRate: 0.0005,
+  minRecommendWeight: 0.05,
   stagedExitLight: -0.25,
   stagedExitMedium: -0.5,
   stagedExitFull: -1,
