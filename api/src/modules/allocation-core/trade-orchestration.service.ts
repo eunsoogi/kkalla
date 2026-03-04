@@ -1380,6 +1380,7 @@ export class TradeOrchestrationService {
     const orderId = this.resolvePrimaryOrderId(order);
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
+    let resolvedAveragePrice = adjustedOrder.averagePrice ?? null;
     if (!hasExecutedFill) {
       if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
         const refreshedOrder = await runtime.exchangeService.fetchOrder(user, orderId, request.symbol);
@@ -1396,6 +1397,7 @@ export class TradeOrchestrationService {
               resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
             }));
           resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
+          resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
         }
       }
     }
@@ -1444,7 +1446,7 @@ export class TradeOrchestrationService {
             orderType: adjustedOrder.orderType ?? request.orderType ?? null,
             timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
             requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
-            averagePrice: adjustedOrder.averagePrice ?? null,
+            averagePrice: resolvedAveragePrice,
             requestedAmount,
             filledAmount,
             filledRatio,
@@ -1539,7 +1541,7 @@ export class TradeOrchestrationService {
       orderType: adjustedOrder.orderType ?? request.orderType ?? null,
       timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
       requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
-      averagePrice: adjustedOrder.averagePrice ?? null,
+      averagePrice: resolvedAveragePrice,
       requestedAmount,
       filledAmount,
       filledRatio,
@@ -1785,6 +1787,26 @@ export class TradeOrchestrationService {
     }
 
     return Math.max(0, Math.min(1, filled / amount));
+  }
+
+  /**
+   * Resolves average execution price from raw order payload.
+   * @param order - Exchange order payload.
+   * @returns Average execution price or `null` when unavailable.
+   */
+  private resolveAveragePriceFromOrder(order: Order): number | null {
+    const average = this.normalizeNonNegativeNumber(order?.average);
+    if (average != null && average > Number.EPSILON) {
+      return average;
+    }
+
+    const cost = this.normalizeNonNegativeNumber(order?.cost);
+    const filled = this.normalizeNonNegativeNumber(order?.filled);
+    if (cost == null || filled == null || filled <= Number.EPSILON) {
+      return null;
+    }
+
+    return cost / filled;
   }
 
   /**

@@ -625,6 +625,7 @@ describe('TradeOrchestrationService', () => {
         expect.objectContaining({
           symbol: 'BTC/KRW',
           amount: 95_000,
+          averagePrice: 95_000_000,
           filledAmount: 95_000,
           filledRatio: 0.95,
           orderStatus: 'closed',
