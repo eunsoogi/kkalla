@@ -1368,19 +1368,36 @@ export class TradeOrchestrationService {
       runtime.i18n.t('logging.trade.calculate.start', { args: { id: user.id, symbol: request.symbol } }),
     );
 
-    const type = runtime.exchangeService.getOrderType(order);
-    const { requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics(
-      {
-        adjustedRequestedAmount: adjustedOrder.requestedAmount,
-        requestRequestedAmount: request.requestedAmount,
-        adjustedFilledAmount: adjustedOrder.filledAmount,
-        adjustedFilledRatio: adjustedOrder.filledRatio,
-        resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(order),
-      },
-    );
+    let executionOrder = order;
+    const type = runtime.exchangeService.getOrderType(executionOrder);
+    let { requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
+      adjustedRequestedAmount: adjustedOrder.requestedAmount,
+      requestRequestedAmount: request.requestedAmount,
+      adjustedFilledAmount: adjustedOrder.filledAmount,
+      adjustedFilledRatio: adjustedOrder.filledRatio,
+      resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(executionOrder),
+    });
     const orderId = this.resolvePrimaryOrderId(order);
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
+    if (!hasExecutedFill) {
+      if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
+        const refreshedOrder = await runtime.exchangeService.fetchOrder(user, orderId, request.symbol);
+        if (refreshedOrder) {
+          executionOrder = refreshedOrder;
+          ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
+            await this.resolveTradeExecutionFillMetrics({
+              adjustedRequestedAmount: adjustedOrder.requestedAmount,
+              requestRequestedAmount: request.requestedAmount,
+              adjustedFilledAmount: null,
+              adjustedFilledRatio: this.resolveFilledRatioFromOrder(refreshedOrder),
+              resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
+            }));
+          resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
+        }
+      }
+    }
+
     if (!hasExecutedFill) {
       if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
         try {
@@ -1438,7 +1455,7 @@ export class TradeOrchestrationService {
     }
 
     const amount = filledAmount;
-    const profit = await runtime.exchangeService.calculateProfit(request.balances, order, amount);
+    const profit = await runtime.exchangeService.calculateProfit(request.balances, executionOrder, amount);
 
     const shouldCancelPostOnlyRemainder =
       adjustedOrder.executionMode === 'limit_post_only' &&
@@ -1743,6 +1760,21 @@ export class TradeOrchestrationService {
       filledRatio,
       hasExecutedFill,
     };
+  }
+
+  /**
+   * Resolves ratio from raw order payload when exchange response omits normalized ratio.
+   * @param order - Exchange order payload.
+   * @returns Filled ratio or `null` when unavailable.
+   */
+  private resolveFilledRatioFromOrder(order: Order): number | null {
+    const filled = this.normalizeNonNegativeNumber(order?.filled);
+    const amount = this.normalizeNonNegativeNumber(order?.amount);
+    if (filled == null || amount == null || amount <= 0) {
+      return null;
+    }
+
+    return Math.max(0, Math.min(1, filled / amount));
   }
 
   /**

@@ -37,6 +37,53 @@ describe('UpbitService', () => {
     expect(service).toBeDefined();
   });
 
+  it('should not infer executed notional from open order amount only', async () => {
+    const getServerClientSpy = jest.spyOn(service, 'getServerClient');
+
+    const amount = await service.calculateAmount({
+      symbol: 'BTC/KRW',
+      status: 'open',
+      amount: 0.1,
+      filled: null,
+      cost: null,
+      average: null,
+    } as any);
+
+    expect(amount).toBe(0);
+    expect(getServerClientSpy).not.toHaveBeenCalled();
+  });
+
+  it('should fallback to amount*price when finalized order has no executed notional', async () => {
+    const fetchTicker = jest.fn().mockResolvedValue({ last: 100_000_000 });
+    jest.spyOn(service, 'getServerClient').mockResolvedValue({ fetchTicker } as any);
+
+    const amount = await service.calculateAmount({
+      symbol: 'BTC/KRW',
+      status: 'closed',
+      amount: 0.001,
+      filled: null,
+      cost: null,
+      average: null,
+    } as any);
+
+    expect(amount).toBeCloseTo(100_000, 8);
+    expect(fetchTicker).toHaveBeenCalledWith('BTC/KRW');
+  });
+
+  it('should fetch latest order when exchange client supports fetchOrder', async () => {
+    const fetchOrder = jest.fn().mockResolvedValue({
+      id: 'order-1',
+      symbol: 'BTC/KRW',
+      status: 'closed',
+    });
+    jest.spyOn(service, 'getClient').mockResolvedValue({ fetchOrder } as any);
+
+    const order = await service.fetchOrder({ id: 'user-1' } as any, 'order-1', 'BTC/KRW');
+
+    expect(order).toEqual(expect.objectContaining({ id: 'order-1', status: 'closed' }));
+    expect(fetchOrder).toHaveBeenCalledWith('order-1', 'BTC/KRW');
+  });
+
   it('should use precomputed marketPrice when it is provided', async () => {
     const user = { id: 'user-1' } as any;
     const balances: any = {

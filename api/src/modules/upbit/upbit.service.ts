@@ -281,19 +281,46 @@ export class UpbitService {
     return order.side as OrderTypes;
   }
 
+  private isFinalizedOrderStatus(status: unknown): boolean {
+    if (typeof status !== 'string') {
+      return false;
+    }
+
+    const normalized = status.toLowerCase();
+    return normalized === 'closed' || normalized === 'filled' || normalized === 'done';
+  }
+
   public async calculateAmount(order: Order): Promise<number> {
-    if (order?.cost) {
-      return order.cost;
-    } else if (order?.amount) {
+    const cost = Number(order?.cost);
+    if (Number.isFinite(cost) && cost > 0) {
+      return cost;
+    }
+
+    const filled = Number(order?.filled);
+    const average = Number(order?.average);
+    if (Number.isFinite(filled) && filled > 0) {
+      if (Number.isFinite(average) && average > 0) {
+        return filled * average;
+      }
+
       const client = await this.getServerClient();
 
       const ticker = await this.errorService.retryWithFallback(async () => {
         return await client.fetchTicker(order.symbol);
       }, this.retryOptions);
 
-      const amount = order.amount * ticker.last;
+      return filled * ticker.last;
+    }
 
-      return amount;
+    const amount = Number(order?.amount);
+    if (Number.isFinite(amount) && amount > 0 && this.isFinalizedOrderStatus(order?.status)) {
+      const client = await this.getServerClient();
+
+      const ticker = await this.errorService.retryWithFallback(async () => {
+        return await client.fetchTicker(order.symbol);
+      }, this.retryOptions);
+
+      return amount * ticker.last;
     }
 
     return 0;
@@ -906,6 +933,23 @@ export class UpbitService {
         }, this.retryOptions),
       ),
     );
+  }
+
+  public async fetchOrder(user: User, orderId: string, symbol: string): Promise<Order | null> {
+    try {
+      const client = await this.getClient(user);
+      if (typeof (client as any).fetchOrder !== 'function') {
+        return null;
+      }
+
+      const order = await this.errorService.retryWithFallback(async () => {
+        return await (client as any).fetchOrder(orderId, symbol);
+      }, this.retryOptions);
+
+      return (order as Order) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<AdjustedOrderResult> {

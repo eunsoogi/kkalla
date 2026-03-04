@@ -541,6 +541,7 @@ describe('TradeOrchestrationService', () => {
           getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
           calculateAmount: jest.fn(),
           calculateProfit: jest.fn(),
+          fetchOrder: jest.fn().mockResolvedValue(null),
           cancelOrder,
         },
       };
@@ -558,6 +559,76 @@ describe('TradeOrchestrationService', () => {
       expect(result).toBeNull();
       expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
       expect(saveTradeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should persist trade when post-only order is filled after exchange refresh', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValue(95_000),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder: jest.fn().mockResolvedValue({
+            id: 'order-123',
+            symbol: 'BTC/KRW',
+            side: OrderTypes.BUY,
+            status: 'closed',
+            amount: 0.001,
+            filled: 0.001,
+            average: 95_000_000,
+            cost: 95_000,
+          }),
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(cancelOrder).not.toHaveBeenCalled();
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          symbol: 'BTC/KRW',
+          amount: 95_000,
+          filledAmount: 95_000,
+          orderStatus: 'closed',
+        }),
+      );
     });
 
     it('should persist tracking trade when post-only cancellation fails', async () => {
@@ -592,6 +663,7 @@ describe('TradeOrchestrationService', () => {
           getOrderType: jest.fn().mockReturnValue(OrderTypes.SELL),
           calculateAmount: jest.fn(),
           calculateProfit: jest.fn(),
+          fetchOrder: jest.fn().mockResolvedValue(null),
           cancelOrder: jest.fn().mockRejectedValue(new Error('cancel failed')),
         },
       };
@@ -651,6 +723,7 @@ describe('TradeOrchestrationService', () => {
           getOrderType: jest.fn().mockReturnValue(OrderTypes.SELL),
           calculateAmount: jest.fn(),
           calculateProfit: jest.fn().mockResolvedValue(1000),
+          fetchOrder: jest.fn().mockResolvedValue(null),
           cancelOrder,
         },
       };
