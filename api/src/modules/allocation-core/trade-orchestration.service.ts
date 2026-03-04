@@ -92,6 +92,8 @@ export class TradeOrchestrationService {
   };
   private readonly minimumTradeIntensity = SHARED_REBALANCE_POLICY.minimumTradeIntensity;
   private readonly tradeExecutionRuntime = SHARED_TRADE_EXECUTION_RUNTIME;
+  private readonly postOnlyReconcileMaxFetchAttempts = this.tradeExecutionRuntime.postOnlyReconcileMaxFetchAttempts;
+  private readonly postOnlyReconcileRetryDelayMs = this.tradeExecutionRuntime.postOnlyReconcileRetryDelayMs;
 
   /**
    * Shared queue message version used by allocation/risk SQS producers and consumers.
@@ -733,7 +735,7 @@ export class TradeOrchestrationService {
           triggerReason: payoffOverlay.triggerReason ?? 'included_rebalance',
         };
       })
-      .filter((item): item is TradeRequest => item !== null)
+      .filter((item): item is Exclude<typeof item, null> => item !== null)
       .sort((a, b) => a.diff - b.diff);
   }
 
@@ -930,7 +932,7 @@ export class TradeOrchestrationService {
           triggerReason: payoffOverlay.triggerReason ?? 'no_trade_trim',
         };
       })
-      .filter((item): item is TradeRequest => item !== null)
+      .filter((item): item is Exclude<typeof item, null> => item !== null)
       .sort((a, b) => a.diff - b.diff);
   }
 
@@ -1392,6 +1394,16 @@ export class TradeOrchestrationService {
     return normalized === 'open' || normalized === 'wait';
   }
 
+  private async waitForPostOnlyReconcileRetry(): Promise<void> {
+    if (!Number.isFinite(this.postOnlyReconcileRetryDelayMs) || this.postOnlyReconcileRetryDelayMs <= 0) {
+      return;
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, this.postOnlyReconcileRetryDelayMs);
+    });
+  }
+
   /**
    * Shared trade execution/persistence path used by allocation and risk services.
    */
@@ -1426,29 +1438,39 @@ export class TradeOrchestrationService {
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
     let resolvedAveragePrice = adjustedOrder.averagePrice ?? null;
-    const refreshPostOnlyExecution = async (targetOrderId: string): Promise<boolean> => {
-      const refreshedOrder = await runtime.exchangeService.fetchOrder(user, targetOrderId, request.symbol);
-      if (!refreshedOrder) {
-        return false;
+    const refreshPostOnlyExecution = async (targetOrderId: string, attempts: number): Promise<boolean> => {
+      const maxAttempts = Math.max(1, attempts);
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const refreshedOrder = await runtime.exchangeService.fetchOrder(user, targetOrderId, request.symbol);
+        if (refreshedOrder) {
+          executionOrder = refreshedOrder;
+          ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
+            await this.resolveTradeExecutionFillMetrics({
+              adjustedRequestedAmount: adjustedOrder.requestedAmount,
+              requestRequestedAmount: request.requestedAmount,
+              adjustedFilledAmount: null,
+              // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
+              adjustedFilledRatio: type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
+              resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
+            }));
+          resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
+          resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
+          if (hasExecutedFill || !this.isOpenOrderStatus(resolvedOrderStatus)) {
+            return true;
+          }
+        }
+
+        if (attempt + 1 < maxAttempts) {
+          await this.waitForPostOnlyReconcileRetry();
+        }
       }
 
-      executionOrder = refreshedOrder;
-      ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
-        adjustedRequestedAmount: adjustedOrder.requestedAmount,
-        requestRequestedAmount: request.requestedAmount,
-        adjustedFilledAmount: null,
-        // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
-        adjustedFilledRatio: type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
-        resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
-      }));
-      resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
-      resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
-
-      return true;
+      return false;
     };
 
     if (!hasExecutedFill && adjustedOrder.executionMode === 'limit_post_only' && orderId) {
-      await refreshPostOnlyExecution(orderId);
+      await refreshPostOnlyExecution(orderId, 1);
     }
 
     if (!hasExecutedFill) {
@@ -1487,7 +1509,7 @@ export class TradeOrchestrationService {
           );
           cancelFailed = true;
         }
-        await refreshPostOnlyExecution(orderId);
+        await refreshPostOnlyExecution(orderId, this.postOnlyReconcileMaxFetchAttempts);
 
         if (!hasExecutedFill) {
           if (cancelFailed) {

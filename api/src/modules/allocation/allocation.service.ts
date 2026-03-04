@@ -1093,9 +1093,7 @@ export class AllocationService implements OnModuleInit {
       .filterIncludedRecommendations(inferences)
       .filter(
         (inference) =>
-          allowBackfill ||
-          inference.hasStock ||
-          (currentWeights.get(inference.symbol) ?? 0) > Number.EPSILON,
+          allowBackfill || inference.hasStock || (currentWeights.get(inference.symbol) ?? 0) > Number.EPSILON,
       )
       .slice(0, count);
     const noTradeCandidates = inferences.filter((inference) => {
