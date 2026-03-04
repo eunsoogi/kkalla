@@ -1038,7 +1038,7 @@ describe('MarketRiskService', () => {
         hasStock: true,
       },
     ]);
-    upbitService.getBalances.mockResolvedValue(null);
+    upbitService.getBalances.mockResolvedValue({ info: [] });
 
     await service.executeVolatilityTradesForUser(
       { id: 'user-1', roles: [] } as any,
@@ -1058,7 +1058,7 @@ describe('MarketRiskService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 보류');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 0%) 보류');
   });
 
   it('should block trade-request backfill in risk mode', () => {
@@ -1092,7 +1092,7 @@ describe('MarketRiskService', () => {
     expect(requests[0].symbol).toBe('ETH/KRW');
   });
 
-  it('should generate trim-only sell request for overweight hold/no_trade recommendation in risk mode', () => {
+  it('should not trim hold recommendation when current account weight already matches target in risk mode', () => {
     const balances: any = { info: [] };
     const requests = (service as any).generateNoTradeTrimRequests(
       balances,
@@ -1114,10 +1114,7 @@ describe('MarketRiskService', () => {
       new Map([['BTC/KRW', 280_000]]),
     );
 
-    expect(requests).toHaveLength(1);
-    expect(requests[0].symbol).toBe('BTC/KRW');
-    expect(requests[0].diff).toBeCloseTo(-0.8, 10);
-    expect(requests[0].diff).toBeGreaterThan(-1);
+    expect(requests).toHaveLength(0);
   });
 
   it('should not generate trim-only sell request when hold/no_trade recommendation is not overweight in risk mode', () => {

@@ -269,6 +269,66 @@ describe('TradeOrchestrationService', () => {
       expect(withoutSlotCount[0].diff).toBeCloseTo(0.25, 6);
       expect(withSlotCount[0].diff).toBeCloseTo(0.125, 6);
     });
+
+    it('should resolve user-scoped action threshold on per-slot single-symbol scale', () => {
+      const inferences: any[] = [
+        {
+          id: 'rec-1',
+          batchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.25,
+          modelTargetWeight: 0.25,
+          action: 'buy',
+          hasStock: true,
+          decisionConfidence: 0.9,
+        },
+      ];
+      const currentWeights = new Map<string, number>([['BTC/KRW', 0.21]]);
+
+      const holdScoped = service.applyUserScopedRecommendationActions({
+        inferences,
+        currentWeights,
+        targetSlotCount: 1,
+      });
+      const buyScoped = service.applyUserScopedRecommendationActions({
+        inferences,
+        currentWeights,
+        targetSlotCount: 5,
+      });
+
+      expect(holdScoped[0].action).toBe('hold');
+      expect(holdScoped[0].modelTargetWeight).toBeCloseTo(0.21, 6);
+      expect(buyScoped[0].action).toBe('buy');
+      expect(buyScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
+    });
+
+    it('should not trim hold recommendations that already match current account weight', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+      const requests = service.buildNoTradeTrimRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'hold',
+            modelTargetWeight: 0.05,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        topK: 5,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.05]]),
+        marketPrice: 1_000_000,
+      });
+
+      expect(requests).toHaveLength(0);
+    });
   });
 
   describe('latest recommendation metrics', () => {

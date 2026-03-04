@@ -675,29 +675,6 @@ export class AllocationService implements OnModuleInit {
       return [];
     }
 
-    // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
-    await this.notifyService.notify(
-      user,
-      this.i18n.t('notify.allocationRecommendation.result', {
-        args: {
-          transactions: authorizedRecommendations
-            .map((recommendation) =>
-              this.i18n.t('notify.allocationRecommendation.transaction', {
-                args: {
-                  symbol: recommendation.symbol,
-                  prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
-                  modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
-                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
-                  reason: toUserFacingText(recommendation.reason ?? '') || '-',
-                },
-              }),
-            )
-            .join('\n\n'),
-        },
-      }),
-    );
-    assertLockOrThrow();
-
     // 사용자별 최대 편입 종목 수 계산 (카테고리별 제한 고려)
     const slotCount = await this.allocationSlotService.resolveAuthorizedSlotCount(user);
     assertLockOrThrow();
@@ -733,13 +710,41 @@ export class AllocationService implements OnModuleInit {
     );
     const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
+    const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
+      inferences: authorizedRecommendations,
+      currentWeights: executionSnapshot.currentWeights,
+      targetSlotCount: slotCount,
+    });
+
+    // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
+    await this.notifyService.notify(
+      user,
+      this.i18n.t('notify.allocationRecommendation.result', {
+        args: {
+          transactions: userScopedRecommendations
+            .map((recommendation) =>
+              this.i18n.t('notify.allocationRecommendation.transaction', {
+                args: {
+                  symbol: recommendation.symbol,
+                  prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
+                  modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
+                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
+                  reason: toUserFacingText(recommendation.reason ?? '') || '-',
+                },
+              }),
+            )
+            .join('\n\n'),
+        },
+      }),
+    );
+    assertLockOrThrow();
 
     // 편입/편출 결정 분리
     // 1. 추론에 없는 기존 보유 종목 매도 요청 (완전 매도)
     const rawNonAllocationRecommendationTradeRequests: TradeRequest[] =
       this.generateNonAllocationRecommendationTradeRequests(
         balances,
-        authorizedRecommendations,
+        userScopedRecommendations,
         executionSnapshot.marketPrice,
         executionSnapshot.orderableSymbols,
         executionSnapshot.tradableMarketValueMap,
@@ -747,7 +752,7 @@ export class AllocationService implements OnModuleInit {
     const nonAllocationRecommendationTradeRequests = await this.applyMissingInferenceGraceWindow(
       user,
       rawNonAllocationRecommendationTradeRequests,
-      new Set(authorizedRecommendations.map((recommendation) => recommendation.symbol)),
+      new Set(userScopedRecommendations.map((recommendation) => recommendation.symbol)),
     );
     assertLockOrThrow();
 
@@ -765,7 +770,7 @@ export class AllocationService implements OnModuleInit {
       buildExcludedRequests: (snapshot) =>
         this.generateExcludedTradeRequests(
           snapshot.balances,
-          authorizedRecommendations,
+          userScopedRecommendations,
           slotCount,
           snapshot.marketPrice,
           snapshot.orderableSymbols,
@@ -775,7 +780,7 @@ export class AllocationService implements OnModuleInit {
       buildIncludedRequests: (snapshot) =>
         this.generateIncludedTradeRequests(
           snapshot.balances,
-          authorizedRecommendations,
+          userScopedRecommendations,
           slotCount,
           regimeMultiplier,
           snapshot.currentWeights,
@@ -789,7 +794,7 @@ export class AllocationService implements OnModuleInit {
       buildNoTradeTrimRequests: (snapshot) =>
         this.generateNoTradeTrimRequests(
           snapshot.balances,
-          authorizedRecommendations,
+          userScopedRecommendations,
           slotCount,
           regimeMultiplier,
           snapshot.currentWeights,
@@ -802,7 +807,7 @@ export class AllocationService implements OnModuleInit {
         ),
       buildInferredHoldingItems: (snapshot) =>
         this.buildInferredHoldingItemsForLedger(
-          authorizedRecommendations,
+          userScopedRecommendations,
           slotCount,
           regimeMultiplier,
           snapshot.currentWeights,
@@ -1032,8 +1037,8 @@ export class AllocationService implements OnModuleInit {
    * @param inferences - Recommendation payloads.
    * @param count - Effective top-K denominator for target sizing.
    * @param regimeMultiplier - Market-regime exposure multiplier.
-   * @param currentWeights - Current portfolio weight map.
-   * @param marketPrice - Portfolio market value baseline.
+   * @param currentWeights - Current holding weight map.
+   * @param marketPrice - Account market value baseline.
    * @param orderableSymbols - Optional orderable symbol set.
    * @param tradableMarketValueMap - Optional per-symbol tradable market value map.
    * @param allowBackfill - Whether non-held items can enter candidate set.
@@ -1533,7 +1538,7 @@ export class AllocationService implements OnModuleInit {
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
             modelAction: modelSignals.action,
             decisionConfidence,
-            previousModelTargetWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            currentHoldingWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
             nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
             minRecommendWeight: this.MIN_RECOMMEND_WEIGHT,
           });
@@ -1619,7 +1624,7 @@ export class AllocationService implements OnModuleInit {
       buyScore: saved.buyScore,
       sellScore: saved.sellScore,
       modelTargetWeight: saved.modelTargetWeight,
-      action: saved.action,
+      action: validResults[index].action,
       reason: saved.reason != null ? toUserFacingText(saved.reason) : null,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
