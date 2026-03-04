@@ -1762,7 +1762,7 @@ describe('AllocationService', () => {
     expect(holdResult[0].action).toBe('hold');
     expect(holdResult[0].modelTargetWeight).toBe(0.21);
 
-    const sellResult = await service.allocationRecommendation([
+    const buyResult = await service.allocationRecommendation([
       {
         symbol: 'BTC/KRW',
         category: Category.COIN_MAJOR,
@@ -1772,12 +1772,12 @@ describe('AllocationService', () => {
 
     expect(saveSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        action: 'sell',
+        action: 'buy',
         modelTargetWeight: 0.25,
       }),
     );
-    expect(sellResult).toHaveLength(1);
-    expect(sellResult[0].action).toBe('sell');
+    expect(buyResult).toHaveLength(1);
+    expect(buyResult[0].action).toBe('buy');
   });
 
   it('should include telemetry fields in paginated allocation recommendation responses', async () => {

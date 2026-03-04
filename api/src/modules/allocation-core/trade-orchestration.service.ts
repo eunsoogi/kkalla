@@ -37,6 +37,7 @@ import {
   normalizeOptionalWeight,
   resolveAvailableKrwBalance,
   resolveConsumeRecommendationAction,
+  resolveInferenceRecommendationAction as resolveInferenceRecommendationActionByWeight,
   resolveNeutralModelTargetWeight,
   resolveNextModelTargetWeight,
   resolveServerRecommendationAction,
@@ -188,10 +189,12 @@ export class TradeOrchestrationService {
       const fallbackTargetWeight = normalizeCandidateWeight(
         inference.intensity != null ? Math.max(0, inference.intensity) : null,
       );
+      const hasPersistedSellAction = inference.action === 'sell';
       const hasStrongSellSignal =
-        inference.sellScore != null &&
-        Number.isFinite(inference.sellScore) &&
-        Number(inference.sellScore) >= sellScoreThreshold;
+        hasPersistedSellAction ||
+        (inference.sellScore != null &&
+          Number.isFinite(inference.sellScore) &&
+          Number(inference.sellScore) >= sellScoreThreshold);
       const nextModelTargetWeight = resolveNextModelTargetWeight({
         persistedTargetWeight,
         scoreImpliedTargetWeight,
@@ -243,6 +246,19 @@ export class TradeOrchestrationService {
       hasStock,
       minRecommendWeight,
     );
+  }
+
+  /**
+   * Shared inference-stage action resolution from previous/current model target weights.
+   */
+  public resolveInferenceRecommendationAction(
+    previousModelTargetWeight: number | null | undefined,
+    currentModelTargetWeight: number | null | undefined,
+  ): AllocationRecommendationAction {
+    return resolveInferenceRecommendationActionByWeight({
+      previousModelTargetWeight,
+      currentModelTargetWeight,
+    });
   }
 
   /**

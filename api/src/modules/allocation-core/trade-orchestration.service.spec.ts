@@ -353,6 +353,31 @@ describe('TradeOrchestrationService', () => {
       expect(scoped[0].modelTargetWeight).toBeCloseTo(0.20010280999999996, 10);
     });
 
+    it('should keep zero target when persisted inference action is sell', () => {
+      const scoped = service.applyUserScopedRecommendationActions({
+        inferences: [
+          {
+            id: 'rec-sell-zero',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 0.02,
+            buyScore: 0.20010280999999996,
+            sellScore: 0.11389719000000002,
+            modelTargetWeight: 0,
+            action: 'sell',
+            hasStock: true,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.2]]),
+        targetSlotCount: 1,
+      });
+
+      expect(scoped[0].action).toBe('sell');
+      expect(scoped[0].modelTargetWeight).toBe(0);
+    });
+
     it('should recompute partial sell action from user holding delta even when persisted action is buy', () => {
       const scoped = service.applyUserScopedRecommendationActions({
         inferences: [

@@ -1537,6 +1537,10 @@ export class AllocationService implements OnModuleInit {
             this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
           );
           const inferenceModelTargetWeight = modelTargetWeight <= Number.EPSILON ? 0 : buyCandidateTargetWeight;
+          const inferenceModelAction = this.tradeOrchestrationService.resolveInferenceRecommendationAction(
+            previousModelTargetWeight,
+            inferenceModelTargetWeight,
+          );
           const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
             previousModelTargetWeight,
             item?.weight,
@@ -1545,7 +1549,7 @@ export class AllocationService implements OnModuleInit {
             this.MIN_RECOMMEND_WEIGHT,
           );
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
-            modelAction: modelSignals.action,
+            modelAction: inferenceModelAction,
             decisionConfidence,
             currentHoldingWeight: previousModelTargetWeight,
             nextModelTargetWeight: inferenceModelTargetWeight,
