@@ -1143,9 +1143,10 @@ export class AllocationService implements OnModuleInit {
     category: Category,
     marketFeatures: MarketFeatures | null,
     symbol?: string,
+    previousModelTargetWeight?: number | null,
   ) {
     const { featureScore, buyScore, sellScore, modelTargetWeight, action } =
-      this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures);
+      this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures, previousModelTargetWeight);
     this.logger.log(
       this.i18n.t('logging.inference.allocationRecommendation.model_signal', {
         args: {
@@ -1512,10 +1513,17 @@ export class AllocationService implements OnModuleInit {
 
           const safeIntensity = normalizedResponse.intensity;
           const reason = normalizedResponse.reason;
-          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, targetSymbol);
           const latestMetricsBySymbol =
             latestRecommendationMetricsBySymbol.get(targetSymbol) ??
             latestRecommendationMetricsBySymbol.get(item.symbol);
+          const previousModelTargetWeight = latestMetricsBySymbol?.modelTargetWeight ?? null;
+          const modelSignals = this.calculateModelSignals(
+            safeIntensity,
+            item.category,
+            marketFeatures,
+            targetSymbol,
+            previousModelTargetWeight,
+          );
           const decisionConfidence = normalizedResponse.confidence;
           const tradeCostTelemetry = this.deriveTradeCostTelemetry(
             marketFeatures,
@@ -1528,8 +1536,9 @@ export class AllocationService implements OnModuleInit {
             modelTargetWeight,
             this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
           );
+          const inferenceModelTargetWeight = modelTargetWeight <= Number.EPSILON ? 0 : buyCandidateTargetWeight;
           const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
-            latestMetricsBySymbol?.modelTargetWeight ?? null,
+            previousModelTargetWeight,
             item?.weight,
             modelTargetWeight,
             item?.hasStock || false,
@@ -1538,12 +1547,11 @@ export class AllocationService implements OnModuleInit {
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
             modelAction: modelSignals.action,
             decisionConfidence,
-            currentHoldingWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
-            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
+            currentHoldingWeight: previousModelTargetWeight,
+            nextModelTargetWeight: inferenceModelTargetWeight,
             minRecommendWeight: this.MIN_RECOMMEND_WEIGHT,
           });
-          const resolvedModelTargetWeight =
-            action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;
+          const resolvedModelTargetWeight = action === 'hold' ? neutralModelTargetWeight : inferenceModelTargetWeight;
 
           // 추론 결과와 아이템 병합
           return {
@@ -1554,7 +1562,7 @@ export class AllocationService implements OnModuleInit {
             category: item?.category,
             hasStock: item?.hasStock || false,
             prevIntensity: latestMetricsBySymbol?.intensity ?? null,
-            prevModelTargetWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            prevModelTargetWeight: previousModelTargetWeight,
             weight: item?.weight,
             confidence: item?.confidence,
             decisionConfidence,

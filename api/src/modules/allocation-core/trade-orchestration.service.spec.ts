@@ -298,9 +298,84 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(holdScoped[0].action).toBe('hold');
-      expect(holdScoped[0].modelTargetWeight).toBeCloseTo(0.21, 6);
+      expect(holdScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
       expect(buyScoped[0].action).toBe('buy');
       expect(buyScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
+    });
+
+    it('should recompute buy action from model scores even when persisted action is hold', () => {
+      const scoped = service.applyUserScopedRecommendationActions({
+        inferences: [
+          {
+            id: 'rec-xaut',
+            batchId: 'batch-1',
+            symbol: 'XAUT/KRW',
+            category: Category.COIN_MINOR,
+            intensity: 0.22,
+            buyScore: 0.33519109599999997,
+            sellScore: 0.118808904,
+            modelTargetWeight: 0.3,
+            action: 'hold',
+            hasStock: true,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        currentWeights: new Map<string, number>([['XAUT/KRW', 0.04]]),
+        targetSlotCount: 5,
+      });
+
+      expect(scoped[0].action).toBe('buy');
+      expect(scoped[0].modelTargetWeight).toBeCloseTo(0.33519109599999997, 10);
+    });
+
+    it('should recompute buy action from scores when persisted target is zero without sell signal', () => {
+      const scoped = service.applyUserScopedRecommendationActions({
+        inferences: [
+          {
+            id: 'rec-btc',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 0.02,
+            buyScore: 0.20010280999999996,
+            sellScore: 0.11389719000000002,
+            modelTargetWeight: 0,
+            action: 'hold',
+            hasStock: false,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.0001]]),
+        targetSlotCount: 5,
+      });
+
+      expect(scoped[0].action).toBe('buy');
+      expect(scoped[0].modelTargetWeight).toBeCloseTo(0.20010280999999996, 10);
+    });
+
+    it('should recompute partial sell action from user holding delta even when persisted action is buy', () => {
+      const scoped = service.applyUserScopedRecommendationActions({
+        inferences: [
+          {
+            id: 'rec-sell',
+            batchId: 'batch-1',
+            symbol: 'XAUT/KRW',
+            category: Category.COIN_MINOR,
+            intensity: -0.15,
+            buyScore: 0.1,
+            sellScore: 0.65,
+            modelTargetWeight: 0.1,
+            action: 'buy',
+            hasStock: true,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        currentWeights: new Map<string, number>([['XAUT/KRW', 0.2]]),
+        targetSlotCount: 5,
+      });
+
+      expect(scoped[0].action).toBe('sell');
+      expect(scoped[0].modelTargetWeight).toBeCloseTo(0.1, 10);
     });
 
     it('should not trim hold recommendations that already match current account weight', () => {

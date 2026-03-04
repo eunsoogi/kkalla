@@ -1,5 +1,6 @@
 import { Seeder } from 'typeorm-extension';
 
+import type { AllocationAuditStatus, AllocationAuditVerdict } from '@/modules/allocation-audit/allocation-audit.types';
 import { AllocationAuditItem } from '@/modules/allocation-audit/entities/allocation-audit-item.entity';
 import { AllocationAuditRun } from '@/modules/allocation-audit/entities/allocation-audit-run.entity';
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
@@ -288,7 +289,8 @@ export class AllocationAuditSeeder implements Seeder {
       const deterministicScore =
         returnPct == null ? null : Number(Math.max(0, Math.min(1, 0.58 + returnPct / 20)).toFixed(4));
       const aiScore = returnPct == null ? null : Number(Math.max(0, Math.min(1, 0.55 + returnPct / 22)).toFixed(4));
-      const aiVerdict = returnPct == null ? 'invalid' : returnPct >= 2 ? 'good' : returnPct >= 0 ? 'mixed' : 'bad';
+      const aiVerdict: AllocationAuditVerdict =
+        returnPct == null ? 'invalid' : returnPct >= 2 ? 'good' : returnPct >= 0 ? 'mixed' : 'bad';
 
       const recommendationCreatedAt = recommendation.createdAt ?? new Date();
       const dueAt = new Date(recommendationCreatedAt.getTime() + 24 * 60 * 60 * 1000);
@@ -336,7 +338,7 @@ export class AllocationAuditSeeder implements Seeder {
         aiCalibration: aiScore == null ? null : Number((aiScore - 0.5).toFixed(4)),
         aiExplanation: isFailed ? null : '개발용 시드 평가: 시장 모멘텀과 추천 근거가 대체로 정렬됨',
         nextGuardrail: isFailed ? null : '급격한 거래대금 감소 구간에서는 confidence 하향',
-        status: isFailed ? 'failed' : 'completed',
+        status: (isFailed ? 'failed' : 'completed') as AllocationAuditStatus,
         evaluatedAt,
         error: isFailed ? '개발용 시드 실패 케이스' : null,
       };
@@ -372,7 +374,7 @@ export class AllocationAuditSeeder implements Seeder {
       const returnPct = Number((1.6 - index * 1.1).toFixed(2));
       const deterministicScore = Number(Math.max(0, Math.min(1, 0.56 + returnPct / 25)).toFixed(4));
       const aiScore = Number(Math.max(0, Math.min(1, 0.54 + returnPct / 28)).toFixed(4));
-      const aiVerdict = returnPct >= 1 ? 'good' : returnPct >= 0 ? 'mixed' : 'bad';
+      const aiVerdict: AllocationAuditVerdict = returnPct >= 1 ? 'good' : returnPct >= 0 ? 'mixed' : 'bad';
 
       const recommendationCreatedAt = recommendation.createdAt ?? new Date();
       const dueAt = new Date(recommendationCreatedAt.getTime() + 24 * 60 * 60 * 1000);
@@ -562,7 +564,7 @@ export class AllocationAuditSeeder implements Seeder {
         realizedTradeAmount: returnPct == null ? null : 300000,
         tradeRoiPct: returnPct,
         deterministicScore,
-        aiVerdict: isCompleted ? 'good' : null,
+        aiVerdict: isCompleted ? ('good' as AllocationAuditVerdict) : null,
         aiScore,
         aiCalibration: aiScore == null ? null : Number((aiScore - 0.5).toFixed(4)),
         aiExplanation: isCompleted ? '개발용 시드 평가: 중간 진행 결과' : null,

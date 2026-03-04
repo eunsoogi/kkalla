@@ -5,7 +5,6 @@ import {
   AllocationRecommendationData,
 } from '@/modules/allocation-core/allocation-core.types';
 import {
-  CategoryItemCountConfig,
   DEFAULT_CATEGORY_ITEM_COUNT_CONFIG,
   getItemCountByCategory,
 } from '@/modules/allocation-core/helpers/recommendation-item';
@@ -13,25 +12,40 @@ import { Category } from '@/modules/category/category.enum';
 import { MarketFeatures } from '@/modules/upbit/upbit.types';
 import { clamp, clamp01 } from '@/utils/math';
 
+import type {
+  AllocationModelSignals,
+  CalculateAllocationModelSignalsOptions,
+  CategoryRecommendationFilterConfig,
+  FeatureScoreConfig,
+  NormalizeAllocationRecommendationResponseOptions,
+  NormalizePercentToRateOptions,
+  NormalizedAllocationRecommendationResponse,
+  ParsedAllocationRecommendationResponse,
+  RecommendationFilterConfig,
+  ResolveConsumeRecommendationActionOptions,
+  ResolveInferenceRecommendationActionOptions,
+  ResolveNextModelTargetWeightOptions,
+  ResolveServerRecommendationActionOptions,
+  ScaleBuyRequestsToAvailableKrwOptions,
+} from './allocation-recommendation.types';
+
 export { clamp, clamp01 } from '@/utils/math';
-
-export interface FeatureScoreConfig {
-  featureConfidenceWeight: number;
-  featureMomentumWeight: number;
-  featureLiquidityWeight: number;
-  featureVolatilityWeight: number;
-  featureStabilityWeight: number;
-  volatilityReference: number;
-}
-
-interface RecommendationFilterConfig {
-  minimumTradeIntensity: number;
-  minAllocationConfidence: number;
-}
-
-interface CategoryRecommendationFilterConfig extends RecommendationFilterConfig {
-  categoryItemCountConfig?: CategoryItemCountConfig;
-}
+export type {
+  AllocationModelSignals,
+  CalculateAllocationModelSignalsOptions,
+  CategoryRecommendationFilterConfig,
+  FeatureScoreConfig,
+  NormalizeAllocationRecommendationResponseOptions,
+  NormalizePercentToRateOptions,
+  NormalizedAllocationRecommendationResponse,
+  ParsedAllocationRecommendationResponse,
+  RecommendationFilterConfig,
+  ResolveConsumeRecommendationActionOptions,
+  ResolveInferenceRecommendationActionOptions,
+  ResolveNextModelTargetWeightOptions,
+  ResolveServerRecommendationActionOptions,
+  ScaleBuyRequestsToAvailableKrwOptions,
+} from './allocation-recommendation.types';
 
 /**
  * Retrieves recommendation score for the allocation recommendation flow.
@@ -181,33 +195,6 @@ export function resolveAllocationRecommendationActionLabelKey(action: Allocation
   }
 }
 
-interface ParsedAllocationRecommendationResponse {
-  symbol?: unknown;
-  intensity?: unknown;
-  confidence?: unknown;
-  expectedVolatilityPct?: unknown;
-  riskFlags?: unknown;
-  reason?: unknown;
-}
-
-export interface NormalizedAllocationRecommendationResponse {
-  intensity: number;
-  confidence: number;
-  expectedVolatilityPct: number;
-  riskFlags: string[];
-  reason: string;
-}
-
-interface NormalizeAllocationRecommendationResponseOptions {
-  expectedSymbol: string;
-  dropOnSymbolMismatch?: boolean;
-  onSymbolMismatch?: (args: { outputSymbol: string; expectedSymbol: string }) => void;
-}
-
-interface NormalizePercentToRateOptions {
-  legacyPercentagePointHint?: boolean;
-}
-
 const VOLATILITY_LEGACY_HEURISTIC_THRESHOLD = 0.5;
 
 /**
@@ -278,30 +265,43 @@ export function normalizeAllocationRecommendationResponsePayload(
   };
 }
 
-/**
- * Normalizes allocation recommendation action for the allocation recommendation flow.
- * @param intensity - Input value for intensity.
- * @param sellScore - Input value for sell score.
- * @param modelTargetWeight - Input value for model target weight.
- * @param minimumTradeIntensity - Input value for minimum trade intensity.
- * @param sellScoreThreshold - Input value for sell score threshold.
- * @returns Result produced by the allocation recommendation flow.
- */
-export function resolveAllocationRecommendationAction(
-  intensity: number,
-  sellScore: number,
-  modelTargetWeight: number,
-  minimumTradeIntensity: number,
-  sellScoreThreshold: number,
+function resolveActionBetweenWeights(
+  previousWeight: number | null | undefined,
+  currentWeight: number | null | undefined,
 ): AllocationRecommendationAction {
-  if (modelTargetWeight <= 0) {
-    if (intensity <= minimumTradeIntensity || sellScore >= sellScoreThreshold) {
-      return 'sell';
-    }
-    return 'hold';
-  }
+  const normalizedPreviousWeight = normalizeCandidateWeight(previousWeight);
+  const normalizedCurrentWeight = normalizeCandidateWeight(currentWeight);
+  const deltaWeight = normalizedCurrentWeight - normalizedPreviousWeight;
 
-  return 'buy';
+  if (deltaWeight > Number.EPSILON) {
+    return 'buy';
+  }
+  if (deltaWeight < -Number.EPSILON) {
+    return 'sell';
+  }
+  return 'hold';
+}
+
+/**
+ * Resolves inference-stage recommendation action from previous/current model target weights.
+ * @param options - Input values for previous/current model target weights.
+ * @returns Inference-stage recommendation action.
+ */
+export function resolveInferenceRecommendationAction(
+  options: ResolveInferenceRecommendationActionOptions,
+): AllocationRecommendationAction {
+  return resolveActionBetweenWeights(options.previousModelTargetWeight, options.currentModelTargetWeight);
+}
+
+/**
+ * Resolves consume-stage recommendation action from account holding/current model target weights.
+ * @param options - Input values for account holding/current model target weights.
+ * @returns Consume-stage recommendation action.
+ */
+export function resolveConsumeRecommendationAction(
+  options: ResolveConsumeRecommendationActionOptions,
+): AllocationRecommendationAction {
+  return resolveActionBetweenWeights(options.currentHoldingWeight, options.currentModelTargetWeight);
 }
 
 /**
@@ -311,16 +311,6 @@ export function resolveAllocationRecommendationAction(
  * @param minimumAllocationConfidence - Minimum confidence threshold for trading.
  * @returns Normalized recommendation action.
  */
-interface ResolveServerRecommendationActionOptions {
-  modelAction: AllocationRecommendationAction;
-  decisionConfidence: number;
-  minimumAllocationConfidence: number;
-  currentHoldingWeight?: number | null;
-  nextModelTargetWeight?: number | null;
-  minRecommendWeight?: number;
-  targetSlotCount?: number;
-}
-
 export function resolveServerRecommendationAction(
   options: ResolveServerRecommendationActionOptions,
 ): AllocationRecommendationAction {
@@ -344,12 +334,9 @@ export function resolveServerRecommendationAction(
 
   const slotCount = Math.max(1, options.targetSlotCount ?? 1);
   const currentWeight = clamp01(Number(options.currentHoldingWeight));
-  const nextWeight =
-    resolvedModelAction === 'sell'
-      ? 0
-      : Number.isFinite(options.nextModelTargetWeight)
-        ? clamp01(Number(options.nextModelTargetWeight))
-        : 0;
+  const nextWeight = Number.isFinite(options.nextModelTargetWeight)
+    ? clamp01(Number(options.nextModelTargetWeight))
+    : 0;
   // Convert to per-slot(single-symbol) scale before action classification.
   const currentSingleSymbolWeight = currentWeight * slotCount;
   const nextSingleSymbolWeight = nextWeight * slotCount;
@@ -359,6 +346,49 @@ export function resolveServerRecommendationAction(
   }
 
   return resolvedModelAction;
+}
+
+/**
+ * Normalizes optional weight inputs to 0~1 scale.
+ * @param value - Candidate weight value.
+ * @returns Clamped weight or null when value is missing/invalid.
+ */
+export function normalizeOptionalWeight(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return clamp01(value);
+}
+
+/**
+ * Normalizes weight candidates and falls back to 0 for missing/invalid values.
+ * @param value - Candidate weight value.
+ * @returns Normalized weight.
+ */
+export function normalizeCandidateWeight(value: number | null | undefined): number {
+  return normalizeOptionalWeight(value) ?? 0;
+}
+
+/**
+ * Resolves next model target weight by combining persisted and score-derived targets.
+ * @param options - Target weight resolution options.
+ * @returns Resolved target weight.
+ */
+export function resolveNextModelTargetWeight(options: ResolveNextModelTargetWeightOptions): number {
+  const { persistedTargetWeight, scoreImpliedTargetWeight, fallbackTargetWeight, hasStrongSellSignal } = options;
+  const scoreFallbackTargetWeight = Math.max(scoreImpliedTargetWeight, fallbackTargetWeight);
+
+  if (persistedTargetWeight == null) {
+    return scoreFallbackTargetWeight;
+  }
+
+  // Persisted zero can come from previous min-weight gating; restore score-based target unless sell is explicit.
+  if (persistedTargetWeight <= Number.EPSILON) {
+    return hasStrongSellSignal ? 0 : scoreFallbackTargetWeight;
+  }
+
+  return Math.max(persistedTargetWeight, scoreFallbackTargetWeight);
 }
 
 /**
@@ -395,24 +425,6 @@ export function resolveNeutralModelTargetWeight(
   return hasStock ? clamp01(minRecommendWeight) : 0;
 }
 
-interface CalculateAllocationModelSignalsOptions {
-  intensity: number;
-  marketFeatures: MarketFeatures | null;
-  featureScoreConfig: FeatureScoreConfig;
-  aiSignalWeight: number;
-  featureSignalWeight: number;
-  minimumTradeIntensity: number;
-  sellScoreThreshold: number;
-}
-
-interface AllocationModelSignals {
-  featureScore: number;
-  buyScore: number;
-  sellScore: number;
-  modelTargetWeight: number;
-  action: AllocationRecommendationAction;
-}
-
 /**
  * Calculates allocation model signals for the allocation recommendation flow.
  * @param options - Configuration for the allocation recommendation flow.
@@ -438,13 +450,10 @@ export function calculateAllocationModelSignals(
     buyScore,
     sellScore,
     modelTargetWeight,
-    action: resolveAllocationRecommendationAction(
-      options.intensity,
-      sellScore,
-      modelTargetWeight,
-      options.minimumTradeIntensity,
-      options.sellScoreThreshold,
-    ),
+    action: resolveInferenceRecommendationAction({
+      previousModelTargetWeight: options.previousModelTargetWeight,
+      currentModelTargetWeight: modelTargetWeight,
+    }),
   };
 }
 
@@ -759,19 +768,6 @@ export function estimateBuyNotionalFromRequest(
   }
 
   return estimated;
-}
-
-interface ScaleBuyRequestsToAvailableKrwOptions {
-  tradableMarketValueMap?: Map<string, number>;
-  fallbackMarketPrice?: number;
-  minimumTradePrice: number;
-  onBudgetInsufficient?: (args: { availableKrw: number; totalEstimated: number; requestedCount: number }) => void;
-  onBudgetScaled?: (args: {
-    availableKrw: number;
-    totalEstimated: number;
-    scale: number;
-    requestedCount: number;
-  }) => void;
 }
 
 /**

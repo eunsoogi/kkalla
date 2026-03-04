@@ -306,16 +306,13 @@ describe('AllocationService', () => {
     expect(holdingLedgerService.fetchHoldingsByUser).toHaveBeenNthCalledWith(1, users[0]);
     expect(holdingLedgerService.fetchHoldingsByUser).toHaveBeenNthCalledWith(2, users[1]);
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
-    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{ symbol: string; hasStock: boolean }>;
+    const scheduledSymbols = scheduledItems.map((item) => item.symbol);
     expect(scheduledSymbols).toEqual(
       expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW', 'BTC/KRW', 'ETH/KRW']),
     );
-    const user1Item = scheduleSpy.mock.calls[0][1].find(
-      (item: { symbol: string; hasStock: boolean }) => item.symbol === 'USER1_ONLY/KRW',
-    );
-    const user2Item = scheduleSpy.mock.calls[0][1].find(
-      (item: { symbol: string; hasStock: boolean }) => item.symbol === 'USER2_ONLY/KRW',
-    );
+    const user1Item = scheduledItems.find((item) => item.symbol === 'USER1_ONLY/KRW');
+    const user2Item = scheduledItems.find((item) => item.symbol === 'USER2_ONLY/KRW');
     expect(user1Item?.hasStock).toBe(false);
     expect(user2Item?.hasStock).toBe(false);
     expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'new', expect.any(Map));
@@ -393,7 +390,7 @@ describe('AllocationService', () => {
 
     jest
       .spyOn(service as any, 'filterAllocationRecommendations')
-      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+      .mockImplementation(async (...args: unknown[]) => args[0] as Array<{ symbol: string; category: Category }>);
     const scheduleSpy = jest.spyOn(service as any, 'scheduleAllocation').mockResolvedValue(undefined);
 
     await service.executeAllocationRecommendationExistingTask();
@@ -404,7 +401,8 @@ describe('AllocationService', () => {
     expect(holdingLedgerService.fetchHoldingsByUser).toHaveBeenNthCalledWith(2, users[1]);
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
     expect(scheduleSpy).toHaveBeenCalledWith(users, expect.any(Array), 'existing', expect.any(Map));
-    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{ symbol: string }>;
+    const scheduledSymbols = scheduledItems.map((item) => item.symbol);
     expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW', 'USER2_ONLY/KRW']));
 
     const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
@@ -497,14 +495,15 @@ describe('AllocationService', () => {
 
     jest
       .spyOn(service as any, 'filterAllocationRecommendations')
-      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+      .mockImplementation(async (...args: unknown[]) => args[0] as Array<{ symbol: string; category: Category }>);
     const scheduleSpy = jest.spyOn(service as any, 'scheduleAllocation').mockResolvedValue(undefined);
 
     await service.executeAllocationRecommendationExistingTask();
 
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
     expect(scheduleSpy).toHaveBeenCalledWith([users[0]], expect.any(Array), 'existing', expect.any(Map));
-    const scheduledSymbols = scheduleSpy.mock.calls[0][1].map((item: { symbol: string }) => item.symbol);
+    const scheduledItems = scheduleSpy.mock.calls[0][1] as Array<{ symbol: string }>;
+    const scheduledSymbols = scheduledItems.map((item) => item.symbol);
     expect(scheduledSymbols).toEqual(expect.arrayContaining(['USER1_ONLY/KRW']));
     const scopeByUser = scheduleSpy.mock.calls[0][3] as Map<string, Set<string>>;
     expect(scopeByUser.get(users[0].id)?.has('USER1_ONLY/KRW')).toBe(true);
@@ -532,7 +531,7 @@ describe('AllocationService', () => {
 
     jest
       .spyOn(service as any, 'filterAllocationRecommendations')
-      .mockImplementation(async (items: Array<{ symbol: string; category: Category; hasStock: boolean }>) => items);
+      .mockImplementation(async (...args: unknown[]) => args[0] as Array<{ symbol: string; category: Category }>);
     const scheduleSpy = jest.spyOn(service as any, 'scheduleAllocation').mockResolvedValue(undefined);
 
     await service.executeAllocationRecommendationExistingTask();
@@ -932,16 +931,26 @@ describe('AllocationService', () => {
     expect(neutralSignals.buyScore).toBe(0);
   });
 
-  it('should keep weak positive intensity as buy and treat negative intensity as sell', () => {
+  it('should derive inference action from previous/current target weights', () => {
     const weakBullishSignals = (service as any).calculateModelSignals(0.1, Category.COIN_MINOR, null);
-    const bearishSignals = (service as any).calculateModelSignals(-0.1, Category.COIN_MINOR, null);
+    const bearishWithoutPositionSignals = (service as any).calculateModelSignals(-0.1, Category.COIN_MINOR, null);
+    const bearishWithPositionSignals = (service as any).calculateModelSignals(
+      -0.1,
+      Category.COIN_MINOR,
+      null,
+      undefined,
+      0.2,
+    );
 
     expect(weakBullishSignals.sellScore).toBeLessThan(0.6);
     expect(weakBullishSignals.modelTargetWeight).toBeGreaterThan(0);
     expect(weakBullishSignals.action).toBe('buy');
 
-    expect(bearishSignals.modelTargetWeight).toBe(0);
-    expect(bearishSignals.action).toBe('sell');
+    expect(bearishWithoutPositionSignals.modelTargetWeight).toBe(0);
+    expect(bearishWithoutPositionSignals.action).toBe('hold');
+
+    expect(bearishWithPositionSignals.modelTargetWeight).toBe(0);
+    expect(bearishWithPositionSignals.action).toBe('sell');
   });
 
   it('should filter out non-orderable symbols from fetched recommendations', async () => {
@@ -1177,7 +1186,8 @@ describe('AllocationService', () => {
       .mockReturnValueOnce(buyRequests);
     const executeTradeSpy = jest
       .spyOn(tradeOrchestrationService, 'executeTrade')
-      .mockImplementation(async ({ request }) => {
+      .mockImplementation(async (payload: any) => {
+        const request = payload.request;
         return {
           symbol: request.symbol,
           type: request.diff < 0 ? 'sell' : 'buy',
@@ -1190,7 +1200,10 @@ describe('AllocationService', () => {
     await service.executeAllocationForUser(user, inferences as any, 'new');
 
     expect(executeTradeSpy).toHaveBeenCalledTimes(2);
-    expect(executeTradeSpy.mock.calls.map((call) => call[0].request.symbol)).toEqual(['SELL-1/KRW', 'BUY-1/KRW']);
+    expect(executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol)).toEqual([
+      'SELL-1/KRW',
+      'BUY-1/KRW',
+    ]);
   });
 
   it('should skip inference notify when no authorized recommendations are available', async () => {
@@ -1243,7 +1256,7 @@ describe('AllocationService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 0%) 보류');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 매수');
   });
 
   it('should override hasStock flag using the requesting user holdings', async () => {
@@ -1691,7 +1704,7 @@ describe('AllocationService', () => {
     expect(result[0].action).toBe('hold');
   });
 
-  it('should gate buy action by previous model target weight during inference stage', async () => {
+  it('should gate inference action by previous model target weight during inference stage', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -1749,7 +1762,7 @@ describe('AllocationService', () => {
     expect(holdResult[0].action).toBe('hold');
     expect(holdResult[0].modelTargetWeight).toBe(0.21);
 
-    const buyResult = await service.allocationRecommendation([
+    const sellResult = await service.allocationRecommendation([
       {
         symbol: 'BTC/KRW',
         category: Category.COIN_MAJOR,
@@ -1759,12 +1772,12 @@ describe('AllocationService', () => {
 
     expect(saveSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        action: 'buy',
+        action: 'sell',
         modelTargetWeight: 0.25,
       }),
     );
-    expect(buyResult).toHaveLength(1);
-    expect(buyResult[0].action).toBe('buy');
+    expect(sellResult).toHaveLength(1);
+    expect(sellResult[0].action).toBe('sell');
   });
 
   it('should include telemetry fields in paginated allocation recommendation responses', async () => {

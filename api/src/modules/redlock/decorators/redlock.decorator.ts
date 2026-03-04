@@ -6,7 +6,7 @@ import { RedlockService } from '../redlock.service';
 export interface RedlockDecoratorOptions {
   duration: number;
   resourceName?: string;
-  compatibleResourceNames?: string[];
+  compatibleResourceNames?: readonly string[];
 }
 
 /**
