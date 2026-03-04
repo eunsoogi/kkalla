@@ -3,8 +3,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { AllocationAuditBadgeDto } from '@/modules/allocation-audit/dto/allocation-audit-badge.dto';
 import { Category } from '@/modules/category/category.enum';
 
-import { AllocationRecommendationAction } from '../allocation.types';
-
 export class AllocationRecommendationDto {
   @ApiProperty()
   id: string;
@@ -34,11 +32,6 @@ export class AllocationRecommendationDto {
 
   @ApiProperty()
   modelTargetWeight: number;
-
-  @ApiProperty({
-    enum: ['buy', 'sell', 'hold', 'no_trade'],
-  })
-  action: AllocationRecommendationAction;
 
   @ApiProperty({ required: false, nullable: true })
   reason?: string | null;

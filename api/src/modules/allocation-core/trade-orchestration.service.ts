@@ -153,14 +153,57 @@ export class TradeOrchestrationService {
   public resolveServerRecommendationAction(options: {
     modelAction: AllocationRecommendationAction;
     decisionConfidence: number;
-    previousModelTargetWeight?: number | null;
+    currentHoldingWeight?: number | null;
     nextModelTargetWeight?: number | null;
     minRecommendWeight?: number;
+    targetSlotCount?: number;
   }): AllocationRecommendationAction {
     return resolveServerRecommendationAction({
       ...options,
       minimumAllocationConfidence: this.defaultTradePolicy.minimumAllocationConfidence,
       minRecommendWeight: options.minRecommendWeight ?? SHARED_REBALANCE_POLICY.minRecommendWeight,
+    });
+  }
+
+  /**
+   * Recomputes recommendation actions using user-scoped holding weights.
+   */
+  public applyUserScopedRecommendationActions(options: {
+    inferences: AllocationRecommendationData[];
+    currentWeights: Map<string, number>;
+    targetSlotCount: number;
+  }): AllocationRecommendationData[] {
+    const targetSlotCount = Math.max(1, options.targetSlotCount);
+    const minRecommendWeight = SHARED_REBALANCE_POLICY.minRecommendWeight;
+
+    return options.inferences.map((inference) => {
+      const modelAction = inference.action ?? 'hold';
+      const currentHoldingWeight = this.clampToUnitInterval(options.currentWeights.get(inference.symbol) ?? 0);
+      const fallbackBuyTargetWeight = this.clampToUnitInterval(inference.intensity ?? 0);
+      const nextBuyTargetWeight = Math.max(
+        this.clampToUnitInterval(inference.modelTargetWeight ?? 0),
+        fallbackBuyTargetWeight,
+      );
+      const decisionConfidence =
+        inference.decisionConfidence != null && Number.isFinite(inference.decisionConfidence)
+          ? Number(inference.decisionConfidence)
+          : 1;
+
+      const action = this.resolveServerRecommendationAction({
+        modelAction,
+        decisionConfidence,
+        currentHoldingWeight,
+        nextModelTargetWeight: modelAction === 'sell' ? 0 : nextBuyTargetWeight,
+        minRecommendWeight,
+        targetSlotCount,
+      });
+      const modelTargetWeight = action === 'buy' ? nextBuyTargetWeight : action === 'sell' ? 0 : currentHoldingWeight;
+
+      return {
+        ...inference,
+        action,
+        modelTargetWeight,
+      };
     });
   }
 

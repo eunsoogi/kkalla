@@ -1038,7 +1038,7 @@ describe('MarketRiskService', () => {
         hasStock: true,
       },
     ]);
-    upbitService.getBalances.mockResolvedValue(null);
+    upbitService.getBalances.mockResolvedValue({ info: [] });
 
     await service.executeVolatilityTradesForUser(
       { id: 'user-1', roles: [] } as any,
@@ -1058,7 +1058,7 @@ describe('MarketRiskService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 보류');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 0%) 보류');
   });
 
   it('should block trade-request backfill in risk mode', () => {

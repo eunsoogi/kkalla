@@ -269,6 +269,39 @@ describe('TradeOrchestrationService', () => {
       expect(withoutSlotCount[0].diff).toBeCloseTo(0.25, 6);
       expect(withSlotCount[0].diff).toBeCloseTo(0.125, 6);
     });
+
+    it('should resolve user-scoped action threshold on per-slot single-symbol scale', () => {
+      const inferences: any[] = [
+        {
+          id: 'rec-1',
+          batchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.25,
+          modelTargetWeight: 0.25,
+          action: 'buy',
+          hasStock: true,
+          decisionConfidence: 0.9,
+        },
+      ];
+      const currentWeights = new Map<string, number>([['BTC/KRW', 0.21]]);
+
+      const holdScoped = service.applyUserScopedRecommendationActions({
+        inferences,
+        currentWeights,
+        targetSlotCount: 1,
+      });
+      const buyScoped = service.applyUserScopedRecommendationActions({
+        inferences,
+        currentWeights,
+        targetSlotCount: 5,
+      });
+
+      expect(holdScoped[0].action).toBe('hold');
+      expect(holdScoped[0].modelTargetWeight).toBeCloseTo(0.21, 6);
+      expect(buyScoped[0].action).toBe('buy');
+      expect(buyScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
+    });
   });
 
   describe('latest recommendation metrics', () => {

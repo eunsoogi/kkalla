@@ -315,9 +315,10 @@ interface ResolveServerRecommendationActionOptions {
   modelAction: AllocationRecommendationAction;
   decisionConfidence: number;
   minimumAllocationConfidence: number;
-  previousModelTargetWeight?: number | null;
+  currentHoldingWeight?: number | null;
   nextModelTargetWeight?: number | null;
   minRecommendWeight?: number;
+  targetSlotCount?: number;
 }
 
 export function resolveServerRecommendationAction(
@@ -337,19 +338,23 @@ export function resolveServerRecommendationAction(
     return resolvedModelAction;
   }
 
-  if (!Number.isFinite(options.previousModelTargetWeight)) {
+  if (!Number.isFinite(options.currentHoldingWeight)) {
     return resolvedModelAction;
   }
 
-  const previousWeight = clamp01(Number(options.previousModelTargetWeight));
+  const slotCount = Math.max(1, options.targetSlotCount ?? 1);
+  const currentWeight = clamp01(Number(options.currentHoldingWeight));
   const nextWeight =
     resolvedModelAction === 'sell'
       ? 0
       : Number.isFinite(options.nextModelTargetWeight)
         ? clamp01(Number(options.nextModelTargetWeight))
         : 0;
+  // Convert to per-slot(single-symbol) scale before action classification.
+  const currentSingleSymbolWeight = currentWeight * slotCount;
+  const nextSingleSymbolWeight = nextWeight * slotCount;
 
-  if (Math.abs(nextWeight - previousWeight) < minRecommendWeight) {
+  if (Math.abs(nextSingleSymbolWeight - currentSingleSymbolWeight) < minRecommendWeight) {
     return 'hold';
   }
 

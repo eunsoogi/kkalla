@@ -1226,7 +1226,8 @@ describe('AllocationService', () => {
 
     categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
     categoryService.checkCategoryPermission.mockReturnValue(true);
-    upbitService.getBalances.mockResolvedValue(null);
+    upbitService.getBalances.mockResolvedValue({ info: [] });
+    (upbitService as any).calculateTradableMarketValue = jest.fn().mockResolvedValue(0);
 
     await service.executeAllocationForUser(
       { id: 'user-1', roles: [] } as any,
@@ -1245,7 +1246,7 @@ describe('AllocationService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 보류');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 0%) 보류');
   });
 
   it('should override hasStock flag using the requesting user holdings', async () => {
@@ -1693,7 +1694,7 @@ describe('AllocationService', () => {
     expect(result[0].action).toBe('hold');
   });
 
-  it('should apply minimum weight threshold before slot split for buy action', async () => {
+  it('should keep buy action during inference stage without previous-weight gating', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -1743,12 +1744,12 @@ describe('AllocationService', () => {
 
     expect(saveSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'hold',
-        modelTargetWeight: 0.21,
+        action: 'buy',
+        modelTargetWeight: 0.25,
       }),
     );
     expect(holdResult).toHaveLength(1);
-    expect(holdResult[0].action).toBe('hold');
+    expect(holdResult[0].action).toBe('buy');
 
     const buyResult = await service.allocationRecommendation([
       {

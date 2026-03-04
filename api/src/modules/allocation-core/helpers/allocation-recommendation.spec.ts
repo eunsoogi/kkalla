@@ -212,7 +212,7 @@ describe('balance-recommendation utils', () => {
         modelAction: 'buy',
         decisionConfidence: 0.9,
         minimumAllocationConfidence: 0.35,
-        previousModelTargetWeight: 0.21,
+        currentHoldingWeight: 0.21,
         nextModelTargetWeight: 0.25,
         minRecommendWeight: 0.05,
       }),
@@ -222,7 +222,7 @@ describe('balance-recommendation utils', () => {
         modelAction: 'buy',
         decisionConfidence: 0.9,
         minimumAllocationConfidence: 0.35,
-        previousModelTargetWeight: 0.19,
+        currentHoldingWeight: 0.19,
         nextModelTargetWeight: 0.25,
         minRecommendWeight: 0.05,
       }),
@@ -232,11 +232,22 @@ describe('balance-recommendation utils', () => {
         modelAction: 'sell',
         decisionConfidence: 0.9,
         minimumAllocationConfidence: 0.35,
-        previousModelTargetWeight: null,
+        currentHoldingWeight: null,
         nextModelTargetWeight: 0,
         minRecommendWeight: 0.05,
       }),
     ).toBe('sell');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'buy',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+        currentHoldingWeight: 0.21,
+        nextModelTargetWeight: 0.25,
+        minRecommendWeight: 0.05,
+        targetSlotCount: 5,
+      }),
+    ).toBe('buy');
   });
 
   it('should resolve neutral target weight with held-symbol fallback', () => {

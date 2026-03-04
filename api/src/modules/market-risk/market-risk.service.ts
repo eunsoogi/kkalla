@@ -790,29 +790,6 @@ export class MarketRiskService implements OnModuleInit {
       return [];
     }
 
-    // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
-    await this.notifyService.notify(
-      user,
-      this.i18n.t('notify.allocationRecommendation.result', {
-        args: {
-          transactions: heldAllocationRecommendations
-            .map((recommendation) =>
-              this.i18n.t('notify.allocationRecommendation.transaction', {
-                args: {
-                  symbol: recommendation.symbol,
-                  prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
-                  modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
-                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
-                  reason: toUserFacingText(recommendation.reason ?? '') || '-',
-                },
-              }),
-            )
-            .join('\n\n'),
-        },
-      }),
-    );
-    assertLockOrThrow();
-
     // 유저 계좌 조회: 현재 보유 종목 및 잔고 정보
     const balances = await this.upbitService.getBalances(user);
     assertLockOrThrow();
@@ -851,6 +828,35 @@ export class MarketRiskService implements OnModuleInit {
     );
     const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
+    const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
+      inferences: heldAllocationRecommendations,
+      currentWeights: executionSnapshot.currentWeights,
+      targetSlotCount: slotCount,
+    });
+
+    // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
+    await this.notifyService.notify(
+      user,
+      this.i18n.t('notify.allocationRecommendation.result', {
+        args: {
+          transactions: userScopedRecommendations
+            .map((recommendation) =>
+              this.i18n.t('notify.allocationRecommendation.transaction', {
+                args: {
+                  symbol: recommendation.symbol,
+                  prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
+                  modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
+                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
+                  reason: toUserFacingText(recommendation.reason ?? '') || '-',
+                },
+              }),
+            )
+            .join('\n\n'),
+        },
+      }),
+    );
+    assertLockOrThrow();
+
     // 공통 오케스트레이션 서비스로 매도/매수/원장 반영/알림 흐름을 위임한다.
     return this.tradeOrchestrationService.executeRebalanceTrades({
       runtime: tradeRuntime,
@@ -864,7 +870,7 @@ export class MarketRiskService implements OnModuleInit {
       buildExcludedRequests: (snapshot) =>
         this.generateExcludedTradeRequests(
           snapshot.balances,
-          heldAllocationRecommendations,
+          userScopedRecommendations,
           slotCount,
           snapshot.marketPrice,
           snapshot.orderableSymbols,
@@ -873,7 +879,7 @@ export class MarketRiskService implements OnModuleInit {
       buildIncludedRequests: (snapshot) =>
         this.generateIncludedTradeRequests(
           snapshot.balances,
-          heldAllocationRecommendations,
+          userScopedRecommendations,
           slotCount,
           regimeMultiplier,
           snapshot.currentWeights,
@@ -886,7 +892,7 @@ export class MarketRiskService implements OnModuleInit {
       buildNoTradeTrimRequests: (snapshot) =>
         this.generateNoTradeTrimRequests(
           snapshot.balances,
-          heldAllocationRecommendations,
+          userScopedRecommendations,
           slotCount,
           regimeMultiplier,
           snapshot.currentWeights,
@@ -898,7 +904,7 @@ export class MarketRiskService implements OnModuleInit {
         ),
       buildInferredHoldingItems: (snapshot) =>
         this.buildInferredHoldingItemsForLedger(
-          heldAllocationRecommendations,
+          userScopedRecommendations,
           slotCount,
           regimeMultiplier,
           snapshot.currentWeights,
@@ -1161,8 +1167,8 @@ export class MarketRiskService implements OnModuleInit {
    * @param inferences - Recommendation payloads.
    * @param count - Effective top-K denominator for target sizing.
    * @param regimeMultiplier - Market-regime exposure multiplier.
-   * @param currentWeights - Current portfolio weight map.
-   * @param marketPrice - Portfolio market value baseline.
+   * @param currentWeights - Current holding weight map.
+   * @param marketPrice - Account market value baseline.
    * @param orderableSymbols - Optional orderable symbol set.
    * @param tradableMarketValueMap - Optional per-symbol tradable market value map.
    * @param rebalanceBandMultiplier - Market-regime rebalance band multiplier.
@@ -1362,8 +1368,6 @@ export class MarketRiskService implements OnModuleInit {
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
             modelAction: modelSignals.action,
             decisionConfidence,
-            previousModelTargetWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
-            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
           });
           const resolvedModelTargetWeight =
             action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;
@@ -1447,7 +1451,7 @@ export class MarketRiskService implements OnModuleInit {
       buyScore: saved.buyScore,
       sellScore: saved.sellScore,
       modelTargetWeight: saved.modelTargetWeight,
-      action: saved.action,
+      action: validResults[index].action,
       reason: saved.reason != null ? toUserFacingText(saved.reason) : null,
       hasStock: validResults[index].hasStock,
       weight: validResults[index].weight,
