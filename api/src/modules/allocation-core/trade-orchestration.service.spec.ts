@@ -865,6 +865,63 @@ describe('TradeOrchestrationService', () => {
       expect(saveTradeSpy).not.toHaveBeenCalled();
     });
 
+    it('should continue and return null when post-only reconcile fetch fails after cancel', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const fetchOrder = jest.fn().mockRejectedValue(new Error('fetch failed'));
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade');
+      jest.spyOn(service as any, 'waitForPostOnlyReconcileRetry').mockResolvedValue(undefined);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn(),
+          calculateProfit: jest.fn(),
+          fetchOrder,
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).toBeNull();
+      expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(fetchOrder).toHaveBeenCalledTimes(4);
+      expect(runtime.logger.warn).toHaveBeenCalled();
+      expect(saveTradeSpy).not.toHaveBeenCalled();
+    });
+
     it('should persist trade when post-only order is filled after exchange refresh', async () => {
       const cancelOrder = jest.fn().mockResolvedValue(undefined);
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);

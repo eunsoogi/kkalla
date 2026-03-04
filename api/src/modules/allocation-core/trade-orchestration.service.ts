@@ -1523,23 +1523,38 @@ export class TradeOrchestrationService {
       const maxAttempts = Math.max(1, attempts);
 
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const refreshedOrder = await runtime.exchangeService.fetchOrder(user, targetOrderId, request.symbol);
-        if (refreshedOrder) {
-          executionOrder = refreshedOrder;
-          ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
-            await this.resolveTradeExecutionFillMetrics({
-              adjustedRequestedAmount: adjustedOrder.requestedAmount,
-              requestRequestedAmount: request.requestedAmount,
-              adjustedFilledAmount: null,
-              // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
-              adjustedFilledRatio: type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
-              resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
-            }));
-          resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
-          resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
-          if (hasExecutedFill || !this.isOpenOrderStatus(resolvedOrderStatus)) {
-            return true;
+        try {
+          const refreshedOrder = await runtime.exchangeService.fetchOrder(user, targetOrderId, request.symbol);
+          if (refreshedOrder) {
+            executionOrder = refreshedOrder;
+            ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
+              await this.resolveTradeExecutionFillMetrics({
+                adjustedRequestedAmount: adjustedOrder.requestedAmount,
+                requestRequestedAmount: request.requestedAmount,
+                adjustedFilledAmount: null,
+                // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
+                adjustedFilledRatio: type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
+                resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
+              }));
+            resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
+            resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
+            if (hasExecutedFill || !this.isOpenOrderStatus(resolvedOrderStatus)) {
+              return true;
+            }
           }
+        } catch (error) {
+          runtime.logger.warn(
+            runtime.i18n.t('logging.trade.post_only_reconcile_failed', {
+              args: {
+                id: user.id,
+                symbol: request.symbol,
+                orderId: targetOrderId,
+                attempt: attempt + 1,
+                maxAttempts,
+              },
+            }),
+            error,
+          );
         }
 
         if (attempt + 1 < maxAttempts) {
