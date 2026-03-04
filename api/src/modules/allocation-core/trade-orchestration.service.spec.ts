@@ -543,11 +543,46 @@ describe('TradeOrchestrationService', () => {
           ['XRP/KRW', 0],
         ]),
         regimeMultiplier: 1,
+        targetSlotCount: 1,
         calculateTargetWeight: (inference) => (inference.symbol === 'ETH/KRW' ? 0.1 : 0.1),
         orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW', 'XRP/KRW']),
       });
 
       expect(items).toEqual([{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }]);
+    });
+
+    it('should use slot-normalized included targets when inferring hold sync', () => {
+      const items = service.buildInferredHoldingItems({
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'buy',
+            decisionConfidence: 1,
+            confidence: 1,
+          },
+          {
+            symbol: 'ETH/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'buy',
+            decisionConfidence: 1,
+            confidence: 1,
+          },
+        ] as any,
+        currentWeights: new Map<string, number>([
+          ['BTC/KRW', 0.11],
+          ['ETH/KRW', 0.1],
+        ]),
+        regimeMultiplier: 1,
+        targetSlotCount: 5,
+        calculateTargetWeight: () => 0.5,
+        orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW']),
+      });
+
+      expect(items).toEqual([
+        { symbol: 'BTC/KRW', category: Category.COIN_MAJOR },
+        { symbol: 'ETH/KRW', category: Category.COIN_MAJOR },
+      ]);
     });
 
     it('should merge inferred hold items from executeRebalanceTrades when no trade runs', async () => {

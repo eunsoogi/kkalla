@@ -804,6 +804,7 @@ export class AllocationService implements OnModuleInit {
           regimeMultiplier,
           snapshot.currentWeights,
           snapshot.orderableSymbols,
+          regimePolicy.categoryExposureCaps,
           allowBackfill,
         ),
     });
@@ -1087,6 +1088,7 @@ export class AllocationService implements OnModuleInit {
     regimeMultiplier: number,
     currentWeights: Map<string, number>,
     orderableSymbols: Set<string>,
+    categoryExposureCaps?: CategoryExposureCaps,
     allowBackfill: boolean = true,
   ) {
     const includedCandidates = this.tradeOrchestrationService
@@ -1114,6 +1116,8 @@ export class AllocationService implements OnModuleInit {
       regimeMultiplier,
       calculateTargetWeight: (inference, targetRegimeMultiplier) =>
         this.calculateTargetWeight(inference, targetRegimeMultiplier),
+      targetSlotCount: count,
+      categoryExposureCaps,
       orderableSymbols,
     });
   }

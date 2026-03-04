@@ -84,6 +84,8 @@ export interface BuildInferredHoldingItemsOptions {
   currentWeights: Map<string, number>;
   regimeMultiplier: number;
   calculateTargetWeight: (inference: AllocationRecommendationData, regimeMultiplier: number) => number;
+  targetSlotCount?: number;
+  categoryExposureCaps?: CategoryExposureCaps;
   orderableSymbols?: Set<string>;
 }
 

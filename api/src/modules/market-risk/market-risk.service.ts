@@ -900,6 +900,7 @@ export class MarketRiskService implements OnModuleInit {
           regimeMultiplier,
           snapshot.currentWeights,
           snapshot.orderableSymbols,
+          regimePolicy.categoryExposureCaps,
         ),
     });
   }
@@ -1211,6 +1212,7 @@ export class MarketRiskService implements OnModuleInit {
     regimeMultiplier: number,
     currentWeights: Map<string, number>,
     orderableSymbols: Set<string>,
+    categoryExposureCaps?: CategoryExposureCaps,
   ) {
     const includedCandidates = this.buildHeldIncludedRecommendationsByCategory(inferences).slice(0, count);
     const noTradeCandidates = inferences.filter(
@@ -1223,6 +1225,8 @@ export class MarketRiskService implements OnModuleInit {
       regimeMultiplier,
       calculateTargetWeight: (inference, targetRegimeMultiplier) =>
         this.calculateTargetWeight(inference, targetRegimeMultiplier),
+      targetSlotCount: count,
+      categoryExposureCaps,
       orderableSymbols,
     });
   }
