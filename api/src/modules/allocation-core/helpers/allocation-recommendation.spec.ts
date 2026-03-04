@@ -227,6 +227,16 @@ describe('balance-recommendation utils', () => {
         minRecommendWeight: 0.05,
       }),
     ).toBe('buy');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'sell',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+        previousModelTargetWeight: null,
+        nextModelTargetWeight: 0,
+        minRecommendWeight: 0.05,
+      }),
+    ).toBe('sell');
   });
 
   it('should resolve neutral target weight with held-symbol fallback', () => {

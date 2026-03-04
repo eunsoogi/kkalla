@@ -337,9 +337,11 @@ export function resolveServerRecommendationAction(
     return resolvedModelAction;
   }
 
-  const previousWeight = Number.isFinite(options.previousModelTargetWeight)
-    ? clamp01(Number(options.previousModelTargetWeight))
-    : 0;
+  if (!Number.isFinite(options.previousModelTargetWeight)) {
+    return resolvedModelAction;
+  }
+
+  const previousWeight = clamp01(Number(options.previousModelTargetWeight));
   const nextWeight =
     resolvedModelAction === 'sell'
       ? 0
