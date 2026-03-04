@@ -33,8 +33,13 @@ import {
   isOrderableSymbol,
   isSellAmountSufficient,
   normalizeAllocationRecommendationResponsePayload,
+  normalizeCandidateWeight,
+  normalizeOptionalWeight,
   resolveAvailableKrwBalance,
+  resolveConsumeRecommendationAction,
+  resolveInferenceRecommendationAction as resolveInferenceRecommendationActionByWeight,
   resolveNeutralModelTargetWeight,
+  resolveNextModelTargetWeight,
   resolveServerRecommendationAction,
   scaleBuyRequestsToAvailableKrw,
   shouldReallocate,
@@ -175,15 +180,32 @@ export class TradeOrchestrationService {
   }): AllocationRecommendationData[] {
     const targetSlotCount = Math.max(1, options.targetSlotCount);
     const minRecommendWeight = SHARED_REBALANCE_POLICY.minRecommendWeight;
+    const sellScoreThreshold = SHARED_REBALANCE_POLICY.sellScoreThreshold;
 
     return options.inferences.map((inference) => {
-      const modelAction = inference.action ?? 'hold';
+      const persistedTargetWeight = normalizeOptionalWeight(inference.modelTargetWeight);
+      const scoreImpliedTargetWeight = normalizeCandidateWeight(inference.buyScore);
       const currentHoldingWeight = this.clampToUnitInterval(options.currentWeights.get(inference.symbol) ?? 0);
-      const fallbackBuyTargetWeight = this.clampToUnitInterval(inference.intensity ?? 0);
-      const nextBuyTargetWeight = Math.max(
-        this.clampToUnitInterval(inference.modelTargetWeight ?? 0),
-        fallbackBuyTargetWeight,
+      const fallbackTargetWeight = normalizeCandidateWeight(
+        inference.intensity != null ? Math.max(0, inference.intensity) : null,
       );
+      const hasPersistedSellAction = inference.action === 'sell';
+      const hasStrongSellSignal =
+        hasPersistedSellAction ||
+        (inference.sellScore != null &&
+          Number.isFinite(inference.sellScore) &&
+          Number(inference.sellScore) >= sellScoreThreshold);
+      const nextModelTargetWeight = resolveNextModelTargetWeight({
+        persistedTargetWeight,
+        scoreImpliedTargetWeight,
+        fallbackTargetWeight,
+        hasStrongSellSignal,
+      });
+      // Consume stage ignores persisted action and derives direction from user's live holding delta.
+      const modelAction = resolveConsumeRecommendationAction({
+        currentHoldingWeight,
+        currentModelTargetWeight: nextModelTargetWeight,
+      });
       const decisionConfidence =
         inference.decisionConfidence != null && Number.isFinite(inference.decisionConfidence)
           ? Number(inference.decisionConfidence)
@@ -193,16 +215,16 @@ export class TradeOrchestrationService {
         modelAction,
         decisionConfidence,
         currentHoldingWeight,
-        nextModelTargetWeight: modelAction === 'sell' ? 0 : nextBuyTargetWeight,
+        nextModelTargetWeight,
         minRecommendWeight,
         targetSlotCount,
       });
-      const modelTargetWeight = action === 'buy' ? nextBuyTargetWeight : action === 'sell' ? 0 : currentHoldingWeight;
+      const resolvedModelTargetWeight = action === 'hold' ? currentHoldingWeight : nextModelTargetWeight;
 
       return {
         ...inference,
         action,
-        modelTargetWeight,
+        modelTargetWeight: resolvedModelTargetWeight,
       };
     });
   }
@@ -227,6 +249,19 @@ export class TradeOrchestrationService {
   }
 
   /**
+   * Shared inference-stage action resolution from previous/current model target weights.
+   */
+  public resolveInferenceRecommendationAction(
+    previousModelTargetWeight: number | null | undefined,
+    currentModelTargetWeight: number | null | undefined,
+  ): AllocationRecommendationAction {
+    return resolveInferenceRecommendationActionByWeight({
+      previousModelTargetWeight,
+      currentModelTargetWeight,
+    });
+  }
+
+  /**
    * Shared staged-exit medium diff used by partial de-risking flows.
    */
   public getStagedExitMediumDiff(): number {
@@ -243,10 +278,15 @@ export class TradeOrchestrationService {
   /**
    * Shared model signal calculation with unified policy weights.
    */
-  public calculateModelSignals(intensity: number, marketFeatures: MarketFeatures | null) {
+  public calculateModelSignals(
+    intensity: number,
+    marketFeatures: MarketFeatures | null,
+    previousModelTargetWeight?: number | null,
+  ) {
     return calculateAllocationModelSignals({
       intensity,
       marketFeatures,
+      previousModelTargetWeight,
       featureScoreConfig: {
         featureConfidenceWeight: SHARED_REBALANCE_POLICY.featureConfidenceWeight,
         featureMomentumWeight: SHARED_REBALANCE_POLICY.featureMomentumWeight,

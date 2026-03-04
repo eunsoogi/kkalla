@@ -19,9 +19,10 @@ import {
   isSellAmountSufficient,
   normalizeAllocationRecommendationResponsePayload,
   passesCostGate,
-  resolveAllocationRecommendationAction,
   resolveAllocationRecommendationActionLabelKey,
   resolveAvailableKrwBalance,
+  resolveConsumeRecommendationAction,
+  resolveInferenceRecommendationAction,
   resolveNeutralModelTargetWeight,
   resolveServerRecommendationAction,
   scaleBuyRequestsToAvailableKrw,
@@ -163,11 +164,44 @@ describe('balance-recommendation utils', () => {
     });
   });
 
-  it('should resolve action from model target, intensity, and sell score', () => {
-    expect(resolveAllocationRecommendationAction(0.3, 0.2, 0.5, 0, 0.6)).toBe('buy');
-    expect(resolveAllocationRecommendationAction(-0.1, 0.2, 0, 0, 0.6)).toBe('sell');
-    expect(resolveAllocationRecommendationAction(0.2, 0.7, 0, 0, 0.6)).toBe('sell');
-    expect(resolveAllocationRecommendationAction(0.2, 0.2, 0, 0, 0.6)).toBe('hold');
+  it('should resolve inference/consume action from previous/current weights', () => {
+    expect(
+      resolveInferenceRecommendationAction({
+        previousModelTargetWeight: 0.1,
+        currentModelTargetWeight: 0.3,
+      }),
+    ).toBe('buy');
+    expect(
+      resolveInferenceRecommendationAction({
+        previousModelTargetWeight: 0.3,
+        currentModelTargetWeight: 0.1,
+      }),
+    ).toBe('sell');
+    expect(
+      resolveInferenceRecommendationAction({
+        previousModelTargetWeight: 0,
+        currentModelTargetWeight: 0,
+      }),
+    ).toBe('hold');
+
+    expect(
+      resolveConsumeRecommendationAction({
+        currentHoldingWeight: 0.2,
+        currentModelTargetWeight: 0.25,
+      }),
+    ).toBe('buy');
+    expect(
+      resolveConsumeRecommendationAction({
+        currentHoldingWeight: 0.2,
+        currentModelTargetWeight: 0.1,
+      }),
+    ).toBe('sell');
+    expect(
+      resolveConsumeRecommendationAction({
+        currentHoldingWeight: 0.2,
+        currentModelTargetWeight: 0.2,
+      }),
+    ).toBe('hold');
   });
 
   it('should resolve action label key with no-trade fallback to hold label', () => {
@@ -235,6 +269,28 @@ describe('balance-recommendation utils', () => {
         currentHoldingWeight: null,
         nextModelTargetWeight: 0,
         minRecommendWeight: 0.05,
+      }),
+    ).toBe('sell');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'sell',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+        currentHoldingWeight: 0.2,
+        nextModelTargetWeight: 0.18,
+        minRecommendWeight: 0.05,
+        targetSlotCount: 1,
+      }),
+    ).toBe('hold');
+    expect(
+      resolveServerRecommendationAction({
+        modelAction: 'sell',
+        decisionConfidence: 0.9,
+        minimumAllocationConfidence: 0.35,
+        currentHoldingWeight: 0.2,
+        nextModelTargetWeight: 0.1,
+        minRecommendWeight: 0.05,
+        targetSlotCount: 1,
       }),
     ).toBe('sell');
     expect(

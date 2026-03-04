@@ -372,6 +372,10 @@ export class AllocationService implements OnModuleInit {
           // 공통 추론 입력에서는 사용자별 보유 여부가 섞이지 않도록 중립값으로 정규화한다.
           // 실제 사용자별 보유 컨텍스트는 executeAllocationForUser 단계에서 사용자 보유 원장를 다시 조회해 적용한다.
           hasStock: false,
+          // hasStock 정규화 이후에도 "기존 보유 종목"의 추론 baseline은 유지해 bearish 신호 시 hold로 오분류되지 않도록 한다.
+          holdingWeightBaseline: this.tradeOrchestrationService.clampToUnitInterval(
+            recommendMetadata?.weight ?? item.weight ?? this.MIN_RECOMMEND_WEIGHT,
+          ),
           // holding/recommend 심볼이 겹치면 recommend의 weight/confidence를 유지한다.
           weight: recommendMetadata?.weight ?? item.weight,
           confidence: recommendMetadata?.confidence ?? item.confidence,
@@ -1143,9 +1147,10 @@ export class AllocationService implements OnModuleInit {
     category: Category,
     marketFeatures: MarketFeatures | null,
     symbol?: string,
+    previousModelTargetWeight?: number | null,
   ) {
     const { featureScore, buyScore, sellScore, modelTargetWeight, action } =
-      this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures);
+      this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures, previousModelTargetWeight);
     this.logger.log(
       this.i18n.t('logging.inference.allocationRecommendation.model_signal', {
         args: {
@@ -1512,10 +1517,26 @@ export class AllocationService implements OnModuleInit {
 
           const safeIntensity = normalizedResponse.intensity;
           const reason = normalizedResponse.reason;
-          const modelSignals = this.calculateModelSignals(safeIntensity, item.category, marketFeatures, targetSymbol);
           const latestMetricsBySymbol =
             latestRecommendationMetricsBySymbol.get(targetSymbol) ??
             latestRecommendationMetricsBySymbol.get(item.symbol);
+          const currentHoldingWeight = item?.hasStock
+            ? this.tradeOrchestrationService.clampToUnitInterval(item?.weight ?? 0)
+            : 0;
+          const holdingWeightBaseline =
+            item?.holdingWeightBaseline != null && Number.isFinite(item.holdingWeightBaseline)
+              ? this.tradeOrchestrationService.clampToUnitInterval(item.holdingWeightBaseline)
+              : null;
+          const previousModelTargetWeight = latestMetricsBySymbol?.modelTargetWeight ?? null;
+          const inferenceActionBaselineWeight =
+            previousModelTargetWeight ?? holdingWeightBaseline ?? (item?.hasStock ? currentHoldingWeight : null);
+          const modelSignals = this.calculateModelSignals(
+            safeIntensity,
+            item.category,
+            marketFeatures,
+            targetSymbol,
+            inferenceActionBaselineWeight,
+          );
           const decisionConfidence = normalizedResponse.confidence;
           const tradeCostTelemetry = this.deriveTradeCostTelemetry(
             marketFeatures,
@@ -1528,22 +1549,26 @@ export class AllocationService implements OnModuleInit {
             modelTargetWeight,
             this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
           );
+          const inferenceModelTargetWeight = modelTargetWeight <= Number.EPSILON ? 0 : buyCandidateTargetWeight;
+          const inferenceModelAction = this.tradeOrchestrationService.resolveInferenceRecommendationAction(
+            inferenceActionBaselineWeight,
+            inferenceModelTargetWeight,
+          );
           const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
-            latestMetricsBySymbol?.modelTargetWeight ?? null,
+            previousModelTargetWeight,
             item?.weight,
             modelTargetWeight,
             item?.hasStock || false,
             this.MIN_RECOMMEND_WEIGHT,
           );
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
-            modelAction: modelSignals.action,
+            modelAction: inferenceModelAction,
             decisionConfidence,
-            currentHoldingWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
-            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
+            currentHoldingWeight: inferenceActionBaselineWeight,
+            nextModelTargetWeight: inferenceModelTargetWeight,
             minRecommendWeight: this.MIN_RECOMMEND_WEIGHT,
           });
-          const resolvedModelTargetWeight =
-            action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;
+          const resolvedModelTargetWeight = action === 'hold' ? neutralModelTargetWeight : inferenceModelTargetWeight;
 
           // 추론 결과와 아이템 병합
           return {
@@ -1554,7 +1579,7 @@ export class AllocationService implements OnModuleInit {
             category: item?.category,
             hasStock: item?.hasStock || false,
             prevIntensity: latestMetricsBySymbol?.intensity ?? null,
-            prevModelTargetWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            prevModelTargetWeight: previousModelTargetWeight,
             weight: item?.weight,
             confidence: item?.confidence,
             decisionConfidence,

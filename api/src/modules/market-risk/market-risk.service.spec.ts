@@ -633,16 +633,26 @@ describe('MarketRiskService', () => {
     expect(neutralSignals.buyScore).toBe(0);
   });
 
-  it('should keep weak positive intensity as buy and treat negative intensity as sell', () => {
+  it('should derive inference action from previous/current target weights', () => {
     const weakBullishSignals = (service as any).calculateModelSignals(0.1, Category.COIN_MINOR, null);
-    const bearishSignals = (service as any).calculateModelSignals(-0.1, Category.COIN_MINOR, null);
+    const bearishWithoutPositionSignals = (service as any).calculateModelSignals(-0.1, Category.COIN_MINOR, null);
+    const bearishWithPositionSignals = (service as any).calculateModelSignals(
+      -0.1,
+      Category.COIN_MINOR,
+      null,
+      undefined,
+      0.2,
+    );
 
     expect(weakBullishSignals.sellScore).toBeLessThan(0.6);
     expect(weakBullishSignals.modelTargetWeight).toBeGreaterThan(0);
     expect(weakBullishSignals.action).toBe('buy');
 
-    expect(bearishSignals.modelTargetWeight).toBe(0);
-    expect(bearishSignals.action).toBe('sell');
+    expect(bearishWithoutPositionSignals.modelTargetWeight).toBe(0);
+    expect(bearishWithoutPositionSignals.action).toBe('hold');
+
+    expect(bearishWithPositionSignals.modelTargetWeight).toBe(0);
+    expect(bearishWithPositionSignals.action).toBe('sell');
   });
 
   it('should skip excluded liquidation when symbol is not orderable or below minimum trade amount', () => {
@@ -903,7 +913,8 @@ describe('MarketRiskService', () => {
       .mockReturnValueOnce(buyRequests);
     const executeTradeSpy = jest
       .spyOn(tradeOrchestrationService, 'executeTrade')
-      .mockImplementation(async ({ request }) => {
+      .mockImplementation(async (payload: any) => {
+        const request = payload.request;
         return {
           symbol: request.symbol,
           type: request.diff < 0 ? 'sell' : 'buy',
@@ -916,7 +927,10 @@ describe('MarketRiskService', () => {
     await service.executeVolatilityTradesForUser(user, inferences as any, true);
 
     expect(executeTradeSpy).toHaveBeenCalledTimes(2);
-    expect(executeTradeSpy.mock.calls.map((call) => call[0].request.symbol)).toEqual(['SELL-1/KRW', 'BUY-1/KRW']);
+    expect(executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol)).toEqual([
+      'SELL-1/KRW',
+      'BUY-1/KRW',
+    ]);
   });
 
   it('should override hasStock flag using the requesting user holdings', async () => {
@@ -934,7 +948,7 @@ describe('MarketRiskService', () => {
     ]);
     categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
     categoryService.checkCategoryPermission.mockReturnValue(true);
-    upbitService.getBalances.mockResolvedValue({ info: [] });
+    upbitService.getBalances.mockResolvedValue({ info: [] } as any);
     upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
 
     await service.executeVolatilityTradesForUser(
@@ -1038,7 +1052,7 @@ describe('MarketRiskService', () => {
         hasStock: true,
       },
     ]);
-    upbitService.getBalances.mockResolvedValue({ info: [] });
+    upbitService.getBalances.mockResolvedValue({ info: [] } as any);
 
     await service.executeVolatilityTradesForUser(
       { id: 'user-1', roles: [] } as any,
@@ -1058,7 +1072,7 @@ describe('MarketRiskService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 0%) 보류');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 매수');
   });
 
   it('should block trade-request backfill in risk mode', () => {
@@ -1307,6 +1321,54 @@ describe('MarketRiskService', () => {
     expect(result).toHaveLength(1);
     expect(result[0].action).toBe('hold');
     expect(isNoTradeRecommendation(result[0], 0.35)).toBe(true);
+  });
+
+  it('should fallback to holding weight baseline when previous target is missing on bearish inference', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify({
+        symbol: 'BTC/KRW',
+        intensity: -0.8,
+        confidence: 0.95,
+      }),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
+      return {
+        id: 'saved-sell-fallback-1',
+        seq: 4,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      } as any;
+    });
+
+    const result = await service.allocationRecommendation([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+        weight: 0.3,
+      },
+    ]);
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'sell',
+        modelTargetWeight: 0,
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('sell');
+    expect(result[0].modelTargetWeight).toBe(0);
+    expect(result[0].prevModelTargetWeight).toBeNull();
   });
 
   it('should skip profit notify when no trades are executed in SQS message handling', async () => {
