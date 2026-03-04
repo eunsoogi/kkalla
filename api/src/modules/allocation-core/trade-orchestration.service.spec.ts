@@ -4,6 +4,7 @@ import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { translateKoMessage } from '@/test-utils/i18n.mock';
 
 import { TradeOrchestrationService } from './trade-orchestration.service';
+import { RecommendationMetricsErrorService } from './trade-orchestration.types';
 
 describe('TradeOrchestrationService', () => {
   let service: TradeOrchestrationService;
@@ -287,7 +288,10 @@ describe('TradeOrchestrationService', () => {
           } as AllocationRecommendation,
         ]);
 
-      const retryWithFallback = jest.fn(async <T>(operation: () => Promise<T>) => operation());
+      const errorService: RecommendationMetricsErrorService = {
+        retryWithFallback: async <T>(operation: () => Promise<T>) => operation(),
+      };
+      const retryWithFallbackSpy = jest.spyOn(errorService, 'retryWithFallback');
       const onError = jest.fn();
       const items = [
         { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, hasStock: true },
@@ -297,11 +301,11 @@ describe('TradeOrchestrationService', () => {
 
       const result = await service.buildLatestRecommendationMetricsMap({
         recommendationItems: items,
-        errorService: { retryWithFallback },
+        errorService,
         onError,
       });
 
-      expect(retryWithFallback).toHaveBeenCalledTimes(2);
+      expect(retryWithFallbackSpy).toHaveBeenCalledTimes(2);
       expect(findSpy).toHaveBeenCalledTimes(2);
       expect(result.get('BTC/KRW')).toEqual({ intensity: 0.2, modelTargetWeight: 0.3 });
       expect(result.get('ETH/KRW')).toEqual({ intensity: 0.6, modelTargetWeight: 0.7 });
@@ -505,9 +509,309 @@ describe('TradeOrchestrationService', () => {
         { symbol: 'XRP/KRW', category: Category.COIN_MINOR, index: 1 },
       ]);
     });
+
+    it('should include inferred hold items even when no trade is executed', () => {
+      const payload = (service as any).buildMergedHoldingsForSave(
+        [],
+        [],
+        [],
+        [{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR }],
+      );
+
+      expect(payload).toEqual([{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR, index: 0 }]);
+    });
+
+    it('should build inferred hold items only when current weight already satisfies target', () => {
+      const items = service.buildInferredHoldingItems({
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+          },
+          {
+            symbol: 'ETH/KRW',
+            category: Category.COIN_MAJOR,
+          },
+          {
+            symbol: 'XRP/KRW',
+            category: Category.COIN_MINOR,
+          },
+        ] as any,
+        currentWeights: new Map<string, number>([
+          ['BTC/KRW', 0.2],
+          ['ETH/KRW', 0.05],
+          ['XRP/KRW', 0],
+        ]),
+        regimeMultiplier: 1,
+        targetSlotCount: 1,
+        calculateTargetWeight: (inference) => (inference.symbol === 'ETH/KRW' ? 0.1 : 0.1),
+        orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW', 'XRP/KRW']),
+      });
+
+      expect(items).toEqual([{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }]);
+    });
+
+    it('should use slot-normalized included targets when inferring hold sync', () => {
+      const items = service.buildInferredHoldingItems({
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'buy',
+            decisionConfidence: 1,
+            confidence: 1,
+          },
+          {
+            symbol: 'ETH/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'buy',
+            decisionConfidence: 1,
+            confidence: 1,
+          },
+        ] as any,
+        currentWeights: new Map<string, number>([
+          ['BTC/KRW', 0.11],
+          ['ETH/KRW', 0.1],
+        ]),
+        regimeMultiplier: 1,
+        targetSlotCount: 5,
+        calculateTargetWeight: () => 0.5,
+        orderableSymbols: new Set(['BTC/KRW', 'ETH/KRW']),
+      });
+
+      expect(items).toEqual([
+        { symbol: 'BTC/KRW', category: Category.COIN_MAJOR },
+        { symbol: 'ETH/KRW', category: Category.COIN_MAJOR },
+      ]);
+    });
+
+    it('should merge inferred hold items from executeRebalanceTrades when no trade runs', async () => {
+      const user = { id: 'user-1' } as any;
+      const replaceHoldingsForUser = jest.fn().mockResolvedValue([]);
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser,
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(null),
+          clearClients: jest.fn(),
+        },
+      };
+
+      const result = await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['XAUT/KRW'],
+        initialSnapshot: {
+          balances: { info: [] } as any,
+          orderableSymbols: new Set(['XAUT/KRW']),
+          marketPrice: 1_000_000,
+          currentWeights: new Map<string, number>([['XAUT/KRW', 0.1]]),
+          tradableMarketValueMap: new Map<string, number>(),
+        },
+        turnoverCap: 1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: () => [],
+        buildNoTradeTrimRequests: () => [],
+        buildInferredHoldingItems: () => [{ symbol: 'XAUT/KRW', category: Category.COIN_MINOR }],
+      });
+
+      expect(result).toEqual([]);
+      expect(replaceHoldingsForUser).toHaveBeenCalledWith(user, [
+        { symbol: 'XAUT/KRW', category: Category.COIN_MINOR, index: 0 },
+      ]);
+    });
   });
 
   describe('post-only unfilled handling', () => {
+    it('should persist trade when post-only order fills after cancel reconciliation', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const fetchOrder = jest
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'open',
+          amount: 0.001,
+          filled: 0,
+          average: null,
+          cost: null,
+        })
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'canceled',
+          amount: 0.001,
+          filled: 0.001,
+          average: 95_000_000,
+          cost: 95_000,
+        });
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(95_000),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder,
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(fetchOrder).toHaveBeenCalledTimes(2);
+      expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          symbol: 'BTC/KRW',
+          amount: 95_000,
+          orderStatus: 'canceled',
+          filledAmount: 95_000,
+          filledRatio: 0.95,
+        }),
+      );
+    });
+
+    it('should persist trade when post-only fill appears after retrying post-cancel refresh', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const fetchOrder = jest
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'open',
+          amount: 0.001,
+          filled: 0,
+          average: null,
+          cost: null,
+        })
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'open',
+          amount: 0.001,
+          filled: 0,
+          average: null,
+          cost: null,
+        })
+        .mockResolvedValueOnce({
+          id: 'order-123',
+          symbol: 'BTC/KRW',
+          side: OrderTypes.BUY,
+          status: 'canceled',
+          amount: 0.001,
+          filled: 0.001,
+          average: 95_000_000,
+          cost: 95_000,
+        });
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-2' } as any);
+      jest.spyOn(service as any, 'waitForPostOnlyReconcileRetry').mockResolvedValue(undefined);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(0).mockResolvedValueOnce(95_000),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder,
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(fetchOrder).toHaveBeenCalledTimes(3);
+      expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          amount: 95_000,
+          filledAmount: 95_000,
+          orderStatus: 'canceled',
+        }),
+      );
+    });
+
     it('should cancel unfilled post-only orders and return null', async () => {
       const cancelOrder = jest.fn().mockResolvedValue(undefined);
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade');
@@ -558,6 +862,63 @@ describe('TradeOrchestrationService', () => {
 
       expect(result).toBeNull();
       expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(saveTradeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should continue and return null when post-only reconcile fetch fails after cancel', async () => {
+      const cancelOrder = jest.fn().mockResolvedValue(undefined);
+      const fetchOrder = jest.fn().mockRejectedValue(new Error('fetch failed'));
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade');
+      jest.spyOn(service as any, 'waitForPostOnlyReconcileRetry').mockResolvedValue(undefined);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn(),
+          calculateProfit: jest.fn(),
+          fetchOrder,
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).toBeNull();
+      expect(cancelOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-123', 'BTC/KRW');
+      expect(fetchOrder).toHaveBeenCalledTimes(4);
+      expect(runtime.logger.warn).toHaveBeenCalled();
       expect(saveTradeSpy).not.toHaveBeenCalled();
     });
 
