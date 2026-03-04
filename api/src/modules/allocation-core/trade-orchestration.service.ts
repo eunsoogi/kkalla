@@ -1402,6 +1402,14 @@ export class TradeOrchestrationService {
 
     if (!hasExecutedFill) {
       if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
+        if (!this.isOpenOrderStatus(resolvedOrderStatus)) {
+          runtime.logger.log(
+            runtime.i18n.t('logging.trade.not_exist', {
+              args: { id: user.id, symbol: request.symbol },
+            }),
+          );
+          return null;
+        }
         try {
           // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
           await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
