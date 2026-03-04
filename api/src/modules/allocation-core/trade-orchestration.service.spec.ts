@@ -302,6 +302,33 @@ describe('TradeOrchestrationService', () => {
       expect(buyScoped[0].action).toBe('buy');
       expect(buyScoped[0].modelTargetWeight).toBeCloseTo(0.25, 6);
     });
+
+    it('should not trim hold recommendations that already match current account weight', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+      const requests = service.buildNoTradeTrimRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'hold',
+            modelTargetWeight: 0.05,
+            decisionConfidence: 0.9,
+          } as any,
+        ],
+        topK: 5,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.05]]),
+        marketPrice: 1_000_000,
+      });
+
+      expect(requests).toHaveLength(0);
+    });
   });
 
   describe('latest recommendation metrics', () => {

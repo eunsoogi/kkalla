@@ -902,7 +902,13 @@ export class TradeOrchestrationService {
           return null;
         }
 
-        const uncappedTargetWeight = clamp01(clamp01(inference.modelTargetWeight) * regimeMultiplier) / normalizedTopK;
+        const baseTargetWeight = clamp01(inference.modelTargetWeight);
+        // Hold actions recomputed in user scope already carry account-level weight.
+        // Legacy no-trade/model targets remain pre-slot weights and require topK normalization.
+        const uncappedTargetWeight =
+          inference.action === 'hold'
+            ? clamp01(baseTargetWeight * regimeMultiplier)
+            : clamp01(baseTargetWeight * regimeMultiplier) / normalizedTopK;
         const categoryTargetWeightAllocation = this.allocateCategoryCappedTargetWeight({
           category: inference.category,
           uncappedTargetWeight,

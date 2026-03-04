@@ -757,7 +757,7 @@ describe('AllocationService', () => {
     expect(requests[0].diff).toBeGreaterThan(0);
   });
 
-  it('should generate trim-only sell request for overweight hold/no_trade recommendation', () => {
+  it('should not trim hold recommendation when current account weight already matches target', () => {
     const balances: any = { info: [] };
     const requests = (service as any).generateNoTradeTrimRequests(
       balances,
@@ -780,10 +780,7 @@ describe('AllocationService', () => {
       true,
     );
 
-    expect(requests).toHaveLength(1);
-    expect(requests[0].symbol).toBe('BTC/KRW');
-    expect(requests[0].diff).toBeCloseTo(-0.8, 10);
-    expect(requests[0].diff).toBeGreaterThan(-1);
+    expect(requests).toHaveLength(0);
   });
 
   it('should not generate trim-only sell request when hold/no_trade recommendation is not overweight', () => {
@@ -1694,7 +1691,7 @@ describe('AllocationService', () => {
     expect(result[0].action).toBe('hold');
   });
 
-  it('should keep buy action during inference stage without previous-weight gating', async () => {
+  it('should gate buy action by previous model target weight during inference stage', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
@@ -1744,12 +1741,13 @@ describe('AllocationService', () => {
 
     expect(saveSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'buy',
-        modelTargetWeight: 0.25,
+        action: 'hold',
+        modelTargetWeight: 0.21,
       }),
     );
     expect(holdResult).toHaveLength(1);
-    expect(holdResult[0].action).toBe('buy');
+    expect(holdResult[0].action).toBe('hold');
+    expect(holdResult[0].modelTargetWeight).toBe(0.21);
 
     const buyResult = await service.allocationRecommendation([
       {

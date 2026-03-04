@@ -18,7 +18,11 @@ import { SortDirection } from '@/modules/item/item.enum';
 import { CursorItem, CursorRequest, ItemRequest, PaginatedItem } from '@/modules/item/item.types';
 import { ULID_COLUMN_OPTIONS, assignUlidIfMissing } from '@/utils/id';
 
-import { AllocationRecommendationFilter, RecentAllocationRecommendationRequest } from '../allocation.types';
+import {
+  AllocationRecommendationAction,
+  AllocationRecommendationFilter,
+  RecentAllocationRecommendationRequest,
+} from '../allocation.types';
 
 @Entity()
 @Index('idx_allocation_recommendation_batch_id_symbol', ['batchId', 'symbol'], { unique: true })
@@ -94,6 +98,14 @@ export class AllocationRecommendation extends BaseEntity {
     nullable: false,
   })
   modelTargetWeight: number;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    default: 'hold',
+    nullable: false,
+  })
+  action: AllocationRecommendationAction;
 
   @Column({
     type: 'text',

@@ -1353,6 +1353,7 @@ export class MarketRiskService implements OnModuleInit {
             normalizedResponse.expectedVolatilityPct,
             decisionConfidence,
           );
+          const minRecommendWeight = this.tradeOrchestrationService.getMinimumRecommendWeight();
 
           const modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
           const buyCandidateTargetWeight = Math.max(
@@ -1368,6 +1369,9 @@ export class MarketRiskService implements OnModuleInit {
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
             modelAction: modelSignals.action,
             decisionConfidence,
+            currentHoldingWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
+            minRecommendWeight,
           });
           const resolvedModelTargetWeight =
             action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;

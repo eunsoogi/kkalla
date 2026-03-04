@@ -1538,6 +1538,9 @@ export class AllocationService implements OnModuleInit {
           const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
             modelAction: modelSignals.action,
             decisionConfidence,
+            currentHoldingWeight: latestMetricsBySymbol?.modelTargetWeight ?? null,
+            nextModelTargetWeight: modelSignals.action === 'sell' ? 0 : buyCandidateTargetWeight,
+            minRecommendWeight: this.MIN_RECOMMEND_WEIGHT,
           });
           const resolvedModelTargetWeight =
             action === 'buy' ? buyCandidateTargetWeight : action === 'sell' ? 0 : neutralModelTargetWeight;
@@ -1666,6 +1669,7 @@ export class AllocationService implements OnModuleInit {
         buyScore: entity.buyScore,
         sellScore: entity.sellScore,
         modelTargetWeight: entity.modelTargetWeight,
+        action: entity.action,
         reason: entity.reason != null ? toUserFacingText(entity.reason) : null,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
@@ -1717,6 +1721,7 @@ export class AllocationService implements OnModuleInit {
         buyScore: entity.buyScore,
         sellScore: entity.sellScore,
         modelTargetWeight: entity.modelTargetWeight,
+        action: entity.action,
         reason: entity.reason != null ? toUserFacingText(entity.reason) : null,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
