@@ -1368,21 +1368,50 @@ export class TradeOrchestrationService {
       runtime.i18n.t('logging.trade.calculate.start', { args: { id: user.id, symbol: request.symbol } }),
     );
 
-    const type = runtime.exchangeService.getOrderType(order);
-    const { requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics(
-      {
-        adjustedRequestedAmount: adjustedOrder.requestedAmount,
-        requestRequestedAmount: request.requestedAmount,
-        adjustedFilledAmount: adjustedOrder.filledAmount,
-        adjustedFilledRatio: adjustedOrder.filledRatio,
-        resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(order),
-      },
-    );
+    let executionOrder = order;
+    const type = runtime.exchangeService.getOrderType(executionOrder);
+    let { requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
+      adjustedRequestedAmount: adjustedOrder.requestedAmount,
+      requestRequestedAmount: request.requestedAmount,
+      adjustedFilledAmount: adjustedOrder.filledAmount,
+      adjustedFilledRatio: adjustedOrder.filledRatio,
+      resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(executionOrder),
+    });
     const orderId = this.resolvePrimaryOrderId(order);
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
+    let resolvedAveragePrice = adjustedOrder.averagePrice ?? null;
     if (!hasExecutedFill) {
       if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
+        const refreshedOrder = await runtime.exchangeService.fetchOrder(user, orderId, request.symbol);
+        if (refreshedOrder) {
+          executionOrder = refreshedOrder;
+          ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
+            await this.resolveTradeExecutionFillMetrics({
+              adjustedRequestedAmount: adjustedOrder.requestedAmount,
+              requestRequestedAmount: request.requestedAmount,
+              adjustedFilledAmount: null,
+              // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
+              adjustedFilledRatio:
+                type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
+              resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
+            }));
+          resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
+          resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
+        }
+      }
+    }
+
+    if (!hasExecutedFill) {
+      if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
+        if (!this.isOpenOrderStatus(resolvedOrderStatus)) {
+          runtime.logger.log(
+            runtime.i18n.t('logging.trade.not_exist', {
+              args: { id: user.id, symbol: request.symbol },
+            }),
+          );
+          return null;
+        }
         try {
           // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
           await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
@@ -1417,7 +1446,7 @@ export class TradeOrchestrationService {
             orderType: adjustedOrder.orderType ?? request.orderType ?? null,
             timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
             requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
-            averagePrice: adjustedOrder.averagePrice ?? null,
+            averagePrice: resolvedAveragePrice,
             requestedAmount,
             filledAmount,
             filledRatio,
@@ -1438,7 +1467,7 @@ export class TradeOrchestrationService {
     }
 
     const amount = filledAmount;
-    const profit = await runtime.exchangeService.calculateProfit(request.balances, order, amount);
+    const profit = await runtime.exchangeService.calculateProfit(request.balances, executionOrder, amount);
 
     const shouldCancelPostOnlyRemainder =
       adjustedOrder.executionMode === 'limit_post_only' &&
@@ -1512,7 +1541,7 @@ export class TradeOrchestrationService {
       orderType: adjustedOrder.orderType ?? request.orderType ?? null,
       timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
       requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
-      averagePrice: adjustedOrder.averagePrice ?? null,
+      averagePrice: resolvedAveragePrice,
       requestedAmount,
       filledAmount,
       filledRatio,
@@ -1743,6 +1772,41 @@ export class TradeOrchestrationService {
       filledRatio,
       hasExecutedFill,
     };
+  }
+
+  /**
+   * Resolves ratio from raw order payload when exchange response omits normalized ratio.
+   * @param order - Exchange order payload.
+   * @returns Filled ratio or `null` when unavailable.
+   */
+  private resolveFilledRatioFromOrder(order: Order): number | null {
+    const filled = this.normalizeNonNegativeNumber(order?.filled);
+    const amount = this.normalizeNonNegativeNumber(order?.amount);
+    if (filled == null || amount == null || amount <= 0) {
+      return null;
+    }
+
+    return Math.max(0, Math.min(1, filled / amount));
+  }
+
+  /**
+   * Resolves average execution price from raw order payload.
+   * @param order - Exchange order payload.
+   * @returns Average execution price or `null` when unavailable.
+   */
+  private resolveAveragePriceFromOrder(order: Order): number | null {
+    const average = this.normalizeNonNegativeNumber(order?.average);
+    if (average != null && average > Number.EPSILON) {
+      return average;
+    }
+
+    const cost = this.normalizeNonNegativeNumber(order?.cost);
+    const filled = this.normalizeNonNegativeNumber(order?.filled);
+    if (cost == null || filled == null || filled <= Number.EPSILON) {
+      return null;
+    }
+
+    return cost / filled;
   }
 
   /**
