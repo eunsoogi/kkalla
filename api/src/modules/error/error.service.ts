@@ -10,6 +10,16 @@ export class ErrorService {
   private readonly logger = new Logger(ErrorService.name);
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY = 60000;
+  private readonly INTERNAL_STACK_FRAMES = [
+    'ErrorService.resolveOperationName',
+    'ErrorService.extractOperationNameFromStack',
+    'ErrorService.retryWithFallback',
+    'ErrorService.retry',
+    'process.processTicksAndRejections',
+    'Generator.next',
+    '__awaiter',
+  ];
+  private readonly INVALID_OPERATION_NAMES = new Set(['anonymous', '<anonymous>', 'Object.<anonymous>', 'new Promise']);
 
   constructor(
     private readonly i18n: I18nService,
@@ -84,6 +94,7 @@ export class ErrorService {
     const firstPhase = options?.firstPhase || { maxRetries: 5, retryDelay: 1000 }; // 1초 간격, 5회 기본값
     const secondPhase = options?.secondPhase || { maxRetries: 3, retryDelay: 60000 }; // 1분 간격, 3회 기본값
     const isNonRetryable = options?.isNonRetryable;
+    const operationName = this.resolveOperationName(operation, options);
 
     try {
       // 1차 재시도: 짧은 지연, 여러번 시도
@@ -111,7 +122,7 @@ export class ErrorService {
         await this.notifyService.notifyServer(
           this.i18n.t('notify.retry.failed', {
             args: {
-              functionName: operation.name || 'unknown',
+              functionName: operationName,
               firstMaxRetries: firstPhase.maxRetries,
               firstRetryDelay: firstPhase.retryDelay,
               secondMaxRetries: secondPhase.maxRetries,
@@ -124,5 +135,66 @@ export class ErrorService {
         throw secondError;
       }
     }
+  }
+
+  private resolveOperationName<T>(operation: () => Promise<T>, options?: TwoPhaseRetryOptions): string {
+    const explicitName = this.normalizeOperationName(options?.operationName);
+    if (explicitName) {
+      return explicitName;
+    }
+
+    const directName = this.normalizeOperationName(operation.name);
+    if (directName) {
+      return directName;
+    }
+
+    return this.extractOperationNameFromStack(new Error().stack) ?? 'unknown';
+  }
+
+  private extractOperationNameFromStack(stack?: string): string | null {
+    if (!stack) {
+      return null;
+    }
+
+    const frames = stack
+      .split('\n')
+      .slice(1)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('at '));
+
+    for (const frame of frames) {
+      const match = frame.match(/^at\s+(.+?)(?:\s+\(|$)/);
+      if (!match) {
+        continue;
+      }
+
+      const frameName = this.normalizeOperationName(match[1]);
+      if (!frameName) {
+        continue;
+      }
+
+      const isInternal = this.INTERNAL_STACK_FRAMES.some((pattern) => frameName.includes(pattern));
+      const isRuntimeFrame = /^(Array|Promise|Generator|process)\./.test(frameName);
+      if (isInternal || isRuntimeFrame) {
+        continue;
+      }
+
+      return frameName;
+    }
+
+    return null;
+  }
+
+  private normalizeOperationName(value?: string): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const name = value.trim();
+    if (!name || this.INVALID_OPERATION_NAMES.has(name)) {
+      return null;
+    }
+
+    return name;
   }
 }
