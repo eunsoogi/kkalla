@@ -19,11 +19,16 @@ export class ErrorService {
   public async retry<T>(operation: () => Promise<T>, options?: RetryOptions): Promise<T> {
     const maxRetries = options?.maxRetries || this.MAX_RETRIES;
     const retryDelay = options?.retryDelay || this.RETRY_DELAY;
+    const isNonRetryable = options?.isNonRetryable;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
+        if (isNonRetryable?.(error)) {
+          throw error;
+        }
+
         if (attempt === maxRetries) {
           throw error;
         }
@@ -78,19 +83,28 @@ export class ErrorService {
   public async retryWithFallback<T>(operation: () => Promise<T>, options?: TwoPhaseRetryOptions): Promise<T> {
     const firstPhase = options?.firstPhase || { maxRetries: 5, retryDelay: 1000 }; // 1초 간격, 5회 기본값
     const secondPhase = options?.secondPhase || { maxRetries: 3, retryDelay: 60000 }; // 1분 간격, 3회 기본값
+    const isNonRetryable = options?.isNonRetryable;
 
     try {
       // 1차 재시도: 짧은 지연, 여러번 시도
-      return await this.retry(operation, firstPhase);
+      return await this.retry(operation, { ...firstPhase, isNonRetryable });
     } catch (firstError) {
+      if (isNonRetryable?.(firstError)) {
+        throw firstError;
+      }
+
       // unknown 타입의 firstError에서 message 가져오기
       const errorMessage = this.getErrorMessage(firstError);
       this.logger.warn(this.i18n.t('logging.retry.fallback', { args: { message: errorMessage } }));
 
       try {
         // 2차 재시도: 긴 지연, 추가 시도
-        return await this.retry(operation, secondPhase);
+        return await this.retry(operation, { ...secondPhase, isNonRetryable });
       } catch (secondError) {
+        if (isNonRetryable?.(secondError)) {
+          throw secondError;
+        }
+
         // 2차 재시도도 실패 시 서버 알림 발송
         const secondErrorMessage = this.getErrorMessage(secondError);
 

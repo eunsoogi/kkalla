@@ -848,6 +848,69 @@ export class UpbitService {
     }
   }
 
+  private extractExchangeErrorCodeFromMessage(message: unknown): string | null {
+    if (typeof message !== 'string' || message.trim().length < 1) {
+      return null;
+    }
+
+    const jsonStart = message.indexOf('{');
+    if (jsonStart < 0) {
+      return null;
+    }
+
+    const payload = message.slice(jsonStart);
+
+    try {
+      const parsed = JSON.parse(payload) as {
+        error?: {
+          name?: unknown;
+        };
+      };
+      return typeof parsed.error?.name === 'string' ? parsed.error.name.toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private extractExchangeErrorCode(error: unknown): string | null {
+    if (error && typeof error === 'object') {
+      const maybeError = error as {
+        name?: unknown;
+        error?: {
+          name?: unknown;
+        };
+        message?: unknown;
+      };
+
+      if (typeof maybeError.error?.name === 'string' && maybeError.error.name.length > 0) {
+        return maybeError.error.name.toLowerCase();
+      }
+
+      if (typeof maybeError.name === 'string') {
+        const name = maybeError.name.toLowerCase();
+        if (name === 'out_of_scope' || name === 'done_order') {
+          return name;
+        }
+      }
+
+      const fromObjectMessage = this.extractExchangeErrorCodeFromMessage(maybeError.message);
+      if (fromObjectMessage) {
+        return fromObjectMessage;
+      }
+    }
+
+    if (error instanceof Error) {
+      return this.extractExchangeErrorCodeFromMessage(error.message);
+    }
+
+    return null;
+  }
+
+  private isTerminalTradeError(error: unknown): boolean {
+    const code = this.extractExchangeErrorCode(error);
+    return code === 'out_of_scope' || code === 'done_order';
+  }
+
   public async order(user: User, request: OrderRequest): Promise<Order | null> {
     const deductionAmount = 1 / 10 ** this.MAX_PRECISION;
 
@@ -898,6 +961,7 @@ export class UpbitService {
         {
           maxRetries: 10,
           retryDelay: 1000,
+          isNonRetryable: (error: unknown) => this.isTerminalTradeError(error),
         },
       );
     } catch (error) {
@@ -928,9 +992,15 @@ export class UpbitService {
 
     await Promise.all(
       orderIds.map((targetOrderId) =>
-        this.errorService.retryWithFallback(async () => {
-          await client.cancelOrder(targetOrderId, symbol);
-        }, this.retryOptions),
+        this.errorService.retryWithFallback(
+          async () => {
+            await client.cancelOrder(targetOrderId, symbol);
+          },
+          {
+            ...this.retryOptions,
+            isNonRetryable: (error: unknown) => this.isTerminalTradeError(error),
+          },
+        ),
       ),
     );
   }
@@ -942,9 +1012,15 @@ export class UpbitService {
         return null;
       }
 
-      const order = await this.errorService.retryWithFallback(async () => {
-        return await (client as any).fetchOrder(orderId, symbol);
-      }, this.retryOptions);
+      const order = await this.errorService.retryWithFallback(
+        async () => {
+          return await (client as any).fetchOrder(orderId, symbol);
+        },
+        {
+          ...this.retryOptions,
+          isNonRetryable: (error: unknown) => this.isTerminalTradeError(error),
+        },
+      );
 
       return (order as Order) ?? null;
     } catch {

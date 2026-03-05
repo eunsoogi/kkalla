@@ -1132,6 +1132,124 @@ describe('TradeOrchestrationService', () => {
       expect(saveTradeSpy).not.toHaveBeenCalled();
     });
 
+    it('should persist filled trade when cancel returns done_order error', async () => {
+      const cancelOrder = jest
+        .fn()
+        .mockRejectedValue(new Error('upbit {"error":{"name":"done_order","message":"이미 체결된 주문입니다."}}'));
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-done-order' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValue(0),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder: jest.fn(),
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          amount: 100_000,
+          filledAmount: 100_000,
+          filledRatio: 1,
+          orderStatus: 'done',
+        }),
+      );
+    });
+
+    it('should skip tracking save when cancel fails with out_of_scope', async () => {
+      const cancelOrder = jest
+        .fn()
+        .mockRejectedValue(new Error('upbit {"error":{"name":"out_of_scope","message":"권한이 부족합니다."}}'));
+      const fetchOrder = jest.fn();
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade');
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-123',
+              side: OrderTypes.BUY,
+              status: 'open',
+            },
+            executionMode: 'limit_post_only',
+            orderType: 'limit',
+            timeInForce: 'po',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: 0,
+            filledRatio: 0,
+            averagePrice: null,
+            orderStatus: 'open',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn(),
+          calculateProfit: jest.fn(),
+          fetchOrder,
+          cancelOrder,
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).toBeNull();
+      expect(fetchOrder).toHaveBeenCalledTimes(2);
+      expect(saveTradeSpy).not.toHaveBeenCalled();
+    });
+
     it('should persist trade when post-only order is filled after exchange refresh', async () => {
       const cancelOrder = jest.fn().mockResolvedValue(undefined);
       const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);

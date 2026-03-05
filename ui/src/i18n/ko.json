@@ -108,6 +108,7 @@
   "copy": {
     "complete": "복사되었습니다.",
     "error": "복사에 실패했습니다.",
+    "ip": "IP 복사",
     "link": "링크 복사",
     "notFound": "복사할 값이 없습니다.",
     "token": "토큰 복사"
@@ -512,11 +513,12 @@
   "upbit": {
     "access_key_help": "업비트 Open API에서 발급한 Access Key를 입력하세요.",
     "access_key_label": "액세스 키",
-    "description": "업비트 계정 연동을 위해서는 계정의 API 키를 발급 받아야 합니다. 다음 가이드를 따라서 서비스를 이용할 업비트 계정의 API 키를 발급 받아주세요.",
+    "description": "업비트 계정 연동을 위해서는 계정의 API 키를 발급 받아야 합니다. 아래 필요한 권한과 서버 IP를 확인한 뒤, 서비스를 이용할 업비트 계정의 API 키를 등록해 주세요.",
     "grant": "필요한 권한",
     "grants": {
       "order": "주문하기",
-      "view_asset": "자산조회"
+      "view_asset": "자산조회",
+      "view_order": "주문조회"
     },
     "guide": "업비트 계정 연동 방법",
     "ip_label": "IP",
