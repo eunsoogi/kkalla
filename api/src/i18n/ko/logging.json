@@ -51,6 +51,7 @@
     "allocationRecommendation": {
       "buy_budget_insufficient": "[매수 예산 부족] availableKrw={availableKrw}, totalEstimated={totalEstimated}, requestedCount={requestedCount}",
       "buy_budget_scaled": "[매수 예산 축소] availableKrw={availableKrw}, totalEstimated={totalEstimated}, scale={scale}, requestedCount={requestedCount}",
+      "buy_turnover_capped": "[매수 캡 적용] turnoverCap={turnoverCap}, requestedCount={requestedCount}, executedCount={executedCount}, selected={selectedSymbols}, skipped={skippedSymbols}, exempted={exemptedSymbols}",
       "complete": "자산 배분 추천 분석을 완료했습니다.",
       "enqueue_validation_failed": "자산 배분 감사 사후 검증 큐 등록에 실패했습니다.",
       "model_signal": "[모델 시그널] symbol={symbol}, category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
