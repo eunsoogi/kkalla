@@ -1,7 +1,7 @@
 export const UPBIT_ALLOCATION_RECOMMENDATION_SHARED_CONFIG = {
-  model: 'gpt-5.2',
+  model: 'gpt-5.4',
   max_output_tokens: 16384,
-  reasoning_effort: 'high' as const,
+  reasoning_effort: 'xhigh' as const,
   service_tier: 'flex' as const,
   tools: [{ type: 'web_search' } as const],
   message: {

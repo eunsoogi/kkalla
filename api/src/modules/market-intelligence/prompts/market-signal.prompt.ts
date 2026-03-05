@@ -2,11 +2,11 @@ import { loadPromptMarkdown } from '@/utils/prompt-loader';
 
 export const UPBIT_MARKET_SIGNAL_PROMPT = loadPromptMarkdown(__dirname, 'market-signal.prompt.md');
 
-// GPT-5.2 모델 설정 - 최대 10개 종목 추천용
+// GPT-5.4 모델 설정 - 최대 10개 종목 추천용
 export const UPBIT_MARKET_SIGNAL_CONFIG = {
-  model: 'gpt-5.2',
+  model: 'gpt-5.4',
   max_output_tokens: 16384,
-  reasoning_effort: 'high' as const,
+  reasoning_effort: 'xhigh' as const,
   service_tier: 'auto' as const,
   tools: [{ type: 'web_search' } as const],
 };
