@@ -1574,7 +1574,11 @@ export class TradeOrchestrationService {
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
     let resolvedAveragePrice = adjustedOrder.averagePrice ?? this.resolveAveragePriceFromOrder(order);
 
-    if (!hasExecutedFill && this.isOpenOrderStatus(orderStatus) && typeof runtime.exchangeService.fetchOrder === 'function') {
+    if (
+      !hasExecutedFill &&
+      typeof runtime.exchangeService.fetchOrder === 'function' &&
+      this.shouldAttemptMarketOrderReconcile(orderStatus, executionOrder)
+    ) {
       const orderId = this.resolvePrimaryOrderId(executionOrder);
       if (orderId) {
         const reconciled = await this.reconcileOpenMarketOrderFillMetrics({
@@ -1913,6 +1917,61 @@ export class TradeOrchestrationService {
     return normalized === 'open' || normalized === 'wait';
   }
 
+  private isCancelledOrderStatus(status: string | null | undefined): boolean {
+    if (typeof status !== 'string') {
+      return false;
+    }
+
+    const normalized = status.toLowerCase();
+    return (
+      normalized === 'cancel' ||
+      normalized === 'canceled' ||
+      normalized === 'cancelled' ||
+      normalized === 'rejected' ||
+      normalized === 'expired'
+    );
+  }
+
+  private isMarketLikeOrder(order: Order | null | undefined): boolean {
+    const orderType = typeof order?.type === 'string' ? order.type.toLowerCase() : null;
+    if (orderType === 'market') {
+      return true;
+    }
+
+    const upbitOrderType =
+      order?.info && typeof order.info === 'object' && 'ord_type' in order.info && typeof order.info.ord_type === 'string'
+        ? order.info.ord_type.toLowerCase()
+        : null;
+    return upbitOrderType === 'market' || upbitOrderType === 'price';
+  }
+
+  private shouldAttemptMarketOrderReconcile(status: string | null | undefined, order: Order): boolean {
+    if (this.isOpenOrderStatus(status)) {
+      return true;
+    }
+    if (this.isFinalizedOrderStatus(status) || this.isCancelledOrderStatus(status)) {
+      return false;
+    }
+
+    // Market executions can transiently surface as null/new before settlement; still reconcile once.
+    return this.isMarketLikeOrder(order);
+  }
+
+  private shouldContinueMarketOrderReconcile(status: string | null, order: Order, hasExecutedFill: boolean): boolean {
+    if (hasExecutedFill) {
+      return false;
+    }
+    if (this.isOpenOrderStatus(status)) {
+      return true;
+    }
+    if (this.isFinalizedOrderStatus(status) || this.isCancelledOrderStatus(status)) {
+      return false;
+    }
+
+    // Keep retrying for market orders when status is transient/unknown.
+    return this.isMarketLikeOrder(order);
+  }
+
   private resolvePrimaryOrderId(order: Order): string | null {
     if (typeof order.id !== 'string' || order.id.trim().length < 1) {
       return null;
@@ -1987,7 +2046,7 @@ export class TradeOrchestrationService {
         filledAmount = metrics.filledAmount;
         hasExecutedFill = metrics.hasExecutedFill;
 
-        if (hasExecutedFill || !this.isOpenOrderStatus(orderStatus)) {
+        if (!this.shouldContinueMarketOrderReconcile(orderStatus, refreshedOrder, hasExecutedFill)) {
           break;
         }
       } catch (error) {

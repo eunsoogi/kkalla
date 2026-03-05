@@ -337,6 +337,67 @@ describe('TradeOrchestrationService', () => {
       expect(reconciled?.filledAmount).toBe(100_000);
       expect(reconciled?.filledVolume).toBe(1);
     });
+
+    it('should reconcile market order fills even when initial status is unknown', async () => {
+      const placedOrder: any = {
+        id: 'order-1',
+        status: null,
+        type: 'market',
+        amount: 1,
+        filled: 0,
+        average: null,
+        cost: null,
+        info: { ord_type: 'price' },
+      };
+      const closedOrder: any = {
+        ...placedOrder,
+        status: 'closed',
+        filled: 1,
+        average: 100_000,
+        cost: 100_000,
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn((key: string) => key) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: placedOrder,
+            requestPrice: null,
+            requestedAmount: 100_000,
+            requestedVolume: 1,
+            filledAmount: 0,
+            filledVolume: 0,
+            averagePrice: null,
+            expectedEdgeRate: null,
+            estimatedCostRate: null,
+            spreadRate: null,
+            impactRate: null,
+            gateBypassedReason: null,
+            triggerReason: null,
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn(async (order: any) => (order?.status === 'closed' ? 100_000 : 0)),
+          fetchOrder: jest.fn().mockResolvedValueOnce(closedOrder),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+        },
+      };
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+
+      const trade = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 1,
+          balances: { info: [] } as any,
+          requestedAmount: 100_000,
+        } as any,
+      });
+
+      expect(runtime.exchangeService.fetchOrder).toHaveBeenCalledWith({ id: 'user-1' }, 'order-1', 'BTC/KRW');
+      expect(saveTradeSpy).toHaveBeenCalledTimes(1);
+      expect(trade).toEqual({ id: 'trade-1' });
+    });
   });
 
   describe('included trade request sizing', () => {
