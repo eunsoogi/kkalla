@@ -100,7 +100,8 @@ export class TradeOrchestrationService {
   private readonly tradeExecutionRuntime = SHARED_TRADE_EXECUTION_RUNTIME;
   private readonly fullLiquidationFillRatioThreshold = 0.995;
   private readonly fullLiquidationVolumeEpsilon = 1e-8;
-  private readonly marketOrderReconcileMaxFetchAttempts = this.tradeExecutionRuntime.marketOrderReconcileMaxFetchAttempts;
+  private readonly marketOrderReconcileMaxFetchAttempts =
+    this.tradeExecutionRuntime.marketOrderReconcileMaxFetchAttempts;
   private readonly marketOrderReconcileRetryDelayMs = this.tradeExecutionRuntime.marketOrderReconcileRetryDelayMs;
 
   /**
@@ -1561,9 +1562,11 @@ export class TradeOrchestrationService {
     let type = runtime.exchangeService.getOrderType(executionOrder);
     let orderStatus = typeof executionOrder.status === 'string' ? executionOrder.status : null;
     let requestedVolume =
-      this.normalizeNonNegativeNumber(adjustedOrder.requestedVolume) ?? this.normalizeNonNegativeNumber(executionOrder.amount);
+      this.normalizeNonNegativeNumber(adjustedOrder.requestedVolume) ??
+      this.normalizeNonNegativeNumber(executionOrder.amount);
     let filledVolume =
-      this.normalizeNonNegativeNumber(adjustedOrder.filledVolume) ?? this.normalizeNonNegativeNumber(executionOrder.filled);
+      this.normalizeNonNegativeNumber(adjustedOrder.filledVolume) ??
+      this.normalizeNonNegativeNumber(executionOrder.filled);
     let { requestedAmount, filledAmount, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
       adjustedRequestedAmount: adjustedOrder.requestedAmount,
       requestRequestedAmount: request.requestedAmount,
@@ -1630,7 +1633,11 @@ export class TradeOrchestrationService {
         filledAmount > Number.EPSILON
       ) {
         filledVolume = filledAmount / resolvedAveragePrice;
-      } else if (this.isFinalizedOrderStatus(orderStatus) && requestedVolume != null && requestedVolume > Number.EPSILON) {
+      } else if (
+        this.isFinalizedOrderStatus(orderStatus) &&
+        requestedVolume != null &&
+        requestedVolume > Number.EPSILON
+      ) {
         filledVolume = requestedVolume;
       }
     }
@@ -1939,7 +1946,10 @@ export class TradeOrchestrationService {
     }
 
     const upbitOrderType =
-      order?.info && typeof order.info === 'object' && 'ord_type' in order.info && typeof order.info.ord_type === 'string'
+      order?.info &&
+      typeof order.info === 'object' &&
+      'ord_type' in order.info &&
+      typeof order.info.ord_type === 'string'
         ? order.info.ord_type.toLowerCase()
         : null;
     return upbitOrderType === 'market' || upbitOrderType === 'price';
@@ -2025,7 +2035,11 @@ export class TradeOrchestrationService {
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
-        const refreshedOrder = await options.runtime.exchangeService.fetchOrder(options.user, options.orderId, options.symbol);
+        const refreshedOrder = await options.runtime.exchangeService.fetchOrder(
+          options.user,
+          options.orderId,
+          options.symbol,
+        );
         if (!refreshedOrder) {
           continue;
         }
@@ -2170,7 +2184,9 @@ export class TradeOrchestrationService {
       }
 
       const requestedVolume =
-        typeof trade.requestedVolume === 'number' && Number.isFinite(trade.requestedVolume) ? trade.requestedVolume : null;
+        typeof trade.requestedVolume === 'number' && Number.isFinite(trade.requestedVolume)
+          ? trade.requestedVolume
+          : null;
       const filledVolume =
         typeof trade.filledVolume === 'number' && Number.isFinite(trade.filledVolume) ? trade.filledVolume : null;
       const isFullyLiquidated =
