@@ -129,6 +129,17 @@ describe('TradeOrchestrationService', () => {
       expect(weights.has('XRP/USDT')).toBe(false);
     });
 
+    it('should keep weight numerator aligned with tradable denominator mode', async () => {
+      const balances: any = {
+        info: [{ currency: 'AAA', unit_currency: 'KRW', balance: '1', locked: '2', avg_buy_price: '1000' }],
+      };
+
+      const getPrice = jest.fn(async () => 1_000);
+      const weights = await service.buildCurrentWeightMap(balances, 1_000, getPrice, undefined, false);
+
+      expect(weights.get('AAA/KRW')).toBeCloseTo(1);
+    });
+
     it('should build tradable market value map with market price and avg-buy fallback', async () => {
       const balances: any = {
         info: [
@@ -153,6 +164,70 @@ describe('TradeOrchestrationService', () => {
       expect(values.get('AAA/KRW')).toBe(2_000);
       expect(values.get('BBB/KRW')).toBe(300);
       expect(values.has('CCC/KRW')).toBe(false);
+    });
+
+    it('should derive snapshot market value from exchange total market-value API', async () => {
+      const balances: any = {
+        info: [
+          { currency: 'KRW', unit_currency: 'KRW', balance: '5000' },
+          { currency: 'AAA', unit_currency: 'KRW', balance: '1', locked: '1', avg_buy_price: '900' },
+        ],
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          calculateTotalMarketValue: jest.fn().mockResolvedValue(7_000),
+          isSymbolExist: jest.fn().mockResolvedValue(true),
+          getPrice: jest.fn(async (symbol: string) => {
+            if (symbol === 'AAA/KRW') {
+              return 1_000;
+            }
+            throw new Error('price unavailable');
+          }),
+        },
+      };
+
+      const snapshot = await service.buildTradeExecutionSnapshot({
+        runtime,
+        balances,
+        referenceSymbols: ['AAA/KRW'],
+      });
+
+      expect(snapshot.marketPrice).toBe(7_000);
+      expect(snapshot.currentWeights.get('AAA/KRW')).toBeCloseTo(2_000 / 7_000);
+    });
+
+    it('should fallback to exchange total-price estimator when market-value APIs are unavailable', async () => {
+      const balances: any = {
+        info: [
+          { currency: 'KRW', unit_currency: 'KRW', balance: '5000' },
+          { currency: 'AAA', unit_currency: 'KRW', balance: '1', locked: '1', avg_buy_price: '900' },
+        ],
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          calculateTotalPrice: jest.fn().mockReturnValue(6_000),
+          isSymbolExist: jest.fn().mockResolvedValue(true),
+          getPrice: jest.fn(async (symbol: string) => {
+            if (symbol === 'AAA/KRW') {
+              return 1_000;
+            }
+            throw new Error('price unavailable');
+          }),
+        },
+      };
+
+      const snapshot = await service.buildTradeExecutionSnapshot({
+        runtime,
+        balances,
+        referenceSymbols: ['AAA/KRW'],
+      });
+
+      expect(snapshot.marketPrice).toBe(6_000);
+      expect(snapshot.currentWeights.get('AAA/KRW')).toBeCloseTo(1_000 / 6_000);
     });
   });
 
@@ -840,9 +915,322 @@ describe('TradeOrchestrationService', () => {
         { symbol: 'XAUT/KRW', category: Category.COIN_MINOR, index: 0 },
       ]);
     });
+
+    it('should bypass buy turnover cap for all new-entry buys regardless of diff size', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const refreshedSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>([
+          'NEW-ENTRY-A/KRW',
+          'NEW-ENTRY-B/KRW',
+          'REBALANCE-1/KRW',
+          'REBALANCE-2/KRW',
+          'REBALANCE-3/KRW',
+        ]),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const buyRequests = [
+        {
+          symbol: 'REBALANCE-1/KRW',
+          diff: 0.5,
+          balances,
+          marketPrice: 1_000_000,
+          inference: { hasStock: true },
+        },
+        {
+          symbol: 'REBALANCE-2/KRW',
+          diff: 0.2,
+          balances,
+          marketPrice: 1_000_000,
+          inference: { hasStock: true },
+        },
+        {
+          symbol: 'REBALANCE-3/KRW',
+          diff: 0.1,
+          balances,
+          marketPrice: 1_000_000,
+          inference: { hasStock: true },
+        },
+        {
+          symbol: 'NEW-ENTRY-A/KRW',
+          diff: 0.04,
+          balances,
+          marketPrice: 1_000_000,
+          inference: { hasStock: false },
+        },
+        {
+          symbol: 'NEW-ENTRY-B/KRW',
+          diff: 0.03,
+          balances,
+          marketPrice: 1_000_000,
+          inference: { hasStock: false },
+        },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(refreshedSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'buy',
+            amount: 10_000,
+            profit: 0,
+            inference: request.inference ?? null,
+          }) as any,
+      );
+
+      const result = await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['NEW-ENTRY-A/KRW', 'NEW-ENTRY-B/KRW', 'REBALANCE-1/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.2,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: (snapshot) => (snapshot === initialSnapshot ? [] : buyRequests),
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      const executedSymbols = executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol);
+      expect(executedSymbols).toEqual(['REBALANCE-1/KRW', 'NEW-ENTRY-A/KRW', 'NEW-ENTRY-B/KRW']);
+      expect(executedSymbols).not.toContain('REBALANCE-2/KRW');
+      expect(executedSymbols).not.toContain('REBALANCE-3/KRW');
+      expect(result.map((trade) => trade.symbol)).toEqual(executedSymbols);
+      expect(runtime.i18n.t).toHaveBeenCalledWith(
+        'logging.inference.allocationRecommendation.buy_turnover_capped',
+        expect.objectContaining({
+          args: expect.objectContaining({
+            turnoverCap: 0.2,
+            requestedCount: 3,
+            executedCount: 1,
+            selectedSymbols: 'REBALANCE-1/KRW',
+            skippedSymbols: 'REBALANCE-2/KRW,REBALANCE-3/KRW',
+            exemptedSymbols: 'NEW-ENTRY-A/KRW,NEW-ENTRY-B/KRW',
+          }),
+        }),
+      );
+    });
   });
 
   describe('post-only unfilled handling', () => {
+    it('should not infer full fill for non-post-only canceled order without executed amount', async () => {
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-market-canceled',
+              side: OrderTypes.BUY,
+              status: 'canceled',
+            },
+            executionMode: 'market',
+            orderType: 'market',
+            timeInForce: null,
+            requestPrice: null,
+            requestedAmount: 100_000,
+            requestedVolume: null,
+            filledAmount: null,
+            filledRatio: null,
+            averagePrice: null,
+            orderStatus: 'canceled',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValue(0),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder: jest.fn().mockResolvedValue({
+            id: 'order-market-canceled',
+            symbol: 'BTC/KRW',
+            side: OrderTypes.BUY,
+            status: 'canceled',
+            amount: 0.001,
+            filled: 0,
+            average: null,
+            cost: null,
+          }),
+          cancelOrder: jest.fn(),
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).toBeNull();
+      expect(saveTradeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should infer full fill only for finalized non-post-only status when fill metrics are missing', async () => {
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-market-done',
+              side: OrderTypes.BUY,
+              status: 'done',
+            },
+            executionMode: 'market',
+            orderType: 'market',
+            timeInForce: null,
+            requestPrice: null,
+            requestedAmount: 100_000,
+            requestedVolume: null,
+            filledAmount: null,
+            filledRatio: null,
+            averagePrice: null,
+            orderStatus: 'done',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValue(0),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder: jest.fn().mockResolvedValue({
+            id: 'order-market-done',
+            symbol: 'BTC/KRW',
+            side: OrderTypes.BUY,
+            status: 'done',
+            amount: 0.001,
+            filled: 0,
+            average: null,
+            cost: null,
+          }),
+          cancelOrder: jest.fn(),
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(saveTradeSpy).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        expect.objectContaining({
+          symbol: 'BTC/KRW',
+          amount: 100_000,
+          filledAmount: 100_000,
+          filledRatio: 1,
+          orderStatus: 'done',
+        }),
+      );
+    });
+
+    it('should not infer full fill for finalized limit-ioc order without executed amount', async () => {
+      const saveTradeSpy = jest.spyOn(service as any, 'saveTrade').mockResolvedValue({ id: 'trade-1' } as any);
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          adjustOrder: jest.fn().mockResolvedValue({
+            order: {
+              id: 'order-limit-ioc-done',
+              side: OrderTypes.BUY,
+              status: 'done',
+            },
+            executionMode: 'limit_ioc',
+            orderType: 'limit',
+            timeInForce: 'ioc',
+            requestPrice: 100_000_000,
+            requestedAmount: 100_000,
+            requestedVolume: 0.001,
+            filledAmount: null,
+            filledRatio: null,
+            averagePrice: null,
+            orderStatus: 'done',
+            expectedEdgeRate: 0.01,
+            estimatedCostRate: 0.002,
+            spreadRate: 0.001,
+            impactRate: 0.001,
+            gateBypassedReason: null,
+            triggerReason: 'included_rebalance',
+          }),
+          getOrderType: jest.fn().mockReturnValue(OrderTypes.BUY),
+          calculateAmount: jest.fn().mockResolvedValue(0),
+          calculateProfit: jest.fn().mockResolvedValue(0),
+          fetchOrder: jest.fn().mockResolvedValue({
+            id: 'order-limit-ioc-done',
+            symbol: 'BTC/KRW',
+            side: OrderTypes.BUY,
+            status: 'done',
+            amount: 0.001,
+            filled: 0,
+            average: null,
+            cost: null,
+          }),
+          cancelOrder: jest.fn(),
+        },
+      };
+
+      const result = await service.executeTrade({
+        runtime,
+        user: { id: 'user-1' } as any,
+        request: {
+          symbol: 'BTC/KRW',
+          diff: 0.1,
+          balances: { info: [] } as any,
+        },
+      });
+
+      expect(result).toBeNull();
+      expect(saveTradeSpy).not.toHaveBeenCalled();
+    });
+
     it('should persist trade when post-only order fills after cancel reconciliation', async () => {
       const cancelOrder = jest.fn().mockResolvedValue(undefined);
       const fetchOrder = jest

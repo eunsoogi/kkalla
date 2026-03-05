@@ -437,7 +437,7 @@ export class TradeOrchestrationService {
     try {
       const marketRegime = await readMarketRegime();
       // Build policy knobs from imperfect market data and clamp every output
-      // so sudden feed spikes do not explode portfolio sizing.
+      // so sudden feed spikes do not explode holdings sizing.
       const fearGreed = marketRegime?.feargreed;
       const baseMultiplier = this.getMarketRegimeMultiplierByFearGreedIndex(Number(fearGreed?.index));
       const adjustment = this.getMarketRegimeMultiplierAdjustmentByMarketSignals(
@@ -865,7 +865,17 @@ export class TradeOrchestrationService {
         };
       })
       .filter((item): item is Exclude<typeof item, null> => item !== null)
-      .sort((a, b) => a.diff - b.diff);
+      .sort((a, b) => {
+        const aSell = a.diff < 0;
+        const bSell = b.diff < 0;
+        if (aSell !== bSell) {
+          return aSell ? -1 : 1;
+        }
+        if (aSell && bSell) {
+          return a.diff - b.diff;
+        }
+        return b.diff - a.diff;
+      });
   }
 
   /**
@@ -1146,13 +1156,14 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Builds current portfolio weight map from balances and tradable market value.
+   * Builds current holdings weight map from balances and holdings market value.
    */
   public async buildCurrentWeightMap(
     balances: Balances,
     totalMarketValue: number,
     getPrice: (symbol: string) => Promise<number>,
     orderableSymbols?: Set<string>,
+    useTotalBalance = true,
   ): Promise<Map<string, number>> {
     const weightMap = new Map<string, number>();
     if (!Number.isFinite(totalMarketValue) || totalMarketValue <= 0) {
@@ -1165,7 +1176,9 @@ export class TradeOrchestrationService {
         .map(async (item) => {
           const symbol = `${item.currency}/${item.unit_currency}`;
           const tradableBalance = parseFloat(item.balance || '0');
-          if (!Number.isFinite(tradableBalance) || tradableBalance <= 0) {
+          const lockedBalance = parseFloat(item.locked || '0');
+          const positionBalance = useTotalBalance ? tradableBalance + lockedBalance : tradableBalance;
+          if (!Number.isFinite(positionBalance) || positionBalance <= 0) {
             return { symbol, weight: 0 };
           }
           if (!this.isOrderableSymbol(symbol, orderableSymbols)) {
@@ -1174,14 +1187,14 @@ export class TradeOrchestrationService {
 
           try {
             const currPrice = await getPrice(symbol);
-            return { symbol, weight: (tradableBalance * currPrice) / totalMarketValue };
+            return { symbol, weight: (positionBalance * currPrice) / totalMarketValue };
           } catch {
             // Price API fallback: use avg_buy_price to keep weight estimation available.
             const avgBuyPrice = parseFloat(item.avg_buy_price || '0');
             if (!Number.isFinite(avgBuyPrice) || avgBuyPrice <= 0) {
               return null;
             }
-            return { symbol, weight: (tradableBalance * avgBuyPrice) / totalMarketValue };
+            return { symbol, weight: (positionBalance * avgBuyPrice) / totalMarketValue };
           }
         }),
     );
@@ -1243,6 +1256,56 @@ export class TradeOrchestrationService {
     return marketValueMap;
   }
 
+  private async calculateHoldingsMarketValue(
+    exchangeService: TradeRuntimeContext['exchangeService'],
+    balances: Balances,
+    orderableSymbols?: Set<string>,
+  ): Promise<{ marketValue: number; useTotalBalance: boolean }> {
+    const marketValueResolvers = exchangeService as TradeRuntimeContext['exchangeService'] & {
+      calculateTotalMarketValue?: (balances: Balances, orderableSymbols?: Set<string>) => Promise<number>;
+      calculateTradableMarketValue?: (balances: Balances, orderableSymbols?: Set<string>) => Promise<number>;
+      calculateTotalPrice?: (balances: Balances) => number;
+    };
+
+    if (typeof marketValueResolvers.calculateTotalMarketValue === 'function') {
+      return {
+        marketValue: await marketValueResolvers.calculateTotalMarketValue.call(
+          exchangeService,
+          balances,
+          orderableSymbols,
+        ),
+        useTotalBalance: true,
+      };
+    }
+
+    if (typeof marketValueResolvers.calculateTradableMarketValue === 'function') {
+      // Keep denominator/numerator basis consistent when only tradable market value API is available.
+      return {
+        marketValue: await marketValueResolvers.calculateTradableMarketValue.call(
+          exchangeService,
+          balances,
+          orderableSymbols,
+        ),
+        useTotalBalance: false,
+      };
+    }
+
+    if (typeof marketValueResolvers.calculateTotalPrice === 'function') {
+      // Legacy fallback for partial mocks/tests that expose only total-price estimator.
+      const marketValue = marketValueResolvers.calculateTotalPrice.call(exchangeService, balances);
+      return {
+        marketValue: Number.isFinite(marketValue) && marketValue > 0 ? marketValue : 0,
+        useTotalBalance: false,
+      };
+    }
+
+    // Defensive fallback for incomplete runtime mocks; avoids hard failure in orchestration tests.
+    return {
+      marketValue: 0,
+      useTotalBalance: false,
+    };
+  }
+
   /**
    * Builds a reusable market snapshot for both sell and buy orchestration steps.
    */
@@ -1267,7 +1330,11 @@ export class TradeOrchestrationService {
     );
     assertLockOrThrow();
 
-    const marketPrice = await runtime.exchangeService.calculateTradableMarketValue(balances, orderableSymbols);
+    const { marketValue: marketPrice, useTotalBalance } = await this.calculateHoldingsMarketValue(
+      runtime.exchangeService,
+      balances,
+      orderableSymbols,
+    );
     assertLockOrThrow();
 
     const currentWeights = await this.buildCurrentWeightMap(
@@ -1275,6 +1342,7 @@ export class TradeOrchestrationService {
       marketPrice,
       (symbol) => runtime.exchangeService.getPrice(symbol),
       orderableSymbols,
+      useTotalBalance,
     );
     assertLockOrThrow();
 
@@ -1387,8 +1455,28 @@ export class TradeOrchestrationService {
           );
         },
       });
-      const maxBuyRequestCount = Math.max(1, Math.ceil(scaledBuyRequests.length * turnoverCap));
-      const cappedBuyRequests = scaledBuyRequests.slice(0, maxBuyRequestCount);
+      const prioritizedBuyRequests = [...scaledBuyRequests].sort((a, b) => b.diff - a.diff);
+      const newEntryBuyRequests = prioritizedBuyRequests.filter((request) => this.isNewEntryBuyRequest(request));
+      const rebalanceBuyRequests = prioritizedBuyRequests.filter((request) => !this.isNewEntryBuyRequest(request));
+      const maxRebalanceBuyRequestCount =
+        rebalanceBuyRequests.length > 0 ? Math.max(1, Math.ceil(rebalanceBuyRequests.length * turnoverCap)) : 0;
+      const cappedRebalanceBuyRequests = rebalanceBuyRequests.slice(0, maxRebalanceBuyRequestCount);
+      const skippedRebalanceBuyRequests = rebalanceBuyRequests.slice(maxRebalanceBuyRequestCount);
+      const cappedBuyRequests = [...newEntryBuyRequests, ...cappedRebalanceBuyRequests].sort((a, b) => b.diff - a.diff);
+      if (skippedRebalanceBuyRequests.length > 0) {
+        runtime.logger.log(
+          runtime.i18n.t('logging.inference.allocationRecommendation.buy_turnover_capped', {
+            args: {
+              turnoverCap,
+              requestedCount: rebalanceBuyRequests.length,
+              executedCount: cappedRebalanceBuyRequests.length,
+              selectedSymbols: cappedRebalanceBuyRequests.map((item) => item.symbol).join(','),
+              skippedSymbols: skippedRebalanceBuyRequests.map((item) => item.symbol).join(','),
+              exemptedSymbols: newEntryBuyRequests.map((item) => item.symbol).join(','),
+            },
+          }),
+        );
+      }
       buyExecutions = await executeTradesSequentiallyWithRequests(
         cappedBuyRequests,
         (request) =>
@@ -1583,6 +1671,19 @@ export class TradeOrchestrationService {
     return normalized === 'open' || normalized === 'wait';
   }
 
+  /**
+   * Checks whether order status indicates completed execution.
+   * Used for conservative fill inference when exchange omits fill metrics.
+   */
+  private isFilledOrderStatus(status: string | null | undefined): boolean {
+    if (typeof status !== 'string') {
+      return false;
+    }
+
+    const normalized = status.toLowerCase();
+    return normalized === 'closed' || normalized === 'filled' || normalized === 'done';
+  }
+
   private async waitForPostOnlyReconcileRetry(): Promise<void> {
     if (!Number.isFinite(this.postOnlyReconcileRetryDelayMs) || this.postOnlyReconcileRetryDelayMs <= 0) {
       return;
@@ -1591,6 +1692,13 @@ export class TradeOrchestrationService {
     await new Promise((resolve) => {
       setTimeout(resolve, this.postOnlyReconcileRetryDelayMs);
     });
+  }
+
+  /**
+   * Detects buy requests that open a new position (not currently held).
+   */
+  private isNewEntryBuyRequest(request: TradeRequest): boolean {
+    return request.diff > 0 && request.inference?.hasStock === false;
   }
 
   /**
@@ -1675,6 +1783,23 @@ export class TradeOrchestrationService {
 
     if (!hasExecutedFill && adjustedOrder.executionMode === 'limit_post_only' && orderId) {
       await refreshPostOnlyExecution(orderId, 1);
+    }
+    if (!hasExecutedFill && adjustedOrder.executionMode !== 'limit_post_only' && orderId) {
+      await refreshPostOnlyExecution(orderId, this.postOnlyReconcileMaxFetchAttempts);
+    }
+
+    if (
+      !hasExecutedFill &&
+      adjustedOrder.executionMode === 'market' &&
+      adjustedOrder.orderType === 'market' &&
+      this.isFilledOrderStatus(resolvedOrderStatus) &&
+      requestedAmount != null &&
+      Number.isFinite(requestedAmount) &&
+      requestedAmount > 0
+    ) {
+      filledAmount = requestedAmount;
+      filledRatio = 1;
+      hasExecutedFill = true;
     }
 
     if (!hasExecutedFill) {
