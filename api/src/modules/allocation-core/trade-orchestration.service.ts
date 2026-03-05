@@ -1505,8 +1505,11 @@ export class TradeOrchestrationService {
                     estimatedCostRate: formatPercent(trade.estimatedCostRate),
                     spreadRate: formatPercent(trade.spreadRate),
                     impactRate: formatPercent(trade.impactRate),
-                    triggerReason: trade.triggerReason ?? '-',
-                    gateBypassedReason: trade.gateBypassedReason ?? '-',
+                    triggerReason: this.resolveTradeTriggerReasonLabel(runtime.i18n, trade.triggerReason),
+                    gateBypassedReason: this.resolveTradeGateBypassedReasonLabel(
+                      runtime.i18n,
+                      trade.gateBypassedReason,
+                    ),
                   },
                 }),
               )
@@ -1528,6 +1531,44 @@ export class TradeOrchestrationService {
    */
   private resolveTradePolicy(policy?: TradePolicyConfig): TradePolicyConfig {
     return policy ?? this.defaultTradePolicy;
+  }
+
+  /**
+   * Resolves localized trigger reason label for order notification payloads.
+   */
+  private resolveTradeTriggerReasonLabel(i18n: TradeRuntimeContext['i18n'], triggerReason?: string | null): string {
+    return this.resolveTradeReasonLabel(i18n, 'triggerReasons', triggerReason);
+  }
+
+  /**
+   * Resolves localized gate-bypass reason label for order notification payloads.
+   */
+  private resolveTradeGateBypassedReasonLabel(
+    i18n: TradeRuntimeContext['i18n'],
+    gateBypassedReason?: string | null,
+  ): string {
+    return this.resolveTradeReasonLabel(i18n, 'gateBypassedReasons', gateBypassedReason);
+  }
+
+  /**
+   * Translates reason code and falls back to raw code when translation key is absent.
+   */
+  private resolveTradeReasonLabel(
+    i18n: TradeRuntimeContext['i18n'],
+    reasonType: 'triggerReasons' | 'gateBypassedReasons',
+    reason?: string | null,
+  ): string {
+    if (!reason) {
+      return '-';
+    }
+
+    const key = `label.trade.${reasonType}.${reason}`;
+    const translated = i18n.t(key);
+    if (typeof translated !== 'string' || translated === key) {
+      return reason;
+    }
+
+    return translated;
   }
 
   /**

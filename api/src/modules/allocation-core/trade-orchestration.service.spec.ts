@@ -17,6 +17,39 @@ describe('TradeOrchestrationService', () => {
     jest.restoreAllMocks();
   });
 
+  describe('trade reason localization', () => {
+    it('should localize known trigger reasons using i18n labels', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+
+      const localized = (service as any).resolveTradeTriggerReasonLabel(i18n, 'included_rebalance');
+
+      expect(localized).toBe('리밸런싱 포함 종목');
+    });
+
+    it('should fallback to raw reason when translation key is missing', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+
+      const localized = (service as any).resolveTradeTriggerReasonLabel(i18n, 'custom_trigger_reason');
+
+      expect(localized).toBe('custom_trigger_reason');
+    });
+
+    it('should localize known gate bypass reasons using i18n labels', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+
+      const localized = (service as any).resolveTradeGateBypassedReasonLabel(i18n, 'urgent_risk_reduction');
+
+      expect(localized).toBe('긴급 리스크 축소 우선');
+    });
+
+    it('should fallback to dash when reason is empty', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+
+      expect((service as any).resolveTradeTriggerReasonLabel(i18n, null)).toBe('-');
+      expect((service as any).resolveTradeGateBypassedReasonLabel(i18n, undefined)).toBe('-');
+    });
+  });
+
   describe('market regime', () => {
     it('should map fear-greed values to multipliers', () => {
       expect(service.getMarketRegimeMultiplierByFearGreedIndex(10)).toBe(0.95);
