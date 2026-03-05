@@ -132,4 +132,23 @@ describe('ErrorService', () => {
     expect(functionName).toBeTruthy();
     expect(functionName).not.toBe('unknown');
   });
+
+  it('should not resolve operationName when retry succeeds', async () => {
+    const operation = jest.fn().mockResolvedValue('ok');
+    const resolveOperationNameSpy = jest.spyOn(
+      service as unknown as { resolveOperationName: (...args: unknown[]) => string },
+      'resolveOperationName',
+    );
+
+    await expect(
+      service.retryWithFallback(operation, {
+        firstPhase: { maxRetries: 1, retryDelay: 0 },
+        secondPhase: { maxRetries: 1, retryDelay: 0 },
+      }),
+    ).resolves.toBe('ok');
+
+    expect(resolveOperationNameSpy).not.toHaveBeenCalled();
+    expect(notifyService.notifyServer).not.toHaveBeenCalled();
+    resolveOperationNameSpy.mockRestore();
+  });
 });

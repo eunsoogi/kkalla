@@ -94,7 +94,6 @@ export class ErrorService {
     const firstPhase = options?.firstPhase || { maxRetries: 5, retryDelay: 1000 }; // 1초 간격, 5회 기본값
     const secondPhase = options?.secondPhase || { maxRetries: 3, retryDelay: 60000 }; // 1분 간격, 3회 기본값
     const isNonRetryable = options?.isNonRetryable;
-    const operationName = this.resolveOperationName(operation, options);
 
     try {
       // 1차 재시도: 짧은 지연, 여러번 시도
@@ -118,6 +117,7 @@ export class ErrorService {
 
         // 2차 재시도도 실패 시 서버 알림 발송
         const secondErrorMessage = this.getErrorMessage(secondError);
+        const operationName = this.resolveOperationName(operation, options);
 
         await this.notifyService.notifyServer(
           this.i18n.t('notify.retry.failed', {
