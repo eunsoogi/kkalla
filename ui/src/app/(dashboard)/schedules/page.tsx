@@ -260,7 +260,16 @@ const Page: React.FC = () => {
 
   const nextRunRemainingText = nextRunHighlight ? formatRemainingTime(nextRunHighlight.minutesUntil, t) : undefined;
 
+  const confirmScheduleAction = (message: string) => {
+    return window.confirm(message);
+  };
+
   const execute = (task: ScheduleExecutionTask, executor: () => Promise<ScheduleActionState>) => {
+    const confirmed = confirmScheduleAction(t('schedule.execute.confirm.execute', { task: taskTitle(task) }));
+    if (!confirmed) {
+      return;
+    }
+
     startExecuteTransition(async () => {
       const result = await executor();
       setRecentResults((prev) => ({
@@ -285,6 +294,11 @@ const Page: React.FC = () => {
   };
 
   const releaseLock = (task: ScheduleExecutionTask) => {
+    const confirmed = confirmScheduleAction(t('schedule.execute.confirm.releaseLock', { task: taskTitle(task) }));
+    if (!confirmed) {
+      return;
+    }
+
     startLockTransition(async () => {
       const result = await releaseScheduleLockAction(task);
       setRecentLockResults((prev) => ({
