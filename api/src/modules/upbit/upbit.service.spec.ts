@@ -5,22 +5,34 @@ import { UpbitService } from './upbit.service';
 
 describe('UpbitService', () => {
   let service: UpbitService;
+  const errorService = {
+    retry: jest.fn(),
+    retryWithFallback: jest.fn((fn: () => Promise<unknown>) => fn()),
+    getErrorMessage: jest.fn((error: unknown) => {
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return typeof error === 'string' ? error : JSON.stringify(error);
+    }),
+  };
   const cacheService = {
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
+    errorService.retry.mockReset();
+    errorService.retryWithFallback.mockReset();
+    errorService.retry.mockImplementation((fn: () => Promise<unknown>) => fn());
+    errorService.retryWithFallback.mockImplementation((fn: () => Promise<unknown>) => fn());
+    errorService.getErrorMessage.mockClear();
     cacheService.get.mockResolvedValue(null);
     cacheService.set.mockResolvedValue(undefined);
     service = new UpbitService(
       {
         t: jest.fn(translateKoMessage),
       } as any,
-      {
-        retry: jest.fn(),
-        retryWithFallback: jest.fn((fn: () => Promise<unknown>) => fn()),
-      } as any,
+      errorService as any,
       {
         notify: jest.fn().mockResolvedValue(undefined),
         notifyServer: jest.fn().mockResolvedValue(undefined),
@@ -82,6 +94,17 @@ describe('UpbitService', () => {
 
     expect(order).toEqual(expect.objectContaining({ id: 'order-1', status: 'closed' }));
     expect(fetchOrder).toHaveBeenCalledWith('order-1', 'BTC/KRW');
+  });
+
+  it('should propagate cancelOrder done_order errors to trade orchestration layer', async () => {
+    const cancelOrder = jest
+      .fn()
+      .mockRejectedValue(new Error('upbit {"error":{"name":"done_order","message":"이미 체결된 주문입니다."}}'));
+    jest.spyOn(service, 'getClient').mockResolvedValue({ cancelOrder } as any);
+    errorService.retryWithFallback.mockImplementation(async (fn: () => Promise<unknown>) => fn());
+
+    await expect(service.cancelOrder({ id: 'user-1' } as any, 'order-1', 'BTC/KRW')).rejects.toThrow('done_order');
+    expect(cancelOrder).toHaveBeenCalledWith('order-1', 'BTC/KRW');
   });
 
   it('should use precomputed marketPrice when it is provided', async () => {

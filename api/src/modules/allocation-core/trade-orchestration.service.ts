@@ -1512,6 +1512,63 @@ export class TradeOrchestrationService {
     return firstOrderId ?? null;
   }
 
+  private extractExchangeErrorCodeFromMessage(message: unknown): string | null {
+    if (typeof message !== 'string' || message.trim().length < 1) {
+      return null;
+    }
+
+    const jsonStart = message.indexOf('{');
+    if (jsonStart < 0) {
+      return null;
+    }
+
+    const payload = message.slice(jsonStart);
+    try {
+      const parsed = JSON.parse(payload) as {
+        error?: {
+          name?: unknown;
+        };
+      };
+      return typeof parsed.error?.name === 'string' ? parsed.error.name.toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveExchangeErrorCode(error: unknown): string | null {
+    if (error && typeof error === 'object') {
+      const maybeError = error as {
+        name?: unknown;
+        error?: {
+          name?: unknown;
+        };
+        message?: unknown;
+      };
+
+      if (typeof maybeError.error?.name === 'string' && maybeError.error.name.length > 0) {
+        return maybeError.error.name.toLowerCase();
+      }
+
+      if (typeof maybeError.name === 'string') {
+        const name = maybeError.name.toLowerCase();
+        if (name === 'out_of_scope' || name === 'done_order') {
+          return name;
+        }
+      }
+
+      const fromObjectMessage = this.extractExchangeErrorCodeFromMessage(maybeError.message);
+      if (fromObjectMessage) {
+        return fromObjectMessage;
+      }
+    }
+
+    if (error instanceof Error) {
+      return this.extractExchangeErrorCodeFromMessage(error.message);
+    }
+
+    return null;
+  }
+
   /**
    * Checks whether exchange order status still indicates an active open order.
    * @param status - Exchange order status text.
@@ -1631,9 +1688,11 @@ export class TradeOrchestrationService {
           return null;
         }
         let cancelFailed = false;
+        let cancelPermissionDenied = false;
         try {
           // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
           await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
+          resolvedOrderStatus = 'canceled';
           runtime.logger.log(
             runtime.i18n.t('logging.trade.post_only_cancelled', {
               args: {
@@ -1644,6 +1703,25 @@ export class TradeOrchestrationService {
             }),
           );
         } catch (error) {
+          const exchangeErrorCode = this.resolveExchangeErrorCode(error);
+          if (exchangeErrorCode === 'done_order') {
+            resolvedOrderStatus = 'done';
+            await refreshPostOnlyExecution(orderId, 1);
+            if (
+              !hasExecutedFill &&
+              requestedAmount != null &&
+              Number.isFinite(requestedAmount) &&
+              requestedAmount > 0
+            ) {
+              filledAmount = requestedAmount;
+              filledRatio = 1;
+              hasExecutedFill = true;
+            }
+          } else if (exchangeErrorCode === 'out_of_scope') {
+            cancelPermissionDenied = true;
+            await refreshPostOnlyExecution(orderId, 1);
+          }
+
           runtime.logger.warn(
             runtime.i18n.t('logging.trade.post_only_cancel_failed', {
               args: {
@@ -1656,10 +1734,12 @@ export class TradeOrchestrationService {
           );
           cancelFailed = true;
         }
-        await refreshPostOnlyExecution(orderId, this.postOnlyReconcileMaxFetchAttempts);
+        if (!hasExecutedFill && !cancelPermissionDenied) {
+          await refreshPostOnlyExecution(orderId, this.postOnlyReconcileMaxFetchAttempts);
+        }
 
         if (!hasExecutedFill) {
-          if (cancelFailed) {
+          if (cancelFailed && !cancelPermissionDenied) {
             // Persist a trace record when cancellation fails so operators can investigate potential drift.
             await this.saveTrade(user, {
               symbol: request.symbol,
