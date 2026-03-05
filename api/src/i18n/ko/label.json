@@ -14,5 +14,34 @@
       "buy": "매수",
       "sell": "매도"
     }
+  },
+  "trade": {
+    "gateBypassedReasons": {
+      "earnings": "실적 이벤트 영향",
+      "latency": "지연 보정",
+      "urgent_risk_reduction": "긴급 리스크 축소 우선",
+      "volatility": "변동성 우회"
+    },
+    "triggerReasons": {
+      "below_min_trade_amount": "최소 주문 금액 미달",
+      "breakout-fail": "돌파 실패",
+      "edge_below_cost": "기대 엣지가 비용 대비 부족",
+      "excluded_staged_exit": "제외 종목 단계적 축소",
+      "included_rebalance": "리밸런싱 포함 종목",
+      "invalid_order_amount": "주문 수량/금액 계산 오류",
+      "macro-rebound": "거시 반등 대응",
+      "mean-revert": "평균 회귀",
+      "missing_from_inference": "추론 누락 종목 정리",
+      "missing_inference_grace_elapsed": "추론 누락 유예 종료",
+      "momentum": "모멘텀",
+      "no_trade_trim": "무거래 종목 비중 축소",
+      "profit-take": "이익 실현",
+      "risk-reduce": "리스크 축소",
+      "stop-loss": "손절",
+      "symbol_not_orderable": "주문 불가 종목",
+      "trailing_take_profit": "트레일링 익절",
+      "trend-follow": "추세 추종",
+      "volatility_stop_loss": "변동성 손절"
+    }
   }
 }
