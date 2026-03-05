@@ -750,7 +750,9 @@ describe('MarketRiskService', () => {
       amount: 10_000,
       profit: 0,
       requestedAmount: 10_000,
+      requestedVolume: 1,
       filledAmount: 10_000,
+      filledVolume: 1,
       inference: inferences[0],
     });
 

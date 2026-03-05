@@ -2,6 +2,24 @@ import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
 export class Migration1772800000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.addColumnIfMissing(
+      queryRunner,
+      'trade',
+      new TableColumn({
+        name: 'requested_volume',
+        type: 'double',
+        isNullable: true,
+      }),
+    );
+    await this.addColumnIfMissing(
+      queryRunner,
+      'trade',
+      new TableColumn({
+        name: 'filled_volume',
+        type: 'double',
+        isNullable: true,
+      }),
+    );
     await this.dropColumnIfExists(queryRunner, 'trade', 'order_status');
     await this.dropColumnIfExists(queryRunner, 'trade', 'filled_ratio');
     await this.dropColumnIfExists(queryRunner, 'trade', 'execution_mode');
@@ -10,6 +28,8 @@ export class Migration1772800000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.dropColumnIfExists(queryRunner, 'trade', 'filled_volume');
+    await this.dropColumnIfExists(queryRunner, 'trade', 'requested_volume');
     await this.addColumnIfMissing(
       queryRunner,
       'trade',

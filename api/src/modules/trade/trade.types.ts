@@ -42,7 +42,9 @@ export interface TradeData {
   requestPrice?: number | null;
   averagePrice?: number | null;
   requestedAmount?: number | null;
+  requestedVolume?: number | null;
   filledAmount?: number | null;
+  filledVolume?: number | null;
   expectedEdgeRate?: number | null;
   estimatedCostRate?: number | null;
   spreadRate?: number | null;

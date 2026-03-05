@@ -44,6 +44,7 @@ export interface AdjustedOrderResult {
   requestedAmount: number | null;
   requestedVolume: number | null;
   filledAmount: number | null;
+  filledVolume: number | null;
   averagePrice: number | null;
   expectedEdgeRate: number | null;
   estimatedCostRate: number | null;

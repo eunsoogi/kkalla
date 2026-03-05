@@ -93,7 +93,19 @@ export class Trade extends BaseEntity {
     type: 'double',
     nullable: true,
   })
+  requestedVolume: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
   filledAmount: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  filledVolume: number | null;
 
   @Column({
     type: 'double',

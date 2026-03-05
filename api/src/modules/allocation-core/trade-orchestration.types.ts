@@ -138,7 +138,9 @@ export interface ExecutionRequestLike {
 export interface ExecutionTradeLike {
   type: string;
   requestedAmount?: number | null;
+  requestedVolume?: number | null;
   filledAmount?: number | null;
+  filledVolume?: number | null;
 }
 
 export interface HoldingLedgerRemoveItem {

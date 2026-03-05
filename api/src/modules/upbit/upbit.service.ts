@@ -670,6 +670,7 @@ export class UpbitService {
       requestedAmount?: number | null;
       requestedVolume?: number | null;
       filledAmount?: number | null;
+      filledVolume?: number | null;
       averagePrice?: number | null;
       estimatedCostRate?: number | null;
       spreadRate?: number | null;
@@ -684,6 +685,7 @@ export class UpbitService {
       requestedAmount: options?.requestedAmount ?? null,
       requestedVolume: options?.requestedVolume ?? null,
       filledAmount: options?.filledAmount ?? null,
+      filledVolume: options?.filledVolume ?? null,
       averagePrice: options?.averagePrice ?? null,
       expectedEdgeRate: request.expectedEdgeRate ?? null,
       estimatedCostRate: options?.estimatedCostRate ?? request.costEstimate?.estimatedCostRate ?? null,
@@ -953,6 +955,21 @@ export class UpbitService {
             : isFinalizedOrder && requestedAmount != null && requestedAmount > Number.EPSILON
               ? requestedAmount
               : null;
+      const rawFilledVolume = this.normalizePositiveNumber(finalOrder?.filled);
+      const filledVolume =
+        finalOrder == null
+          ? null
+          : rawFilledVolume != null
+            ? rawFilledVolume
+            : averagePrice != null &&
+                averagePrice > Number.EPSILON &&
+                filledAmount != null &&
+                Number.isFinite(filledAmount) &&
+                filledAmount > Number.EPSILON
+              ? filledAmount / averagePrice
+              : isFinalizedOrder && requestedVolume != null && requestedVolume > Number.EPSILON
+                ? requestedVolume
+                : null;
 
       return this.createAdjustedOrderResult(request, {
         order: finalOrder,
@@ -960,6 +977,7 @@ export class UpbitService {
         requestedAmount,
         requestedVolume,
         filledAmount,
+        filledVolume,
         averagePrice,
         estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
         spreadRate: dynamicCostEstimate.spreadRate,

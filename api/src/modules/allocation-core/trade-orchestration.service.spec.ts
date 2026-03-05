@@ -306,6 +306,37 @@ describe('TradeOrchestrationService', () => {
       expect(metrics.hasExecutedFill).toBe(true);
       expect(metrics.filledAmount).toBe(100_000);
     });
+
+    it('should reconcile open market orders with fetchOrder before deciding execution failure', async () => {
+      const runtime: any = {
+        logger: { warn: jest.fn() },
+        exchangeService: {
+          fetchOrder: jest
+            .fn()
+            .mockResolvedValueOnce({ id: 'order-1', status: 'open', amount: 1, filled: 0 })
+            .mockResolvedValueOnce({ id: 'order-1', status: 'closed', amount: 1, filled: 1 }),
+          calculateAmount: jest.fn(async (order: any) => (order?.status === 'closed' ? 100_000 : 0)),
+        },
+      };
+
+      const reconciled = await (service as any).reconcileOpenMarketOrderFillMetrics({
+        runtime,
+        user: { id: 'user-1' },
+        symbol: 'BTC/KRW',
+        orderId: 'order-1',
+        adjustedRequestedAmount: 100_000,
+        requestRequestedAmount: 100_000,
+        requestedAmount: 100_000,
+        requestedVolume: 1,
+        filledVolume: 0,
+      });
+
+      expect(runtime.exchangeService.fetchOrder).toHaveBeenCalledTimes(2);
+      expect(reconciled).not.toBeNull();
+      expect(reconciled?.hasExecutedFill).toBe(true);
+      expect(reconciled?.filledAmount).toBe(100_000);
+      expect(reconciled?.filledVolume).toBe(1);
+    });
   });
 
   describe('included trade request sizing', () => {
@@ -746,14 +777,14 @@ describe('TradeOrchestrationService', () => {
               diff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
-            trade: { type: OrderTypes.SELL, requestedAmount: 100_000, filledAmount: 100_000 },
+            trade: { type: OrderTypes.SELL, requestedVolume: 0.4, filledVolume: 0.4 },
           },
           {
             request: {
               symbol: 'XRP/KRW',
               diff: -1,
             },
-            trade: { type: OrderTypes.SELL, requestedAmount: 80_000, filledAmount: 80_000 },
+            trade: { type: OrderTypes.SELL, requestedVolume: 200, filledVolume: 200 },
           },
           {
             request: {
@@ -761,7 +792,7 @@ describe('TradeOrchestrationService', () => {
               diff: -1,
               inference: { category: Category.COIN_MINOR },
             },
-            trade: { type: OrderTypes.SELL, requestedAmount: 100_000, filledAmount: 40_000 },
+            trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.4 },
           },
         ],
         OrderTypes.SELL,
@@ -777,7 +808,7 @@ describe('TradeOrchestrationService', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('should treat near-equal notional as full liquidation to absorb market drift', () => {
+    it('should treat near-equal volume as full liquidation to absorb execution drift', () => {
       const result = (service as any).collectLiquidatedHoldingItems(
         [
           {
@@ -786,7 +817,7 @@ describe('TradeOrchestrationService', () => {
               diff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
-            trade: { type: OrderTypes.SELL, requestedAmount: 100_000, filledAmount: 95_000 },
+            trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.996 },
           },
         ],
         OrderTypes.SELL,
@@ -796,7 +827,7 @@ describe('TradeOrchestrationService', () => {
       expect(result).toEqual([{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }]);
     });
 
-    it('should keep holding ledger entry when remaining notional exceeds minimum trade amount', () => {
+    it('should keep holding ledger entry when remaining volume is still meaningful', () => {
       const result = (service as any).collectLiquidatedHoldingItems(
         [
           {
@@ -805,7 +836,7 @@ describe('TradeOrchestrationService', () => {
               diff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
-            trade: { type: OrderTypes.SELL, requestedAmount: 1_000_000, filledAmount: 950_000 },
+            trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.95 },
           },
         ],
         OrderTypes.SELL,
@@ -824,7 +855,7 @@ describe('TradeOrchestrationService', () => {
               diff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
-            trade: { type: OrderTypes.SELL, requestedAmount: 100_000, filledAmount: 60_000 },
+            trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.6 },
           },
         ],
         OrderTypes.SELL,
