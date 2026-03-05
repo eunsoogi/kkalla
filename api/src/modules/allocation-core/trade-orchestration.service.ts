@@ -34,12 +34,10 @@ import {
   isSellAmountSufficient,
   normalizeAllocationRecommendationResponsePayload,
   normalizeCandidateWeight,
-  normalizeOptionalWeight,
   resolveAvailableKrwBalance,
   resolveConsumeRecommendationAction,
   resolveInferenceRecommendationAction as resolveInferenceRecommendationActionByWeight,
   resolveNeutralModelTargetWeight,
-  resolveNextModelTargetWeight,
   resolveServerRecommendationAction,
   scaleBuyRequestsToAvailableKrw,
   shouldReallocate,
@@ -100,8 +98,7 @@ export class TradeOrchestrationService {
   };
   private readonly minimumTradeIntensity = SHARED_REBALANCE_POLICY.minimumTradeIntensity;
   private readonly tradeExecutionRuntime = SHARED_TRADE_EXECUTION_RUNTIME;
-  private readonly postOnlyReconcileMaxFetchAttempts = this.tradeExecutionRuntime.postOnlyReconcileMaxFetchAttempts;
-  private readonly postOnlyReconcileRetryDelayMs = this.tradeExecutionRuntime.postOnlyReconcileRetryDelayMs;
+  private readonly fullLiquidationFillRatioThreshold = 0.995;
 
   /**
    * Shared queue message version used by allocation/risk SQS producers and consumers.
@@ -180,27 +177,10 @@ export class TradeOrchestrationService {
   }): AllocationRecommendationData[] {
     const targetSlotCount = Math.max(1, options.targetSlotCount);
     const minRecommendWeight = SHARED_REBALANCE_POLICY.minRecommendWeight;
-    const sellScoreThreshold = SHARED_REBALANCE_POLICY.sellScoreThreshold;
 
     return options.inferences.map((inference) => {
-      const persistedTargetWeight = normalizeOptionalWeight(inference.modelTargetWeight);
-      const scoreImpliedTargetWeight = normalizeCandidateWeight(inference.buyScore);
+      const nextModelTargetWeight = normalizeCandidateWeight(inference.modelTargetWeight);
       const currentHoldingWeight = this.clampToUnitInterval(options.currentWeights.get(inference.symbol) ?? 0);
-      const fallbackTargetWeight = normalizeCandidateWeight(
-        inference.intensity != null ? Math.max(0, inference.intensity) : null,
-      );
-      const hasPersistedSellAction = inference.action === 'sell';
-      const hasStrongSellSignal =
-        hasPersistedSellAction ||
-        (inference.sellScore != null &&
-          Number.isFinite(inference.sellScore) &&
-          Number(inference.sellScore) >= sellScoreThreshold);
-      const nextModelTargetWeight = resolveNextModelTargetWeight({
-        persistedTargetWeight,
-        scoreImpliedTargetWeight,
-        fallbackTargetWeight,
-        hasStrongSellSignal,
-      });
       // Consume stage ignores persisted action and derives direction from user's live holding delta.
       const modelAction = resolveConsumeRecommendationAction({
         currentHoldingWeight,
@@ -1517,9 +1497,6 @@ export class TradeOrchestrationService {
                     type: runtime.i18n.t(`label.order.type.${trade.type}`),
                     amount: formatNumber(trade.amount),
                     profit: formatNumber(trade.profit),
-                    executionMode: trade.executionMode ?? '-',
-                    orderStatus: this.resolveOrderStatusLabel(runtime, trade.orderStatus),
-                    filledRatio: formatPercent(trade.filledRatio),
                     expectedEdgeRate: formatPercent(trade.expectedEdgeRate),
                     estimatedCostRate: formatPercent(trade.estimatedCostRate),
                     spreadRate: formatPercent(trade.spreadRate),
@@ -1550,151 +1527,6 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Maps raw order-status keys to localized labels used in notifications.
-   * @param runtime - Runtime services including i18n.
-   * @param status - Raw exchange order status.
-   * @returns Localized status label or raw fallback.
-   */
-  private resolveOrderStatusLabel(runtime: TradeRuntimeContext, status: string | null | undefined): string {
-    if (!status) {
-      return '-';
-    }
-
-    switch (status) {
-      case 'open':
-        return runtime.i18n.t('label.order.status.open');
-      case 'closed':
-        return runtime.i18n.t('label.order.status.closed');
-      case 'canceled':
-        return runtime.i18n.t('label.order.status.canceled');
-      case 'cancelled':
-        return runtime.i18n.t('label.order.status.cancelled');
-      case 'partially_filled':
-        return runtime.i18n.t('label.order.status.partially_filled');
-      case 'filled':
-        return runtime.i18n.t('label.order.status.filled');
-      case 'wait':
-        return runtime.i18n.t('label.order.status.wait');
-      case 'done':
-        return runtime.i18n.t('label.order.status.done');
-      default:
-        return status;
-    }
-  }
-
-  /**
-   * Resolves first cancellable order id from exchange payload.
-   * @param order - Exchange order payload.
-   * @returns Normalized order id or `null` when unavailable.
-   */
-  private resolvePrimaryOrderId(order: Order): string | null {
-    if (typeof order.id !== 'string' || order.id.trim().length < 1) {
-      return null;
-    }
-
-    const [firstOrderId] = order.id
-      .split(',')
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-
-    return firstOrderId ?? null;
-  }
-
-  private extractExchangeErrorCodeFromMessage(message: unknown): string | null {
-    if (typeof message !== 'string' || message.trim().length < 1) {
-      return null;
-    }
-
-    const jsonStart = message.indexOf('{');
-    if (jsonStart < 0) {
-      return null;
-    }
-
-    const payload = message.slice(jsonStart);
-    try {
-      const parsed = JSON.parse(payload) as {
-        error?: {
-          name?: unknown;
-        };
-      };
-      return typeof parsed.error?.name === 'string' ? parsed.error.name.toLowerCase() : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private resolveExchangeErrorCode(error: unknown): string | null {
-    if (error && typeof error === 'object') {
-      const maybeError = error as {
-        name?: unknown;
-        error?: {
-          name?: unknown;
-        };
-        message?: unknown;
-      };
-
-      if (typeof maybeError.error?.name === 'string' && maybeError.error.name.length > 0) {
-        return maybeError.error.name.toLowerCase();
-      }
-
-      if (typeof maybeError.name === 'string') {
-        const name = maybeError.name.toLowerCase();
-        if (name === 'out_of_scope' || name === 'done_order') {
-          return name;
-        }
-      }
-
-      const fromObjectMessage = this.extractExchangeErrorCodeFromMessage(maybeError.message);
-      if (fromObjectMessage) {
-        return fromObjectMessage;
-      }
-    }
-
-    if (error instanceof Error) {
-      return this.extractExchangeErrorCodeFromMessage(error.message);
-    }
-
-    return null;
-  }
-
-  /**
-   * Checks whether exchange order status still indicates an active open order.
-   * @param status - Exchange order status text.
-   * @returns True when the order should be treated as open.
-   */
-  private isOpenOrderStatus(status: string | null | undefined): boolean {
-    if (typeof status !== 'string') {
-      return false;
-    }
-
-    const normalized = status.toLowerCase();
-    return normalized === 'open' || normalized === 'wait';
-  }
-
-  /**
-   * Checks whether order status indicates completed execution.
-   * Used for conservative fill inference when exchange omits fill metrics.
-   */
-  private isFilledOrderStatus(status: string | null | undefined): boolean {
-    if (typeof status !== 'string') {
-      return false;
-    }
-
-    const normalized = status.toLowerCase();
-    return normalized === 'closed' || normalized === 'filled' || normalized === 'done';
-  }
-
-  private async waitForPostOnlyReconcileRetry(): Promise<void> {
-    if (!Number.isFinite(this.postOnlyReconcileRetryDelayMs) || this.postOnlyReconcileRetryDelayMs <= 0) {
-      return;
-    }
-
-    await new Promise((resolve) => {
-      setTimeout(resolve, this.postOnlyReconcileRetryDelayMs);
-    });
-  }
-
-  /**
    * Detects buy requests that open a new position (not currently held).
    */
   private isNewEntryBuyRequest(request: TradeRequest): boolean {
@@ -1722,235 +1554,40 @@ export class TradeOrchestrationService {
       runtime.i18n.t('logging.trade.calculate.start', { args: { id: user.id, symbol: request.symbol } }),
     );
 
-    let executionOrder = order;
+    const executionOrder = order;
     const type = runtime.exchangeService.getOrderType(executionOrder);
-    let { requestedAmount, filledAmount, filledRatio, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
+    const { requestedAmount, filledAmount, hasExecutedFill } = await this.resolveTradeExecutionFillMetrics({
       adjustedRequestedAmount: adjustedOrder.requestedAmount,
       requestRequestedAmount: request.requestedAmount,
       adjustedFilledAmount: adjustedOrder.filledAmount,
-      adjustedFilledRatio: adjustedOrder.filledRatio,
+      orderStatus: typeof executionOrder.status === 'string' ? executionOrder.status : null,
       resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(executionOrder),
     });
-    const orderId = this.resolvePrimaryOrderId(order);
     const expectedEdgeRate = adjustedOrder.expectedEdgeRate ?? request.expectedEdgeRate ?? null;
-    let resolvedOrderStatus = adjustedOrder.orderStatus ?? order.status ?? null;
-    let resolvedAveragePrice = adjustedOrder.averagePrice ?? null;
-    const refreshPostOnlyExecution = async (targetOrderId: string, attempts: number): Promise<boolean> => {
-      const maxAttempts = Math.max(1, attempts);
-
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        try {
-          const refreshedOrder = await runtime.exchangeService.fetchOrder(user, targetOrderId, request.symbol);
-          if (refreshedOrder) {
-            executionOrder = refreshedOrder;
-            ({ requestedAmount, filledAmount, filledRatio, hasExecutedFill } =
-              await this.resolveTradeExecutionFillMetrics({
-                adjustedRequestedAmount: adjustedOrder.requestedAmount,
-                requestRequestedAmount: request.requestedAmount,
-                adjustedFilledAmount: null,
-                // Keep buy-side ratio as requested-notional based (filledAmount/requestedAmount).
-                adjustedFilledRatio: type === OrderTypes.BUY ? null : this.resolveFilledRatioFromOrder(refreshedOrder),
-                resolveFallbackFilledAmount: async () => runtime.exchangeService.calculateAmount(refreshedOrder),
-              }));
-            resolvedOrderStatus = (refreshedOrder.status as string | null) ?? resolvedOrderStatus;
-            resolvedAveragePrice = this.resolveAveragePriceFromOrder(refreshedOrder) ?? resolvedAveragePrice;
-            if (hasExecutedFill || !this.isOpenOrderStatus(resolvedOrderStatus)) {
-              return true;
-            }
-          }
-        } catch (error) {
-          runtime.logger.warn(
-            runtime.i18n.t('logging.trade.post_only_reconcile_failed', {
-              args: {
-                id: user.id,
-                symbol: request.symbol,
-                orderId: targetOrderId,
-                attempt: attempt + 1,
-                maxAttempts,
-              },
-            }),
-            error,
-          );
-        }
-
-        if (attempt + 1 < maxAttempts) {
-          await this.waitForPostOnlyReconcileRetry();
-        }
-      }
-
-      return false;
-    };
-
-    if (!hasExecutedFill && adjustedOrder.executionMode === 'limit_post_only' && orderId) {
-      await refreshPostOnlyExecution(orderId, 1);
-    }
-    if (!hasExecutedFill && adjustedOrder.executionMode !== 'limit_post_only' && orderId) {
-      await refreshPostOnlyExecution(orderId, this.postOnlyReconcileMaxFetchAttempts);
-    }
-
-    if (
-      !hasExecutedFill &&
-      adjustedOrder.executionMode === 'market' &&
-      adjustedOrder.orderType === 'market' &&
-      this.isFilledOrderStatus(resolvedOrderStatus) &&
-      requestedAmount != null &&
-      Number.isFinite(requestedAmount) &&
-      requestedAmount > 0
-    ) {
-      filledAmount = requestedAmount;
-      filledRatio = 1;
-      hasExecutedFill = true;
-    }
+    const resolvedAveragePrice = adjustedOrder.averagePrice ?? this.resolveAveragePriceFromOrder(order);
 
     if (!hasExecutedFill) {
-      if (adjustedOrder.executionMode === 'limit_post_only' && orderId) {
-        if (!this.isOpenOrderStatus(resolvedOrderStatus)) {
-          runtime.logger.log(
-            runtime.i18n.t('logging.trade.not_exist', {
-              args: { id: user.id, symbol: request.symbol },
-            }),
-          );
-          return null;
-        }
-        let cancelFailed = false;
-        let cancelPermissionDenied = false;
-        try {
-          // Prevent unfilled post-only orders from lingering outside the rebalance ledger pipeline.
-          await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
-          resolvedOrderStatus = 'canceled';
-          runtime.logger.log(
-            runtime.i18n.t('logging.trade.post_only_cancelled', {
-              args: {
-                id: user.id,
-                symbol: request.symbol,
-                orderId,
-              },
-            }),
-          );
-        } catch (error) {
-          const exchangeErrorCode = this.resolveExchangeErrorCode(error);
-          if (exchangeErrorCode === 'done_order') {
-            resolvedOrderStatus = 'done';
-            await refreshPostOnlyExecution(orderId, 1);
-            if (
-              !hasExecutedFill &&
-              requestedAmount != null &&
-              Number.isFinite(requestedAmount) &&
-              requestedAmount > 0
-            ) {
-              filledAmount = requestedAmount;
-              filledRatio = 1;
-              hasExecutedFill = true;
-            }
-          } else if (exchangeErrorCode === 'out_of_scope') {
-            cancelPermissionDenied = true;
-            await refreshPostOnlyExecution(orderId, 1);
-          }
-
-          runtime.logger.warn(
-            runtime.i18n.t('logging.trade.post_only_cancel_failed', {
-              args: {
-                id: user.id,
-                symbol: request.symbol,
-                orderId,
-              },
-            }),
-            error,
-          );
-          cancelFailed = true;
-        }
-        if (!hasExecutedFill && !cancelPermissionDenied) {
-          await refreshPostOnlyExecution(orderId, this.postOnlyReconcileMaxFetchAttempts);
-        }
-
-        if (!hasExecutedFill) {
-          if (cancelFailed && !cancelPermissionDenied) {
-            // Persist a trace record when cancellation fails so operators can investigate potential drift.
-            await this.saveTrade(user, {
-              symbol: request.symbol,
-              type,
-              amount: 0,
-              profit: 0,
-              inference: request.inference,
-              executionMode: adjustedOrder.executionMode ?? request.executionMode ?? null,
-              orderType: adjustedOrder.orderType ?? request.orderType ?? null,
-              timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
-              requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
-              averagePrice: resolvedAveragePrice,
-              requestedAmount,
-              filledAmount,
-              filledRatio,
-              orderStatus: resolvedOrderStatus ?? 'open',
-              expectedEdgeRate,
-              estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
-              spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
-              impactRate: adjustedOrder.impactRate ?? request.impactRate ?? null,
-              missedOpportunityCost: null,
-              gateBypassedReason: adjustedOrder.gateBypassedReason ?? request.gateBypassedReason ?? null,
-              triggerReason: adjustedOrder.triggerReason ?? request.triggerReason ?? 'post_only_unfilled_cancel_failed',
-            });
-          }
-          return null;
-        }
-      } else {
-        runtime.logger.log(
-          runtime.i18n.t('logging.trade.not_exist', {
-            args: { id: user.id, symbol: request.symbol },
-          }),
-        );
-        return null;
-      }
+      runtime.logger.log(
+        runtime.i18n.t('logging.trade.not_exist', {
+          args: { id: user.id, symbol: request.symbol },
+        }),
+      );
+      return null;
     }
 
     const amount = filledAmount;
     const profit = await runtime.exchangeService.calculateProfit(request.balances, executionOrder, amount);
 
-    const shouldCancelPostOnlyRemainder =
-      adjustedOrder.executionMode === 'limit_post_only' &&
-      orderId != null &&
-      this.isOpenOrderStatus(resolvedOrderStatus) &&
-      filledRatio != null &&
-      Number.isFinite(filledRatio) &&
-      filledRatio < 1;
-    if (shouldCancelPostOnlyRemainder) {
-      try {
-        await runtime.exchangeService.cancelOrder(user, orderId, request.symbol);
-        resolvedOrderStatus = 'canceled';
-        runtime.logger.log(
-          runtime.i18n.t('logging.trade.post_only_remainder_cancelled', {
-            args: {
-              id: user.id,
-              symbol: request.symbol,
-              orderId,
-              filledRatio: formatPercent(filledRatio),
-            },
-          }),
-        );
-      } catch (error) {
-        runtime.logger.warn(
-          runtime.i18n.t('logging.trade.post_only_remainder_cancel_failed', {
-            args: {
-              id: user.id,
-              symbol: request.symbol,
-              orderId,
-              filledRatio: formatPercent(filledRatio),
-            },
-          }),
-          error,
-        );
-      }
-    }
-
     // Estimate unrealized edge lost by partial fill (for post-trade diagnostics only).
+    const missingRequestedAmount =
+      requestedAmount != null && requestedAmount > filledAmount ? requestedAmount - filledAmount : 0;
     const missedOpportunityCost =
       requestedAmount != null &&
       requestedAmount > 0 &&
       expectedEdgeRate != null &&
       Number.isFinite(expectedEdgeRate) &&
-      filledRatio != null &&
-      Number.isFinite(filledRatio) &&
-      filledRatio < 1
-        ? requestedAmount * (1 - filledRatio) * expectedEdgeRate
+      missingRequestedAmount > Number.EPSILON
+        ? missingRequestedAmount * expectedEdgeRate
         : null;
 
     runtime.logger.log(
@@ -1973,15 +1610,10 @@ export class TradeOrchestrationService {
       amount,
       profit,
       inference: request.inference,
-      executionMode: adjustedOrder.executionMode ?? request.executionMode ?? null,
-      orderType: adjustedOrder.orderType ?? request.orderType ?? null,
-      timeInForce: adjustedOrder.timeInForce ?? request.timeInForce ?? null,
       requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
       averagePrice: resolvedAveragePrice,
       requestedAmount,
       filledAmount,
-      filledRatio,
-      orderStatus: resolvedOrderStatus,
       expectedEdgeRate,
       estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
       spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
@@ -2152,16 +1784,11 @@ export class TradeOrchestrationService {
 
     return {
       order: (adjustedOrderResponse as Order | null) ?? null,
-      executionMode: request.executionMode ?? 'market',
-      orderType: request.orderType ?? 'market',
-      timeInForce: request.timeInForce ?? null,
       requestPrice: request.requestPrice ?? null,
       requestedAmount: request.requestedAmount ?? null,
       requestedVolume: null,
       filledAmount: null,
-      filledRatio: null,
       averagePrice: null,
-      orderStatus: null,
       expectedEdgeRate: request.expectedEdgeRate ?? null,
       estimatedCostRate: request.estimatedCostRate ?? null,
       spreadRate: request.spreadRate ?? null,
@@ -2177,7 +1804,7 @@ export class TradeOrchestrationService {
    * @returns `true` when payload has adjusted-order shape.
    */
   private isAdjustedOrderResult(value: unknown): value is AdjustedOrderResult {
-    return Boolean(value && typeof value === 'object' && 'order' in value && 'executionMode' in value);
+    return Boolean(value && typeof value === 'object' && 'order' in value && 'requestedAmount' in value);
   }
 
   /**
@@ -2188,41 +1815,34 @@ export class TradeOrchestrationService {
   ): Promise<TradeExecutionFillMetrics> {
     const requestedAmount = options.adjustedRequestedAmount ?? options.requestRequestedAmount ?? null;
     const adjustedFilledAmount = this.normalizeNonNegativeNumber(options.adjustedFilledAmount);
+    const isFinalizedOrder = this.isFinalizedOrderStatus(options.orderStatus);
     const fallbackFilledAmount =
-      adjustedFilledAmount ?? this.normalizeNonNegativeNumber(await options.resolveFallbackFilledAmount());
-    const filledAmount = fallbackFilledAmount ?? 0;
-    const adjustedFilledRatio = this.normalizeNonNegativeNumber(options.adjustedFilledRatio);
-    const filledRatio =
-      adjustedFilledRatio ??
-      (requestedAmount != null && requestedAmount > 0
-        ? Math.max(0, Math.min(1, filledAmount / requestedAmount))
-        : null);
-    const hasExecutedFill =
-      Number.isFinite(filledAmount) &&
-      filledAmount > Number.EPSILON &&
-      (filledRatio == null || (Number.isFinite(filledRatio) && filledRatio > Number.EPSILON));
+      adjustedFilledAmount != null && adjustedFilledAmount > Number.EPSILON
+        ? adjustedFilledAmount
+        : this.normalizeNonNegativeNumber(await options.resolveFallbackFilledAmount());
+    let filledAmount = fallbackFilledAmount ?? 0;
+    let hasExecutedFill = Number.isFinite(filledAmount) && filledAmount > Number.EPSILON;
+
+    // Conservative inference: only treat missing fill as executed when exchange marks order finalized.
+    if (!hasExecutedFill && isFinalizedOrder && requestedAmount != null && requestedAmount > Number.EPSILON) {
+      filledAmount = requestedAmount;
+      hasExecutedFill = true;
+    }
 
     return {
       requestedAmount,
       filledAmount,
-      filledRatio,
       hasExecutedFill,
     };
   }
 
-  /**
-   * Resolves ratio from raw order payload when exchange response omits normalized ratio.
-   * @param order - Exchange order payload.
-   * @returns Filled ratio or `null` when unavailable.
-   */
-  private resolveFilledRatioFromOrder(order: Order): number | null {
-    const filled = this.normalizeNonNegativeNumber(order?.filled);
-    const amount = this.normalizeNonNegativeNumber(order?.amount);
-    if (filled == null || amount == null || amount <= 0) {
-      return null;
+  private isFinalizedOrderStatus(status: string | null | undefined): boolean {
+    if (typeof status !== 'string') {
+      return false;
     }
 
-    return Math.max(0, Math.min(1, filled / amount));
+    const normalized = status.toLowerCase();
+    return normalized === 'closed' || normalized === 'filled' || normalized === 'done';
   }
 
   /**
@@ -2276,10 +1896,6 @@ export class TradeOrchestrationService {
         return;
       }
 
-      if (typeof trade.filledRatio === 'number' && Number.isFinite(trade.filledRatio) && trade.filledRatio <= 0) {
-        return;
-      }
-
       const key = `${request.symbol}:${request.inference.category}`;
       boughtMap.set(key, {
         symbol: request.symbol,
@@ -2320,8 +1936,16 @@ export class TradeOrchestrationService {
         return;
       }
 
+      const requestedAmount =
+        typeof trade.requestedAmount === 'number' && Number.isFinite(trade.requestedAmount)
+          ? trade.requestedAmount
+          : null;
+      const filledAmount =
+        typeof trade.filledAmount === 'number' && Number.isFinite(trade.filledAmount) ? trade.filledAmount : null;
       const isFullyLiquidated =
-        typeof trade.filledRatio === 'number' && Number.isFinite(trade.filledRatio) && trade.filledRatio >= 1 - 1e-6;
+        requestedAmount != null && requestedAmount > Number.EPSILON && filledAmount != null
+          ? this.isEffectivelyFullyLiquidatedNotional(requestedAmount, filledAmount)
+          : false;
       if (!isFullyLiquidated) {
         return;
       }
@@ -2350,6 +1974,23 @@ export class TradeOrchestrationService {
     });
 
     return Array.from(removedMap.values());
+  }
+
+  // Treat as fully liquidated when the remaining notional is below the minimum tradable amount.
+  private isEffectivelyFullyLiquidatedNotional(requestedAmount: number, filledAmount: number): boolean {
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= Number.EPSILON) {
+      return false;
+    }
+    if (!Number.isFinite(filledAmount) || filledAmount <= Number.EPSILON) {
+      return false;
+    }
+
+    const remainingNotional = Math.max(0, requestedAmount - Math.max(0, filledAmount));
+    if (remainingNotional <= this.defaultTradePolicy.minimumTradePrice + Number.EPSILON) {
+      return true;
+    }
+
+    return filledAmount >= requestedAmount * this.fullLiquidationFillRatioThreshold;
   }
 
   // Remove liquidated pairs first, then overlay newly bought pairs for the final ledger snapshot.

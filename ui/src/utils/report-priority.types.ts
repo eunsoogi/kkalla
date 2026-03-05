@@ -1,4 +1,4 @@
-export type ExceptionChipType = 'validationFailed' | 'validationRunning' | 'regimeStale' | 'risk' | 'partialFill';
+export type ExceptionChipType = 'validationFailed' | 'validationRunning' | 'regimeStale' | 'risk';
 
 export interface ValidationStatusSnapshot {
   status?: string | null;
@@ -10,5 +10,4 @@ export interface ExceptionRuleInput {
   validation72h?: ValidationStatusSnapshot | null;
   regimeStale?: boolean | null;
   riskFlags?: string[] | null;
-  filledRatio?: number | null;
 }

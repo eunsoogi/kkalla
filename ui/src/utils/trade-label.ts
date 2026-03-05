@@ -9,14 +9,6 @@ const translateWithFallback = (t: TranslateFn, key: string, fallback: string): s
   }
 };
 
-export const resolveOrderStatusLabel = (t: TranslateFn, status?: string | null): string => {
-  if (!status) {
-    return '-';
-  }
-
-  return translateWithFallback(t, `trade.orderStatuses.${status}`, status);
-};
-
 export const resolveTriggerReasonLabel = (t: TranslateFn, reason?: string | null): string => {
   if (!reason) {
     return '-';

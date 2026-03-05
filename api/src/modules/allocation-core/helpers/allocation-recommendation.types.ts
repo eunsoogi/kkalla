@@ -67,13 +67,6 @@ export interface ResolveServerRecommendationActionOptions {
   targetSlotCount?: number;
 }
 
-export interface ResolveNextModelTargetWeightOptions {
-  persistedTargetWeight: number | null;
-  scoreImpliedTargetWeight: number;
-  fallbackTargetWeight: number;
-  hasStrongSellSignal: boolean;
-}
-
 export interface CalculateAllocationModelSignalsOptions {
   intensity: number;
   marketFeatures: MarketFeatures | null;

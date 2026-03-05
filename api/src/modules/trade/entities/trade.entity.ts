@@ -72,27 +72,6 @@ export class Trade extends BaseEntity {
   profit: number = 0;
 
   @Column({
-    type: 'varchar',
-    length: 24,
-    nullable: true,
-  })
-  executionMode: 'market' | 'limit_ioc' | 'limit_post_only' | null;
-
-  @Column({
-    type: 'varchar',
-    length: 16,
-    nullable: true,
-  })
-  orderType: 'market' | 'limit' | null;
-
-  @Column({
-    type: 'varchar',
-    length: 16,
-    nullable: true,
-  })
-  timeInForce: string | null;
-
-  @Column({
     type: 'double',
     nullable: true,
   })
@@ -115,19 +94,6 @@ export class Trade extends BaseEntity {
     nullable: true,
   })
   filledAmount: number | null;
-
-  @Column({
-    type: 'double',
-    nullable: true,
-  })
-  filledRatio: number | null;
-
-  @Column({
-    type: 'varchar',
-    length: 32,
-    nullable: true,
-  })
-  orderStatus: string | null;
 
   @Column({
     type: 'double',

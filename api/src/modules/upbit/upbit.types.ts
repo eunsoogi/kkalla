@@ -3,7 +3,6 @@ import { Balances, Order } from 'ccxt';
 import { OrderTypes } from './upbit.enum';
 
 export type OrderExecutionUrgency = 'urgent' | 'normal';
-export type OrderExecutionMode = 'market' | 'limit_ioc' | 'limit_post_only';
 
 export interface UpbitOrderCostEstimate {
   feeRate: number;
@@ -21,9 +20,6 @@ export interface OrderRequest {
   symbol: string;
   type: OrderTypes;
   amount: number;
-  executionMode?: OrderExecutionMode;
-  limitPrice?: number;
-  timeInForce?: 'ioc' | 'fok' | 'po';
   costEstimate?: UpbitOrderCostEstimate | null;
   expectedEdgeRate?: number | null;
   gateBypassedReason?: string | null;
@@ -44,16 +40,11 @@ export interface AdjustOrderRequest {
 
 export interface AdjustedOrderResult {
   order: Order | null;
-  executionMode: OrderExecutionMode;
-  orderType: 'market' | 'limit';
-  timeInForce: string | null;
   requestPrice: number | null;
   requestedAmount: number | null;
   requestedVolume: number | null;
   filledAmount: number | null;
-  filledRatio: number | null;
   averagePrice: number | null;
-  orderStatus: string | null;
   expectedEdgeRate: number | null;
   estimatedCostRate: number | null;
   spreadRate: number | null;

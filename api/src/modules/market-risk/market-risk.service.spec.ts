@@ -749,8 +749,8 @@ describe('MarketRiskService', () => {
       type: OrderTypes.SELL,
       amount: 10_000,
       profit: 0,
+      requestedAmount: 10_000,
       filledAmount: 10_000,
-      filledRatio: 1,
       inference: inferences[0],
     });
 
@@ -809,22 +809,17 @@ describe('MarketRiskService', () => {
     );
   });
 
-  it('should skip trade persistence when adjusted order has no executed fill in risk mode', async () => {
+  it('should persist trade when finalized market order response is missing immediate fill metadata in risk mode', async () => {
     const tradeOrchestrationService = (service as any).tradeOrchestrationService;
     upbitService.adjustOrder = jest.fn().mockResolvedValue({
       order: {
         side: OrderTypes.BUY,
-        status: 'open',
+        status: 'closed',
       },
       filledAmount: 0,
-      filledRatio: 0,
       requestedAmount: 100_000,
-      executionMode: 'limit_post_only',
-      orderType: 'limit',
-      timeInForce: 'po',
       requestPrice: 100_000_000,
       averagePrice: null,
-      orderStatus: 'open',
       expectedEdgeRate: 0.02,
       estimatedCostRate: 0.001,
       spreadRate: 0.0004,
@@ -836,7 +831,9 @@ describe('MarketRiskService', () => {
     upbitService.calculateAmount = jest.fn().mockResolvedValue(100_000) as any;
     upbitService.calculateProfit = jest.fn().mockResolvedValue(0) as any;
 
-    const saveTradeSpy = jest.spyOn(tradeOrchestrationService as any, 'saveTrade');
+    const saveTradeSpy = jest
+      .spyOn(tradeOrchestrationService as any, 'saveTrade')
+      .mockResolvedValue({ id: 'trade-1' } as any);
     const trade = await tradeOrchestrationService.executeTrade({
       runtime: {
         logger: (service as any).logger,
@@ -851,8 +848,16 @@ describe('MarketRiskService', () => {
       } as any,
     });
 
-    expect(trade).toBeNull();
-    expect(saveTradeSpy).not.toHaveBeenCalled();
+    expect(trade).not.toBeNull();
+    expect(saveTradeSpy).toHaveBeenCalledWith(
+      { id: 'user-1', roles: [] },
+      expect.objectContaining({
+        symbol: 'BTC/KRW',
+        requestedAmount: 100_000,
+        filledAmount: 100_000,
+        amount: 100_000,
+      }),
+    );
   });
 
   it('should cap sell and buy executions by regime turnover cap in risk mode', async () => {

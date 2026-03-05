@@ -75,11 +75,5 @@ export const resolveExceptionChipTypes = (input: ExceptionRuleInput): ExceptionC
     chipTypes.add('risk');
   }
 
-  if (typeof input.filledRatio === 'number' && Number.isFinite(input.filledRatio)) {
-    if (input.filledRatio > 0 && input.filledRatio < 1) {
-      chipTypes.add('partialFill');
-    }
-  }
-
   return Array.from(chipTypes);
 };

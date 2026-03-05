@@ -335,7 +335,7 @@ sequenceDiagram
 Message envelope fields used by both allocation and risk pipelines:
 
 - `version`, `module`, `runId`, `messageKey`, `userId`, `generatedAt`, `expiresAt`, `inferences`, optional `allocationMode`.
-- Runtime trade metadata persisted by execution services includes `executionMode` (`market` / `limit_ioc` / `limit_post_only`), `filledAmount`, `filledRatio`, and `orderStatus`.
+- Runtime trade metadata persisted by execution services includes `requestedAmount`, `filledAmount`, and cost telemetry fields.
 - Holding ledger buy updates are applied only for trades with positive executed fill (`filledAmount > 0` or equivalent positive fill ratio).
 
 ### 5.4 Shared SQS Consumer + Ledger + Orchestration Pipeline (Allocation/Risk)
@@ -509,8 +509,8 @@ stateDiagram-v2
 
 `Trade` persistence now includes execution telemetry fields used by allocation/risk post-trade diagnostics:
 
-- Execution controls: `execution_mode`, `order_type`, `time_in_force`, `request_price`
-- Fill quality: `average_price`, `requested_amount`, `filled_amount`, `filled_ratio`, `order_status`
+- Execution controls: `request_price`
+- Fill quality: `average_price`, `requested_amount`, `filled_amount`
 - Cost/edge telemetry: `expected_edge_rate`, `estimated_cost_rate`, `spread_rate`, `impact_rate`, `missed_opportunity_cost`
 - Decision trace: `gate_bypassed_reason`, `trigger_reason`
 

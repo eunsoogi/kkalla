@@ -270,7 +270,6 @@
       "selectItem": "왼쪽 목록에서 항목을 선택하면 상세가 표시됩니다."
     },
     "exception": {
-      "partialFill": "부분 체결",
       "regimeStale": "시장 국면 지연",
       "risk": "리스크 플래그",
       "validationFailed": "검증 실패",
@@ -448,33 +447,13 @@
     "amount": "거래금",
     "date": "날짜",
     "estimatedCostRate": "추정 비용률",
-    "execution": "실행/체결/상태",
-    "executionMode": "실행 모드",
-    "executionModes": {
-      "limit_ioc": "지정가 IOC",
-      "limit_post_only": "지정가 Post-Only",
-      "market": "시장가"
-    },
     "expectedEdgeRate": "기대 엣지",
-    "filledRatio": "체결률",
     "gateBypassedReason": "게이트 우회 사유",
     "impactRate": "임팩트 비용률",
-    "orderStatus": "주문 상태",
-    "orderStatuses": {
-      "canceled": "취소",
-      "cancelled": "취소",
-      "closed": "종료",
-      "done": "체결 완료",
-      "filled": "전체 체결",
-      "open": "주문 접수",
-      "partially_filled": "부분 체결",
-      "wait": "대기"
-    },
     "profit": "수익금",
     "gateBypassedReasons": {
       "earnings": "실적 이벤트 영향",
       "latency": "지연 보정",
-      "limit_ioc_partial_fill": "IOC 부분 체결 후 보완",
       "urgent_risk_reduction": "긴급 리스크 축소 우선",
       "volatility": "변동성 우회"
     },
@@ -495,7 +474,6 @@
       "missing_inference_grace_elapsed": "추론 누락 유예 종료",
       "momentum": "모멘텀",
       "no_trade_trim": "무거래 종목 비중 축소",
-      "post_only_unfilled_cancel_failed": "Post-Only 미체결 취소 실패",
       "profit-take": "이익 실현",
       "risk-reduce": "리스크 축소",
       "stop-loss": "손절",

@@ -12,7 +12,7 @@ import { Trade, initialState } from '@/app/(dashboard)/_shared/trades/trade.type
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber, formatPercent } from '@/utils/number';
-import { resolveGateBypassedReasonLabel, resolveOrderStatusLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
+import { resolveGateBypassedReasonLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
 
 import { getTradeAction } from '../_actions/trade.actions';
 import { TRADE_STYLES } from '@/app/(dashboard)/_shared/trades/trade.styles';
@@ -45,9 +45,6 @@ const TradeContent = () => {
  */
 export const TradeListItem: React.FC<Trade> = (item) => {
   const t = useTranslations();
-  const executionModeLabel = item.executionMode ? t(`trade.executionModes.${item.executionMode}`) : '-';
-  const orderStatusLabel = resolveOrderStatusLabel(t, item.orderStatus);
-  const executionSummary = `${executionModeLabel} / ${formatPercent(item.filledRatio, 2)} / ${orderStatusLabel}`;
   const telemetrySummary = `${formatPercent(item.expectedEdgeRate, 2)} / ${formatPercent(
     item.estimatedCostRate,
     2,
@@ -70,7 +67,6 @@ export const TradeListItem: React.FC<Trade> = (item) => {
         {getDiffPrefix(item.profit)}
         {formatNumber(item.profit)}
       </TableCell>
-      <TableCell className='px-3 py-3 whitespace-nowrap'>{executionSummary}</TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{telemetrySummary}</TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{reasonSummary}</TableCell>
     </TableRow>
@@ -111,7 +107,6 @@ export const TradeList = () => {
               <TableHeadCell className='whitespace-nowrap'>{t('symbol')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.amount')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.profit')}</TableHeadCell>
-              <TableHeadCell className='whitespace-nowrap'>{t('trade.execution')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.telemetry')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.reason')}</TableHeadCell>
             </TableRow>
