@@ -24,7 +24,6 @@ import type {
   RecommendationFilterConfig,
   ResolveConsumeRecommendationActionOptions,
   ResolveInferenceRecommendationActionOptions,
-  ResolveNextModelTargetWeightOptions,
   ResolveServerRecommendationActionOptions,
   ScaleBuyRequestsToAvailableKrwOptions,
 } from './allocation-recommendation.types';
@@ -42,7 +41,6 @@ export type {
   RecommendationFilterConfig,
   ResolveConsumeRecommendationActionOptions,
   ResolveInferenceRecommendationActionOptions,
-  ResolveNextModelTargetWeightOptions,
   ResolveServerRecommendationActionOptions,
   ScaleBuyRequestsToAvailableKrwOptions,
 } from './allocation-recommendation.types';
@@ -348,12 +346,7 @@ export function resolveServerRecommendationAction(
   return resolvedModelAction;
 }
 
-/**
- * Normalizes optional weight inputs to 0~1 scale.
- * @param value - Candidate weight value.
- * @returns Clamped weight or null when value is missing/invalid.
- */
-export function normalizeOptionalWeight(value: number | null | undefined): number | null {
+function normalizeOptionalWeight(value: number | null | undefined): number | null {
   if (value == null || !Number.isFinite(value)) {
     return null;
   }
@@ -368,27 +361,6 @@ export function normalizeOptionalWeight(value: number | null | undefined): numbe
  */
 export function normalizeCandidateWeight(value: number | null | undefined): number {
   return normalizeOptionalWeight(value) ?? 0;
-}
-
-/**
- * Resolves next model target weight by combining persisted and score-derived targets.
- * @param options - Target weight resolution options.
- * @returns Resolved target weight.
- */
-export function resolveNextModelTargetWeight(options: ResolveNextModelTargetWeightOptions): number {
-  const { persistedTargetWeight, scoreImpliedTargetWeight, fallbackTargetWeight, hasStrongSellSignal } = options;
-  const scoreFallbackTargetWeight = Math.max(scoreImpliedTargetWeight, fallbackTargetWeight);
-
-  if (persistedTargetWeight == null) {
-    return scoreFallbackTargetWeight;
-  }
-
-  // Persisted zero can come from previous min-weight gating; restore score-based target unless sell is explicit.
-  if (persistedTargetWeight <= Number.EPSILON) {
-    return hasStrongSellSignal ? 0 : scoreFallbackTargetWeight;
-  }
-
-  return Math.max(persistedTargetWeight, scoreFallbackTargetWeight);
 }
 
 /**

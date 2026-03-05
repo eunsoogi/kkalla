@@ -18,7 +18,6 @@ import {
   AdjustedOrderResult,
   KrwMarketData,
   KrwTickerDailyData,
-  OrderExecutionMode,
   OrderExecutionUrgency,
   OrderRequest,
   UpbitConfigData,
@@ -36,12 +35,6 @@ export class UpbitService {
   private readonly ORDERBOOK_CACHE_TTL_SECONDS = 5;
   private readonly ESTIMATED_FEE_RATE = 0.0005;
   private readonly EDGE_COST_BUFFER_RATE = 0.0005;
-  private readonly LIMIT_IOC_SPREAD_THRESHOLD = 0.003;
-  private readonly LIMIT_IOC_IMPACT_THRESHOLD = 0.005;
-  private readonly LIMIT_IOC_MIN_FILL_RATIO = 0.6;
-  private readonly LIMIT_POST_ONLY_SPREAD_THRESHOLD = 0.0015;
-  private readonly LIMIT_POST_ONLY_IMPACT_THRESHOLD = 0.0025;
-  private readonly LIMIT_POST_ONLY_EDGE_PREMIUM = 0.001;
 
   // API 호출에 대한 2단계 재시도 옵션
   private readonly retryOptions: TwoPhaseRetryOptions = {
@@ -595,43 +588,6 @@ export class UpbitService {
     }
   }
 
-  private resolveExecutionMode(
-    urgency: OrderExecutionUrgency,
-    costEstimate: UpbitOrderCostEstimate,
-    expectedEdgeRate: number | null | undefined,
-  ): OrderExecutionMode {
-    if (urgency === 'urgent') {
-      return 'market';
-    }
-
-    if (
-      costEstimate.spreadRate > this.LIMIT_IOC_SPREAD_THRESHOLD ||
-      costEstimate.impactRate > this.LIMIT_IOC_IMPACT_THRESHOLD
-    ) {
-      return 'market';
-    }
-
-    if (
-      expectedEdgeRate != null &&
-      Number.isFinite(expectedEdgeRate) &&
-      expectedEdgeRate <= costEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE
-    ) {
-      return 'market';
-    }
-
-    if (
-      costEstimate.spreadRate <= this.LIMIT_POST_ONLY_SPREAD_THRESHOLD &&
-      costEstimate.impactRate <= this.LIMIT_POST_ONLY_IMPACT_THRESHOLD &&
-      expectedEdgeRate != null &&
-      Number.isFinite(expectedEdgeRate) &&
-      expectedEdgeRate > costEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE + this.LIMIT_POST_ONLY_EDGE_PREMIUM
-    ) {
-      return 'limit_post_only';
-    }
-
-    return 'limit_ioc';
-  }
-
   private shouldSkipForEdgeCost(
     urgency: OrderExecutionUrgency,
     expectedEdgeRate: number | null | undefined,
@@ -706,91 +662,16 @@ export class UpbitService {
     return null;
   }
 
-  /**
-   * Resolves executed volume from mixed exchange payload shapes.
-   * @param order - Raw exchange order payload.
-   * @param fallbackPrice - Reference price used when only notional is known.
-   * @returns Executed volume (base asset units).
-   */
-  private resolveOrderFilledVolume(order: Order | null, fallbackPrice: number): number {
-    if (!order) {
-      return 0;
-    }
-
-    const filled = this.normalizePositiveNumber(order.filled);
-    if (filled != null) {
-      return filled;
-    }
-
-    const average = this.normalizePositiveNumber(order.average);
-    const cost = this.normalizePositiveNumber(order.cost);
-    if (cost != null && average != null && average > 0) {
-      return cost / average;
-    }
-
-    if (cost != null && Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
-      return cost / fallbackPrice;
-    }
-
-    const status = typeof order.status === 'string' ? order.status.toLowerCase() : null;
-    const isFinalizedOrder = status === 'closed' || status === 'filled';
-    const amount = this.normalizePositiveNumber(order.amount);
-    if (isFinalizedOrder && amount != null) {
-      return amount;
-    }
-
-    return 0;
-  }
-
-  private mergeOrders(primaryOrder: Order | null, fallbackOrder: Order | null, fallbackPrice: number): Order | null {
-    if (!primaryOrder && !fallbackOrder) {
-      return null;
-    }
-
-    if (!primaryOrder) {
-      return fallbackOrder;
-    }
-
-    if (!fallbackOrder) {
-      return primaryOrder;
-    }
-
-    const mergedCost =
-      this.resolveOrderNotional(primaryOrder, fallbackPrice) + this.resolveOrderNotional(fallbackOrder, fallbackPrice);
-    const mergedFilled =
-      this.resolveOrderFilledVolume(primaryOrder, fallbackPrice) +
-      this.resolveOrderFilledVolume(fallbackOrder, fallbackPrice);
-    const mergedAmount =
-      (this.normalizePositiveNumber(primaryOrder.amount) ?? 0) +
-      (this.normalizePositiveNumber(fallbackOrder.amount) ?? 0);
-
-    return {
-      ...fallbackOrder,
-      id: [primaryOrder.id, fallbackOrder.id]
-        .filter((id): id is string => typeof id === 'string' && id.length > 0)
-        .join(','),
-      amount: mergedAmount > 0 ? mergedAmount : fallbackOrder.amount,
-      filled: mergedFilled > 0 ? mergedFilled : fallbackOrder.filled,
-      cost: mergedCost > 0 ? mergedCost : fallbackOrder.cost,
-      average: mergedFilled > 0 && mergedCost > 0 ? mergedCost / mergedFilled : fallbackOrder.average,
-      status: fallbackOrder.status ?? primaryOrder.status ?? 'closed',
-    } as Order;
-  }
-
   private createAdjustedOrderResult(
     request: AdjustOrderRequest,
     options?: {
       order?: Order | null;
-      executionMode?: OrderExecutionMode;
-      orderType?: 'market' | 'limit';
-      timeInForce?: string | null;
       requestPrice?: number | null;
       requestedAmount?: number | null;
       requestedVolume?: number | null;
       filledAmount?: number | null;
-      filledRatio?: number | null;
+      filledVolume?: number | null;
       averagePrice?: number | null;
-      orderStatus?: string | null;
       estimatedCostRate?: number | null;
       spreadRate?: number | null;
       impactRate?: number | null;
@@ -800,16 +681,12 @@ export class UpbitService {
   ): AdjustedOrderResult {
     return {
       order: options?.order ?? null,
-      executionMode: options?.executionMode ?? 'market',
-      orderType: options?.orderType ?? 'market',
-      timeInForce: options?.timeInForce ?? null,
       requestPrice: options?.requestPrice ?? null,
       requestedAmount: options?.requestedAmount ?? null,
       requestedVolume: options?.requestedVolume ?? null,
       filledAmount: options?.filledAmount ?? null,
-      filledRatio: options?.filledRatio ?? null,
+      filledVolume: options?.filledVolume ?? null,
       averagePrice: options?.averagePrice ?? null,
-      orderStatus: options?.orderStatus ?? null,
       expectedEdgeRate: request.expectedEdgeRate ?? null,
       estimatedCostRate: options?.estimatedCostRate ?? request.costEstimate?.estimatedCostRate ?? null,
       spreadRate: options?.spreadRate ?? request.costEstimate?.spreadRate ?? null,
@@ -817,35 +694,6 @@ export class UpbitService {
       gateBypassedReason: options?.gateBypassedReason ?? request.gateBypassedReason ?? null,
       triggerReason: options?.triggerReason ?? request.triggerReason ?? null,
     };
-  }
-
-  private async resolveLimitReferencePrice(
-    symbol: string,
-    type: OrderTypes,
-    executionMode: OrderExecutionMode,
-    fallbackPrice: number,
-  ): Promise<number> {
-    try {
-      const orderBook = await this.getOrderBook(symbol);
-      const topBid = this.normalizePositiveNumber(orderBook.bids[0]?.[0] ?? null);
-      const topAsk = this.normalizePositiveNumber(orderBook.asks[0]?.[0] ?? null);
-
-      if (executionMode === 'limit_post_only') {
-        if (type === OrderTypes.BUY) {
-          return topBid ?? topAsk ?? fallbackPrice;
-        }
-
-        return topAsk ?? topBid ?? fallbackPrice;
-      }
-
-      if (type === OrderTypes.BUY) {
-        return topAsk ?? topBid ?? fallbackPrice;
-      }
-
-      return topBid ?? topAsk ?? fallbackPrice;
-    } catch {
-      return fallbackPrice;
-    }
   }
 
   private extractExchangeErrorCodeFromMessage(message: unknown): string | null {
@@ -921,31 +769,6 @@ export class UpbitService {
       return await this.errorService.retry(
         async () => {
           const amount = Math.max(request.amount - deductionAmount * retries++, deductionAmount);
-          const executionMode = request.executionMode ?? 'market';
-
-          if (executionMode === 'limit_ioc' || executionMode === 'limit_post_only') {
-            const limitPrice = this.normalizePositiveNumber(request.limitPrice);
-            if (!limitPrice) {
-              return null;
-            }
-
-            const defaultTimeInForce = executionMode === 'limit_post_only' ? 'po' : 'ioc';
-            const timeInForce = (request.timeInForce ?? defaultTimeInForce).toLowerCase();
-            if (request.type === OrderTypes.BUY) {
-              const volume = amount / limitPrice;
-              if (!Number.isFinite(volume) || volume <= 0) {
-                return null;
-              }
-
-              return await client.createOrder(request.symbol, 'limit', request.type, volume, limitPrice, {
-                timeInForce,
-              });
-            }
-
-            return await client.createOrder(request.symbol, 'limit', request.type, amount, limitPrice, {
-              timeInForce,
-            });
-          }
 
           switch (request.type) {
             case OrderTypes.BUY:
@@ -973,7 +796,7 @@ export class UpbitService {
   }
 
   /**
-   * Attempts to cancel exchange orders for explicit post-only unfilled handling.
+   * Attempts to cancel exchange orders by id.
    * @param user - User whose exchange client will be used.
    * @param orderId - Order identifier (comma-separated ids are supported).
    * @param symbol - Optional market symbol for exchange adapters requiring it.
@@ -1079,10 +902,6 @@ export class UpbitService {
         (type === OrderTypes.BUY
           ? await this.estimateOrderCost(symbol, type, requestedAmount, currPrice)
           : await this.estimateOrderCost(symbol, type, requestedVolume ?? 0, currPrice));
-      const executionMode = this.resolveExecutionMode(urgency, dynamicCostEstimate, request.expectedEdgeRate);
-      const orderType: 'market' | 'limit' =
-        executionMode === 'limit_ioc' || executionMode === 'limit_post_only' ? 'limit' : 'market';
-      const timeInForce = executionMode === 'limit_post_only' ? 'po' : executionMode === 'limit_ioc' ? 'ioc' : null;
       const gateBypassedReason =
         urgency === 'urgent' &&
         request.expectedEdgeRate != null &&
@@ -1093,9 +912,6 @@ export class UpbitService {
 
       if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, dynamicCostEstimate.estimatedCostRate)) {
         return this.createAdjustedOrderResult(request, {
-          executionMode,
-          orderType,
-          timeInForce,
           requestedAmount,
           requestedVolume,
           estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
@@ -1105,17 +921,9 @@ export class UpbitService {
         });
       }
 
-      const requestPrice =
-        executionMode === 'limit_ioc' || executionMode === 'limit_post_only'
-          ? await this.resolveLimitReferencePrice(symbol, type, executionMode, currPrice)
-          : null;
       const primaryOrderAmount = type === OrderTypes.BUY ? (requestedAmount ?? 0) : (requestedVolume ?? 0);
       if (primaryOrderAmount <= 0) {
         return this.createAdjustedOrderResult(request, {
-          executionMode,
-          orderType,
-          timeInForce,
-          requestPrice,
           requestedAmount,
           requestedVolume,
           estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
@@ -1129,96 +937,48 @@ export class UpbitService {
         symbol,
         type,
         amount: primaryOrderAmount,
-        executionMode,
-        limitPrice: requestPrice ?? undefined,
-        timeInForce: timeInForce ?? undefined,
         costEstimate: dynamicCostEstimate,
         expectedEdgeRate: request.expectedEdgeRate,
         gateBypassedReason,
         triggerReason: request.triggerReason,
       });
 
-      let finalOrder = primaryOrder;
-      let fallbackOrder: Order | null = null;
-      let filledAmount = this.resolveOrderNotional(primaryOrder, currPrice);
-      let filledVolume = this.resolveOrderFilledVolume(primaryOrder, currPrice);
-      const filledRatio =
-        type === OrderTypes.BUY
-          ? requestedAmount && requestedAmount > 0
-            ? filledAmount / requestedAmount
-            : 0
-          : requestedVolume && requestedVolume > 0
-            ? filledVolume / requestedVolume
-            : 0;
-      const hasPrimaryExecutedFill =
-        type === OrderTypes.BUY ? filledAmount > Number.EPSILON : filledVolume > Number.EPSILON;
-
-      if (
-        primaryOrder != null &&
-        executionMode === 'limit_ioc' &&
-        requestedAmount > UPBIT_MINIMUM_TRADE_PRICE &&
-        filledRatio < this.LIMIT_IOC_MIN_FILL_RATIO &&
-        hasPrimaryExecutedFill
-      ) {
-        if (type === OrderTypes.BUY) {
-          const remainingNotional = Math.max(0, requestedAmount - filledAmount);
-          if (remainingNotional > UPBIT_MINIMUM_TRADE_PRICE) {
-            fallbackOrder = await this.order(user, {
-              symbol,
-              type,
-              amount: remainingNotional,
-              executionMode: 'market',
-              costEstimate: dynamicCostEstimate,
-              expectedEdgeRate: request.expectedEdgeRate,
-              gateBypassedReason: gateBypassedReason ?? 'limit_ioc_partial_fill',
-              triggerReason: request.triggerReason,
-            });
-          }
-        } else {
-          const primaryFilledVolume = this.resolveOrderFilledVolume(primaryOrder, currPrice);
-          const remainingVolume = Math.max(0, (requestedVolume ?? 0) - primaryFilledVolume);
-          if (remainingVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
-            fallbackOrder = await this.order(user, {
-              symbol,
-              type,
-              amount: remainingVolume,
-              executionMode: 'market',
-              costEstimate: dynamicCostEstimate,
-              expectedEdgeRate: request.expectedEdgeRate,
-              gateBypassedReason: gateBypassedReason ?? 'limit_ioc_partial_fill',
-              triggerReason: request.triggerReason,
-            });
-          }
-        }
-
-        finalOrder = this.mergeOrders(primaryOrder, fallbackOrder, currPrice);
-        filledAmount = this.resolveOrderNotional(finalOrder, currPrice);
-        filledVolume = this.resolveOrderFilledVolume(finalOrder, currPrice);
-      }
-
-      const resolvedFilledRatio =
-        type === OrderTypes.BUY
-          ? requestedAmount && requestedAmount > 0 && Number.isFinite(filledAmount)
-            ? Math.max(0, Math.min(1, filledAmount / requestedAmount))
-            : null
-          : requestedVolume && requestedVolume > 0 && Number.isFinite(filledVolume)
-            ? Math.max(0, Math.min(1, filledVolume / requestedVolume))
-            : null;
-      const averagePrice = this.resolveOrderAveragePrice(finalOrder, requestPrice ?? currPrice);
-      const orderStatus = (finalOrder?.status ?? null) as string | null;
+      const finalOrder = primaryOrder;
+      const rawFilledAmount = this.resolveOrderNotional(finalOrder, currPrice);
+      const averagePrice = this.resolveOrderAveragePrice(finalOrder, currPrice);
+      const isFinalizedOrder = this.isFinalizedOrderStatus(finalOrder?.status);
+      const filledAmount =
+        finalOrder == null
+          ? null
+          : Number.isFinite(rawFilledAmount) && rawFilledAmount > Number.EPSILON
+            ? rawFilledAmount
+            : isFinalizedOrder && requestedAmount != null && requestedAmount > Number.EPSILON
+              ? requestedAmount
+              : null;
+      const rawFilledVolume = this.normalizePositiveNumber(finalOrder?.filled);
+      const filledVolume =
+        finalOrder == null
+          ? null
+          : rawFilledVolume != null
+            ? rawFilledVolume
+            : averagePrice != null &&
+                averagePrice > Number.EPSILON &&
+                filledAmount != null &&
+                Number.isFinite(filledAmount) &&
+                filledAmount > Number.EPSILON
+              ? filledAmount / averagePrice
+              : isFinalizedOrder && requestedVolume != null && requestedVolume > Number.EPSILON
+                ? requestedVolume
+                : null;
 
       return this.createAdjustedOrderResult(request, {
         order: finalOrder,
-        executionMode,
-        orderType,
-        timeInForce,
-        requestPrice,
+        requestPrice: null,
         requestedAmount,
         requestedVolume,
-        filledAmount: Number.isFinite(filledAmount) ? filledAmount : null,
-        filledRatio: resolvedFilledRatio,
+        filledAmount,
+        filledVolume,
         averagePrice,
-        orderStatus,
         estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
         spreadRate: dynamicCostEstimate.spreadRate,
         impactRate: dynamicCostEstimate.impactRate,

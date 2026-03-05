@@ -29,14 +29,9 @@ export interface TradeRequest {
   triggerReason?: string | null;
   requestedAmount?: number | null;
   requestPrice?: number | null;
-  executionMode?: TradeExecutionMode | null;
-  orderType?: 'market' | 'limit' | null;
-  timeInForce?: string | null;
   executionUrgency?: OrderExecutionUrgency;
   costEstimate?: UpbitOrderCostEstimate | null;
 }
-
-export type TradeExecutionMode = 'market' | 'limit_ioc' | 'limit_post_only';
 
 export interface TradeData {
   symbol: string;
@@ -44,15 +39,12 @@ export interface TradeData {
   amount: number;
   profit: number;
   inference?: AllocationRecommendationData;
-  executionMode?: TradeExecutionMode | null;
-  orderType?: 'market' | 'limit' | null;
-  timeInForce?: string | null;
   requestPrice?: number | null;
   averagePrice?: number | null;
   requestedAmount?: number | null;
+  requestedVolume?: number | null;
   filledAmount?: number | null;
-  filledRatio?: number | null;
-  orderStatus?: string | null;
+  filledVolume?: number | null;
   expectedEdgeRate?: number | null;
   estimatedCostRate?: number | null;
   spreadRate?: number | null;

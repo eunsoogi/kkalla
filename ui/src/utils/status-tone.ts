@@ -148,6 +148,5 @@ export const getExceptionTone = (type: ExceptionChipType): ReportTone => {
   if (type === 'validationRunning') return 'info';
   if (type === 'regimeStale') return 'warning';
   if (type === 'risk') return 'warning';
-  if (type === 'partialFill') return 'info';
   return 'neutral';
 };

@@ -6,12 +6,9 @@ import { useTranslations } from 'next-intl';
 
 import { SortDirection } from '@/enums/sort.enum';
 import { DetailMetricGrid } from '@/app/(dashboard)/_shared/report-ui/DetailMetricGrid';
-import { ExceptionChips } from '@/app/(dashboard)/_shared/report-ui/ExceptionChips';
 import { ReportDetailPane } from '@/app/(dashboard)/_shared/report-ui/ReportDetailPane';
 import { ReportListPane } from '@/app/(dashboard)/_shared/report-ui/ReportListPane';
-import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
 import { ReportMasterDetailLayout } from '@/app/(dashboard)/_shared/report-ui/ReportMasterDetailLayout';
-import type { ExceptionChipViewItem } from '@/app/(dashboard)/_shared/report-ui/report-master-detail.types';
 import type { ReportMetricItem } from '@/app/(dashboard)/_shared/report-ui/report-ui.types';
 import { TradeTypeText } from '@/app/(dashboard)/_shared/trades/TradeTypeText';
 import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
@@ -20,10 +17,7 @@ import { CursorItem } from '@/shared/types/pagination.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber, formatPercent } from '@/utils/number';
-import { resolveExceptionChipTypes } from '@/utils/report-priority';
-import type { ExceptionChipType } from '@/utils/report-priority.types';
-import { getExceptionTone } from '@/utils/status-tone';
-import { resolveGateBypassedReasonLabel, resolveOrderStatusLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
+import { resolveGateBypassedReasonLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
 
 import type {
   TradeDetailEmptyProps,
@@ -57,39 +51,6 @@ const getSignedMetricStyle = (value: number): React.CSSProperties => {
 };
 
 /**
- * Resolves localized exception label.
- * @param t - Translator.
- * @param type - Exception type.
- * @returns Localized label.
- */
-const getExceptionLabel = (t: (key: string) => string, type: ExceptionChipType): string => {
-  if (type === 'validationFailed') return t('report.exception.validationFailed');
-  if (type === 'validationRunning') return t('report.exception.validationRunning');
-  if (type === 'regimeStale') return t('report.exception.regimeStale');
-  if (type === 'risk') return t('report.exception.risk');
-  if (type === 'partialFill') return t('report.exception.partialFill');
-  return '-';
-};
-
-/**
- * Creates trade exception chips.
- * @param t - Translator.
- * @param item - Trade row.
- * @returns Exception chip view items.
- */
-const buildTradeExceptionChips = (t: (key: string) => string, item: Trade): ExceptionChipViewItem[] => {
-  const chipTypes = resolveExceptionChipTypes({
-    filledRatio: item.filledRatio ?? null,
-  });
-
-  return chipTypes.map((type) => ({
-    key: type,
-    label: getExceptionLabel(t, type),
-    tone: getExceptionTone(type),
-  }));
-};
-
-/**
  * Renders trade detail empty state.
  * @param params - Empty state props.
  * @returns Rendered React element.
@@ -115,7 +76,6 @@ const TradeDetailSection: React.FC<{ title: string; children: React.ReactNode }>
  * @returns Rendered React element.
  */
 const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, onSelect }) => {
-  const exceptionChips = buildTradeExceptionChips(t, item);
   const tradeTypeLabel = t(`trade.types.${item.type}`);
 
   return (
@@ -145,8 +105,6 @@ const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, 
           {formatSignedNumber(item.profit)}
         </span>
       </div>
-
-      <ExceptionChips chips={exceptionChips} className='mt-2' />
     </button>
   );
 };
@@ -158,27 +116,6 @@ const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, 
  */
 const TradeDetailPanel: React.FC<TradeDetailPanelProps> = ({ item, t }) => {
   const tradeTypeLabel = t(`trade.types.${item.type}`);
-
-  const summaryMetrics: ReportMetricItem[] = [
-    {
-      key: 'executionMode',
-      label: t('trade.executionMode'),
-      value: item.executionMode ? t(`trade.executionModes.${item.executionMode}`) : '-',
-      tone: 'neutral',
-    },
-    {
-      key: 'filledRatio',
-      label: t('trade.filledRatio'),
-      value: formatPercent(item.filledRatio, 2),
-      tone: 'neutral',
-    },
-    {
-      key: 'orderStatus',
-      label: t('trade.orderStatus'),
-      value: resolveOrderStatusLabel(t, item.orderStatus),
-      tone: 'neutral',
-    },
-  ];
 
   const costMetrics: ReportMetricItem[] = [
     {
@@ -223,10 +160,6 @@ const TradeDetailPanel: React.FC<TradeDetailPanelProps> = ({ item, t }) => {
     },
   ];
 
-  const exceptionChips = buildTradeExceptionChips(t, item);
-  const hasPartialFill = exceptionChips.some((chip) => chip.key === 'partialFill');
-  const detailExceptionChips = exceptionChips.filter((chip) => chip.key !== 'partialFill');
-
   const triggerReason = resolveTriggerReasonLabel(t, item.triggerReason);
   const gateBypassedReason = resolveGateBypassedReasonLabel(t, item.gateBypassedReason);
 
@@ -234,16 +167,11 @@ const TradeDetailPanel: React.FC<TradeDetailPanelProps> = ({ item, t }) => {
     <ReportDetailPane
       title={item.symbol}
       titleAddon={<TradeTypeText type={item.type} label={tradeTypeLabel} />}
-      titleSuffix={hasPartialFill ? <StatusPill value={t('report.exception.partialFill')} tone='info' /> : undefined}
       createdAtLabel={t('createdAt')}
       createdAtValue={formatDate(new Date(item.createdAt))}
       headerMetrics={headerMetrics}
-      exceptionChips={detailExceptionChips}
     >
       <div className='space-y-5'>
-        <TradeDetailSection title={t('report.section.summary')}>
-          <DetailMetricGrid items={summaryMetrics} />
-        </TradeDetailSection>
         <section className='space-y-4'>
           <div className='space-y-4'>
             <div>

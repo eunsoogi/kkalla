@@ -34,6 +34,6 @@ export const SHARED_TRADE_EXECUTION_RUNTIME = {
   messageTtlMs: 30 * 60 * 1000,
   userTradeLockDurationMs: 5 * 60 * 1000,
   processingHeartbeatIntervalMs: 60 * 1000,
-  postOnlyReconcileMaxFetchAttempts: 3,
-  postOnlyReconcileRetryDelayMs: 120,
+  marketOrderReconcileMaxFetchAttempts: 3,
+  marketOrderReconcileRetryDelayMs: 120,
 } as const;

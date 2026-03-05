@@ -137,8 +137,10 @@ export interface ExecutionRequestLike {
 
 export interface ExecutionTradeLike {
   type: string;
+  requestedAmount?: number | null;
+  requestedVolume?: number | null;
   filledAmount?: number | null;
-  filledRatio?: number | null;
+  filledVolume?: number | null;
 }
 
 export interface HoldingLedgerRemoveItem {
@@ -155,7 +157,6 @@ export interface HoldingLedgerSaveItem {
 export interface TradeExecutionFillMetrics {
   requestedAmount: number | null;
   filledAmount: number;
-  filledRatio: number | null;
   hasExecutedFill: boolean;
 }
 
@@ -163,7 +164,7 @@ export interface ResolveTradeExecutionFillMetricsOptions {
   adjustedRequestedAmount?: number | null;
   requestRequestedAmount?: number | null;
   adjustedFilledAmount?: number | null;
-  adjustedFilledRatio?: number | null;
+  orderStatus?: string | null;
   resolveFallbackFilledAmount(): Promise<number>;
 }
 
