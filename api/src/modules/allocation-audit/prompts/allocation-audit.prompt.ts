@@ -3,9 +3,9 @@ import { loadPromptMarkdown } from '@/utils/prompt-loader';
 export const ALLOCATION_AUDIT_EVALUATOR_PROMPT = loadPromptMarkdown(__dirname, 'allocation-audit.prompt.md');
 
 export const ALLOCATION_AUDIT_EVALUATOR_CONFIG = {
-  model: 'gpt-5.2',
+  model: 'gpt-5.4',
   max_output_tokens: 2048,
-  reasoning_effort: 'high' as const,
+  reasoning_effort: 'xhigh' as const,
   service_tier: 'auto' as const,
 };
 

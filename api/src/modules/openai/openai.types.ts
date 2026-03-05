@@ -16,7 +16,7 @@ export type ResponseTool = { type: 'web_search' };
 export interface ResponseCreateConfig {
   model: string;
   max_output_tokens: number;
-  reasoning_effort?: 'low' | 'medium' | 'high';
+  reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
   service_tier?: 'auto' | 'default' | 'flex' | 'scale' | 'priority';
   /** 사용할 도구 목록 (예: web_search). 설정에서 지정한다. */
   tools?: ResponseTool[];
