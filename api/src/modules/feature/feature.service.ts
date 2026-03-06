@@ -4,7 +4,7 @@ import * as Handlebars from 'handlebars';
 import { I18nService } from 'nestjs-i18n';
 
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
-import { UPBIT_ALLOCATION_RECOMMENDATION_CONFIG } from '@/modules/allocation/prompts/allocation-recommendation.prompt';
+import { ALLOCATION_RECOMMENDATION_CONFIG } from '@/modules/allocation/prompts/allocation-recommendation.prompt';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { MarketFeatures } from '@/modules/upbit/upbit.types';
 import { formatObjectNumbers } from '@/utils/number';
@@ -1163,8 +1163,8 @@ export class FeatureService {
     try {
       return await AllocationRecommendation.getRecent({
         symbol,
-        createdAt: new Date(Date.now() - UPBIT_ALLOCATION_RECOMMENDATION_CONFIG.message.recentDateLimit),
-        count: UPBIT_ALLOCATION_RECOMMENDATION_CONFIG.message.recent,
+        createdAt: new Date(Date.now() - ALLOCATION_RECOMMENDATION_CONFIG.message.recentDateLimit),
+        count: ALLOCATION_RECOMMENDATION_CONFIG.message.recent,
       });
     } catch (error) {
       this.logger.error(
