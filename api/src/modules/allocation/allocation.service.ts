@@ -74,9 +74,9 @@ import { GetAllocationRecommendationsCursorDto } from './dto/get-allocation-reco
 import { GetAllocationRecommendationsPaginationDto } from './dto/get-allocation-recommendations-pagination.dto';
 import { AllocationRecommendation } from './entities/allocation-recommendation.entity';
 import {
-  UPBIT_ALLOCATION_RECOMMENDATION_CONFIG,
-  UPBIT_ALLOCATION_RECOMMENDATION_PROMPT,
-  UPBIT_ALLOCATION_RECOMMENDATION_RESPONSE_SCHEMA,
+  ALLOCATION_RECOMMENDATION_CONFIG,
+  ALLOCATION_RECOMMENDATION_PROMPT,
+  ALLOCATION_RECOMMENDATION_RESPONSE_SCHEMA,
 } from './prompts/allocation-recommendation.prompt';
 
 /**
@@ -1456,7 +1456,7 @@ export class AllocationService implements OnModuleInit {
           const { messages, marketFeatures, marketRegime, feargreed } =
             await this.tradeOrchestrationService.buildRecommendationPromptMessages({
               symbol: targetSymbol,
-              prompt: UPBIT_ALLOCATION_RECOMMENDATION_PROMPT,
+              prompt: ALLOCATION_RECOMMENDATION_PROMPT,
               openaiService: this.openaiService,
               featureService: this.featureService,
               newsService: this.newsService,
@@ -1476,13 +1476,13 @@ export class AllocationService implements OnModuleInit {
             });
 
           const requestConfig = {
-            ...UPBIT_ALLOCATION_RECOMMENDATION_CONFIG,
+            ...ALLOCATION_RECOMMENDATION_CONFIG,
             text: {
               format: {
                 type: 'json_schema' as const,
                 name: 'allocation_recommendation',
                 strict: true,
-                schema: UPBIT_ALLOCATION_RECOMMENDATION_RESPONSE_SCHEMA as Record<string, unknown>,
+                schema: ALLOCATION_RECOMMENDATION_RESPONSE_SCHEMA as Record<string, unknown>,
               },
             },
           };

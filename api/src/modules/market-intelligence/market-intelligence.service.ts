@@ -46,9 +46,9 @@ import {
   SignalPriceResolution,
 } from './market-intelligence.types';
 import {
-  UPBIT_MARKET_SIGNAL_CONFIG,
-  UPBIT_MARKET_SIGNAL_PROMPT,
-  UPBIT_MARKET_SIGNAL_RESPONSE_SCHEMA,
+  MARKET_SIGNAL_CONFIG,
+  MARKET_SIGNAL_PROMPT,
+  MARKET_SIGNAL_RESPONSE_SCHEMA,
 } from './prompts/market-signal.prompt';
 
 /**
@@ -198,13 +198,13 @@ export class MarketIntelligenceService {
 
     const inferenceResult = await this.errorService.retryWithFallback(async () => {
       const requestConfig = {
-        ...UPBIT_MARKET_SIGNAL_CONFIG,
+        ...MARKET_SIGNAL_CONFIG,
         text: {
           format: {
             type: 'json_schema' as const,
             name: 'market_signal',
             strict: true,
-            schema: UPBIT_MARKET_SIGNAL_RESPONSE_SCHEMA as Record<string, unknown>,
+            schema: MARKET_SIGNAL_RESPONSE_SCHEMA as Record<string, unknown>,
           },
         },
       };
@@ -330,7 +330,7 @@ export class MarketIntelligenceService {
     const messages: EasyInputMessage[] = [];
 
     // 시스템 프롬프트 추가
-    this.openaiService.addMessage(messages, 'system', UPBIT_MARKET_SIGNAL_PROMPT);
+    this.openaiService.addMessage(messages, 'system', MARKET_SIGNAL_PROMPT);
 
     // 뉴스 데이터 추가
     const news = await fetchCoinNewsWithFallback({
