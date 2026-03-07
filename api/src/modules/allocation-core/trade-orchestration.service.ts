@@ -31,6 +31,7 @@ import {
   AllocationRecommendationData,
   CategoryExposureCaps,
   MarketRegimePolicy,
+  RecommendationItem,
   TradeExecutionMessageV2,
 } from './allocation-core.types';
 import {
@@ -572,24 +573,30 @@ export class TradeOrchestrationService {
   public async buildLatestRecommendationMetricsMap(
     options: BuildLatestRecommendationMetricsMapOptions,
   ): Promise<Map<string, LatestRecommendationMetrics>> {
-    const symbols = Array.from(new Set(options.recommendationItems.map((item) => item.symbol)));
-    if (symbols.length < 1) {
+    const requestedSymbolsByQuerySymbol = new Map<string, Set<string>>();
+
+    for (const item of options.recommendationItems) {
+      const requestedSymbol = item.symbol;
+      const querySymbol = this.normalizeRecommendationMetricsLookupSymbol(item);
+      const requestedSymbols = requestedSymbolsByQuerySymbol.get(querySymbol) ?? new Set<string>();
+      requestedSymbols.add(requestedSymbol);
+      requestedSymbolsByQuerySymbol.set(querySymbol, requestedSymbols);
+    }
+
+    const querySymbols = Array.from(requestedSymbolsByQuerySymbol.keys());
+    if (querySymbols.length < 1) {
       return new Map();
     }
 
     const recentRecommendations = await this.fetchLatestRecommendationsBySymbols(
-      symbols,
+      querySymbols,
       options.errorService,
       options.onError,
     );
     const latestRecommendationMetricsBySymbol = new Map<string, LatestRecommendationMetrics>();
 
     for (const recommendation of recentRecommendations) {
-      if (latestRecommendationMetricsBySymbol.has(recommendation.symbol)) {
-        continue;
-      }
-
-      latestRecommendationMetricsBySymbol.set(recommendation.symbol, {
+      const latestMetrics = {
         intensity:
           recommendation.intensity != null && Number.isFinite(recommendation.intensity)
             ? Number(recommendation.intensity)
@@ -598,19 +605,47 @@ export class TradeOrchestrationService {
           recommendation.modelTargetWeight != null && Number.isFinite(recommendation.modelTargetWeight)
             ? Number(recommendation.modelTargetWeight)
             : null,
-      });
+      };
+
+      latestRecommendationMetricsBySymbol.set(recommendation.symbol, latestMetrics);
+
+      const requestedSymbols = requestedSymbolsByQuerySymbol.get(recommendation.symbol);
+      if (!requestedSymbols) {
+        continue;
+      }
+
+      for (const requestedSymbol of requestedSymbols) {
+        latestRecommendationMetricsBySymbol.set(requestedSymbol, latestMetrics);
+      }
     }
 
-    for (const symbol of symbols) {
-      if (!latestRecommendationMetricsBySymbol.has(symbol)) {
-        latestRecommendationMetricsBySymbol.set(symbol, {
+    for (const [querySymbol, requestedSymbols] of requestedSymbolsByQuerySymbol) {
+      if (!latestRecommendationMetricsBySymbol.has(querySymbol)) {
+        latestRecommendationMetricsBySymbol.set(querySymbol, {
           intensity: null,
           modelTargetWeight: null,
         });
       }
+
+      for (const requestedSymbol of requestedSymbols) {
+        if (!latestRecommendationMetricsBySymbol.has(requestedSymbol)) {
+          latestRecommendationMetricsBySymbol.set(requestedSymbol, {
+            intensity: null,
+            modelTargetWeight: null,
+          });
+        }
+      }
     }
 
     return latestRecommendationMetricsBySymbol;
+  }
+
+  private normalizeRecommendationMetricsLookupSymbol(item: Pick<RecommendationItem, 'symbol' | 'category'>): string {
+    if (item.category === Category.NASDAQ) {
+      return item.symbol.trim().toUpperCase();
+    }
+
+    return normalizeKrwSymbol(item.symbol) ?? item.symbol;
   }
 
   /**

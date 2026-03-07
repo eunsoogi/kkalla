@@ -729,11 +729,6 @@ describe('TradeOrchestrationService', () => {
             intensity: 0.2,
             modelTargetWeight: 0.3,
           } as AllocationRecommendation,
-          {
-            symbol: 'BTC/KRW',
-            intensity: 0.1,
-            modelTargetWeight: 0.1,
-          } as AllocationRecommendation,
         ]),
       };
       const createQueryBuilderSpy = jest
@@ -793,6 +788,48 @@ describe('TradeOrchestrationService', () => {
 
       expect(onError).toHaveBeenCalledWith(error);
       expect(result.get('XRP/KRW')).toEqual({ intensity: null, modelTargetWeight: null });
+    });
+
+    it('should map normalized DB symbols back to requested symbol keys', async () => {
+      const subQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getQuery: jest
+          .fn()
+          .mockReturnValue(
+            '(SELECT newer.id FROM allocation_recommendation newer WHERE newer.symbol = recommendation.symbol ORDER BY newer.created_at DESC, newer.id DESC LIMIT 1)',
+          ),
+      };
+      const queryBuilder = {
+        subQuery: jest.fn().mockReturnValue(subQueryBuilder),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            symbol: 'AAPL',
+            intensity: 0.41,
+            modelTargetWeight: 0.22,
+          } as AllocationRecommendation,
+        ]),
+      };
+      jest.spyOn(AllocationRecommendation, 'createQueryBuilder').mockReturnValue(queryBuilder as any);
+
+      const result = await service.buildLatestRecommendationMetricsMap({
+        recommendationItems: [{ symbol: ' aapl ', category: Category.NASDAQ, hasStock: true }],
+        errorService: { retryWithFallback: async <T>(operation: () => Promise<T>) => operation() },
+        onError: jest.fn(),
+      });
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('recommendation.symbol IN (:...symbols)', {
+        symbols: ['AAPL'],
+      });
+      expect(result.get(' aapl ')).toEqual({ intensity: 0.41, modelTargetWeight: 0.22 });
+      expect(result.get('AAPL')).toEqual({ intensity: 0.41, modelTargetWeight: 0.22 });
     });
   });
 
