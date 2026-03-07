@@ -538,14 +538,24 @@ export class TradeOrchestrationService {
     errorService: RecommendationMetricsErrorService,
     onError: (error: unknown) => void,
   ): Promise<AllocationRecommendation[]> {
-    const operation = () =>
-      AllocationRecommendation.createQueryBuilder('recommendation')
-        .distinctOn(['recommendation.symbol'])
+    const operation = () => {
+      const queryBuilder = AllocationRecommendation.createQueryBuilder('recommendation');
+      const latestRecommendationIdSubQuery = queryBuilder
+        .subQuery()
+        .select('newer.id')
+        .from(AllocationRecommendation, 'newer')
+        .where('newer.symbol = recommendation.symbol')
+        .orderBy('newer.createdAt', 'DESC')
+        .addOrderBy('newer.id', 'DESC')
+        .limit(1)
+        .getQuery();
+
+      return queryBuilder
         .where('recommendation.symbol IN (:...symbols)', { symbols })
+        .andWhere(`recommendation.id = ${latestRecommendationIdSubQuery}`)
         .orderBy('recommendation.symbol', 'ASC')
-        .addOrderBy('recommendation.createdAt', 'DESC')
-        .addOrderBy('recommendation.id', 'DESC')
         .getMany();
+    };
 
     try {
       return await errorService.retryWithFallback(operation);

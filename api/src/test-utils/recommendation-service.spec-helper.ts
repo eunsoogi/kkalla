@@ -2,11 +2,24 @@ import type { RecommendationItem } from '@/modules/allocation-core/allocation-co
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 
 export function mockLatestRecommendationQuery(...responses: any[][]) {
-  const queryBuilder = {
-    distinctOn: jest.fn().mockReturnThis(),
+  const subQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     addOrderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    getQuery: jest
+      .fn()
+      .mockReturnValue(
+        '(SELECT newer.id FROM allocation_recommendation newer WHERE newer.symbol = recommendation.symbol ORDER BY newer.created_at DESC, newer.id DESC LIMIT 1)',
+      ),
+  };
+  const queryBuilder = {
+    subQuery: jest.fn().mockReturnValue(subQueryBuilder),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
     getMany: jest.fn(),
   };
 
@@ -25,6 +38,7 @@ export function mockLatestRecommendationQuery(...responses: any[][]) {
   return {
     createQueryBuilderSpy,
     queryBuilder,
+    subQueryBuilder,
   };
 }
 

@@ -700,11 +700,24 @@ describe('TradeOrchestrationService', () => {
 
   describe('latest recommendation metrics', () => {
     it('should build latest metrics map from latest recommendations with a single query', async () => {
-      const queryBuilder = {
-        distinctOn: jest.fn().mockReturnThis(),
+      const subQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getQuery: jest
+          .fn()
+          .mockReturnValue(
+            '(SELECT newer.id FROM allocation_recommendation newer WHERE newer.symbol = recommendation.symbol ORDER BY newer.created_at DESC, newer.id DESC LIMIT 1)',
+          ),
+      };
+      const queryBuilder = {
+        subQuery: jest.fn().mockReturnValue(subQueryBuilder),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([
           {
             symbol: 'ETH/KRW',
@@ -746,10 +759,20 @@ describe('TradeOrchestrationService', () => {
 
       expect(retryWithFallbackSpy).toHaveBeenCalledTimes(1);
       expect(createQueryBuilderSpy).toHaveBeenCalledWith('recommendation');
-      expect(queryBuilder.distinctOn).toHaveBeenCalledWith(['recommendation.symbol']);
+      expect(queryBuilder.subQuery).toHaveBeenCalledTimes(1);
+      expect(subQueryBuilder.select).toHaveBeenCalledWith('newer.id');
+      expect(subQueryBuilder.from).toHaveBeenCalledWith(AllocationRecommendation, 'newer');
+      expect(subQueryBuilder.where).toHaveBeenCalledWith('newer.symbol = recommendation.symbol');
+      expect(subQueryBuilder.orderBy).toHaveBeenCalledWith('newer.createdAt', 'DESC');
+      expect(subQueryBuilder.addOrderBy).toHaveBeenCalledWith('newer.id', 'DESC');
+      expect(subQueryBuilder.limit).toHaveBeenCalledWith(1);
       expect(queryBuilder.where).toHaveBeenCalledWith('recommendation.symbol IN (:...symbols)', {
         symbols: ['BTC/KRW', 'ETH/KRW'],
       });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('recommendation.id = (SELECT newer.id'),
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('recommendation.symbol', 'ASC');
       expect(queryBuilder.getMany).toHaveBeenCalledTimes(1);
       expect(result.get('BTC/KRW')).toEqual({ intensity: 0.2, modelTargetWeight: 0.3 });
       expect(result.get('ETH/KRW')).toEqual({ intensity: 0.6, modelTargetWeight: 0.7 });
