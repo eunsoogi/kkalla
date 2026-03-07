@@ -70,9 +70,7 @@ export async function buildAllocationRecommendationPromptMessages(
   options: BuildAllocationRecommendationPromptMessagesOptions,
 ): Promise<BuildAllocationRecommendationPromptMessagesResult> {
   const messages: EasyInputMessage[] = [];
-  const uniqueSymbols = Array.from(
-    new Set(options.symbols.map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0)),
-  );
+  const uniqueSymbols = Array.from(new Set(options.symbols.filter((symbol) => symbol.trim().length > 0)));
   const marketFeaturesBySymbol = new Map<string, MarketFeatures | null>();
 
   options.openaiService.addMessage(messages, 'system', options.prompt);

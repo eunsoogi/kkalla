@@ -269,4 +269,44 @@ describe('balance-recommendation-context utils', () => {
       { symbol: 'ETH/KRW', summary: 'eth-guardrail' },
     ]);
   });
+
+  it('should preserve padded target symbols for prompt and downstream symbol-keyed context', async () => {
+    const openaiService = {
+      addMessage: jest.fn(),
+      addPromptPair: jest.fn(),
+    };
+    const featureService = {
+      MARKET_DATA_LEGEND: 'legend',
+      extractMarketFeatures: jest.fn().mockResolvedValue({ volatility: 0.2 }),
+      formatMarketData: jest.fn().mockReturnValue('market-data'),
+    };
+
+    const result = await buildAllocationRecommendationPromptMessages({
+      symbols: [' aapl '],
+      prompt: 'prompt',
+      openaiService: openaiService as any,
+      featureService: featureService as any,
+      newsService: {
+        getCompactNews: jest.fn().mockResolvedValue([]),
+      } as any,
+      marketRegimeService: {
+        getSnapshot: jest.fn().mockResolvedValue(null),
+      } as any,
+      errorService: {
+        retryWithFallback: jest.fn(async (op: () => Promise<unknown>) => op()),
+      } as any,
+      allocationAuditService: {
+        buildAllocationValidationGuardrailText: jest.fn().mockResolvedValue('guardrail'),
+      } as any,
+      onNewsError: jest.fn(),
+      onMarketRegimeError: jest.fn(),
+      onValidationGuardrailError: jest.fn(),
+    });
+
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_TARGET_SYMBOLS, [
+      ' aapl ',
+    ]);
+    expect(featureService.extractMarketFeatures).toHaveBeenCalledWith(' aapl ');
+    expect(result.marketFeaturesBySymbol.get(' aapl ')).toEqual({ volatility: 0.2 });
+  });
 });
