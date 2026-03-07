@@ -17,9 +17,12 @@ import type {
   CalculateAllocationModelSignalsOptions,
   CategoryRecommendationFilterConfig,
   FeatureScoreConfig,
+  NormalizeAllocationRecommendationBatchResponseOptions,
   NormalizeAllocationRecommendationResponseOptions,
   NormalizePercentToRateOptions,
+  NormalizedAllocationRecommendationBatchItem,
   NormalizedAllocationRecommendationResponse,
+  ParsedAllocationRecommendationBatchResponse,
   ParsedAllocationRecommendationResponse,
   RecommendationFilterConfig,
   ResolveConsumeRecommendationActionOptions,
@@ -34,9 +37,12 @@ export type {
   CalculateAllocationModelSignalsOptions,
   CategoryRecommendationFilterConfig,
   FeatureScoreConfig,
+  NormalizeAllocationRecommendationBatchResponseOptions,
   NormalizeAllocationRecommendationResponseOptions,
+  NormalizedAllocationRecommendationBatchItem,
   NormalizePercentToRateOptions,
   NormalizedAllocationRecommendationResponse,
+  ParsedAllocationRecommendationBatchResponse,
   ParsedAllocationRecommendationResponse,
   RecommendationFilterConfig,
   ResolveConsumeRecommendationActionOptions,
@@ -261,6 +267,59 @@ export function normalizeAllocationRecommendationResponsePayload(
       : [],
     reason,
   };
+}
+
+/**
+ * Normalizes multi-symbol allocation recommendation response payloads.
+ * Filters unexpected symbols and ignores duplicate entries after the first valid symbol.
+ * @param response - Response object for the allocation recommendation operation.
+ * @param options - Configuration for the allocation recommendation flow.
+ * @returns Normalized recommendation map keyed by symbol.
+ */
+export function normalizeAllocationRecommendationBatchResponsePayload(
+  response: unknown,
+  options: NormalizeAllocationRecommendationBatchResponseOptions,
+): Map<string, NormalizedAllocationRecommendationBatchItem> {
+  const normalizedItems = new Map<string, NormalizedAllocationRecommendationBatchItem>();
+  if (!response || typeof response !== 'object') {
+    return normalizedItems;
+  }
+
+  const parsed = response as ParsedAllocationRecommendationBatchResponse;
+  if (!Array.isArray(parsed.recommendations)) {
+    return normalizedItems;
+  }
+
+  const expectedSymbols = new Set(options.expectedSymbols);
+  for (const recommendation of parsed.recommendations) {
+    if (!recommendation || typeof recommendation !== 'object') {
+      continue;
+    }
+
+    const raw = recommendation as ParsedAllocationRecommendationResponse;
+    const outputSymbol = typeof raw.symbol === 'string' ? raw.symbol.trim() : '';
+    if (!expectedSymbols.has(outputSymbol)) {
+      options.onUnexpectedSymbol?.({ outputSymbol });
+      continue;
+    }
+
+    if (normalizedItems.has(outputSymbol)) {
+      options.onDuplicateSymbol?.({ outputSymbol });
+      continue;
+    }
+
+    const normalized = normalizeAllocationRecommendationResponsePayload(raw, {
+      expectedSymbol: outputSymbol,
+      dropOnSymbolMismatch: true,
+    });
+    if (!normalized) {
+      continue;
+    }
+
+    normalizedItems.set(outputSymbol, { raw, normalized });
+  }
+
+  return normalizedItems;
 }
 
 function resolveActionBetweenWeights(

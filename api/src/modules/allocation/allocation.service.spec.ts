@@ -1,4 +1,12 @@
+import {
+  buildWrappedRecommendationResponse,
+  buildWrappedRecommendationsResponse,
+} from '@/test-utils/allocation-recommendation-response.mock';
 import { translateKoMessage } from '@/test-utils/i18n.mock';
+import {
+  expectTransportFailureRecommendationRun,
+  mockLatestRecommendationQuery,
+} from '@/test-utils/recommendation-service.spec-helper';
 
 import { TradeOrchestrationService } from '../allocation-core/trade-orchestration.service';
 import { Category } from '../category/category.enum';
@@ -17,7 +25,6 @@ describe('AllocationService', () => {
   };
 
   const originalQueueUrl = process.env.AWS_SQS_QUEUE_URL_ALLOCATION;
-
   beforeAll(() => {
     process.env.AWS_SQS_QUEUE_URL_ALLOCATION = 'https://example.com/test-allocation-queue';
   });
@@ -93,7 +100,7 @@ describe('AllocationService', () => {
         getResponseOutput: jest.fn(),
         getResponseOutputText: jest.fn(),
         addMessage: jest.fn(),
-        addMessagePair: jest.fn(),
+        addPromptPair: jest.fn(),
       } as any,
       {
         MARKET_DATA_LEGEND: 'legend',
@@ -1538,72 +1545,261 @@ describe('AllocationService', () => {
     expect(includedSpy.mock.calls[1][8]).toBe(true);
   });
 
-  it('should fallback to target symbol when AI returns symbol mismatch', async () => {
+  it('should fail closed when AI returns an unexpected symbol', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    mockLatestRecommendationQuery([]);
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC',
-        intensity: 0.42,
-      }),
+      text: JSON.stringify(buildWrappedRecommendationResponse({ symbol: 'BTC', intensity: 0.42 })),
+      citations: [],
+    });
+    const saveSpy = jest.spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation');
+
+    await expect(
+      service.allocationRecommendation([
+        {
+          symbol: 'BTC',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+        },
+      ]),
+    ).rejects.toThrow('expected 1, received 0');
+
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('should group unique symbols into a single realtime inference request', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    mockLatestRecommendationQuery([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify(
+        buildWrappedRecommendationsResponse([
+          {
+            symbol: 'BTC/KRW',
+            intensity: 0.42,
+            confidence: 0.7,
+            expectedVolatilityPct: 0.03,
+            riskFlags: [],
+            reason: 'BTC 근거',
+          },
+          {
+            symbol: 'ETH/KRW',
+            intensity: 0.18,
+            confidence: 0.6,
+            expectedVolatilityPct: 0.02,
+            riskFlags: [],
+            reason: 'ETH 근거',
+          },
+        ]),
+      ),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-1',
-        seq: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        reason: null,
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: `saved-${recommendation.symbol}`,
+          seq: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const result = await service.allocationRecommendation([
       {
-        symbol: 'BTC',
+        symbol: 'BTC/KRW',
         category: Category.COIN_MAJOR,
         hasStock: true,
       },
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: false,
+      },
     ]);
 
-    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'BTC/KRW' }));
-    expect(result).toHaveLength(1);
-    expect(result[0].symbol).toBe('BTC/KRW');
+    expect(openaiService.createResponse).toHaveBeenCalledTimes(1);
+    expect(saveSpy).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(2);
+    expect(result.map((item: any) => item.symbol)).toEqual(['BTC/KRW', 'ETH/KRW']);
+  });
+
+  it('should split reasoning effort by allocation mode', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    mockLatestRecommendationQuery([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify(buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: 0.42 })),
+      citations: [],
+    });
+
+    jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: `saved-${recommendation.symbol}`,
+          seq: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
+
+    await service.allocationRecommendation([{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR, hasStock: true }]);
+    expect(openaiService.createResponse).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ reasoning_effort: 'medium' }),
+    );
+
+    await service.allocationRecommendation(
+      [{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR, hasStock: true }],
+      'existing',
+    );
+    expect(openaiService.createResponse).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ reasoning_effort: 'low' }),
+    );
+  });
+
+  it('should handle many symbols in a single realtime request', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    mockLatestRecommendationQuery([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify(
+        buildWrappedRecommendationsResponse([
+          { symbol: 'BTC/KRW', intensity: 0.42, reason: 'BTC 근거' },
+          { symbol: 'ETH/KRW', intensity: 0.18, reason: 'ETH 근거' },
+          { symbol: 'XRP/KRW', intensity: 0.12, reason: 'XRP 근거' },
+          { symbol: 'ADA/KRW', intensity: 0.1, reason: 'ADA 근거' },
+          { symbol: 'SOL/KRW', intensity: 0.09, reason: 'SOL 근거' },
+          { symbol: 'SUI/KRW', intensity: 0.07, reason: 'SUI 근거' },
+        ]),
+      ),
+      citations: [],
+    });
+
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: `saved-${recommendation.symbol}`,
+          seq: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
+
+    const result = await service.allocationRecommendation([
+      { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, hasStock: true },
+      { symbol: 'ETH/KRW', category: Category.COIN_MAJOR, hasStock: false },
+      { symbol: 'XRP/KRW', category: Category.COIN_MAJOR, hasStock: false },
+      { symbol: 'ADA/KRW', category: Category.COIN_MAJOR, hasStock: false },
+      { symbol: 'SOL/KRW', category: Category.COIN_MAJOR, hasStock: false },
+      { symbol: 'SUI/KRW', category: Category.COIN_MAJOR, hasStock: false },
+    ]);
+
+    expect(openaiService.createResponse).toHaveBeenCalledTimes(1);
+    expect(saveSpy).toHaveBeenCalledTimes(6);
+    expect(result).toHaveLength(6);
+    expect(result.map((item: any) => item.symbol)).toEqual([
+      'BTC/KRW',
+      'ETH/KRW',
+      'XRP/KRW',
+      'ADA/KRW',
+      'SOL/KRW',
+      'SUI/KRW',
+    ]);
+  });
+
+  it('should fail whole recommendation run on malformed realtime response', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    mockLatestRecommendationQuery([]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify(
+        buildWrappedRecommendationsResponse([{ symbol: 'BTC/KRW', intensity: 0.42, reason: 'BTC 공통 응답' }]),
+      ),
+      citations: [],
+    });
+
+    const saveSpy = jest.spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation');
+
+    await expect(
+      service.allocationRecommendation([
+        { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, hasStock: true },
+        { symbol: 'ETH/KRW', category: Category.COIN_MAJOR, hasStock: false },
+      ]),
+    ).rejects.toThrow('expected 2, received 1');
+
+    expect(openaiService.createResponse).toHaveBeenCalledTimes(1);
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('should fail whole recommendation run on transport failures', async () => {
+    await expectTransportFailureRecommendationRun({
+      service: service as any,
+      items: [
+        { symbol: 'BTC/KRW', category: Category.COIN_MAJOR, hasStock: true },
+        { symbol: 'ETH/KRW', category: Category.COIN_MAJOR, hasStock: false },
+      ],
+    });
   });
 
   it('should keep raw reason for persistence and return sanitized reason', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    mockLatestRecommendationQuery([]);
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC/KRW',
-        intensity: 0.31,
-        reason: '근거 문장 〖4:0†source〗',
-      }),
+      text: JSON.stringify(
+        buildWrappedRecommendationResponse({
+          symbol: 'BTC/KRW',
+          intensity: 0.31,
+          reason: '근거 문장 〖4:0†source〗',
+        }),
+      ),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-2',
-        seq: 2,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: 'saved-2',
+          seq: 2,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const result = await service.allocationRecommendation([
       {
@@ -1618,12 +1814,56 @@ describe('AllocationService', () => {
     expect(result[0].reason).toBe('근거 문장');
   });
 
+  it('should load latest metrics using normalized target symbols', async () => {
+    const openaiService = (service as any).openaiService;
+    const featureService = (service as any).featureService;
+
+    const { createQueryBuilderSpy, queryBuilder } = mockLatestRecommendationQuery([
+      {
+        symbol: 'BTC/KRW',
+        modelTargetWeight: 0.27,
+        intensity: 0.11,
+      } as any,
+    ]);
+    featureService.extractMarketFeatures.mockResolvedValue(null);
+    featureService.formatMarketData.mockReturnValue('market-data');
+    openaiService.createResponse.mockResolvedValue({} as any);
+    openaiService.getResponseOutput.mockReturnValue({
+      text: JSON.stringify(buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: 0.2, confidence: 0.9 })),
+      citations: [],
+    });
+
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => ({
+        id: `saved-${recommendation.symbol}`,
+        seq: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...recommendation,
+      }));
+
+    const result = await service.allocationRecommendation([
+      {
+        symbol: 'KRW-BTC',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      } as any,
+    ]);
+
+    expect(createQueryBuilderSpy).toHaveBeenCalledWith('recommendation');
+    expect(queryBuilder.where).toHaveBeenCalledWith('recommendation.symbol IN (:...symbols)', { symbols: ['BTC/KRW'] });
+    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ prevModelTargetWeight: 0.27 }));
+    expect(result[0].prevModelTargetWeight).toBe(0.27);
+  });
+
   it('should derive sell action from bearish intensity without OpenAI action', async () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([
+    mockLatestRecommendationQuery([
       {
+        symbol: 'BTC/KRW',
         modelTargetWeight: 0.27,
         intensity: 0,
       } as any,
@@ -1632,23 +1872,23 @@ describe('AllocationService', () => {
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC/KRW',
-        intensity: -0.8,
-        confidence: 0.95,
-      }),
+      text: JSON.stringify(
+        buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: -0.8, confidence: 0.95 }),
+      ),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-hold-1',
-        seq: 3,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: 'saved-hold-1',
+          seq: 3,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const result = await service.allocationRecommendation([
       {
@@ -1673,28 +1913,28 @@ describe('AllocationService', () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    mockLatestRecommendationQuery([]);
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC/KRW',
-        intensity: -0.8,
-        confidence: 0.95,
-      }),
+      text: JSON.stringify(
+        buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: -0.8, confidence: 0.95 }),
+      ),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-sell-fallback-1',
-        seq: 4,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: 'saved-sell-fallback-1',
+          seq: 4,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const result = await service.allocationRecommendation([
       {
@@ -1721,28 +1961,28 @@ describe('AllocationService', () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    mockLatestRecommendationQuery([]);
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC/KRW',
-        intensity: -0.8,
-        confidence: 0.95,
-      }),
+      text: JSON.stringify(
+        buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: -0.8, confidence: 0.95 }),
+      ),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-sell-holding-baseline-1',
-        seq: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: 'saved-sell-holding-baseline-1',
+          seq: 5,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const result = await service.allocationRecommendation([
       {
@@ -1770,28 +2010,26 @@ describe('AllocationService', () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest.spyOn(AllocationRecommendation, 'find').mockResolvedValue([]);
+    mockLatestRecommendationQuery([]);
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC/KRW',
-        intensity: 0.24,
-        confidence: 0.2,
-      }),
+      text: JSON.stringify(buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: 0.24, confidence: 0.2 })),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-hold-low-confidence-1',
-        seq: 4,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: 'saved-hold-low-confidence-1',
+          seq: 4,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const result = await service.allocationRecommendation([
       {
@@ -1816,41 +2054,41 @@ describe('AllocationService', () => {
     const openaiService = (service as any).openaiService;
     const featureService = (service as any).featureService;
 
-    jest
-      .spyOn(AllocationRecommendation, 'find')
-      .mockResolvedValueOnce([
+    mockLatestRecommendationQuery(
+      [
         {
+          symbol: 'BTC/KRW',
           modelTargetWeight: 0.21,
           intensity: 0,
         } as any,
-      ])
-      .mockResolvedValueOnce([
+      ],
+      [
         {
+          symbol: 'BTC/KRW',
           modelTargetWeight: 0.19,
           intensity: 0,
         } as any,
-      ]);
+      ],
+    );
     featureService.extractMarketFeatures.mockResolvedValue(null);
     featureService.formatMarketData.mockReturnValue('market-data');
     openaiService.createResponse.mockResolvedValue({} as any);
     openaiService.getResponseOutput.mockReturnValue({
-      text: JSON.stringify({
-        symbol: 'BTC/KRW',
-        intensity: 0.25,
-        confidence: 0.9,
-      }),
+      text: JSON.stringify(buildWrappedRecommendationResponse({ symbol: 'BTC/KRW', intensity: 0.25, confidence: 0.9 })),
       citations: [],
     });
 
-    const saveSpy = jest.spyOn(service, 'saveAllocationRecommendation').mockImplementation(async (recommendation) => {
-      return {
-        id: 'saved-min-weight-pre-slot-hold-1',
-        seq: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...recommendation,
-      } as any;
-    });
+    const saveSpy = jest
+      .spyOn((service as any).tradeOrchestrationService, 'saveAllocationRecommendation')
+      .mockImplementation(async (recommendation: any) => {
+        return {
+          id: 'saved-min-weight-pre-slot-hold-1',
+          seq: 5,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...recommendation,
+        } as any;
+      });
 
     const holdResult = await service.allocationRecommendation([
       {
@@ -2011,7 +2249,7 @@ describe('AllocationService', () => {
       return this;
     });
 
-    await service.saveAllocationRecommendation({
+    await (service as any).tradeOrchestrationService.saveAllocationRecommendation({
       batchId: 'batch-telemetry-save',
       symbol: 'BTC/KRW',
       category: Category.COIN_MAJOR,

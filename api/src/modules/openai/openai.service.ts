@@ -37,14 +37,13 @@ export class OpenaiService {
   }
 
   /**
-   * 메시지 페어 추가 (i18n) — 프롬프트용 user 메시지 + 데이터용 user 메시지 두 개를 순서대로 추가.
+   * 메시지 페어 추가 (raw prompt) — 프롬프트용 user 메시지 + 데이터용 user 메시지 두 개를 순서대로 추가.
    * instructions는 첫 번째 system 하나만 쓰고, 나머지는 모두 input 배열로 전달됨.
    */
-  public addMessagePair(messages: EasyInputMessage[], promptKey: string, data: any, args?: any): void {
-    const content = String(this.i18n.t(promptKey, args));
+  public addPromptPair(messages: EasyInputMessage[], prompt: string, data: unknown): void {
     const dataString = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 
-    this.addMessage(messages, 'user', content);
+    this.addMessage(messages, 'user', prompt);
     this.addMessage(messages, 'user', dataString);
   }
 

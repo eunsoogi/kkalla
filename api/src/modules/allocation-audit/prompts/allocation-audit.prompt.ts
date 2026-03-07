@@ -4,8 +4,8 @@ export const ALLOCATION_AUDIT_EVALUATOR_PROMPT = loadPromptMarkdown(__dirname, '
 
 export const ALLOCATION_AUDIT_EVALUATOR_CONFIG = {
   model: 'gpt-5.4',
-  max_output_tokens: 16384,
-  reasoning_effort: 'xhigh' as const,
+  max_output_tokens: 8192,
+  reasoning_effort: 'low' as const,
   service_tier: 'auto' as const,
 };
 

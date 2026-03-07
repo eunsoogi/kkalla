@@ -18,6 +18,10 @@ import {
   resolveAllocationRecommendationActionLabelKey,
   toPercentString,
 } from '@/modules/allocation-core/helpers/allocation-recommendation';
+import {
+  inferAndPersistSharedRealtimeRecommendation,
+  normalizeRecommendationTargetSymbol,
+} from '@/modules/allocation-core/helpers/allocation-recommendation-realtime';
 import { TradeOrchestrationService } from '@/modules/allocation-core/trade-orchestration.service';
 import { CacheService } from '@/modules/cache/cache.service';
 import { ErrorService } from '@/modules/error/error.service';
@@ -36,12 +40,9 @@ import { parseTradeExecutionMessage } from '@/modules/trade-execution-ledger/hel
 import { processTradeExecutionMessage } from '@/modules/trade-execution-ledger/helpers/trade-execution-pipeline';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { User } from '@/modules/user/entities/user.entity';
-import { generateMonotonicUlid } from '@/utils/id';
 import { formatNumber } from '@/utils/number';
-import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
-import { AllocationRecommendation } from '../allocation/entities/allocation-recommendation.entity';
 import { Category } from '../category/category.enum';
 import { CategoryService } from '../category/category.service';
 import { MarketRegimeService } from '../market-regime/market-regime.service';
@@ -59,9 +60,8 @@ import { MarketFeatures } from '../upbit/upbit.types';
 import { UserService } from '../user/user.service';
 import { SymbolVolatility } from './market-risk.types';
 import {
-  ALLOCATION_RECOMMENDATION_CONFIG,
   ALLOCATION_RECOMMENDATION_PROMPT,
-  ALLOCATION_RECOMMENDATION_RESPONSE_SCHEMA,
+  createMarketRiskAllocationRecommendationRequestConfig,
 } from './prompts/allocation-recommendation.prompt';
 
 /**
@@ -1253,282 +1253,50 @@ export class MarketRiskService implements OnModuleInit {
    */
   public async allocationRecommendation(items: RecommendationItem[]): Promise<AllocationRecommendationData[]> {
     this.logger.log(this.i18n.t('logging.inference.allocationRecommendation.start', { args: { count: items.length } }));
-    const latestRecommendationMetricsBySymbol =
-      await this.tradeOrchestrationService.buildLatestRecommendationMetricsMap({
-        recommendationItems: items,
-        errorService: this.errorService,
-        onError: (error) => {
-          this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
-        },
-      });
+    const recommendationResults = await inferAndPersistSharedRealtimeRecommendation({
+      items,
+      normalizeTargetSymbol: normalizeRecommendationTargetSymbol,
+      logger: this.logger,
+      i18n: this.i18n,
+      responseLabel: 'market-risk recommendation',
+      tradeOrchestrationService: this.tradeOrchestrationService,
+      prompt: ALLOCATION_RECOMMENDATION_PROMPT,
+      createRequestConfig: createMarketRiskAllocationRecommendationRequestConfig,
+      openaiService: this.openaiService,
+      featureService: this.featureService,
+      newsService: this.newsService,
+      marketRegimeService: this.marketRegimeService,
+      errorService: this.errorService,
+      allocationAuditService: this.allocationAuditService,
+      onLatestMetricsError: (error) => {
+        this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
+      },
+      calculateModelSignals: (intensity, category, marketFeatures, symbol, previousModelTargetWeight) =>
+        this.calculateModelSignals(intensity, category, marketFeatures, symbol, previousModelTargetWeight),
+      deriveTradeCostTelemetry: (marketFeatures, expectedVolatilityPct, decisionConfidence) =>
+        this.deriveTradeCostTelemetry(marketFeatures, expectedVolatilityPct, decisionConfidence),
+      resolveInferenceActionBaselineWeight: ({ item, currentHoldingWeight, previousModelTargetWeight }) =>
+        previousModelTargetWeight ?? (item.hasStock ? currentHoldingWeight : null),
+      minRecommendWeight: this.tradeOrchestrationService.getMinimumRecommendWeight(),
+      onBeforePersist: (count) =>
+        this.logger.log(this.i18n.t('logging.inference.allocationRecommendation.presave', { args: { count } })),
+      enqueueAllocationBatchValidation: (batchId) =>
+        this.allocationAuditService.enqueueAllocationBatchValidation(batchId),
+      onEnqueueValidationError: (error) =>
+        this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.enqueue_validation_failed'), error),
+    });
 
-    // 각 종목에 대한 실시간 API 호출을 병렬로 처리
-    const inferenceResults = await Promise.all(
-      items.map((item) => {
-        return this.errorService.retryWithFallback(async () => {
-          const targetSymbol =
-            item.category === Category.NASDAQ ? item.symbol : (normalizeKrwSymbol(item.symbol) ?? item.symbol);
-          if (targetSymbol !== item.symbol) {
-            this.logger.warn(
-              this.i18n.t('logging.inference.allocationRecommendation.symbol_normalized', {
-                args: {
-                  from: item.symbol,
-                  to: targetSymbol,
-                },
-              }),
-            );
-          }
-
-          const { messages, marketFeatures, marketRegime, feargreed } =
-            await this.tradeOrchestrationService.buildRecommendationPromptMessages({
-              symbol: targetSymbol,
-              prompt: ALLOCATION_RECOMMENDATION_PROMPT,
-              openaiService: this.openaiService,
-              featureService: this.featureService,
-              newsService: this.newsService,
-              marketRegimeService: this.marketRegimeService,
-              errorService: this.errorService,
-              allocationAuditService: this.allocationAuditService,
-              onNewsError: (error) => this.logger.error(this.i18n.t('logging.news.load_failed'), error),
-              onMarketRegimeError: (error) => this.logger.error(this.i18n.t('logging.marketRegime.load_failed'), error),
-              onValidationGuardrailError: (error, symbol) => {
-                this.logger.warn(
-                  this.i18n.t('logging.inference.allocationRecommendation.validation_guardrail_load_failed', {
-                    args: { symbol },
-                  }),
-                  error,
-                );
-              },
-            });
-
-          const requestConfig = {
-            ...ALLOCATION_RECOMMENDATION_CONFIG,
-            text: {
-              format: {
-                type: 'json_schema' as const,
-                name: 'allocation_recommendation',
-                strict: true,
-                schema: ALLOCATION_RECOMMENDATION_RESPONSE_SCHEMA as Record<string, unknown>,
-              },
-            },
-          };
-
-          // 실시간 API 호출 (Responses API + web_search)
-          const response = await this.openaiService.createResponse(messages, requestConfig);
-          const output = this.openaiService.getResponseOutput(response);
-          const outputText = output.text;
-          if (!outputText || outputText.trim() === '') {
-            return null;
-          }
-          const responseData = JSON.parse(outputText);
-          const normalizedResponse = this.tradeOrchestrationService.normalizeRecommendationResponsePayload(
-            responseData,
-            {
-              expectedSymbol: targetSymbol,
-              dropOnSymbolMismatch: true,
-              onSymbolMismatch: ({ outputSymbol, expectedSymbol }) => {
-                this.logger.warn(
-                  this.i18n.t('logging.inference.allocationRecommendation.symbol_mismatch_dropped', {
-                    args: {
-                      outputSymbol,
-                      expectedSymbol,
-                    },
-                  }),
-                );
-              },
-            },
-          );
-          if (!normalizedResponse) {
-            return null;
-          }
-
-          const safeIntensity = normalizedResponse.intensity;
-          const reason = normalizedResponse.reason;
-          const latestMetricsBySymbol =
-            latestRecommendationMetricsBySymbol.get(targetSymbol) ??
-            latestRecommendationMetricsBySymbol.get(item.symbol);
-          const currentHoldingWeight = item?.hasStock
-            ? this.tradeOrchestrationService.clampToUnitInterval(item?.weight ?? 0)
-            : 0;
-          const previousModelTargetWeight = latestMetricsBySymbol?.modelTargetWeight ?? null;
-          const inferenceActionBaselineWeight =
-            previousModelTargetWeight ?? (item?.hasStock ? currentHoldingWeight : null);
-          const modelSignals = this.calculateModelSignals(
-            safeIntensity,
-            item.category,
-            marketFeatures,
-            targetSymbol,
-            inferenceActionBaselineWeight,
-          );
-          const decisionConfidence = normalizedResponse.confidence;
-          const tradeCostTelemetry = this.deriveTradeCostTelemetry(
-            marketFeatures,
-            normalizedResponse.expectedVolatilityPct,
-            decisionConfidence,
-          );
-          const minRecommendWeight = this.tradeOrchestrationService.getMinimumRecommendWeight();
-
-          const modelTargetWeight = this.tradeOrchestrationService.clampToUnitInterval(modelSignals.modelTargetWeight);
-          const buyCandidateTargetWeight = Math.max(
-            modelTargetWeight,
-            this.tradeOrchestrationService.clampToUnitInterval(safeIntensity),
-          );
-          const inferenceModelTargetWeight = modelTargetWeight <= Number.EPSILON ? 0 : buyCandidateTargetWeight;
-          const inferenceModelAction = this.tradeOrchestrationService.resolveInferenceRecommendationAction(
-            inferenceActionBaselineWeight,
-            inferenceModelTargetWeight,
-          );
-          const neutralModelTargetWeight = this.tradeOrchestrationService.resolveNeutralModelTargetWeight(
-            previousModelTargetWeight,
-            item?.weight,
-            modelTargetWeight,
-            item?.hasStock || false,
-          );
-          const action = this.tradeOrchestrationService.resolveServerRecommendationAction({
-            modelAction: inferenceModelAction,
-            decisionConfidence,
-            currentHoldingWeight: inferenceActionBaselineWeight,
-            nextModelTargetWeight: inferenceModelTargetWeight,
-            minRecommendWeight,
-          });
-          const resolvedModelTargetWeight = action === 'hold' ? neutralModelTargetWeight : inferenceModelTargetWeight;
-
-          // 추론 결과와 아이템 병합
-          return {
-            ...responseData,
-            symbol: targetSymbol,
-            intensity: safeIntensity,
-            reason: reason.length > 0 ? reason : null,
-            category: item?.category,
-            hasStock: item?.hasStock || false,
-            prevIntensity: latestMetricsBySymbol?.intensity ?? null,
-            prevModelTargetWeight: previousModelTargetWeight,
-            weight: item?.weight,
-            confidence: item?.confidence,
-            decisionConfidence,
-            expectedVolatilityPct: normalizedResponse.expectedVolatilityPct,
-            riskFlags: normalizedResponse.riskFlags,
-            btcDominance: marketRegime?.btcDominance ?? null,
-            altcoinIndex: marketRegime?.altcoinIndex ?? null,
-            marketRegimeAsOf: marketRegime?.asOf ?? null,
-            marketRegimeSource: marketRegime?.source ?? null,
-            marketRegimeIsStale: marketRegime?.isStale ?? null,
-            feargreedIndex: feargreed?.index ?? null,
-            feargreedClassification: feargreed?.classification ?? null,
-            feargreedTimestamp:
-              feargreed?.timestamp != null && Number.isFinite(feargreed.timestamp)
-                ? new Date(feargreed.timestamp * 1000)
-                : null,
-            buyScore: modelSignals.buyScore,
-            sellScore: modelSignals.sellScore,
-            modelTargetWeight: resolvedModelTargetWeight,
-            action,
-            expectedEdgeRate: tradeCostTelemetry.expectedEdgeRate,
-            estimatedCostRate: tradeCostTelemetry.estimatedCostRate,
-            spreadRate: tradeCostTelemetry.spreadRate,
-            impactRate: tradeCostTelemetry.impactRate,
-          };
-        });
-      }),
-    );
-
-    const validResults = inferenceResults.filter((r): r is NonNullable<typeof r> => r != null);
-
-    // 추론 결과가 없으면 빈 배열 반환
-    if (validResults.length === 0) {
+    if (recommendationResults.length === 0) {
       this.logger.log(this.i18n.t('logging.inference.allocationRecommendation.complete'));
       return [];
     }
 
     // 결과 저장
     this.logger.log(
-      this.i18n.t('logging.inference.allocationRecommendation.presave', { args: { count: validResults.length } }),
-    );
-
-    const batchId = generateMonotonicUlid();
-    const recommendationResults = await Promise.all(
-      validResults.map((recommendation) => this.saveAllocationRecommendation({ ...recommendation, batchId })),
-    );
-
-    this.logger.log(
       this.i18n.t('logging.inference.allocationRecommendation.save', { args: { count: recommendationResults.length } }),
     );
 
     this.logger.log(this.i18n.t('logging.inference.allocationRecommendation.complete'));
-    this.allocationAuditService
-      .enqueueAllocationBatchValidation(batchId)
-      .catch((error) =>
-        this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.enqueue_validation_failed'), error),
-      );
-
-    return recommendationResults.map((saved, index) => ({
-      id: saved.id,
-      batchId: saved.batchId,
-      symbol: saved.symbol,
-      category: saved.category,
-      intensity: saved.intensity,
-      prevIntensity: saved.prevIntensity != null ? Number(saved.prevIntensity) : null,
-      prevModelTargetWeight: validResults[index].prevModelTargetWeight ?? null,
-      buyScore: saved.buyScore,
-      sellScore: saved.sellScore,
-      modelTargetWeight: saved.modelTargetWeight,
-      action: validResults[index].action,
-      reason: saved.reason != null ? toUserFacingText(saved.reason) : null,
-      hasStock: validResults[index].hasStock,
-      weight: validResults[index].weight,
-      confidence: validResults[index].confidence,
-      decisionConfidence: validResults[index].decisionConfidence,
-      expectedVolatilityPct: validResults[index].expectedVolatilityPct,
-      riskFlags: validResults[index].riskFlags,
-      expectedEdgeRate: validResults[index].expectedEdgeRate,
-      estimatedCostRate: validResults[index].estimatedCostRate,
-      spreadRate: validResults[index].spreadRate,
-      impactRate: validResults[index].impactRate,
-      btcDominance: saved.btcDominance,
-      altcoinIndex: saved.altcoinIndex,
-      marketRegimeAsOf: saved.marketRegimeAsOf,
-      marketRegimeSource: saved.marketRegimeSource,
-      marketRegimeIsStale: saved.marketRegimeIsStale,
-      feargreedIndex: saved.feargreedIndex,
-      feargreedClassification: saved.feargreedClassification,
-      feargreedTimestamp: saved.feargreedTimestamp,
-    }));
-  }
-
-  /**
-   * 잔고 추천 결과 저장
-   *
-   * @param recommendation 잔고 추천 데이터
-   * @returns 저장된 잔고 추천 엔티티
-   */
-  public async saveAllocationRecommendation(
-    recommendation: AllocationRecommendationData,
-  ): Promise<AllocationRecommendation> {
-    const normalizedSymbol =
-      recommendation.category === Category.NASDAQ
-        ? recommendation.symbol?.trim().toUpperCase()
-        : normalizeKrwSymbol(recommendation.symbol);
-    if (!normalizedSymbol) {
-      throw new Error(`Invalid balance recommendation symbol: ${recommendation.symbol}`);
-    }
-
-    const allocationRecommendation = new AllocationRecommendation();
-    Object.assign(allocationRecommendation, recommendation, { symbol: normalizedSymbol });
-    allocationRecommendation.btcDominance = recommendation.btcDominance ?? null;
-    allocationRecommendation.altcoinIndex = recommendation.altcoinIndex ?? null;
-    allocationRecommendation.marketRegimeAsOf = recommendation.marketRegimeAsOf ?? null;
-    allocationRecommendation.marketRegimeSource = recommendation.marketRegimeSource ?? null;
-    allocationRecommendation.marketRegimeIsStale = recommendation.marketRegimeIsStale ?? null;
-    allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
-    allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
-    allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
-    allocationRecommendation.decisionConfidence = recommendation.decisionConfidence ?? null;
-    allocationRecommendation.expectedVolatilityPct = recommendation.expectedVolatilityPct ?? null;
-    allocationRecommendation.riskFlags = recommendation.riskFlags ?? null;
-    allocationRecommendation.expectedEdgeRate = recommendation.expectedEdgeRate ?? null;
-    allocationRecommendation.estimatedCostRate = recommendation.estimatedCostRate ?? null;
-    allocationRecommendation.spreadRate = recommendation.spreadRate ?? null;
-    allocationRecommendation.impactRate = recommendation.impactRate ?? null;
-    return allocationRecommendation.save();
+    return recommendationResults;
   }
 }

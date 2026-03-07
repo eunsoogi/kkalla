@@ -3,8 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
 import { I18nService } from 'nestjs-i18n';
 
+import { ALLOCATION_RECOMMENDATION_MESSAGE_CONFIG } from '@/modules/allocation-core/allocation-recommendation.prompt.shared';
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
-import { ALLOCATION_RECOMMENDATION_CONFIG } from '@/modules/allocation/prompts/allocation-recommendation.prompt';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import { MarketFeatures } from '@/modules/upbit/upbit.types';
 import { formatObjectNumbers } from '@/utils/number';
@@ -1163,8 +1163,8 @@ export class FeatureService {
     try {
       return await AllocationRecommendation.getRecent({
         symbol,
-        createdAt: new Date(Date.now() - ALLOCATION_RECOMMENDATION_CONFIG.message.recentDateLimit),
-        count: ALLOCATION_RECOMMENDATION_CONFIG.message.recent,
+        createdAt: new Date(Date.now() - ALLOCATION_RECOMMENDATION_MESSAGE_CONFIG.recentDateLimit),
+        count: ALLOCATION_RECOMMENDATION_MESSAGE_CONFIG.recent,
       });
     } catch (error) {
       this.logger.error(
@@ -1212,7 +1212,7 @@ export class FeatureService {
    * @param marketFeatures 시장 특성 데이터 배열
    * @returns 포맷팅된 시장 데이터 문자열
    */
-  public formatMarketData(marketFeatures: MarketFeatures[]): string {
+  public formatMarketData(marketFeatures: Array<MarketFeatures | null>): string {
     const template = Handlebars.compile(this.MARKET_DATA_TEMPLATE);
 
     return marketFeatures

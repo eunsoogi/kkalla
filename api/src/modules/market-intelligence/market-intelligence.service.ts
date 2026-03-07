@@ -16,6 +16,12 @@ import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import { OpenaiService } from '@/modules/openai/openai.service';
 import { UpbitService } from '@/modules/upbit/upbit.service';
 import type { KrwTickerDailyData } from '@/modules/upbit/upbit.types';
+import {
+  PROMPT_INPUT_FEARGREED,
+  PROMPT_INPUT_MARKET_REGIME,
+  PROMPT_INPUT_NEWS,
+  PROMPT_INPUT_VALIDATION_MARKET,
+} from '@/prompts/input';
 import { fromUnixSeconds } from '@/utils/date';
 import { toFiniteNumber, toPositiveNumber } from '@/utils/number';
 import { buildMinuteLookupCandidateSet, resolveDailyFallbackPrice } from '@/utils/price';
@@ -339,23 +345,23 @@ export class MarketIntelligenceService {
       onError: (error) => this.logger.error(this.i18n.t('logging.news.load_failed'), error),
     });
     if (news && news.length > 0) {
-      this.openaiService.addMessagePair(messages, 'prompt.input.news', news);
+      this.openaiService.addPromptPair(messages, PROMPT_INPUT_NEWS, news);
     }
 
     const marketRegime = await this.fetchMarketRegimeWithFallback();
     if (marketRegime) {
-      this.openaiService.addMessagePair(messages, 'prompt.input.market_regime', marketRegime);
+      this.openaiService.addPromptPair(messages, PROMPT_INPUT_MARKET_REGIME, marketRegime);
     }
 
     const feargreed = marketRegime?.feargreed ?? null;
     if (feargreed) {
-      this.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+      this.openaiService.addPromptPair(messages, PROMPT_INPUT_FEARGREED, feargreed);
     }
 
     try {
       const validationSummary = await this.allocationAuditService.buildMarketValidationGuardrailText();
       if (validationSummary) {
-        this.openaiService.addMessagePair(messages, 'prompt.input.validation_market', validationSummary);
+        this.openaiService.addPromptPair(messages, PROMPT_INPUT_VALIDATION_MARKET, validationSummary);
       }
     } catch (error) {
       this.logger.warn(this.i18n.t('logging.inference.marketSignal.validation_guardrail_load_failed'), error);

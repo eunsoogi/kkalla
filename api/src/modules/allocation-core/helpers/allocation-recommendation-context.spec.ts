@@ -1,4 +1,10 @@
 import { NewsTypes } from '@/modules/news/news.enum';
+import {
+  PROMPT_INPUT_FEARGREED,
+  PROMPT_INPUT_MARKET_REGIME,
+  PROMPT_INPUT_TARGET_SYMBOLS,
+  PROMPT_INPUT_VALIDATION_ALLOCATION,
+} from '@/prompts/input';
 
 import {
   buildAllocationRecommendationPromptMessages,
@@ -103,8 +109,8 @@ describe('balance-recommendation-context utils', () => {
       addMessage: jest.fn((messages: unknown[], role: string, content: unknown) => {
         messages.push({ role, content });
       }),
-      addMessagePair: jest.fn((messages: unknown[], key: string, value: unknown) => {
-        messages.push({ key, value });
+      addPromptPair: jest.fn((messages: unknown[], prompt: string, value: unknown) => {
+        messages.push({ prompt, value });
       }),
     };
     const featureService = {
@@ -134,7 +140,7 @@ describe('balance-recommendation-context utils', () => {
     };
 
     const result = await buildAllocationRecommendationPromptMessages({
-      symbol: 'BTC/KRW',
+      symbols: ['BTC/KRW'],
       prompt: 'prompt',
       openaiService: openaiService as any,
       featureService: featureService as any,
@@ -150,10 +156,13 @@ describe('balance-recommendation-context utils', () => {
     });
 
     expect(result.messages.length).toBeGreaterThan(0);
-    expect(result.marketFeatures).toEqual({ volatility: 0.1 });
+    expect(result.marketFeaturesBySymbol.get('BTC/KRW')).toEqual({ volatility: 0.1 });
     expect(result.marketRegime?.btcDominance).toBe(55);
     expect(openaiService.addMessage).toHaveBeenCalled();
-    expect(openaiService.addMessagePair).toHaveBeenCalledWith(expect.any(Array), 'prompt.input.market_regime', {
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_TARGET_SYMBOLS, [
+      'BTC/KRW',
+    ]);
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_MARKET_REGIME, {
       btcDominance: 55,
       altcoinIndex: 50,
       feargreed: {
@@ -168,29 +177,27 @@ describe('balance-recommendation-context utils', () => {
       isStale: false,
       staleAgeMinutes: 0,
     });
-    expect(openaiService.addMessagePair).toHaveBeenCalledWith(expect.any(Array), 'prompt.input.feargreed', {
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_FEARGREED, {
       index: 50,
       classification: 'Neutral',
       timestamp: 1700000000,
       date: '2026-02-24',
       timeUntilUpdate: 0,
     });
-    expect(openaiService.addMessagePair).toHaveBeenCalledWith(
-      expect.any(Array),
-      'prompt.input.validation_allocation',
-      'guardrail',
-    );
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_VALIDATION_ALLOCATION, [
+      { symbol: 'BTC/KRW', summary: 'guardrail' },
+    ]);
   });
 
   it('should continue when validation guardrail loading fails', async () => {
     const onValidationGuardrailError = jest.fn();
 
     const result = await buildAllocationRecommendationPromptMessages({
-      symbol: 'ETH/KRW',
+      symbols: ['ETH/KRW'],
       prompt: 'prompt',
       openaiService: {
         addMessage: jest.fn(),
-        addMessagePair: jest.fn(),
+        addPromptPair: jest.fn(),
       } as any,
       featureService: {
         MARKET_DATA_LEGEND: 'legend',
@@ -214,7 +221,52 @@ describe('balance-recommendation-context utils', () => {
       onValidationGuardrailError,
     });
 
-    expect(result.marketFeatures).toBeNull();
+    expect(result.marketFeaturesBySymbol.get('ETH/KRW')).toBeNull();
     expect(onValidationGuardrailError).toHaveBeenCalledTimes(1);
+  });
+
+  it('should keep target symbols and validation guardrails in stable array shapes for multi-symbol prompts', async () => {
+    const openaiService = {
+      addMessage: jest.fn(),
+      addPromptPair: jest.fn(),
+    };
+
+    await buildAllocationRecommendationPromptMessages({
+      symbols: ['BTC/KRW', 'ETH/KRW'],
+      prompt: 'prompt',
+      openaiService: openaiService as any,
+      featureService: {
+        MARKET_DATA_LEGEND: 'legend',
+        extractMarketFeatures: jest.fn().mockResolvedValue(null),
+        formatMarketData: jest.fn().mockReturnValue('market-data'),
+      } as any,
+      newsService: {
+        getCompactNews: jest.fn().mockResolvedValue([]),
+      } as any,
+      marketRegimeService: {
+        getSnapshot: jest.fn().mockResolvedValue(null),
+      } as any,
+      errorService: {
+        retryWithFallback: jest.fn(async (op: () => Promise<unknown>) => op()),
+      } as any,
+      allocationAuditService: {
+        buildAllocationValidationGuardrailText: jest
+          .fn()
+          .mockResolvedValueOnce('btc-guardrail')
+          .mockResolvedValueOnce('eth-guardrail'),
+      } as any,
+      onNewsError: jest.fn(),
+      onMarketRegimeError: jest.fn(),
+      onValidationGuardrailError: jest.fn(),
+    });
+
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_TARGET_SYMBOLS, [
+      'BTC/KRW',
+      'ETH/KRW',
+    ]);
+    expect(openaiService.addPromptPair).toHaveBeenCalledWith(expect.any(Array), PROMPT_INPUT_VALIDATION_ALLOCATION, [
+      { symbol: 'BTC/KRW', summary: 'btc-guardrail' },
+      { symbol: 'ETH/KRW', summary: 'eth-guardrail' },
+    ]);
   });
 });
