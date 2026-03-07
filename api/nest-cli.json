@@ -13,6 +13,10 @@
       {
         "include": "modules/**/prompts/**/*.md",
         "watchAssets": true
+      },
+      {
+        "include": "prompts/**/*.md",
+        "watchAssets": true
       }
     ]
   }

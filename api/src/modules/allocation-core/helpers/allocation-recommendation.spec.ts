@@ -1,4 +1,5 @@
 import { AllocationRecommendationData } from '@/modules/allocation-core/allocation-core.types';
+import { createAllocationRecommendationResponseSchema } from '@/modules/allocation-core/allocation-recommendation.prompt.shared';
 import { Category } from '@/modules/category/category.enum';
 
 import {
@@ -17,6 +18,7 @@ import {
   isNoTradeRecommendation,
   isOrderableSymbol,
   isSellAmountSufficient,
+  normalizeAllocationRecommendationBatchResponsePayload,
   normalizeAllocationRecommendationResponsePayload,
   passesCostGate,
   resolveAllocationRecommendationActionLabelKey,
@@ -162,6 +164,59 @@ describe('balance-recommendation utils', () => {
       outputSymbol: 'ETH/KRW',
       expectedSymbol: 'BTC/KRW',
     });
+  });
+
+  it('should normalize wrapped batch payloads even when recommendations has one item', () => {
+    const normalized = normalizeAllocationRecommendationBatchResponsePayload(
+      {
+        recommendations: [
+          {
+            symbol: 'BTC/KRW',
+            intensity: 0.3,
+            confidence: 0.8,
+            expectedVolatilityPct: 0.04,
+            riskFlags: ['macro'],
+            reason: '추세와 이벤트가 동시에 우호적입니다.',
+          },
+        ],
+      },
+      {
+        expectedSymbols: ['BTC/KRW'],
+      },
+    );
+
+    expect(normalized.size).toBe(1);
+    expect(normalized.get('BTC/KRW')).toEqual({
+      raw: {
+        symbol: 'BTC/KRW',
+        intensity: 0.3,
+        confidence: 0.8,
+        expectedVolatilityPct: 0.04,
+        riskFlags: ['macro'],
+        reason: '추세와 이벤트가 동시에 우호적입니다.',
+      },
+      normalized: {
+        intensity: 0.3,
+        confidence: 0.8,
+        expectedVolatilityPct: 0.04,
+        riskFlags: ['macro'],
+        reason: '추세와 이벤트가 동시에 우호적입니다.',
+      },
+    });
+  });
+
+  it('should require exact multi-symbol recommendation counts in schema', () => {
+    const schema = createAllocationRecommendationResponseSchema(3) as {
+      properties: {
+        recommendations: {
+          minItems: number;
+          maxItems: number;
+        };
+      };
+    };
+
+    expect(schema.properties.recommendations.minItems).toBe(3);
+    expect(schema.properties.recommendations.maxItems).toBe(3);
   });
 
   it('should resolve inference/consume action from previous/current weights', () => {

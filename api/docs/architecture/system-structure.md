@@ -549,8 +549,10 @@ Prompt source files:
 
 Loading mechanism:
 
-- Prompt markdown is loaded in corresponding `.prompt.ts` via `loadPromptMarkdown(__dirname, '*.prompt.md')`.
-- Shared allocation response schema/config lives in `api/src/modules/allocation-core/allocation-recommendation.prompt.shared.ts`.
+- Each module loads its own prompt markdown in the corresponding `.prompt.ts` via `loadPromptMarkdown(__dirname, '*.prompt.md')`.
+- Allocation request config is split by mode: `new` uses `medium`, `existing` uses `low`.
+- Market-risk volatility recommendation config uses `low`.
+- Shared allocation response schema and request-config builder live in `api/src/modules/allocation-core/allocation-recommendation.prompt.shared.ts`.
 
 ## 9) Operational Timing And Lock Values
 

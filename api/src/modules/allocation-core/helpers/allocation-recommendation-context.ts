@@ -1,71 +1,23 @@
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 
-import { Feargreed, MarketRegimeSnapshot } from '@/modules/market-regime/market-regime.types';
+import type { MarketRegimeSnapshot } from '@/modules/market-regime/market-regime.types';
 import { NewsTypes } from '@/modules/news/news.enum';
-import { CompactNews } from '@/modules/news/news.types';
-import { MarketFeatures } from '@/modules/upbit/upbit.types';
+import type { CompactNews } from '@/modules/news/news.types';
+import type { MarketFeatures } from '@/modules/upbit/upbit.types';
+import {
+  PROMPT_INPUT_FEARGREED,
+  PROMPT_INPUT_MARKET_REGIME,
+  PROMPT_INPUT_NEWS,
+  PROMPT_INPUT_TARGET_SYMBOLS,
+  PROMPT_INPUT_VALIDATION_ALLOCATION,
+} from '@/prompts/input';
 
-interface RetryFallbackExecutor {
-  retryWithFallback<T>(operation: () => Promise<T>): Promise<T>;
-}
-
-interface NewsReader {
-  getCompactNews(params: {
-    type: NewsTypes;
-    limit: number;
-    importanceLower: number;
-    skip: boolean;
-  }): Promise<CompactNews[]>;
-}
-
-interface MarketRegimeReader {
-  getSnapshot(): Promise<MarketRegimeSnapshot>;
-}
-
-interface ErrorLogger {
-  (error: unknown): void;
-}
-
-interface FetchCoinNewsWithFallbackOptions {
-  newsService: NewsReader;
-  errorService: RetryFallbackExecutor;
-  onError: ErrorLogger;
-}
-
-interface FetchMarketRegimeWithFallbackOptions {
-  marketRegimeService: MarketRegimeReader;
-  errorService: RetryFallbackExecutor;
-  onError: ErrorLogger;
-}
-
-interface AllocationRecommendationPromptBuilder {
-  addMessage(messages: EasyInputMessage[], role: 'system' | 'user', content: string): void;
-  addMessagePair(messages: EasyInputMessage[], key: string, value: unknown): void;
-}
-
-interface MarketFeatureContextFormatter {
-  MARKET_DATA_LEGEND: string;
-  extractMarketFeatures(symbol: string): Promise<MarketFeatures | null>;
-  formatMarketData(features: Array<MarketFeatures | null>): string;
-}
-
-interface ValidationGuardrailProvider {
-  buildAllocationValidationGuardrailText(symbol: string): Promise<string | null>;
-}
-
-interface BuildAllocationRecommendationPromptMessagesOptions {
-  symbol: string;
-  prompt: string;
-  openaiService: AllocationRecommendationPromptBuilder;
-  featureService: MarketFeatureContextFormatter;
-  newsService: NewsReader;
-  marketRegimeService: MarketRegimeReader;
-  errorService: RetryFallbackExecutor;
-  allocationAuditService: ValidationGuardrailProvider;
-  onNewsError: ErrorLogger;
-  onMarketRegimeError: ErrorLogger;
-  onValidationGuardrailError: (error: unknown, symbol: string) => void;
-}
+import type {
+  BuildAllocationRecommendationPromptMessagesOptions,
+  BuildAllocationRecommendationPromptMessagesResult,
+  FetchCoinNewsWithFallbackOptions,
+  FetchMarketRegimeWithFallbackOptions,
+} from './allocation-recommendation-context.types';
 
 /**
  * Retrieves coin news with fallback for the allocation recommendation flow.
@@ -116,15 +68,15 @@ export async function fetchMarketRegimeWithFallback(
  */
 export async function buildAllocationRecommendationPromptMessages(
   options: BuildAllocationRecommendationPromptMessagesOptions,
-): Promise<{
-  messages: EasyInputMessage[];
-  marketFeatures: MarketFeatures | null;
-  marketRegime: MarketRegimeSnapshot | null;
-  feargreed: Feargreed | null;
-}> {
+): Promise<BuildAllocationRecommendationPromptMessagesResult> {
   const messages: EasyInputMessage[] = [];
+  const uniqueSymbols = Array.from(new Set(options.symbols.filter((symbol) => symbol.trim().length > 0)));
+  const marketFeaturesBySymbol = new Map<string, MarketFeatures | null>();
 
   options.openaiService.addMessage(messages, 'system', options.prompt);
+  if (uniqueSymbols.length > 0) {
+    options.openaiService.addPromptPair(messages, PROMPT_INPUT_TARGET_SYMBOLS, uniqueSymbols);
+  }
 
   const news = await fetchCoinNewsWithFallback({
     newsService: options.newsService,
@@ -132,7 +84,7 @@ export async function buildAllocationRecommendationPromptMessages(
     onError: options.onNewsError,
   });
   if (news.length > 0) {
-    options.openaiService.addMessagePair(messages, 'prompt.input.news', news);
+    options.openaiService.addPromptPair(messages, PROMPT_INPUT_NEWS, news);
   }
 
   const marketRegime = await fetchMarketRegimeWithFallback({
@@ -141,30 +93,48 @@ export async function buildAllocationRecommendationPromptMessages(
     onError: options.onMarketRegimeError,
   });
   if (marketRegime) {
-    options.openaiService.addMessagePair(messages, 'prompt.input.market_regime', marketRegime);
+    options.openaiService.addPromptPair(messages, PROMPT_INPUT_MARKET_REGIME, marketRegime);
   }
 
   const feargreed = marketRegime?.feargreed ?? null;
   if (feargreed) {
-    options.openaiService.addMessagePair(messages, 'prompt.input.feargreed', feargreed);
+    options.openaiService.addPromptPair(messages, PROMPT_INPUT_FEARGREED, feargreed);
   }
 
-  try {
-    const validationSummary = await options.allocationAuditService.buildAllocationValidationGuardrailText(
-      options.symbol,
-    );
-    // Validation summary is optional guardrail text, not a hard dependency.
-    if (validationSummary) {
-      options.openaiService.addMessagePair(messages, 'prompt.input.validation_allocation', validationSummary);
-    }
-  } catch (error) {
-    options.onValidationGuardrailError(error, options.symbol);
+  const validationSummaries = (
+    await Promise.all(
+      uniqueSymbols.map(async (symbol) => {
+        try {
+          const summary = await options.allocationAuditService.buildAllocationValidationGuardrailText(symbol);
+          if (!summary) {
+            return null;
+          }
+
+          return {
+            symbol,
+            summary,
+          };
+        } catch (error) {
+          options.onValidationGuardrailError(error, symbol);
+          return null;
+        }
+      }),
+    )
+  ).filter((item): item is { symbol: string; summary: string } => item != null);
+
+  if (validationSummaries.length > 0) {
+    options.openaiService.addPromptPair(messages, PROMPT_INPUT_VALIDATION_ALLOCATION, validationSummaries);
   }
 
-  const marketFeatures = await options.featureService.extractMarketFeatures(options.symbol);
-  const marketData = options.featureService.formatMarketData([marketFeatures]);
-  // Always provide structured market features so model input shape stays stable.
+  const marketFeaturesList = await Promise.all(
+    uniqueSymbols.map(async (symbol) => {
+      const marketFeatures = await options.featureService.extractMarketFeatures(symbol);
+      marketFeaturesBySymbol.set(symbol, marketFeatures);
+      return marketFeatures;
+    }),
+  );
+  const marketData = options.featureService.formatMarketData(marketFeaturesList);
   options.openaiService.addMessage(messages, 'user', `${options.featureService.MARKET_DATA_LEGEND}\n\n${marketData}`);
 
-  return { messages, marketFeatures, marketRegime, feargreed };
+  return { messages, marketFeaturesBySymbol, marketRegime, feargreed };
 }

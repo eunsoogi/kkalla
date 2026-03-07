@@ -5,8 +5,8 @@ export const MARKET_SIGNAL_PROMPT = loadPromptMarkdown(__dirname, 'market-signal
 // GPT-5.4 모델 설정 - 최대 10개 종목 추천용
 export const MARKET_SIGNAL_CONFIG = {
   model: 'gpt-5.4',
-  max_output_tokens: 16384,
-  reasoning_effort: 'xhigh' as const,
+  max_output_tokens: 8192,
+  reasoning_effort: 'medium' as const,
   service_tier: 'auto' as const,
   tools: [{ type: 'web_search' } as const],
 };

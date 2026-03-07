@@ -29,6 +29,10 @@ export interface ParsedAllocationRecommendationResponse {
   reason?: unknown;
 }
 
+export interface ParsedAllocationRecommendationBatchResponse {
+  recommendations?: unknown;
+}
+
 export interface NormalizedAllocationRecommendationResponse {
   intensity: number;
   confidence: number;
@@ -37,10 +41,21 @@ export interface NormalizedAllocationRecommendationResponse {
   reason: string;
 }
 
+export interface NormalizedAllocationRecommendationBatchItem {
+  raw: ParsedAllocationRecommendationResponse;
+  normalized: NormalizedAllocationRecommendationResponse;
+}
+
 export interface NormalizeAllocationRecommendationResponseOptions {
   expectedSymbol: string;
   dropOnSymbolMismatch?: boolean;
   onSymbolMismatch?: (args: { outputSymbol: string; expectedSymbol: string }) => void;
+}
+
+export interface NormalizeAllocationRecommendationBatchResponseOptions {
+  expectedSymbols: string[];
+  onUnexpectedSymbol?: (args: { outputSymbol: string }) => void;
+  onDuplicateSymbol?: (args: { outputSymbol: string }) => void;
 }
 
 export interface NormalizePercentToRateOptions {

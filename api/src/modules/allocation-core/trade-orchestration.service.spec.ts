@@ -699,21 +699,41 @@ describe('TradeOrchestrationService', () => {
   });
 
   describe('latest recommendation metrics', () => {
-    it('should build latest metrics map from latest recommendations per unique symbol', async () => {
-      const findSpy = jest.spyOn(AllocationRecommendation, 'find');
-      findSpy
-        .mockResolvedValueOnce([
+    it('should build latest metrics map from latest recommendations with a single query', async () => {
+      const subQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getQuery: jest
+          .fn()
+          .mockReturnValue(
+            '(SELECT newer.id FROM allocation_recommendation newer WHERE newer.symbol = recommendation.symbol ORDER BY newer.created_at DESC, newer.id DESC LIMIT 1)',
+          ),
+      };
+      const queryBuilder = {
+        subQuery: jest.fn().mockReturnValue(subQueryBuilder),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
           {
-            intensity: 0.2,
-            modelTargetWeight: 0.3,
-          } as AllocationRecommendation,
-        ])
-        .mockResolvedValueOnce([
-          {
+            symbol: 'ETH/KRW',
             intensity: 0.6,
             modelTargetWeight: 0.7,
           } as AllocationRecommendation,
-        ]);
+          {
+            symbol: 'BTC/KRW',
+            intensity: 0.2,
+            modelTargetWeight: 0.3,
+          } as AllocationRecommendation,
+        ]),
+      };
+      const createQueryBuilderSpy = jest
+        .spyOn(AllocationRecommendation, 'createQueryBuilder')
+        .mockReturnValue(queryBuilder as any);
 
       const errorService: RecommendationMetricsErrorService = {
         retryWithFallback: async <T>(operation: () => Promise<T>) => operation(),
@@ -732,8 +752,23 @@ describe('TradeOrchestrationService', () => {
         onError,
       });
 
-      expect(retryWithFallbackSpy).toHaveBeenCalledTimes(2);
-      expect(findSpy).toHaveBeenCalledTimes(2);
+      expect(retryWithFallbackSpy).toHaveBeenCalledTimes(1);
+      expect(createQueryBuilderSpy).toHaveBeenCalledWith('recommendation');
+      expect(queryBuilder.subQuery).toHaveBeenCalledTimes(1);
+      expect(subQueryBuilder.select).toHaveBeenCalledWith('newer.id');
+      expect(subQueryBuilder.from).toHaveBeenCalledWith(AllocationRecommendation, 'newer');
+      expect(subQueryBuilder.where).toHaveBeenCalledWith('newer.symbol = recommendation.symbol');
+      expect(subQueryBuilder.orderBy).toHaveBeenCalledWith('newer.createdAt', 'DESC');
+      expect(subQueryBuilder.addOrderBy).toHaveBeenCalledWith('newer.id', 'DESC');
+      expect(subQueryBuilder.limit).toHaveBeenCalledWith(1);
+      expect(queryBuilder.where).toHaveBeenCalledWith('recommendation.symbol IN (:...symbols)', {
+        symbols: ['BTC/KRW', 'ETH/KRW'],
+      });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('recommendation.id = (SELECT newer.id'),
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('recommendation.symbol', 'ASC');
+      expect(queryBuilder.getMany).toHaveBeenCalledTimes(1);
       expect(result.get('BTC/KRW')).toEqual({ intensity: 0.2, modelTargetWeight: 0.3 });
       expect(result.get('ETH/KRW')).toEqual({ intensity: 0.6, modelTargetWeight: 0.7 });
       expect(onError).not.toHaveBeenCalled();
@@ -753,6 +788,250 @@ describe('TradeOrchestrationService', () => {
 
       expect(onError).toHaveBeenCalledWith(error);
       expect(result.get('XRP/KRW')).toEqual({ intensity: null, modelTargetWeight: null });
+    });
+
+    it('should map normalized DB symbols back to requested symbol keys', async () => {
+      const subQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getQuery: jest
+          .fn()
+          .mockReturnValue(
+            '(SELECT newer.id FROM allocation_recommendation newer WHERE newer.symbol = recommendation.symbol ORDER BY newer.created_at DESC, newer.id DESC LIMIT 1)',
+          ),
+      };
+      const queryBuilder = {
+        subQuery: jest.fn().mockReturnValue(subQueryBuilder),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            symbol: 'AAPL',
+            intensity: 0.41,
+            modelTargetWeight: 0.22,
+          } as AllocationRecommendation,
+        ]),
+      };
+      jest.spyOn(AllocationRecommendation, 'createQueryBuilder').mockReturnValue(queryBuilder as any);
+
+      const result = await service.buildLatestRecommendationMetricsMap({
+        recommendationItems: [{ symbol: ' aapl ', category: Category.NASDAQ, hasStock: true }],
+        errorService: { retryWithFallback: async <T>(operation: () => Promise<T>) => operation() },
+        onError: jest.fn(),
+      });
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('recommendation.symbol IN (:...symbols)', {
+        symbols: ['AAPL'],
+      });
+      expect(result.get(' aapl ')).toEqual({ intensity: 0.41, modelTargetWeight: 0.22 });
+      expect(result.get('AAPL')).toEqual({ intensity: 0.41, modelTargetWeight: 0.22 });
+    });
+  });
+
+  describe('realtime recommendation inference', () => {
+    it('should parse a wrapped multi-symbol response in a single realtime request', async () => {
+      const createResponse = jest.fn().mockResolvedValue({ id: 'chunk' });
+      const getResponseOutput = jest.fn().mockReturnValue({
+        text: JSON.stringify({
+          recommendations: [
+            {
+              symbol: 'BTC/KRW',
+              intensity: 0.2,
+              confidence: 0.7,
+              expectedVolatilityPct: 0.02,
+              riskFlags: [],
+              reason: 'BTC 근거',
+            },
+            {
+              symbol: 'ETH/KRW',
+              intensity: 0.1,
+              confidence: 0.6,
+              expectedVolatilityPct: 0.03,
+              riskFlags: [],
+              reason: 'ETH 근거',
+            },
+          ],
+        }),
+      });
+
+      const results = await service.inferRecommendationsInRealtime({
+        itemsByTargetSymbol: new Map([
+          ['BTC/KRW', [{ symbol: 'BTC/KRW' }]],
+          ['ETH/KRW', [{ symbol: 'ETH/KRW' }]],
+        ]),
+        prompt: 'system prompt',
+        createRequestConfig: () => ({ model: 'gpt-5.4' }) as any,
+        openaiService: {
+          addMessage: jest.fn(),
+          addPromptPair: jest.fn(),
+          createResponse,
+          getResponseOutput,
+        },
+        featureService: {
+          MARKET_DATA_LEGEND: 'legend',
+          extractMarketFeatures: jest.fn().mockResolvedValue(null),
+          formatMarketData: jest.fn().mockReturnValue('market-data'),
+        },
+        newsService: {
+          getCompactNews: jest.fn().mockResolvedValue([]),
+        },
+        marketRegimeService: {
+          getSnapshot: jest.fn().mockResolvedValue(null),
+        },
+        errorService: {
+          retryWithFallback: async <T>(operation: () => Promise<T>) => operation(),
+        },
+        allocationAuditService: {
+          buildAllocationValidationGuardrailText: jest.fn().mockResolvedValue(null),
+        },
+        onNewsError: jest.fn(),
+        onMarketRegimeError: jest.fn(),
+        onValidationGuardrailError: jest.fn(),
+        onUnexpectedSymbol: jest.fn(),
+        onDuplicateSymbol: jest.fn(),
+        onInferenceFailed: jest.fn(),
+        buildIncompleteResponseError: ({ expectedCount, receivedCount }) =>
+          `expected ${expectedCount}, received ${receivedCount}`,
+        buildMissingResponseError: ({ symbol }) => `missing ${symbol}`,
+        buildResult: ({ targetSymbol, normalizedResponse }) => ({
+          symbol: targetSymbol,
+          intensity: normalizedResponse?.intensity ?? 0,
+        }),
+      });
+
+      expect(createResponse).toHaveBeenCalledTimes(1);
+      expect(results).toEqual([
+        { symbol: 'BTC/KRW', intensity: 0.2 },
+        { symbol: 'ETH/KRW', intensity: 0.1 },
+      ]);
+    });
+
+    it('should fail closed on malformed multi-symbol responses', async () => {
+      const malformedErrorOutput = {
+        text: JSON.stringify({
+          recommendations: [
+            {
+              symbol: 'BTC/KRW',
+              intensity: 0.2,
+              confidence: 0.7,
+              expectedVolatilityPct: 0.02,
+              riskFlags: [],
+              reason: 'BTC 근거',
+            },
+          ],
+        }),
+      };
+      const onInferenceFailed = jest.fn();
+
+      await expect(
+        service.inferRecommendationsInRealtime({
+          itemsByTargetSymbol: new Map([
+            ['BTC/KRW', [{ symbol: 'BTC/KRW' }]],
+            ['ETH/KRW', [{ symbol: 'ETH/KRW' }]],
+          ]),
+          prompt: 'system prompt',
+          createRequestConfig: () => ({ model: 'gpt-5.4' }) as any,
+          openaiService: {
+            addMessage: jest.fn(),
+            addPromptPair: jest.fn(),
+            createResponse: jest.fn().mockResolvedValue({ id: 'chunk' }),
+            getResponseOutput: jest.fn().mockReturnValue(malformedErrorOutput),
+          },
+          featureService: {
+            MARKET_DATA_LEGEND: 'legend',
+            extractMarketFeatures: jest.fn().mockResolvedValue(null),
+            formatMarketData: jest.fn().mockReturnValue('market-data'),
+          },
+          newsService: {
+            getCompactNews: jest.fn().mockResolvedValue([]),
+          },
+          marketRegimeService: {
+            getSnapshot: jest.fn().mockResolvedValue(null),
+          },
+          errorService: {
+            retryWithFallback: async <T>(operation: () => Promise<T>) => operation(),
+          },
+          allocationAuditService: {
+            buildAllocationValidationGuardrailText: jest.fn().mockResolvedValue(null),
+          },
+          onNewsError: jest.fn(),
+          onMarketRegimeError: jest.fn(),
+          onValidationGuardrailError: jest.fn(),
+          onUnexpectedSymbol: jest.fn(),
+          onDuplicateSymbol: jest.fn(),
+          onInferenceFailed,
+          buildIncompleteResponseError: ({ expectedCount, receivedCount }) =>
+            `expected ${expectedCount}, received ${receivedCount}`,
+          buildMissingResponseError: ({ symbol }) => `missing ${symbol}`,
+          buildResult: ({ targetSymbol, normalizedResponse }) => ({
+            symbol: targetSymbol,
+            intensity: normalizedResponse?.intensity ?? 0,
+          }),
+        }),
+      ).rejects.toThrow('expected 2, received 1');
+
+      expect(onInferenceFailed).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fail closed on transport failures', async () => {
+      const transportError = new Error('openai timeout');
+      const createResponse = jest.fn().mockRejectedValue(transportError);
+      const onInferenceFailed = jest.fn();
+
+      await expect(
+        service.inferRecommendationsInRealtime({
+          itemsByTargetSymbol: new Map([
+            ['BTC/KRW', [{ symbol: 'BTC/KRW' }]],
+            ['ETH/KRW', [{ symbol: 'ETH/KRW' }]],
+          ]),
+          prompt: 'system prompt',
+          createRequestConfig: () => ({ model: 'gpt-5.4' }) as any,
+          openaiService: {
+            addMessage: jest.fn(),
+            addPromptPair: jest.fn(),
+            createResponse,
+            getResponseOutput: jest.fn(),
+          },
+          featureService: {
+            MARKET_DATA_LEGEND: 'legend',
+            extractMarketFeatures: jest.fn().mockResolvedValue(null),
+            formatMarketData: jest.fn().mockReturnValue('market-data'),
+          },
+          newsService: {
+            getCompactNews: jest.fn().mockResolvedValue([]),
+          },
+          marketRegimeService: {
+            getSnapshot: jest.fn().mockResolvedValue(null),
+          },
+          errorService: {
+            retryWithFallback: async <T>(operation: () => Promise<T>) => operation(),
+          },
+          allocationAuditService: {
+            buildAllocationValidationGuardrailText: jest.fn().mockResolvedValue(null),
+          },
+          onNewsError: jest.fn(),
+          onMarketRegimeError: jest.fn(),
+          onValidationGuardrailError: jest.fn(),
+          onUnexpectedSymbol: jest.fn(),
+          onDuplicateSymbol: jest.fn(),
+          onInferenceFailed,
+          buildIncompleteResponseError: ({ expectedCount, receivedCount }) =>
+            `expected ${expectedCount}, received ${receivedCount}`,
+          buildMissingResponseError: ({ symbol }) => `missing ${symbol}`,
+          buildResult: ({ targetSymbol, normalizedResponse }) => ({
+            symbol: targetSymbol,
+            intensity: normalizedResponse?.intensity ?? 0,
+          }),
+        }),
+      ).rejects.toThrow('openai timeout');
+
+      expect(createResponse).toHaveBeenCalledTimes(1);
+      expect(onInferenceFailed).toHaveBeenCalledWith(transportError);
     });
   });
 

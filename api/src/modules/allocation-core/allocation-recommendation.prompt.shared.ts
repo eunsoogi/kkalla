@@ -1,17 +1,14 @@
-export const ALLOCATION_RECOMMENDATION_SHARED_CONFIG = {
-  model: 'gpt-5.4',
-  max_output_tokens: 16384,
-  reasoning_effort: 'xhigh' as const,
-  service_tier: 'flex' as const,
-  tools: [{ type: 'web_search' } as const],
-  message: {
-    news: 10,
-    recent: 5,
-    recentDateLimit: 7 * 24 * 60 * 60 * 1000, // 7일
-  },
+import type { ResponseCreateConfig } from '@/modules/openai/openai.types';
+
+export const ALLOCATION_RECOMMENDATION_MESSAGE_CONFIG = {
+  news: 10,
+  recent: 5,
+  recentDateLimit: 7 * 24 * 60 * 60 * 1000, // 7일
 };
 
-export const ALLOCATION_RECOMMENDATION_SHARED_RESPONSE_SCHEMA = {
+export type AllocationRecommendationRequestConfigBase = Omit<ResponseCreateConfig, 'text'>;
+
+export const ALLOCATION_RECOMMENDATION_RESPONSE_ITEM_SCHEMA = {
   type: 'object',
   properties: {
     symbol: {
@@ -46,4 +43,39 @@ export const ALLOCATION_RECOMMENDATION_SHARED_RESPONSE_SCHEMA = {
   },
   required: ['symbol', 'intensity', 'confidence', 'expectedVolatilityPct', 'riskFlags', 'reason'],
   additionalProperties: false,
-};
+} as const;
+
+export function createAllocationRecommendationResponseSchema(maxItems: number) {
+  const normalizedMaxItems = Number.isFinite(maxItems) ? Math.max(1, Math.trunc(maxItems)) : 1;
+
+  return {
+    type: 'object',
+    properties: {
+      recommendations: {
+        type: 'array',
+        items: ALLOCATION_RECOMMENDATION_RESPONSE_ITEM_SCHEMA,
+        minItems: normalizedMaxItems,
+        maxItems: normalizedMaxItems,
+      },
+    },
+    required: ['recommendations'],
+    additionalProperties: false,
+  };
+}
+
+export function createAllocationRecommendationRequestConfig(
+  maxItems: number,
+  config: AllocationRecommendationRequestConfigBase,
+): ResponseCreateConfig {
+  return {
+    ...config,
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'allocation_recommendation',
+        strict: true,
+        schema: createAllocationRecommendationResponseSchema(maxItems) as Record<string, unknown>,
+      },
+    },
+  };
+}

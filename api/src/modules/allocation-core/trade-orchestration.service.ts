@@ -4,6 +4,14 @@ import { Balances, Order } from 'ccxt';
 
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { Category } from '@/modules/category/category.enum';
+import type { ErrorService } from '@/modules/error/error.service';
+import type { FeatureService } from '@/modules/feature/feature.service';
+import type { MarketRegimeService } from '@/modules/market-regime/market-regime.service';
+import type { Feargreed, MarketRegimeSnapshot } from '@/modules/market-regime/market-regime.types';
+import type { NewsService } from '@/modules/news/news.service';
+import { toUserFacingText } from '@/modules/openai/openai-citation.util';
+import type { OpenaiService } from '@/modules/openai/openai.service';
+import type { ResponseCreateConfig } from '@/modules/openai/openai.types';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '@/modules/trade/trade.types';
@@ -11,15 +19,19 @@ import { UPBIT_MINIMUM_TRADE_PRICE } from '@/modules/upbit/upbit.constant';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { AdjustedOrderResult, MarketFeatures } from '@/modules/upbit/upbit.types';
 import { User } from '@/modules/user/entities/user.entity';
+import { generateMonotonicUlid } from '@/utils/id';
 import { clamp01 } from '@/utils/math';
 import { formatNumber, formatPercent } from '@/utils/number';
+import { normalizeKrwSymbol } from '@/utils/symbol';
 
+import type { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
 import { SHARED_REBALANCE_POLICY, SHARED_TRADE_EXECUTION_RUNTIME } from './allocation-core.constants';
 import {
   AllocationRecommendationAction,
   AllocationRecommendationData,
   CategoryExposureCaps,
   MarketRegimePolicy,
+  RecommendationItem,
   TradeExecutionMessageV2,
 } from './allocation-core.types';
 import {
@@ -32,7 +44,7 @@ import {
   isNoTradeRecommendation,
   isOrderableSymbol,
   isSellAmountSufficient,
-  normalizeAllocationRecommendationResponsePayload,
+  normalizeAllocationRecommendationBatchResponsePayload,
   normalizeCandidateWeight,
   resolveAvailableKrwBalance,
   resolveConsumeRecommendationAction,
@@ -42,7 +54,9 @@ import {
   scaleBuyRequestsToAvailableKrw,
   shouldReallocate,
 } from './helpers/allocation-recommendation';
+import type { NormalizedAllocationRecommendationResponse } from './helpers/allocation-recommendation';
 import { buildAllocationRecommendationPromptMessages } from './helpers/allocation-recommendation-context';
+import type { RecommendationResultDraft } from './helpers/allocation-recommendation-realtime.types';
 import {
   applyHeldAssetFlags,
   filterAuthorizedRecommendationItems,
@@ -72,6 +86,16 @@ import {
   TradePolicyConfig,
   TradeRuntimeContext,
 } from './trade-orchestration.types';
+
+class RealtimeRecommendationResponseError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = 'RealtimeRecommendationResponseError';
+    if (options && 'cause' in options) {
+      (this as Error & { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
 
 /**
  * Shared trading orchestration service used by allocation and market-risk flows.
@@ -103,6 +127,10 @@ export class TradeOrchestrationService {
   private readonly marketOrderReconcileMaxFetchAttempts =
     this.tradeExecutionRuntime.marketOrderReconcileMaxFetchAttempts;
   private readonly marketOrderReconcileRetryDelayMs = this.tradeExecutionRuntime.marketOrderReconcileRetryDelayMs;
+  private readonly realtimeRecommendationRetryOptions = {
+    firstPhase: { maxRetries: 3, retryDelay: 1000 },
+    secondPhase: { maxRetries: 1, retryDelay: 1000 },
+  } as const;
 
   /**
    * Shared queue message version used by allocation/risk SQS producers and consumers.
@@ -504,19 +532,31 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Loads latest recommendation row for a single symbol.
+   * Loads recent recommendation rows for the provided symbols in a single query.
    */
-  private async fetchLatestRecommendationBySymbol(
-    symbol: string,
+  private async fetchLatestRecommendationsBySymbols(
+    symbols: string[],
     errorService: RecommendationMetricsErrorService,
     onError: (error: unknown) => void,
   ): Promise<AllocationRecommendation[]> {
-    const operation = () =>
-      AllocationRecommendation.find({
-        where: { symbol },
-        order: { createdAt: 'DESC' },
-        take: 1,
-      });
+    const operation = () => {
+      const queryBuilder = AllocationRecommendation.createQueryBuilder('recommendation');
+      const latestRecommendationIdSubQuery = queryBuilder
+        .subQuery()
+        .select('newer.id')
+        .from(AllocationRecommendation, 'newer')
+        .where('newer.symbol = recommendation.symbol')
+        .orderBy('newer.createdAt', 'DESC')
+        .addOrderBy('newer.id', 'DESC')
+        .limit(1)
+        .getQuery();
+
+      return queryBuilder
+        .where('recommendation.symbol IN (:...symbols)', { symbols })
+        .andWhere(`recommendation.id = ${latestRecommendationIdSubQuery}`)
+        .orderBy('recommendation.symbol', 'ASC')
+        .getMany();
+    };
 
     try {
       return await errorService.retryWithFallback(operation);
@@ -533,35 +573,79 @@ export class TradeOrchestrationService {
   public async buildLatestRecommendationMetricsMap(
     options: BuildLatestRecommendationMetricsMapOptions,
   ): Promise<Map<string, LatestRecommendationMetrics>> {
-    const symbols = Array.from(new Set(options.recommendationItems.map((item) => item.symbol)));
-    const latestRecommendationMetricsBySymbol = await Promise.all(
-      symbols.map(async (symbol) => {
-        const recentRecommendations = await this.fetchLatestRecommendationBySymbol(
-          symbol,
-          options.errorService,
-          options.onError,
-        );
-        const latestRecommendation = recentRecommendations[0];
-        const latestIntensity =
-          latestRecommendation?.intensity != null && Number.isFinite(latestRecommendation.intensity)
-            ? Number(latestRecommendation.intensity)
-            : null;
-        const latestModelTargetWeight =
-          latestRecommendation?.modelTargetWeight != null && Number.isFinite(latestRecommendation.modelTargetWeight)
-            ? Number(latestRecommendation.modelTargetWeight)
-            : null;
+    const requestedSymbolsByQuerySymbol = new Map<string, Set<string>>();
 
-        return [
-          symbol,
-          {
-            intensity: latestIntensity,
-            modelTargetWeight: latestModelTargetWeight,
-          },
-        ] as const;
-      }),
+    for (const item of options.recommendationItems) {
+      const requestedSymbol = item.symbol;
+      const querySymbol = this.normalizeRecommendationMetricsLookupSymbol(item);
+      const requestedSymbols = requestedSymbolsByQuerySymbol.get(querySymbol) ?? new Set<string>();
+      requestedSymbols.add(requestedSymbol);
+      requestedSymbolsByQuerySymbol.set(querySymbol, requestedSymbols);
+    }
+
+    const querySymbols = Array.from(requestedSymbolsByQuerySymbol.keys());
+    if (querySymbols.length < 1) {
+      return new Map();
+    }
+
+    const recentRecommendations = await this.fetchLatestRecommendationsBySymbols(
+      querySymbols,
+      options.errorService,
+      options.onError,
     );
+    const latestRecommendationMetricsBySymbol = new Map<string, LatestRecommendationMetrics>();
 
-    return new Map(latestRecommendationMetricsBySymbol);
+    for (const recommendation of recentRecommendations) {
+      const latestMetrics = {
+        intensity:
+          recommendation.intensity != null && Number.isFinite(recommendation.intensity)
+            ? Number(recommendation.intensity)
+            : null,
+        modelTargetWeight:
+          recommendation.modelTargetWeight != null && Number.isFinite(recommendation.modelTargetWeight)
+            ? Number(recommendation.modelTargetWeight)
+            : null,
+      };
+
+      latestRecommendationMetricsBySymbol.set(recommendation.symbol, latestMetrics);
+
+      const requestedSymbols = requestedSymbolsByQuerySymbol.get(recommendation.symbol);
+      if (!requestedSymbols) {
+        continue;
+      }
+
+      for (const requestedSymbol of requestedSymbols) {
+        latestRecommendationMetricsBySymbol.set(requestedSymbol, latestMetrics);
+      }
+    }
+
+    for (const [querySymbol, requestedSymbols] of requestedSymbolsByQuerySymbol) {
+      if (!latestRecommendationMetricsBySymbol.has(querySymbol)) {
+        latestRecommendationMetricsBySymbol.set(querySymbol, {
+          intensity: null,
+          modelTargetWeight: null,
+        });
+      }
+
+      for (const requestedSymbol of requestedSymbols) {
+        if (!latestRecommendationMetricsBySymbol.has(requestedSymbol)) {
+          latestRecommendationMetricsBySymbol.set(requestedSymbol, {
+            intensity: null,
+            modelTargetWeight: null,
+          });
+        }
+      }
+    }
+
+    return latestRecommendationMetricsBySymbol;
+  }
+
+  private normalizeRecommendationMetricsLookupSymbol(item: Pick<RecommendationItem, 'symbol' | 'category'>): string {
+    if (item.category === Category.NASDAQ) {
+      return item.symbol.trim().toUpperCase();
+    }
+
+    return normalizeKrwSymbol(item.symbol) ?? item.symbol;
   }
 
   /**
@@ -574,13 +658,250 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Shared normalization for recommendation response payloads.
+   * Shared realtime single-request inference for allocation/risk recommendation requests.
    */
-  public normalizeRecommendationResponsePayload(
+  public async inferRecommendationsInRealtime<TItem, TResult>(options: {
+    itemsByTargetSymbol: Map<string, TItem[]>;
+    prompt: string;
+    createRequestConfig: (maxItems: number) => ResponseCreateConfig;
+    openaiService: Pick<OpenaiService, 'addMessage' | 'addPromptPair' | 'createResponse' | 'getResponseOutput'>;
+    featureService: Pick<FeatureService, 'MARKET_DATA_LEGEND' | 'extractMarketFeatures' | 'formatMarketData'>;
+    newsService: Pick<NewsService, 'getCompactNews'>;
+    marketRegimeService: Pick<MarketRegimeService, 'getSnapshot'>;
+    errorService: Pick<ErrorService, 'retryWithFallback'>;
+    allocationAuditService: Pick<AllocationAuditService, 'buildAllocationValidationGuardrailText'>;
+    onNewsError: (error: unknown) => void;
+    onMarketRegimeError: (error: unknown) => void;
+    onValidationGuardrailError: (error: unknown, symbol: string) => void;
+    onUnexpectedSymbol: (args: { outputSymbol: string }) => void;
+    onDuplicateSymbol: (args: { outputSymbol: string }) => void;
+    onInferenceFailed: (error: unknown) => void;
+    buildIncompleteResponseError: (args: { expectedCount: number; receivedCount: number }) => string;
+    buildMissingResponseError: (args: { symbol: string }) => string;
+    buildResult: (args: {
+      item: TItem;
+      targetSymbol: string;
+      responseData: unknown;
+      normalizedResponse: NormalizedAllocationRecommendationResponse | null;
+      marketFeatures: MarketFeatures | null;
+      marketRegime: MarketRegimeSnapshot | null;
+      feargreed: Feargreed | null;
+    }) => TResult | null;
+  }): Promise<TResult[]> {
+    try {
+      return await options.errorService.retryWithFallback(
+        () => this.executeRealtimeRecommendation(Array.from(options.itemsByTargetSymbol.keys()), options),
+        {
+          ...this.realtimeRecommendationRetryOptions,
+          operationName: 'realtimeRecommendation',
+          isNonRetryable: (error) => error instanceof RealtimeRecommendationResponseError,
+        },
+      );
+    } catch (error) {
+      options.onInferenceFailed(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Shared normalization for multi-symbol recommendation response payloads.
+   */
+  public normalizeRecommendationBatchResponsePayload(
     response: unknown,
-    options: Parameters<typeof normalizeAllocationRecommendationResponsePayload>[1],
+    options: Parameters<typeof normalizeAllocationRecommendationBatchResponsePayload>[1],
   ) {
-    return normalizeAllocationRecommendationResponsePayload(response, options);
+    return normalizeAllocationRecommendationBatchResponsePayload(response, options);
+  }
+
+  /**
+   * Shared persistence path for allocation/risk recommendation batches.
+   */
+  public async persistAllocationRecommendationBatch(options: {
+    recommendations: RecommendationResultDraft[];
+    enqueueAllocationBatchValidation: (batchId: string) => Promise<void>;
+    onEnqueueValidationError: (error: unknown) => void;
+  }): Promise<AllocationRecommendationData[]> {
+    const batchId = generateMonotonicUlid();
+    const savedRecommendations = await Promise.all(
+      options.recommendations.map((recommendation) =>
+        this.saveAllocationRecommendation({ ...recommendation, batchId }),
+      ),
+    );
+
+    void options.enqueueAllocationBatchValidation(batchId).catch(options.onEnqueueValidationError);
+
+    return savedRecommendations.map((savedRecommendation, index) =>
+      this.mapSavedAllocationRecommendation(savedRecommendation, options.recommendations[index]),
+    );
+  }
+
+  private async executeRealtimeRecommendation<TItem, TResult>(
+    symbols: string[],
+    options: {
+      itemsByTargetSymbol: Map<string, TItem[]>;
+      prompt: string;
+      createRequestConfig: (maxItems: number) => ResponseCreateConfig;
+      openaiService: Pick<OpenaiService, 'addMessage' | 'addPromptPair' | 'createResponse' | 'getResponseOutput'>;
+      featureService: Pick<FeatureService, 'MARKET_DATA_LEGEND' | 'extractMarketFeatures' | 'formatMarketData'>;
+      newsService: Pick<NewsService, 'getCompactNews'>;
+      marketRegimeService: Pick<MarketRegimeService, 'getSnapshot'>;
+      errorService: Pick<ErrorService, 'retryWithFallback'>;
+      allocationAuditService: Pick<AllocationAuditService, 'buildAllocationValidationGuardrailText'>;
+      onNewsError: (error: unknown) => void;
+      onMarketRegimeError: (error: unknown) => void;
+      onValidationGuardrailError: (error: unknown, symbol: string) => void;
+      onUnexpectedSymbol: (args: { outputSymbol: string }) => void;
+      onDuplicateSymbol: (args: { outputSymbol: string }) => void;
+      buildIncompleteResponseError: (args: { expectedCount: number; receivedCount: number }) => string;
+      buildMissingResponseError: (args: { symbol: string }) => string;
+      buildResult: (args: {
+        item: TItem;
+        targetSymbol: string;
+        responseData: unknown;
+        normalizedResponse: NormalizedAllocationRecommendationResponse | null;
+        marketFeatures: MarketFeatures | null;
+        marketRegime: MarketRegimeSnapshot | null;
+        feargreed: Feargreed | null;
+      }) => TResult | null;
+    },
+  ): Promise<TResult[]> {
+    const { messages, marketFeaturesBySymbol, marketRegime, feargreed } = await this.buildRecommendationPromptMessages({
+      symbols,
+      prompt: options.prompt,
+      openaiService: options.openaiService,
+      featureService: options.featureService,
+      newsService: options.newsService,
+      marketRegimeService: options.marketRegimeService,
+      errorService: options.errorService,
+      allocationAuditService: options.allocationAuditService,
+      onNewsError: options.onNewsError,
+      onMarketRegimeError: options.onMarketRegimeError,
+      onValidationGuardrailError: options.onValidationGuardrailError,
+    });
+
+    const response = await options.openaiService.createResponse(messages, options.createRequestConfig(symbols.length));
+    const outputText = options.openaiService.getResponseOutput(response).text;
+    if (!outputText || outputText.trim() === '') {
+      throw new RealtimeRecommendationResponseError(
+        `Empty multi-symbol recommendation response: requested ${symbols.length}`,
+      );
+    }
+
+    let responseData: unknown;
+    try {
+      responseData = JSON.parse(outputText);
+    } catch (error) {
+      throw new RealtimeRecommendationResponseError('Invalid multi-symbol recommendation response JSON', {
+        cause: error,
+      });
+    }
+    const normalizedResponseBySymbol = this.normalizeRecommendationBatchResponsePayload(responseData, {
+      expectedSymbols: symbols,
+      onUnexpectedSymbol: options.onUnexpectedSymbol,
+      onDuplicateSymbol: options.onDuplicateSymbol,
+    });
+
+    if (normalizedResponseBySymbol.size !== symbols.length) {
+      throw new RealtimeRecommendationResponseError(
+        options.buildIncompleteResponseError({
+          expectedCount: symbols.length,
+          receivedCount: normalizedResponseBySymbol.size,
+        }),
+      );
+    }
+
+    return symbols.flatMap((targetSymbol) => {
+      const batchResult = normalizedResponseBySymbol.get(targetSymbol);
+      if (!batchResult) {
+        throw new RealtimeRecommendationResponseError(options.buildMissingResponseError({ symbol: targetSymbol }));
+      }
+
+      return (options.itemsByTargetSymbol.get(targetSymbol) ?? [])
+        .map((item) =>
+          options.buildResult({
+            item,
+            targetSymbol,
+            responseData: batchResult.raw,
+            normalizedResponse: batchResult.normalized,
+            marketFeatures: marketFeaturesBySymbol.get(targetSymbol) ?? null,
+            marketRegime,
+            feargreed,
+          }),
+        )
+        .filter((result): result is TResult => result != null);
+    });
+  }
+
+  /**
+   * Shared recommendation entity save path for allocation/risk flows.
+   */
+  public async saveAllocationRecommendation(
+    recommendation: Omit<AllocationRecommendationData, 'id'> & Partial<Pick<AllocationRecommendationData, 'id'>>,
+  ): Promise<AllocationRecommendation> {
+    const normalizedSymbol =
+      recommendation.category === Category.NASDAQ
+        ? recommendation.symbol?.trim().toUpperCase()
+        : normalizeKrwSymbol(recommendation.symbol);
+    if (!normalizedSymbol) {
+      throw new Error(`Invalid balance recommendation symbol: ${recommendation.symbol}`);
+    }
+
+    const allocationRecommendation = new AllocationRecommendation();
+    Object.assign(allocationRecommendation, recommendation, { symbol: normalizedSymbol });
+    allocationRecommendation.btcDominance = recommendation.btcDominance ?? null;
+    allocationRecommendation.altcoinIndex = recommendation.altcoinIndex ?? null;
+    allocationRecommendation.marketRegimeAsOf = recommendation.marketRegimeAsOf ?? null;
+    allocationRecommendation.marketRegimeSource = recommendation.marketRegimeSource ?? null;
+    allocationRecommendation.marketRegimeIsStale = recommendation.marketRegimeIsStale ?? null;
+    allocationRecommendation.feargreedIndex = recommendation.feargreedIndex ?? null;
+    allocationRecommendation.feargreedClassification = recommendation.feargreedClassification ?? null;
+    allocationRecommendation.feargreedTimestamp = recommendation.feargreedTimestamp ?? null;
+    allocationRecommendation.decisionConfidence = recommendation.decisionConfidence ?? null;
+    allocationRecommendation.expectedVolatilityPct = recommendation.expectedVolatilityPct ?? null;
+    allocationRecommendation.riskFlags = recommendation.riskFlags ?? null;
+    allocationRecommendation.expectedEdgeRate = recommendation.expectedEdgeRate ?? null;
+    allocationRecommendation.estimatedCostRate = recommendation.estimatedCostRate ?? null;
+    allocationRecommendation.spreadRate = recommendation.spreadRate ?? null;
+    allocationRecommendation.impactRate = recommendation.impactRate ?? null;
+    return allocationRecommendation.save();
+  }
+
+  private mapSavedAllocationRecommendation(
+    savedRecommendation: AllocationRecommendation,
+    recommendation: RecommendationResultDraft,
+  ): AllocationRecommendationData {
+    return {
+      id: savedRecommendation.id,
+      batchId: savedRecommendation.batchId,
+      symbol: savedRecommendation.symbol,
+      category: savedRecommendation.category,
+      intensity: savedRecommendation.intensity,
+      prevIntensity: savedRecommendation.prevIntensity != null ? Number(savedRecommendation.prevIntensity) : null,
+      prevModelTargetWeight: recommendation.prevModelTargetWeight ?? null,
+      buyScore: savedRecommendation.buyScore,
+      sellScore: savedRecommendation.sellScore,
+      modelTargetWeight: savedRecommendation.modelTargetWeight,
+      action: recommendation.action,
+      reason: savedRecommendation.reason != null ? toUserFacingText(savedRecommendation.reason) : null,
+      hasStock: recommendation.hasStock,
+      weight: recommendation.weight,
+      confidence: recommendation.confidence,
+      decisionConfidence: recommendation.decisionConfidence,
+      expectedVolatilityPct: recommendation.expectedVolatilityPct,
+      riskFlags: recommendation.riskFlags,
+      expectedEdgeRate: recommendation.expectedEdgeRate,
+      estimatedCostRate: recommendation.estimatedCostRate,
+      spreadRate: recommendation.spreadRate,
+      impactRate: recommendation.impactRate,
+      btcDominance: savedRecommendation.btcDominance,
+      altcoinIndex: savedRecommendation.altcoinIndex,
+      marketRegimeAsOf: savedRecommendation.marketRegimeAsOf,
+      marketRegimeSource: savedRecommendation.marketRegimeSource,
+      marketRegimeIsStale: savedRecommendation.marketRegimeIsStale,
+      feargreedIndex: savedRecommendation.feargreedIndex,
+      feargreedClassification: savedRecommendation.feargreedClassification,
+      feargreedTimestamp: savedRecommendation.feargreedTimestamp,
+    };
   }
 
   /**
