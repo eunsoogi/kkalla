@@ -770,6 +770,8 @@ export class AllocationService implements OnModuleInit {
       referenceSymbols,
       initialSnapshot: executionSnapshot,
       turnoverCap: regimePolicy.turnoverCap,
+      regimePolicyState: regimePolicy.regimePolicyState,
+      regimePolicySource: regimePolicy.regimePolicySource,
       additionalSellRequests: nonAllocationRecommendationTradeRequests,
       assertLockOrThrow,
       buildExcludedRequests: (snapshot) =>

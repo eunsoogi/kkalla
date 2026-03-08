@@ -350,7 +350,7 @@ export class MarketRegimeService {
 
   private buildSnapshotFromCache(
     payload: MarketRegimeCachePayload | null,
-    source: 'live' | 'cache_fallback',
+    source: 'live' | 'cache_fallback' | 'unavailable_risk_off',
   ): MarketRegimeSnapshot | null {
     if (!payload) {
       return null;
@@ -407,7 +407,7 @@ export class MarketRegimeService {
     altcoinIndex: number;
     feargreed?: Feargreed | CompactFeargreed | null;
     asOf: Date;
-    source: 'live' | 'cache_fallback';
+    source: 'live' | 'cache_fallback' | 'unavailable_risk_off';
   }): MarketRegimeSnapshot {
     const normalizedAsOf = params.asOf instanceof Date ? params.asOf : new Date(params.asOf);
     const staleAgeMs = Math.max(0, Date.now() - normalizedAsOf.getTime());

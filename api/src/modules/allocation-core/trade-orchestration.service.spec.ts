@@ -75,6 +75,15 @@ describe('TradeOrchestrationService', () => {
       expect(fallback).toBe(1);
     });
 
+    it('should expose explicit regimeUnavailable policy state on regime read failure', async () => {
+      const policy = await service.resolveMarketRegimePolicy(async () => {
+        throw new Error('failed');
+      });
+
+      expect(policy.regimePolicyState).toBe('regimeUnavailable');
+      expect(policy.regimePolicySource).toBe('unavailable_risk_off');
+    });
+
     it('should calculate market signal adjustment in a conservative range', () => {
       expect(service.getMarketRegimeMultiplierAdjustmentByMarketSignals(60, 20)).toBe(-0.03);
       expect(service.getMarketRegimeMultiplierAdjustmentByMarketSignals(45, 80)).toBe(0.03);
@@ -314,6 +323,7 @@ describe('TradeOrchestrationService', () => {
       expect(requests).toHaveLength(1);
       expect(requests[0].symbol).toBe('BTC/KRW');
       expect(requests[0].diff).toBe(-1);
+      expect(requests[0].forcedFullLiquidation).toBe(true);
     });
 
     it('should not infer execution from requested amount while order is still open', async () => {
@@ -434,6 +444,79 @@ describe('TradeOrchestrationService', () => {
   });
 
   describe('included trade request sizing', () => {
+    it('should cap per-symbol trade notional using the shared turnover fraction', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 1,
+            modelTargetWeight: 1,
+            action: 'buy',
+            hasStock: false,
+            decisionConfidence: 1,
+            expectedEdgeRate: 1,
+            estimatedCostRate: 0,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>(),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 1,
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].requestedTradeNotional).toBeCloseTo(1_000_000, 6);
+      expect(requests[0].cappedTradeNotional).toBeCloseTo(100_000, 6);
+      expect(requests[0].cappedTradeDiff).toBeCloseTo(0.1, 6);
+    });
+
+    it('should exclude buy requests with non-positive expected net edge', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 1,
+            modelTargetWeight: 1,
+            action: 'buy',
+            hasStock: false,
+            decisionConfidence: 1,
+            expectedEdgeRate: 0.002,
+            estimatedCostRate: 0.002,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>(),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 1,
+      });
+
+      expect(requests).toHaveLength(0);
+    });
+
     it('should normalize target budget by configured slot count', () => {
       const runtime: any = {
         logger: { log: jest.fn() },
@@ -729,7 +812,7 @@ describe('TradeOrchestrationService', () => {
 
       expect(requests).toHaveLength(1);
       expect(requests[0].positionClass).toBe('existing');
-      expect(requests[0].expectedNetEdge).toBeCloseTo(0.07, 10);
+      expect(requests[0].expectedNetEdge).toBeCloseTo(0.0695, 10);
     });
 
     it('should keep incumbent buy priority when tradable map is missing but refreshed holding is meaningful', () => {
@@ -798,6 +881,44 @@ describe('TradeOrchestrationService', () => {
 
       expect(requests).toHaveLength(1);
       expect(requests[0].positionClass).toBe('new');
+    });
+  });
+
+  describe('regime unavailable buy policy', () => {
+    it('should allow only incumbent re-risking within released notional budget', () => {
+      const requests: any[] = [
+        {
+          symbol: 'BTC/KRW',
+          inference: { category: Category.COIN_MAJOR },
+          positionClass: 'existing',
+          cappedTradeNotional: 300,
+          estimatedNotional: 300,
+          regimePolicyState: 'regimeUnavailable',
+        },
+        {
+          symbol: 'ETH/KRW',
+          inference: { category: Category.COIN_MAJOR },
+          positionClass: 'new',
+          cappedTradeNotional: 100,
+          estimatedNotional: 100,
+          regimePolicyState: 'regimeUnavailable',
+        },
+      ];
+      const initialSnapshot: any = {
+        balances: { KRW: { free: 200 }, info: [] },
+        marketPrice: 1_000,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.8]]),
+      };
+      const refreshedSnapshot: any = {
+        balances: { KRW: { free: 600 }, info: [] },
+        marketPrice: 1_000,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.4]]),
+      };
+
+      const filtered = (service as any).applyRegimeUnavailableBuyPolicy(requests, initialSnapshot, refreshedSnapshot);
+
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].symbol).toBe('BTC/KRW');
     });
   });
 
@@ -1895,9 +2016,7 @@ describe('TradeOrchestrationService', () => {
         currentWeights: new Map<string, number>(),
         tradableMarketValueMap: new Map<string, number>(),
       } as any;
-      const sellRequests = [
-        { symbol: 'STALE-SELL/KRW', diff: -0.1, balances, marketPrice: 1_000_000 },
-      ] as any[];
+      const sellRequests = [{ symbol: 'STALE-SELL/KRW', diff: -0.1, balances, marketPrice: 1_000_000 }] as any[];
       const holdingLedgerService: any = {
         fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
         replaceHoldingsForUser: jest.fn().mockResolvedValue([]),

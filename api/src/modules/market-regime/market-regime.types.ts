@@ -1,4 +1,4 @@
-export type MarketRegimeSource = 'live' | 'cache_fallback';
+export type MarketRegimeSource = 'live' | 'cache_fallback' | 'unavailable_risk_off';
 export type BtcDominanceClassification = 'altcoin_friendly' | 'transition' | 'bitcoin_dominance';
 export type AltcoinIndexClassification = 'bitcoin_season' | 'neutral' | 'altcoin_season';
 

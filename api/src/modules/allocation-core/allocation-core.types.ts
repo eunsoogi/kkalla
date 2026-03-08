@@ -20,6 +20,8 @@ export interface MarketRegimePolicy {
   rebalanceBandMultiplier: number;
   turnoverCap: number;
   categoryExposureCaps: CategoryExposureCaps;
+  regimePolicyState: 'available' | 'regimeUnavailable';
+  regimePolicySource: 'live' | 'cache_fallback' | 'unavailable_risk_off';
 }
 
 export type AllocationRecommendationAction = 'buy' | 'sell' | 'hold' | 'no_trade';
@@ -53,7 +55,7 @@ export interface AllocationRecommendationData {
   btcDominance?: number | null;
   altcoinIndex?: number | null;
   marketRegimeAsOf?: Date | null;
-  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  marketRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
   marketRegimeIsStale?: boolean | null;
   feargreedIndex?: number | null;
   feargreedClassification?: string | null;

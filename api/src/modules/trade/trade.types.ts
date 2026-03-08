@@ -21,6 +21,15 @@ export interface TradeRequest {
   balances: Balances;
   marketPrice?: number;
   // Internal execution-planning fields used only while ranking/capping requests.
+  currentSymbolNotional?: number | null;
+  targetGapWeight?: number | null;
+  requestedTradeNotional?: number | null;
+  cappedTradeNotional?: number | null;
+  cappedTradeDiff?: number | null;
+  sizingContractVersion?: number | null;
+  selectionPolicyVersion?: number | null;
+  regimePolicyState?: 'available' | 'regimeUnavailable' | null;
+  forcedFullLiquidation?: boolean | null;
   estimatedNotional?: number | null;
   currentWeight?: number | null;
   targetWeight?: number | null;
@@ -57,6 +66,14 @@ export interface TradeData {
   spreadRate?: number | null;
   impactRate?: number | null;
   missedOpportunityCost?: number | null;
+  decisionContextVersion?: number | null;
+  decisionPortfolioValue?: number | null;
+  decisionSymbolNotional?: number | null;
+  decisionRequestedTradeNotional?: number | null;
+  decisionCappedTradeNotional?: number | null;
+  decisionExpectedNetEdgeRate?: number | null;
+  decisionPositionClass?: 'existing' | 'new' | null;
+  decisionRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
   gateBypassedReason?: string | null;
   triggerReason?: string | null;
 }

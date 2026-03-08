@@ -71,7 +71,7 @@ export interface AllocationAuditRunItemListItem {
   recommendationBtcDominance: number | null;
   recommendationAltcoinIndex: number | null;
   recommendationMarketRegimeAsOf: Date | null;
-  recommendationMarketRegimeSource: 'live' | 'cache_fallback' | null;
+  recommendationMarketRegimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
   recommendationMarketRegimeIsStale: boolean | null;
   recommendationFeargreedIndex: number | null;
   recommendationFeargreedClassification: string | null;

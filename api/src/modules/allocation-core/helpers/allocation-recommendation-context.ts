@@ -55,9 +55,21 @@ export async function fetchMarketRegimeWithFallback(
   try {
     return await options.errorService.retryWithFallback(operation);
   } catch (error) {
-    // Keep recommendation flow alive even when market regime source is unavailable.
+    // Keep recommendation flow alive even when market regime source is unavailable, but surface
+    // the degraded execution state explicitly so downstream persistence and policy logic can
+    // distinguish it from neutral market conditions.
     options.onError(error);
-    return null;
+    return {
+      btcDominance: 55,
+      btcDominanceClassification: 'transition',
+      altcoinIndex: 50,
+      altcoinIndexClassification: 'neutral',
+      feargreed: null,
+      asOf: new Date(),
+      source: 'unavailable_risk_off',
+      isStale: true,
+      staleAgeMinutes: 0,
+    };
   }
 }
 

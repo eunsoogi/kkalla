@@ -162,7 +162,7 @@ export class AllocationAuditItem extends BaseEntity {
     length: 32,
     nullable: true,
   })
-  recommendationMarketRegimeSource: 'live' | 'cache_fallback' | null;
+  recommendationMarketRegimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
 
   @Column({
     name: 'recommendation_market_regime_is_stale',

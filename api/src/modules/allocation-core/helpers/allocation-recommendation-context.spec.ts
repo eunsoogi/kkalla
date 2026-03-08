@@ -97,7 +97,8 @@ describe('balance-recommendation-context utils', () => {
       onError,
     });
 
-    expect(failed).toBeNull();
+    expect(failed?.source).toBe('unavailable_risk_off');
+    expect(failed?.isStale).toBe(true);
     expect(onError).toHaveBeenCalledWith(failureError);
   });
 
@@ -223,6 +224,43 @@ describe('balance-recommendation-context utils', () => {
 
     expect(result.marketFeaturesBySymbol.get('ETH/KRW')).toBeNull();
     expect(onValidationGuardrailError).toHaveBeenCalledTimes(1);
+  });
+
+  it('should return explicit unavailable risk-off market regime fallback on snapshot failure', async () => {
+    const onMarketRegimeError = jest.fn();
+
+    const result = await buildAllocationRecommendationPromptMessages({
+      symbols: ['ETH/KRW'],
+      prompt: 'prompt',
+      openaiService: {
+        addMessage: jest.fn(),
+        addPromptPair: jest.fn(),
+      } as any,
+      featureService: {
+        MARKET_DATA_LEGEND: 'legend',
+        extractMarketFeatures: jest.fn().mockResolvedValue(null),
+        formatMarketData: jest.fn().mockReturnValue('market-data'),
+      } as any,
+      newsService: {
+        getCompactNews: jest.fn().mockResolvedValue([]),
+      } as any,
+      marketRegimeService: {
+        getSnapshot: jest.fn().mockRejectedValue(new Error('market regime failed')),
+      } as any,
+      errorService: {
+        retryWithFallback: jest.fn(async (op: () => Promise<unknown>) => op()),
+      } as any,
+      allocationAuditService: {
+        buildAllocationValidationGuardrailText: jest.fn().mockResolvedValue(null),
+      } as any,
+      onNewsError: jest.fn(),
+      onMarketRegimeError,
+      onValidationGuardrailError: jest.fn(),
+    });
+
+    expect(onMarketRegimeError).toHaveBeenCalledTimes(1);
+    expect(result.marketRegime?.source).toBe('unavailable_risk_off');
+    expect(result.marketRegime?.isStale).toBe(true);
   });
 
   it('should keep target symbols and validation guardrails in stable array shapes for multi-symbol prompts', async () => {

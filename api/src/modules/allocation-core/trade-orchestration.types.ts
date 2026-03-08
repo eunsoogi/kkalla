@@ -27,6 +27,7 @@ export interface TradePolicyConfig {
   minimumAllocationConfidence: number;
   minimumAllocationBand: number;
   allocationBandRatio: number;
+  symbolMaxTurnoverFraction: number;
   estimatedFeeRate: number;
   estimatedSlippageRate: number;
   edgeRiskBufferRate: number;
@@ -113,6 +114,8 @@ export interface ExecuteTradeOptions {
 export interface ExecuteRebalanceTradesOptions {
   runtime: TradeRuntimeContext;
   policy?: TradePolicyConfig;
+  regimePolicyState?: 'available' | 'regimeUnavailable';
+  regimePolicySource?: 'live' | 'cache_fallback' | 'unavailable_risk_off';
   holdingLedgerService: HoldingLedgerService;
   notifyService: NotifyService;
   user: User;
@@ -177,6 +180,7 @@ export interface BuildOrderableSymbolSetOptions {
 export interface MarketRegimeReaderResult {
   btcDominance?: unknown;
   altcoinIndex?: unknown;
+  source?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
   feargreed?: {
     index?: unknown;
   } | null;

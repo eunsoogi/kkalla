@@ -14,6 +14,7 @@ export const SHARED_REBALANCE_POLICY = {
   sellScoreThreshold: 0.6,
   minAllocationBand: 0.01,
   allocationBandRatio: 0.1,
+  symbolMaxTurnoverFraction: 0.1,
   estimatedFeeRate: 0.0005,
   estimatedSlippageRate: 0.001,
   edgeRiskBufferRate: 0.0005,

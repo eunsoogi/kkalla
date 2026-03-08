@@ -854,9 +854,10 @@ export class UpbitService {
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<AdjustedOrderResult> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
-    const { symbol, diff, balances, marketPrice: precomputedMarketPrice } = request;
+    const { symbol, diff, cappedTradeDiff, balances, marketPrice: precomputedMarketPrice } = request;
     const [baseAsset] = symbol.split('/');
-    const urgency: OrderExecutionUrgency = request.executionUrgency ?? (diff < 0 ? 'urgent' : 'normal');
+    const effectiveDiff = cappedTradeDiff != null && Number.isFinite(cappedTradeDiff) ? cappedTradeDiff : diff;
+    const urgency: OrderExecutionUrgency = request.executionUrgency ?? (effectiveDiff < 0 ? 'urgent' : 'normal');
     const symbolExist = await this.isSymbolExist(symbol);
 
     if (!symbolExist) {
@@ -874,18 +875,18 @@ export class UpbitService {
         Number.isFinite(marketPriceCandidate) && marketPriceCandidate > 0
           ? marketPriceCandidate
           : this.calculateTotalPrice(balances);
-      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(diff) * 0.9995;
-      const tradeVolume = symbolTradableVolume * Math.abs(diff);
+      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(effectiveDiff) * 0.9995;
+      const tradeVolume = symbolTradableVolume * Math.abs(effectiveDiff);
 
       let type: OrderTypes | null = null;
       let requestedAmount: number | null = null;
       let requestedVolume: number | null = null;
 
-      if (diff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
+      if (effectiveDiff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
         type = OrderTypes.BUY;
         requestedAmount = tradePrice;
         requestedVolume = currPrice > 0 ? tradePrice / currPrice : null;
-      } else if (diff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
+      } else if (effectiveDiff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
         type = OrderTypes.SELL;
         requestedAmount = tradeVolume * currPrice;
         requestedVolume = tradeVolume;

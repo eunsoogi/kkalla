@@ -16,7 +16,7 @@ export interface MarketSignalFilter {
 }
 
 export type MarketSignalRegime = 'risk_on' | 'neutral' | 'risk_off';
-export type MarketSignalRegimeSource = 'live' | 'cache_fallback';
+export type MarketSignalRegimeSource = 'live' | 'cache_fallback' | 'unavailable_risk_off';
 export type SignalPriceSource = 'minute' | 'fallback' | 'none';
 export type { MinuteLookupCandidate, MinuteLookupMode };
 

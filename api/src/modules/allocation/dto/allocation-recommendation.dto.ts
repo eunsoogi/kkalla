@@ -58,8 +58,8 @@ export class AllocationRecommendationDto {
   @ApiProperty({ required: false, nullable: true })
   marketRegimeAsOf?: Date | null;
 
-  @ApiProperty({ required: false, nullable: true, enum: ['live', 'cache_fallback'] })
-  marketRegimeSource?: 'live' | 'cache_fallback' | null;
+  @ApiProperty({ required: false, nullable: true, enum: ['live', 'cache_fallback', 'unavailable_risk_off'] })
+  marketRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
 
   @ApiProperty({ required: false, nullable: true })
   marketRegimeIsStale?: boolean | null;

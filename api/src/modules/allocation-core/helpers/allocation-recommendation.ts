@@ -838,6 +838,9 @@ export function scaleBuyRequestsToAvailableKrw<
     diff: number;
     symbol: string;
     marketPrice?: number;
+    requestedTradeNotional?: number | null;
+    cappedTradeNotional?: number | null;
+    cappedTradeDiff?: number | null;
     estimatedNotional?: number | null;
     currentWeight?: number | null;
     targetWeight?: number | null;
@@ -893,6 +896,18 @@ export function scaleBuyRequestsToAvailableKrw<
         diff: scaledDiff,
         // Carry selection metadata forward so later ranking/capping uses the scaled request,
         // not the original pre-budget numbers.
+        requestedTradeNotional:
+          request.requestedTradeNotional != null && Number.isFinite(request.requestedTradeNotional)
+            ? request.requestedTradeNotional * scale
+            : undefined,
+        cappedTradeNotional:
+          request.cappedTradeNotional != null && Number.isFinite(request.cappedTradeNotional)
+            ? request.cappedTradeNotional * scale
+            : scaledEstimated,
+        cappedTradeDiff:
+          request.cappedTradeDiff != null && Number.isFinite(request.cappedTradeDiff)
+            ? request.cappedTradeDiff * scale
+            : scaledDiff,
         estimatedNotional: scaledEstimated,
         deltaWeight:
           request.deltaWeight != null && Number.isFinite(request.deltaWeight) ? request.deltaWeight * scale : undefined,
@@ -929,6 +944,9 @@ export function applyNotionalBudgetToRankedRequests<
   TRequest extends {
     symbol: string;
     diff: number;
+    requestedTradeNotional?: number | null;
+    cappedTradeNotional?: number | null;
+    cappedTradeDiff?: number | null;
     estimatedNotional?: number | null;
     currentWeight?: number | null;
     targetWeight?: number | null;
@@ -993,6 +1011,18 @@ export function applyNotionalBudgetToRankedRequests<
     const scaledRequest = {
       ...request,
       diff: request.diff * scale,
+      requestedTradeNotional:
+        request.requestedTradeNotional != null && Number.isFinite(request.requestedTradeNotional)
+          ? request.requestedTradeNotional * scale
+          : undefined,
+      cappedTradeNotional:
+        request.cappedTradeNotional != null && Number.isFinite(request.cappedTradeNotional)
+          ? request.cappedTradeNotional * scale
+          : scaledNotional,
+      cappedTradeDiff:
+        request.cappedTradeDiff != null && Number.isFinite(request.cappedTradeDiff)
+          ? request.cappedTradeDiff * scale
+          : request.diff * scale,
       estimatedNotional: scaledNotional,
       deltaWeight:
         request.deltaWeight != null && Number.isFinite(request.deltaWeight) ? request.deltaWeight * scale : undefined,

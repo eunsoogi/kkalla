@@ -112,6 +112,7 @@ export class TradeOrchestrationService {
     minimumAllocationConfidence: SHARED_REBALANCE_POLICY.minAllocationConfidence,
     minimumAllocationBand: SHARED_REBALANCE_POLICY.minAllocationBand,
     allocationBandRatio: SHARED_REBALANCE_POLICY.allocationBandRatio,
+    symbolMaxTurnoverFraction: SHARED_REBALANCE_POLICY.symbolMaxTurnoverFraction,
     estimatedFeeRate: SHARED_REBALANCE_POLICY.estimatedFeeRate,
     estimatedSlippageRate: SHARED_REBALANCE_POLICY.estimatedSlippageRate,
     edgeRiskBufferRate: SHARED_REBALANCE_POLICY.edgeRiskBufferRate,
@@ -124,6 +125,8 @@ export class TradeOrchestrationService {
   };
   private readonly minimumTradeIntensity = SHARED_REBALANCE_POLICY.minimumTradeIntensity;
   private readonly tradeExecutionRuntime = SHARED_TRADE_EXECUTION_RUNTIME;
+  private readonly sizingContractVersion = 1;
+  private readonly selectionPolicyVersion = 1;
   private readonly fullLiquidationFillRatioThreshold = 0.995;
   private readonly fullLiquidationVolumeEpsilon = 1e-8;
   private readonly marketOrderReconcileMaxFetchAttempts =
@@ -287,6 +290,50 @@ export class TradeOrchestrationService {
    */
   public clampToUnitInterval(value: number): number {
     return clamp01(value);
+  }
+
+  private buildExecutionSizing(options: {
+    currentWeight: number;
+    targetWeight: number;
+    marketPrice: number;
+    executionDiff: number;
+    forcedFullLiquidation?: boolean;
+    policy: TradePolicyConfig;
+  }): Pick<
+    TradeRequest,
+    | 'currentSymbolNotional'
+    | 'targetGapWeight'
+    | 'requestedTradeNotional'
+    | 'cappedTradeNotional'
+    | 'cappedTradeDiff'
+    | 'sizingContractVersion'
+    | 'selectionPolicyVersion'
+    | 'forcedFullLiquidation'
+  > {
+    const currentSymbolNotional = Math.max(0, options.currentWeight * options.marketPrice);
+    const targetGapWeight = Math.max(0, Math.abs(options.targetWeight - options.currentWeight));
+    const requestedTradeNotional =
+      currentSymbolNotional > Number.EPSILON
+        ? currentSymbolNotional * Math.abs(options.executionDiff)
+        : options.marketPrice * targetGapWeight;
+    const symbolMaxTurnoverNotional = options.marketPrice * options.policy.symbolMaxTurnoverFraction;
+    const cappedTradeNotional = options.forcedFullLiquidation
+      ? requestedTradeNotional
+      : Math.min(requestedTradeNotional, symbolMaxTurnoverNotional);
+    const baseDenominator = currentSymbolNotional > Number.EPSILON ? currentSymbolNotional : options.marketPrice;
+    const cappedTradeDiff =
+      baseDenominator > Number.EPSILON ? Math.sign(options.executionDiff) * (cappedTradeNotional / baseDenominator) : 0;
+
+    return {
+      currentSymbolNotional,
+      targetGapWeight,
+      requestedTradeNotional,
+      cappedTradeNotional,
+      cappedTradeDiff,
+      sizingContractVersion: this.sizingContractVersion,
+      selectionPolicyVersion: this.selectionPolicyVersion,
+      forcedFullLiquidation: options.forcedFullLiquidation ?? false,
+    };
   }
 
   /**
@@ -517,9 +564,11 @@ export class TradeOrchestrationService {
         rebalanceBandMultiplier,
         turnoverCap,
         categoryExposureCaps,
+        regimePolicyState: 'available',
+        regimePolicySource: marketRegime?.source === 'cache_fallback' ? 'cache_fallback' : 'live',
       };
     } catch {
-      // Fall back to neutral policy when regime reader is temporarily unavailable.
+      // Fall back to explicit degraded mode when regime data is unavailable.
       return {
         exposureMultiplier: 1,
         rebalanceBandMultiplier: 1,
@@ -529,6 +578,8 @@ export class TradeOrchestrationService {
           coinMinor: 0.45,
           nasdaq: 0.25,
         },
+        regimePolicyState: 'regimeUnavailable',
+        regimePolicySource: 'unavailable_risk_off',
       };
     }
   }
@@ -979,14 +1030,34 @@ export class TradeOrchestrationService {
           )
         );
       })
-      .map((item) => ({
-        symbol: `${item.currency}/${item.unit_currency}`,
-        diff: fullExitDiff,
-        balances,
-        marketPrice,
-        executionUrgency: 'urgent' as const,
-        triggerReason,
-      }));
+      .map((item) => {
+        const symbol = `${item.currency}/${item.unit_currency}`;
+        const currentSymbolNotional = tradableMarketValueMap?.get(symbol) ?? 0;
+        return {
+          symbol,
+          diff: fullExitDiff,
+          balances,
+          marketPrice,
+          estimatedNotional: this.buildExecutionSizing({
+            currentWeight: marketPrice > Number.EPSILON ? currentSymbolNotional / marketPrice : 0,
+            targetWeight: 0,
+            marketPrice,
+            executionDiff: fullExitDiff,
+            forcedFullLiquidation: true,
+            policy: this.defaultTradePolicy,
+          }).cappedTradeNotional,
+          executionUrgency: 'urgent' as const,
+          triggerReason,
+          ...this.buildExecutionSizing({
+            currentWeight: marketPrice > Number.EPSILON ? currentSymbolNotional / marketPrice : 0,
+            targetWeight: 0,
+            marketPrice,
+            executionDiff: fullExitDiff,
+            forcedFullLiquidation: true,
+            policy: this.defaultTradePolicy,
+          }),
+        };
+      });
   }
 
   /**
@@ -1113,7 +1184,8 @@ export class TradeOrchestrationService {
 
         const expectedEdgeRate = this.resolveExpectedEdgeRate(deltaWeight, inference);
         const estimatedCostRate = this.resolveEstimatedCostRate(policy, inference);
-        if (!this.passesExpectedEdgeGate(policy, expectedEdgeRate, estimatedCostRate)) {
+        const expectedNetEdgeRate = expectedEdgeRate - estimatedCostRate - policy.edgeRiskBufferRate;
+        if (deltaWeight > 0 && expectedNetEdgeRate <= 0) {
           runtime.logger.log(
             runtime.i18n.t('logging.inference.allocationRecommendation.skip_cost_gate', {
               args: {
@@ -1156,15 +1228,23 @@ export class TradeOrchestrationService {
 
         // Deferred commit avoids consuming category budget for skipped candidates.
         categoryTargetWeightAllocation.commit();
+        const executionSizing = this.buildExecutionSizing({
+          currentWeight,
+          targetWeight,
+          marketPrice,
+          executionDiff: adjustedDiff,
+          policy,
+        });
 
         return {
           symbol: inference.symbol,
           diff: adjustedDiff,
           balances,
           marketPrice,
+          ...executionSizing,
           // Store the selection inputs once so budget/ranking logic downstream does not have to
           // recompute them with slightly different assumptions.
-          estimatedNotional: Math.max(0, Math.abs(deltaWeight) * marketPrice),
+          estimatedNotional: executionSizing.cappedTradeNotional,
           currentWeight,
           targetWeight,
           deltaWeight,
@@ -1177,7 +1257,7 @@ export class TradeOrchestrationService {
             minimumTradePrice: policy.minimumTradePrice,
             tradableNotional: tradableMarketValueMap?.get(inference.symbol) ?? null,
           }),
-          expectedNetEdge: expectedEdgeRate - estimatedCostRate,
+          expectedNetEdge: expectedNetEdgeRate,
           inference,
           expectedEdgeRate,
           estimatedCostRate,
@@ -1219,19 +1299,32 @@ export class TradeOrchestrationService {
             tradableMarketValueMap,
           ),
       )
-      .map((inference) => ({
-        symbol: inference.symbol,
-        diff: this.resolveStagedExitDiff(policy, inference),
-        balances,
-        marketPrice,
-        inference,
-        expectedEdgeRate: this.resolveExpectedEdgeRate(1, inference),
-        estimatedCostRate: this.resolveEstimatedCostRate(policy, inference),
-        spreadRate: inference.spreadRate ?? null,
-        impactRate: inference.impactRate ?? null,
-        executionUrgency: 'urgent' as const,
-        triggerReason: 'excluded_staged_exit',
-      }));
+      .map((inference) => {
+        const currentSymbolNotional = tradableMarketValueMap?.get(inference.symbol) ?? 0;
+        const diff = this.resolveStagedExitDiff(policy, inference);
+        const executionSizing = this.buildExecutionSizing({
+          currentWeight: marketPrice > Number.EPSILON ? currentSymbolNotional / marketPrice : 0,
+          targetWeight: 0,
+          marketPrice,
+          executionDiff: diff,
+          policy,
+        });
+        return {
+          symbol: inference.symbol,
+          diff,
+          balances,
+          marketPrice,
+          ...executionSizing,
+          estimatedNotional: executionSizing.cappedTradeNotional,
+          inference,
+          expectedEdgeRate: this.resolveExpectedEdgeRate(1, inference),
+          estimatedCostRate: this.resolveEstimatedCostRate(policy, inference),
+          spreadRate: inference.spreadRate ?? null,
+          impactRate: inference.impactRate ?? null,
+          executionUrgency: 'urgent' as const,
+          triggerReason: 'excluded_staged_exit',
+        };
+      });
   }
 
   /**
@@ -1386,11 +1479,20 @@ export class TradeOrchestrationService {
         );
 
         categoryTargetWeightAllocation.commit();
+        const executionSizing = this.buildExecutionSizing({
+          currentWeight,
+          targetWeight,
+          marketPrice,
+          executionDiff: adjustedDiff,
+          policy,
+        });
         return {
           symbol: inference.symbol,
           diff: adjustedDiff,
           balances,
           marketPrice,
+          ...executionSizing,
+          estimatedNotional: executionSizing.cappedTradeNotional,
           inference,
           expectedEdgeRate,
           estimatedCostRate,
@@ -1734,7 +1836,12 @@ export class TradeOrchestrationService {
         turnoverCap,
       minimumTradePrice: policy.minimumTradePrice,
     });
-    const sellRequests = [...forcedFullLiquidationSellRequests, ...sellBudgetResult.selectedRequests];
+    const sellRequests = [...forcedFullLiquidationSellRequests, ...sellBudgetResult.selectedRequests].map(
+      (request) => ({
+        ...request,
+        regimePolicyState: options.regimePolicyState ?? 'available',
+      }),
+    );
 
     if (
       sellBudgetResult.selectedRequests.length !== cappedSellCandidates.length ||
@@ -1814,7 +1921,7 @@ export class TradeOrchestrationService {
       });
       // New entries no longer bypass turnover control. Every buy request competes under one
       // ranked notional budget.
-      const prioritizedBuyRequests = [...scaledBuyRequests]
+      let prioritizedBuyRequests = [...scaledBuyRequests]
         .map((request) =>
           this.enrichRequestEstimatedNotional(
             request,
@@ -1824,13 +1931,23 @@ export class TradeOrchestrationService {
           ),
         )
         .sort((a, b) => this.compareBuyRequestPriority(a, b));
+      if (options.regimePolicyState === 'regimeUnavailable') {
+        prioritizedBuyRequests = this.applyRegimeUnavailableBuyPolicy(
+          prioritizedBuyRequests,
+          initialSnapshot,
+          refreshedSnapshot,
+        );
+      }
       const buyBudgetResult = applyNotionalBudgetToRankedRequests(prioritizedBuyRequests, {
         budgetNotional:
           prioritizedBuyRequests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) *
           turnoverCap,
         minimumTradePrice: policy.minimumTradePrice,
       });
-      const cappedBuyRequests = buyBudgetResult.selectedRequests;
+      const cappedBuyRequests = buyBudgetResult.selectedRequests.map((request) => ({
+        ...request,
+        regimePolicyState: options.regimePolicyState ?? 'available',
+      }));
       if (cappedBuyRequests.length !== prioritizedBuyRequests.length || buyBudgetResult.partialScaledRequest != null) {
         runtime.logger.log(
           runtime.i18n.t('logging.inference.allocationRecommendation.buy_turnover_budget_applied', {
@@ -1981,15 +2098,14 @@ export class TradeOrchestrationService {
         ? fallbackRequest.currentWeight * fallbackRequest.marketPrice
         : null;
     const symbolNotionalFallback =
-      request.diff > 0 ? symbolHoldingNotional ?? fallbackRequest.marketPrice ?? fallbackMarketPrice : symbolHoldingNotional;
+      request.diff > 0
+        ? (symbolHoldingNotional ?? fallbackRequest.marketPrice ?? fallbackMarketPrice)
+        : symbolHoldingNotional;
     const estimationRequest = {
       ...fallbackRequest,
       // For sells, request.marketPrice is the portfolio baseline, not symbol notional.
       // Avoid falling back to it when we do not have a symbol-level holding source.
-      marketPrice:
-        request.diff > 0 || symbolHoldingNotional != null
-          ? fallbackRequest.marketPrice
-          : undefined,
+      marketPrice: request.diff > 0 || symbolHoldingNotional != null ? fallbackRequest.marketPrice : undefined,
     };
     const estimatedNotional = estimateTradeNotionalFromRequest(
       estimationRequest,
@@ -2045,10 +2161,16 @@ export class TradeOrchestrationService {
       return bExpectedNetEdge - aExpectedNetEdge;
     }
 
-    const aDeltaWeight = Math.abs(a.deltaWeight ?? 0);
-    const bDeltaWeight = Math.abs(b.deltaWeight ?? 0);
-    if (aDeltaWeight !== bDeltaWeight) {
-      return bDeltaWeight - aDeltaWeight;
+    const aCappedTradeNotional = a.cappedTradeNotional ?? a.estimatedNotional ?? 0;
+    const bCappedTradeNotional = b.cappedTradeNotional ?? b.estimatedNotional ?? 0;
+    if (aCappedTradeNotional !== bCappedTradeNotional) {
+      return bCappedTradeNotional - aCappedTradeNotional;
+    }
+
+    const aTargetGapWeight = Math.abs(a.targetGapWeight ?? 0);
+    const bTargetGapWeight = Math.abs(b.targetGapWeight ?? 0);
+    if (aTargetGapWeight !== bTargetGapWeight) {
+      return bTargetGapWeight - aTargetGapWeight;
     }
 
     if (a.diff !== b.diff) {
@@ -2065,6 +2187,9 @@ export class TradeOrchestrationService {
     partialScaledRequest: TradeRequest | null,
   ): {
     turnoverCap: number;
+    sizingContractVersion: number;
+    selectionPolicyVersion: number;
+    regimePolicyState: 'available' | 'regimeUnavailable' | 'unknown';
     requestedCount: number;
     requestedNotional: number;
     budgetNotional: number;
@@ -2083,6 +2208,13 @@ export class TradeOrchestrationService {
     );
     return {
       turnoverCap,
+      sizingContractVersion:
+        requests.find((request) => request.sizingContractVersion != null)?.sizingContractVersion ??
+        this.sizingContractVersion,
+      selectionPolicyVersion:
+        requests.find((request) => request.selectionPolicyVersion != null)?.selectionPolicyVersion ??
+        this.selectionPolicyVersion,
+      regimePolicyState: requests.find((request) => request.regimePolicyState != null)?.regimePolicyState ?? 'unknown',
       requestedCount: requests.length,
       requestedNotional,
       budgetNotional: requestedNotional * turnoverCap,
@@ -2095,6 +2227,65 @@ export class TradeOrchestrationService {
         .join(','),
       partialScaledSymbol: partialScaledRequest?.symbol ?? '',
     };
+  }
+
+  private applyRegimeUnavailableBuyPolicy(
+    requests: TradeRequest[],
+    initialSnapshot: TradeExecutionSnapshot,
+    refreshedSnapshot: TradeExecutionSnapshot,
+  ): TradeRequest[] {
+    const initialAvailableKrw = resolveAvailableKrwBalance(initialSnapshot.balances);
+    const refreshedAvailableKrw = resolveAvailableKrwBalance(refreshedSnapshot.balances);
+    let remainingTotalAllowance = Math.max(
+      0,
+      initialSnapshot.marketPrice - initialAvailableKrw - (refreshedSnapshot.marketPrice - refreshedAvailableKrw),
+    );
+
+    const buildCategoryAllowanceMap = (snapshot: TradeExecutionSnapshot): Map<Category, number> => {
+      const allowances = new Map<Category, number>();
+      requests.forEach((request) => {
+        const category = request.inference?.category;
+        if (!category) {
+          return;
+        }
+        const currentWeight = snapshot.currentWeights.get(request.symbol) ?? 0;
+        const currentNotional = currentWeight * snapshot.marketPrice;
+        allowances.set(category, (allowances.get(category) ?? 0) + currentNotional);
+      });
+      return allowances;
+    };
+
+    const initialCategoryNotional = buildCategoryAllowanceMap(initialSnapshot);
+    const refreshedCategoryNotional = buildCategoryAllowanceMap(refreshedSnapshot);
+    const remainingCategoryAllowance = new Map<Category, number>();
+    initialCategoryNotional.forEach((initialNotional, category) => {
+      remainingCategoryAllowance.set(
+        category,
+        Math.max(0, initialNotional - (refreshedCategoryNotional.get(category) ?? 0)),
+      );
+    });
+
+    return requests.filter((request) => {
+      if (request.positionClass !== 'existing') {
+        return false;
+      }
+      const tradeNotional = request.cappedTradeNotional ?? request.estimatedNotional ?? 0;
+      if (!Number.isFinite(tradeNotional) || tradeNotional <= 0) {
+        return false;
+      }
+      const category = request.inference?.category;
+      if (!category) {
+        return false;
+      }
+      const categoryAllowance = remainingCategoryAllowance.get(category) ?? 0;
+      if (tradeNotional > remainingTotalAllowance || tradeNotional > categoryAllowance) {
+        return false;
+      }
+
+      remainingTotalAllowance -= tradeNotional;
+      remainingCategoryAllowance.set(category, categoryAllowance - tradeNotional);
+      return true;
+    });
   }
 
   /**
@@ -2248,6 +2439,17 @@ export class TradeOrchestrationService {
       spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
       impactRate: adjustedOrder.impactRate ?? request.impactRate ?? null,
       missedOpportunityCost,
+      decisionContextVersion: request.sizingContractVersion ?? null,
+      decisionPortfolioValue: request.marketPrice ?? null,
+      decisionSymbolNotional: request.currentSymbolNotional ?? null,
+      decisionRequestedTradeNotional: request.requestedTradeNotional ?? null,
+      decisionCappedTradeNotional: request.cappedTradeNotional ?? null,
+      decisionExpectedNetEdgeRate: request.expectedNetEdge ?? null,
+      decisionPositionClass: request.positionClass ?? null,
+      decisionRegimeSource:
+        request.regimePolicyState === 'regimeUnavailable'
+          ? 'unavailable_risk_off'
+          : (request.inference?.marketRegimeSource ?? null),
       gateBypassedReason: adjustedOrder.gateBypassedReason ?? request.gateBypassedReason ?? null,
       triggerReason: adjustedOrder.triggerReason ?? request.triggerReason ?? null,
     });

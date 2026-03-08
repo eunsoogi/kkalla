@@ -29,6 +29,7 @@ export interface OrderRequest {
 export interface AdjustOrderRequest {
   symbol: string;
   diff: number;
+  cappedTradeDiff?: number | null;
   balances: Balances;
   marketPrice?: number;
   executionUrgency?: OrderExecutionUrgency;

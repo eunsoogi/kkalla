@@ -866,6 +866,8 @@ export class MarketRiskService implements OnModuleInit {
       referenceSymbols,
       initialSnapshot: executionSnapshot,
       turnoverCap: regimePolicy.turnoverCap,
+      regimePolicyState: regimePolicy.regimePolicyState,
+      regimePolicySource: regimePolicy.regimePolicySource,
       assertLockOrThrow,
       buildExcludedRequests: (snapshot) =>
         this.generateExcludedTradeRequests(
