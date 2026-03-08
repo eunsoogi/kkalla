@@ -539,6 +539,21 @@ export class TradeOrchestrationService {
   ): Promise<MarketRegimePolicy> {
     try {
       const marketRegime = await readMarketRegime();
+      if (marketRegime?.source === 'unavailable_risk_off') {
+        return {
+          exposureMultiplier: 1,
+          rebalanceBandMultiplier: 1,
+          turnoverCap: 0.55,
+          categoryExposureCaps: {
+            coinMajor: 0.6,
+            coinMinor: 0.45,
+            nasdaq: 0.25,
+          },
+          regimePolicyState: 'regimeUnavailable',
+          regimePolicySource: 'unavailable_risk_off',
+        };
+      }
+
       // Build policy knobs from imperfect market data and clamp every output
       // so sudden feed spikes do not explode holdings sizing.
       const fearGreed = marketRegime?.feargreed;

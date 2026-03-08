@@ -122,6 +122,19 @@ describe('TradeOrchestrationService', () => {
       expect(policy.regimePolicySource).toBe('unavailable_risk_off');
     });
 
+    it('should preserve unavailable risk-off source when reader returns degraded snapshot', async () => {
+      const policy = await service.resolveMarketRegimePolicy(async () => ({
+        btcDominance: 55,
+        altcoinIndex: 50,
+        source: 'unavailable_risk_off',
+        feargreed: null,
+      }));
+
+      expect(policy.regimePolicyState).toBe('regimeUnavailable');
+      expect(policy.regimePolicySource).toBe('unavailable_risk_off');
+      expect(policy.exposureMultiplier).toBe(1);
+    });
+
     it('should calculate market signal adjustment in a conservative range', () => {
       expect(service.getMarketRegimeMultiplierAdjustmentByMarketSignals(60, 20)).toBe(-0.03);
       expect(service.getMarketRegimeMultiplierAdjustmentByMarketSignals(45, 80)).toBe(0.03);
