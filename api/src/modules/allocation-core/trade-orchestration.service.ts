@@ -321,8 +321,11 @@ export class TradeOrchestrationService {
       ? requestedTradeNotional
       : Math.min(requestedTradeNotional, symbolMaxTurnoverNotional);
     const baseDenominator = currentSymbolNotional > Number.EPSILON ? currentSymbolNotional : options.marketPrice;
-    const cappedTradeDiff =
-      baseDenominator > Number.EPSILON ? Math.sign(options.executionDiff) * (cappedTradeNotional / baseDenominator) : 0;
+    const cappedTradeDiff = options.forcedFullLiquidation
+      ? options.executionDiff
+      : baseDenominator > Number.EPSILON
+        ? Math.sign(options.executionDiff) * (cappedTradeNotional / baseDenominator)
+        : 0;
 
     return {
       currentSymbolNotional,
@@ -1884,8 +1887,8 @@ export class TradeOrchestrationService {
         initialSnapshot.currentWeights,
       ),
     );
-    const forcedFullLiquidationSellRequests = rawSellRequests.filter((request) => request.diff <= -1 + Number.EPSILON);
-    const cappedSellCandidates = rawSellRequests.filter((request) => request.diff > -1 + Number.EPSILON);
+    const forcedFullLiquidationSellRequests = rawSellRequests.filter((request) => request.forcedFullLiquidation === true);
+    const cappedSellCandidates = rawSellRequests.filter((request) => request.forcedFullLiquidation !== true);
     // Sell turnover is now capped by notional budget, not by request count.
     const sellBudgetResult = applyNotionalBudgetToRankedRequests(cappedSellCandidates, {
       budgetNotional:

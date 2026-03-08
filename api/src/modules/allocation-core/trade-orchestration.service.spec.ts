@@ -375,6 +375,7 @@ describe('TradeOrchestrationService', () => {
       expect(requests[0].symbol).toBe('BTC/KRW');
       expect(requests[0].diff).toBe(-1);
       expect(requests[0].forcedFullLiquidation).toBe(true);
+      expect(requests[0].cappedTradeDiff).toBe(-1);
     });
 
     it('should not infer execution from requested amount while order is still open', async () => {
@@ -2069,10 +2070,10 @@ describe('TradeOrchestrationService', () => {
         'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
         expect.objectContaining({
           args: expect.objectContaining({
-            requestedCount: 1,
-            requestedNotional: 22000,
-            budgetNotional: 11000,
-            selectedNotional: 11000,
+            requestedCount: 2,
+            requestedNotional: 32000,
+            budgetNotional: 16000,
+            selectedNotional: 16000,
             partialScaledSymbol: 'SELL-2/KRW',
           }),
         }),
@@ -2176,6 +2177,7 @@ describe('TradeOrchestrationService', () => {
           {
             symbol: 'ETH/KRW',
             diff: -1,
+            forcedFullLiquidation: true,
             balances,
             marketPrice: 1_000_000,
             inference: { symbol: 'ETH/KRW', category: Category.COIN_MINOR } as any,
@@ -2185,7 +2187,59 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(executeTradeSpy).toHaveBeenCalledTimes(1);
-      expect(executeTradeSpy.mock.calls[0][0].request.diff).toBe(-1);
+      expect(executeTradeSpy.mock.calls[0][0].request.forcedFullLiquidation).toBe(true);
+    });
+
+    it('should keep diff=-1 staged exits inside sell turnover budget unless explicitly forced', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = { info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }] };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([['ETH/KRW', 0.3]]),
+        tradableMarketValueMap: new Map<string, number>([['ETH/KRW', 300_000]]),
+      } as any;
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([{ symbol: 'ETH/KRW', category: Category.COIN_MINOR }]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = { notify: jest.fn(), clearClients: jest.fn() };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: { getBalances: jest.fn().mockResolvedValue(balances), clearClients: jest.fn() },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockResolvedValue(null);
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['ETH/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: () => [
+          {
+            symbol: 'ETH/KRW',
+            diff: -1,
+            cappedTradeDiff: -0.1,
+            forcedFullLiquidation: false,
+            balances,
+            marketPrice: 1_000_000,
+            estimatedNotional: 300_000,
+            inference: { symbol: 'ETH/KRW', category: Category.COIN_MINOR } as any,
+          },
+        ],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).toHaveBeenCalledTimes(1);
+      expect(executeTradeSpy.mock.calls[0][0].request.cappedTradeDiff).toBeCloseTo(-0.01, 10);
     });
   });
 });
