@@ -39,6 +39,7 @@ export const ALLOCATION_RECOMMENDATION_RESPONSE_ITEM_SCHEMA = {
     },
     reason: {
       type: 'string',
+      minLength: 70,
     },
   },
   required: ['symbol', 'intensity', 'confidence', 'expectedVolatilityPct', 'riskFlags', 'reason'],
