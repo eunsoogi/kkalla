@@ -1975,10 +1975,11 @@ export class TradeOrchestrationService {
     const symbolNotionalFallback =
       fallbackRequest.currentWeight != null &&
       Number.isFinite(fallbackRequest.currentWeight) &&
+      fallbackRequest.currentWeight > Number.EPSILON &&
       fallbackRequest.marketPrice != null &&
       Number.isFinite(fallbackRequest.marketPrice)
         ? fallbackRequest.currentWeight * fallbackRequest.marketPrice
-        : fallbackMarketPrice;
+        : fallbackRequest.marketPrice ?? fallbackMarketPrice;
     const estimatedNotional = estimateTradeNotionalFromRequest(
       fallbackRequest,
       tradableMarketValueMap,

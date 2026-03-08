@@ -1623,6 +1623,93 @@ describe('TradeOrchestrationService', () => {
       );
     });
 
+    it('should keep new-entry buys eligible when tradable value map is missing', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const refreshedSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(['NEW-ENTRY-A/KRW', 'REBALANCE-1/KRW']),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const buyRequests = [
+        {
+          symbol: 'REBALANCE-1/KRW',
+          diff: 0.05,
+          balances,
+          marketPrice: 1_000_000,
+          positionClass: 'existing',
+          deltaWeight: 0.05,
+          expectedNetEdge: 0.04,
+        },
+        {
+          symbol: 'NEW-ENTRY-A/KRW',
+          diff: 0.07,
+          balances,
+          marketPrice: 1_000_000,
+          positionClass: 'new',
+          deltaWeight: 0.07,
+          expectedNetEdge: 0.2,
+        },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(refreshedSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'buy',
+            amount: 10_000,
+            profit: 0,
+            inference: request.inference ?? null,
+          }) as any,
+      );
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['NEW-ENTRY-A/KRW', 'REBALANCE-1/KRW'],
+        initialSnapshot,
+        turnoverCap: 1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: (snapshot) => (snapshot === initialSnapshot ? [] : buyRequests),
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol)).toEqual([
+        'REBALANCE-1/KRW',
+        'NEW-ENTRY-A/KRW',
+      ]);
+    });
+
     it('should apply sell notional budget with boundary partial scaling', async () => {
       const user = { id: 'user-1' } as any;
       const balances: any = {
