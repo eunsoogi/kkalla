@@ -1972,16 +1972,27 @@ export class TradeOrchestrationService {
           ? request.currentWeight
           : currentWeights?.get(request.symbol),
     };
-    const symbolNotionalFallback =
+    const symbolHoldingNotional =
       fallbackRequest.currentWeight != null &&
       Number.isFinite(fallbackRequest.currentWeight) &&
       fallbackRequest.currentWeight > Number.EPSILON &&
       fallbackRequest.marketPrice != null &&
       Number.isFinite(fallbackRequest.marketPrice)
         ? fallbackRequest.currentWeight * fallbackRequest.marketPrice
-        : fallbackRequest.marketPrice ?? fallbackMarketPrice;
+        : null;
+    const symbolNotionalFallback =
+      request.diff > 0 ? symbolHoldingNotional ?? fallbackRequest.marketPrice ?? fallbackMarketPrice : symbolHoldingNotional;
+    const estimationRequest = {
+      ...fallbackRequest,
+      // For sells, request.marketPrice is the portfolio baseline, not symbol notional.
+      // Avoid falling back to it when we do not have a symbol-level holding source.
+      marketPrice:
+        request.diff > 0 || symbolHoldingNotional != null
+          ? fallbackRequest.marketPrice
+          : undefined,
+    };
     const estimatedNotional = estimateTradeNotionalFromRequest(
-      fallbackRequest,
+      estimationRequest,
       tradableMarketValueMap,
       symbolNotionalFallback,
     );

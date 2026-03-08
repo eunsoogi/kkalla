@@ -908,9 +908,9 @@ describe('MarketRiskService', () => {
     });
 
     const sellRequests = [
-      { symbol: 'SELL-1/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
-      { symbol: 'SELL-2/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
-      { symbol: 'SELL-3/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+      { symbol: 'SELL-1/KRW', diff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-2/KRW', diff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-3/KRW', diff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
     ] as any[];
     const buyRequests = [
       { symbol: 'BUY-1/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },

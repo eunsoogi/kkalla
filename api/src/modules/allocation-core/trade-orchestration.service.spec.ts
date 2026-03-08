@@ -1494,8 +1494,14 @@ describe('TradeOrchestrationService', () => {
         balances,
         orderableSymbols: new Set<string>(),
         marketPrice: 1_000_000,
-        currentWeights: new Map<string, number>(),
-        tradableMarketValueMap: new Map<string, number>(),
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.1],
+          ['SELL-2/KRW', 0.2],
+        ]),
+        tradableMarketValueMap: new Map<string, number>([
+          ['SELL-1/KRW', 100_000],
+          ['SELL-2/KRW', 200_000],
+        ]),
       } as any;
       const refreshedSnapshot = {
         balances,
@@ -1632,8 +1638,14 @@ describe('TradeOrchestrationService', () => {
         balances,
         orderableSymbols: new Set<string>(),
         marketPrice: 1_000_000,
-        currentWeights: new Map<string, number>(),
-        tradableMarketValueMap: new Map<string, number>(),
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.1],
+          ['SELL-2/KRW', 0.2],
+        ]),
+        tradableMarketValueMap: new Map<string, number>([
+          ['SELL-1/KRW', 100_000],
+          ['SELL-2/KRW', 200_000],
+        ]),
       } as any;
       const refreshedSnapshot = {
         balances,
@@ -1719,8 +1731,14 @@ describe('TradeOrchestrationService', () => {
         balances,
         orderableSymbols: new Set<string>(),
         marketPrice: 1_000_000,
-        currentWeights: new Map<string, number>(),
-        tradableMarketValueMap: new Map<string, number>(),
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.1],
+          ['SELL-2/KRW', 0.2],
+        ]),
+        tradableMarketValueMap: new Map<string, number>([
+          ['SELL-1/KRW', 100_000],
+          ['SELL-2/KRW', 200_000],
+        ]),
       } as any;
       const sellRequests = [
         { symbol: 'SELL-1/KRW', diff: -0.1, balances, marketPrice: 1_000_000 },
@@ -1771,17 +1789,17 @@ describe('TradeOrchestrationService', () => {
         'SELL-1/KRW',
         'SELL-2/KRW',
       ]);
-      expect(executeTradeSpy.mock.calls[1][0].request.diff).toBeCloseTo(-0.05, 10);
+      expect(executeTradeSpy.mock.calls[1][0].request.diff).toBeCloseTo(-0.075, 10);
       expect(runtime.i18n.t).toHaveBeenCalledWith(
         'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
         expect.objectContaining({
           args: expect.objectContaining({
             turnoverCap: 0.5,
             requestedCount: 2,
-            requestedNotional: 300000,
-            budgetNotional: 150000,
+            requestedNotional: 50000,
+            budgetNotional: 25000,
             selectedCount: 2,
-            selectedNotional: 150000,
+            selectedNotional: 25000,
             selectedSymbols: 'SELL-1/KRW,SELL-2/KRW',
             skippedSymbols: '',
             partialScaledSymbol: 'SELL-2/KRW',
@@ -1863,6 +1881,57 @@ describe('TradeOrchestrationService', () => {
           }),
         }),
       );
+    });
+
+    it('should not inflate sell notional to portfolio market value when symbol holding is unknown', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const sellRequests = [
+        { symbol: 'STALE-SELL/KRW', diff: -0.1, balances, marketPrice: 1_000_000 },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockResolvedValue(null as any);
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['STALE-SELL/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.5,
+        buildExcludedRequests: () => sellRequests,
+        buildIncludedRequests: () => [],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).not.toHaveBeenCalled();
     });
 
     it('should bypass sell turnover budget for full-liquidation requests', async () => {
