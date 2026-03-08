@@ -1725,22 +1725,25 @@ export class TradeOrchestrationService {
         initialSnapshot.currentWeights,
       ),
     );
+    const forcedFullLiquidationSellRequests = rawSellRequests.filter((request) => request.diff <= -1 + Number.EPSILON);
+    const cappedSellCandidates = rawSellRequests.filter((request) => request.diff > -1 + Number.EPSILON);
     // Sell turnover is now capped by notional budget, not by request count.
-    const sellBudgetResult = applyNotionalBudgetToRankedRequests(rawSellRequests, {
+    const sellBudgetResult = applyNotionalBudgetToRankedRequests(cappedSellCandidates, {
       budgetNotional:
-        rawSellRequests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) * turnoverCap,
+        cappedSellCandidates.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) *
+        turnoverCap,
       minimumTradePrice: policy.minimumTradePrice,
     });
-    const sellRequests = sellBudgetResult.selectedRequests;
+    const sellRequests = [...forcedFullLiquidationSellRequests, ...sellBudgetResult.selectedRequests];
 
     if (
-      sellBudgetResult.selectedRequests.length !== rawSellRequests.length ||
+      sellBudgetResult.selectedRequests.length !== cappedSellCandidates.length ||
       sellBudgetResult.partialScaledRequest != null
     ) {
       runtime.logger.log(
         runtime.i18n.t('logging.inference.allocationRecommendation.sell_turnover_budget_applied', {
           args: this.buildTurnoverBudgetSummary(
-            rawSellRequests,
+            cappedSellCandidates,
             sellBudgetResult.selectedRequests,
             turnoverCap,
             sellBudgetResult.partialScaledRequest,
@@ -1767,6 +1770,7 @@ export class TradeOrchestrationService {
     assertLockOrThrow();
 
     let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
+    let inferredHoldingSnapshot = initialSnapshot;
     if (refreshedBalances) {
       const refreshedSnapshot = await this.buildTradeExecutionSnapshot({
         runtime,
@@ -1774,6 +1778,7 @@ export class TradeOrchestrationService {
         referenceSymbols,
         assertLockOrThrow,
       });
+      inferredHoldingSnapshot = refreshedSnapshot;
       const refreshedIncludedRequests = buildIncludedRequests(refreshedSnapshot);
       const buyRequests = refreshedIncludedRequests.filter((item) => item.diff > 0);
       const availableKrw = resolveAvailableKrwBalance(refreshedBalances);
@@ -1856,7 +1861,9 @@ export class TradeOrchestrationService {
     assertLockOrThrow();
     const liquidatedItems = this.collectLiquidatedHoldingItems(sellExecutions, OrderTypes.SELL, existingHoldings);
     const executedBuyItems = this.collectExecutedBuyHoldingItems(buyExecutions, OrderTypes.BUY);
-    const inferredHoldItems = buildInferredHoldingItems?.(initialSnapshot) ?? [];
+    // Inferred holdings should reflect the post-sell account snapshot so fully liquidated names
+    // are not reintroduced into the ledger just because they existed in the initial snapshot.
+    const inferredHoldItems = buildInferredHoldingItems?.(inferredHoldingSnapshot) ?? [];
     // Holding ledger is replaced from execution result to keep category/symbol pairs canonical.
     await holdingLedgerService.replaceHoldingsForUser(
       user,
