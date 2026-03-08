@@ -973,8 +973,24 @@ describe('TradeOrchestrationService', () => {
         marketPrice: 1_000,
         currentWeights: new Map<string, number>([['BTC/KRW', 0.4]]),
       };
+      const sellExecutions: any[] = [
+        {
+          request: {
+            symbol: 'BTC/KRW',
+            inference: { category: Category.COIN_MAJOR },
+          },
+          trade: {
+            amount: 400,
+          },
+        },
+      ];
 
-      const filtered = (service as any).applyRegimeUnavailableBuyPolicy(requests, initialSnapshot, refreshedSnapshot);
+      const filtered = (service as any).applyRegimeUnavailableBuyPolicy(
+        requests,
+        initialSnapshot,
+        refreshedSnapshot,
+        sellExecutions,
+      );
 
       expect(filtered).toHaveLength(1);
       expect(filtered[0].symbol).toBe('BTC/KRW');

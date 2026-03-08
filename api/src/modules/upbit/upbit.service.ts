@@ -930,13 +930,22 @@ export class UpbitService {
         (type === OrderTypes.BUY
           ? await this.estimateOrderCost(symbol, type, requestedAmount, currPrice)
           : await this.estimateOrderCost(symbol, type, requestedVolume ?? 0, currPrice));
+      const liveCalibrationContext =
+        request.costCalibrationContext && type === OrderTypes.BUY
+          ? {
+              ...request.costCalibrationContext,
+              costTier: this.tradeCostCalibrationService.resolveCostTier(
+                Math.max(0, dynamicCostEstimate.spreadRate) + Math.max(0, dynamicCostEstimate.impactRate),
+              ),
+            }
+          : request.costCalibrationContext;
       const calibration = await this.tradeCostCalibrationService.resolveBuyGateCalibration({
         type,
         urgency,
         estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
         spreadRate: dynamicCostEstimate.spreadRate,
         impactRate: dynamicCostEstimate.impactRate,
-        calibrationContext: request.costCalibrationContext,
+        calibrationContext: liveCalibrationContext,
       });
       const effectiveEstimatedCostRate =
         calibration.calibrationApplied && calibration.calibratedEstimatedCostRate != null

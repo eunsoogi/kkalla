@@ -1994,6 +1994,7 @@ export class TradeOrchestrationService {
           prioritizedBuyRequests,
           initialSnapshot,
           refreshedSnapshot,
+          sellExecutions,
         );
       }
       const buyBudgetResult = applyNotionalBudgetToRankedRequests(prioritizedBuyRequests, {
@@ -2335,37 +2336,27 @@ export class TradeOrchestrationService {
     requests: TradeRequest[],
     initialSnapshot: TradeExecutionSnapshot,
     refreshedSnapshot: TradeExecutionSnapshot,
+    sellExecutions: Array<{ request: TradeRequest; trade: Trade | null }>,
   ): TradeRequest[] {
     const initialAvailableKrw = resolveAvailableKrwBalance(initialSnapshot.balances);
     const refreshedAvailableKrw = resolveAvailableKrwBalance(refreshedSnapshot.balances);
-    let remainingTotalAllowance = Math.max(
-      0,
-      initialSnapshot.marketPrice - initialAvailableKrw - (refreshedSnapshot.marketPrice - refreshedAvailableKrw),
-    );
+    let remainingTotalAllowance = Math.max(0, refreshedAvailableKrw - initialAvailableKrw);
 
-    const buildCategoryAllowanceMap = (snapshot: TradeExecutionSnapshot): Map<Category, number> => {
+    const buildCategoryAllowanceMap = (): Map<Category, number> => {
       const allowances = new Map<Category, number>();
-      requests.forEach((request) => {
-        const category = request.inference?.category;
-        if (!category) {
+      sellExecutions.forEach((execution) => {
+        const category = execution.request.inference?.category;
+        const sellNotional = execution.trade?.amount ?? 0;
+        if (!category || !Number.isFinite(sellNotional) || sellNotional <= 0) {
           return;
         }
-        const currentWeight = snapshot.currentWeights.get(request.symbol) ?? 0;
-        const currentNotional = currentWeight * snapshot.marketPrice;
-        allowances.set(category, (allowances.get(category) ?? 0) + currentNotional);
+
+        allowances.set(category, (allowances.get(category) ?? 0) + sellNotional);
       });
       return allowances;
     };
 
-    const initialCategoryNotional = buildCategoryAllowanceMap(initialSnapshot);
-    const refreshedCategoryNotional = buildCategoryAllowanceMap(refreshedSnapshot);
-    const remainingCategoryAllowance = new Map<Category, number>();
-    initialCategoryNotional.forEach((initialNotional, category) => {
-      remainingCategoryAllowance.set(
-        category,
-        Math.max(0, initialNotional - (refreshedCategoryNotional.get(category) ?? 0)),
-      );
-    });
+    const remainingCategoryAllowance = buildCategoryAllowanceMap();
 
     return requests.filter((request) => {
       if (request.positionClass !== 'existing') {
