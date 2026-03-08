@@ -20,6 +20,13 @@ export interface TradeRequest {
   diff: number;
   balances: Balances;
   marketPrice?: number;
+  // Internal execution-planning fields used only while ranking/capping requests.
+  estimatedNotional?: number | null;
+  currentWeight?: number | null;
+  targetWeight?: number | null;
+  deltaWeight?: number | null;
+  positionClass?: 'existing' | 'new';
+  expectedNetEdge?: number | null;
   inference?: AllocationRecommendationData;
   expectedEdgeRate?: number | null;
   estimatedCostRate?: number | null;

@@ -35,10 +35,12 @@ import {
   TradeExecutionMessageV2,
 } from './allocation-core.types';
 import {
+  applyNotionalBudgetToRankedRequests,
   calculateAllocationBand,
   calculateAllocationModelSignals,
   calculateRegimeAdjustedTargetWeight,
   calculateRelativeDiff,
+  estimateTradeNotionalFromRequest,
   filterExcludedRecommendationsByCategory,
   filterIncludedRecommendationsByCategory,
   isNoTradeRecommendation,
@@ -1160,6 +1162,22 @@ export class TradeOrchestrationService {
           diff: adjustedDiff,
           balances,
           marketPrice,
+          // Store the selection inputs once so budget/ranking logic downstream does not have to
+          // recompute them with slightly different assumptions.
+          estimatedNotional: Math.max(0, Math.abs(deltaWeight) * marketPrice),
+          currentWeight,
+          targetWeight,
+          deltaWeight,
+          // Buy priority is based on the refreshed tradable notional, not the model's stale
+          // hasStock flag. Dust-sized leftovers should not get incumbent priority.
+          positionClass: this.resolveBuyPositionClass({
+            diff: adjustedDiff,
+            currentWeight,
+            marketPrice,
+            minimumTradePrice: policy.minimumTradePrice,
+            tradableNotional: tradableMarketValueMap?.get(inference.symbol) ?? null,
+          }),
+          expectedNetEdge: expectedEdgeRate - estimatedCostRate,
           inference,
           expectedEdgeRate,
           estimatedCostRate,
@@ -1699,10 +1717,37 @@ export class TradeOrchestrationService {
       ...excludedTradeRequests,
       ...includedSellRequests,
       ...noTradeTrimRequests,
-    ];
-    // Apply turnover cap symmetrically to sell-side before any buy requests.
-    const maxSellRequestCount = Math.max(1, Math.ceil(rawSellRequests.length * turnoverCap));
-    const sellRequests = rawSellRequests.slice(0, maxSellRequestCount);
+    ].map((request) =>
+      this.enrichRequestEstimatedNotional(
+        request,
+        initialSnapshot.tradableMarketValueMap,
+        initialSnapshot.marketPrice,
+        initialSnapshot.currentWeights,
+      ),
+    );
+    // Sell turnover is now capped by notional budget, not by request count.
+    const sellBudgetResult = applyNotionalBudgetToRankedRequests(rawSellRequests, {
+      budgetNotional:
+        rawSellRequests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) * turnoverCap,
+      minimumTradePrice: policy.minimumTradePrice,
+    });
+    const sellRequests = sellBudgetResult.selectedRequests;
+
+    if (
+      sellBudgetResult.selectedRequests.length !== rawSellRequests.length ||
+      sellBudgetResult.partialScaledRequest != null
+    ) {
+      runtime.logger.log(
+        runtime.i18n.t('logging.inference.allocationRecommendation.sell_turnover_budget_applied', {
+          args: this.buildTurnoverBudgetSummary(
+            rawSellRequests,
+            sellBudgetResult.selectedRequests,
+            turnoverCap,
+            sellBudgetResult.partialScaledRequest,
+          ),
+        }),
+      );
+    }
 
     const sellExecutions = await executeTradesSequentiallyWithRequests(
       sellRequests,
@@ -1732,6 +1777,8 @@ export class TradeOrchestrationService {
       const refreshedIncludedRequests = buildIncludedRequests(refreshedSnapshot);
       const buyRequests = refreshedIncludedRequests.filter((item) => item.diff > 0);
       const availableKrw = resolveAvailableKrwBalance(refreshedBalances);
+      // First fit the candidate set into real post-sell KRW, then apply turnover budget to that
+      // feasible set. This keeps "cash budget" and "turnover budget" as two separate steps.
       const scaledBuyRequests = scaleBuyRequestsToAvailableKrw(buyRequests, availableKrw, {
         tradableMarketValueMap: refreshedSnapshot.tradableMarketValueMap,
         fallbackMarketPrice: refreshedSnapshot.marketPrice,
@@ -1760,25 +1807,34 @@ export class TradeOrchestrationService {
           );
         },
       });
-      const prioritizedBuyRequests = [...scaledBuyRequests].sort((a, b) => b.diff - a.diff);
-      const newEntryBuyRequests = prioritizedBuyRequests.filter((request) => this.isNewEntryBuyRequest(request));
-      const rebalanceBuyRequests = prioritizedBuyRequests.filter((request) => !this.isNewEntryBuyRequest(request));
-      const maxRebalanceBuyRequestCount =
-        rebalanceBuyRequests.length > 0 ? Math.max(1, Math.ceil(rebalanceBuyRequests.length * turnoverCap)) : 0;
-      const cappedRebalanceBuyRequests = rebalanceBuyRequests.slice(0, maxRebalanceBuyRequestCount);
-      const skippedRebalanceBuyRequests = rebalanceBuyRequests.slice(maxRebalanceBuyRequestCount);
-      const cappedBuyRequests = [...newEntryBuyRequests, ...cappedRebalanceBuyRequests].sort((a, b) => b.diff - a.diff);
-      if (skippedRebalanceBuyRequests.length > 0) {
+      // New entries no longer bypass turnover control. Every buy request competes under one
+      // ranked notional budget.
+      const prioritizedBuyRequests = [...scaledBuyRequests]
+        .map((request) =>
+          this.enrichRequestEstimatedNotional(
+            request,
+            refreshedSnapshot.tradableMarketValueMap,
+            refreshedSnapshot.marketPrice,
+            refreshedSnapshot.currentWeights,
+          ),
+        )
+        .sort((a, b) => this.compareBuyRequestPriority(a, b));
+      const buyBudgetResult = applyNotionalBudgetToRankedRequests(prioritizedBuyRequests, {
+        budgetNotional:
+          prioritizedBuyRequests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) *
+          turnoverCap,
+        minimumTradePrice: policy.minimumTradePrice,
+      });
+      const cappedBuyRequests = buyBudgetResult.selectedRequests;
+      if (cappedBuyRequests.length !== prioritizedBuyRequests.length || buyBudgetResult.partialScaledRequest != null) {
         runtime.logger.log(
-          runtime.i18n.t('logging.inference.allocationRecommendation.buy_turnover_capped', {
-            args: {
+          runtime.i18n.t('logging.inference.allocationRecommendation.buy_turnover_budget_applied', {
+            args: this.buildTurnoverBudgetSummary(
+              prioritizedBuyRequests,
+              cappedBuyRequests,
               turnoverCap,
-              requestedCount: rebalanceBuyRequests.length,
-              executedCount: cappedRebalanceBuyRequests.length,
-              selectedSymbols: cappedRebalanceBuyRequests.map((item) => item.symbol).join(','),
-              skippedSymbols: skippedRebalanceBuyRequests.map((item) => item.symbol).join(','),
-              exemptedSymbols: newEntryBuyRequests.map((item) => item.symbol).join(','),
-            },
+              buyBudgetResult.partialScaledRequest,
+            ),
           }),
         );
       }
@@ -1892,11 +1948,134 @@ export class TradeOrchestrationService {
     return translated;
   }
 
-  /**
-   * Detects buy requests that open a new position (not currently held).
-   */
-  private isNewEntryBuyRequest(request: TradeRequest): boolean {
-    return request.diff > 0 && request.inference?.hasStock === false;
+  private enrichRequestEstimatedNotional(
+    request: TradeRequest,
+    tradableMarketValueMap?: Map<string, number>,
+    fallbackMarketPrice?: number,
+    currentWeights?: Map<string, number>,
+  ): TradeRequest {
+    const fallbackRequest = {
+      ...request,
+      marketPrice:
+        request.marketPrice != null && Number.isFinite(request.marketPrice) && request.marketPrice > 0
+          ? request.marketPrice
+          : fallbackMarketPrice,
+      currentWeight:
+        request.currentWeight != null && Number.isFinite(request.currentWeight)
+          ? request.currentWeight
+          : currentWeights?.get(request.symbol),
+    };
+    const symbolNotionalFallback =
+      fallbackRequest.currentWeight != null &&
+      Number.isFinite(fallbackRequest.currentWeight) &&
+      fallbackRequest.marketPrice != null &&
+      Number.isFinite(fallbackRequest.marketPrice)
+        ? fallbackRequest.currentWeight * fallbackRequest.marketPrice
+        : fallbackMarketPrice;
+    const estimatedNotional = estimateTradeNotionalFromRequest(
+      fallbackRequest,
+      tradableMarketValueMap,
+      symbolNotionalFallback,
+    );
+    return {
+      ...fallbackRequest,
+      estimatedNotional,
+    };
+  }
+
+  private resolveBuyPositionClass(options: {
+    diff: number;
+    currentWeight?: number | null;
+    marketPrice?: number | null;
+    minimumTradePrice: number;
+    tradableNotional?: number | null;
+  }): 'existing' | 'new' {
+    if (!(Number.isFinite(options.diff) && options.diff > 0)) {
+      return 'new';
+    }
+
+    const currentHoldingNotional =
+      options.currentWeight != null &&
+      Number.isFinite(options.currentWeight) &&
+      options.marketPrice != null &&
+      Number.isFinite(options.marketPrice)
+        ? options.currentWeight * options.marketPrice
+        : 0;
+    if (currentHoldingNotional >= options.minimumTradePrice) {
+      return 'existing';
+    }
+
+    if (options.tradableNotional != null && Number.isFinite(options.tradableNotional)) {
+      return options.tradableNotional >= options.minimumTradePrice ? 'existing' : 'new';
+    }
+
+    return 'new';
+  }
+
+  private compareBuyRequestPriority(a: TradeRequest, b: TradeRequest): number {
+    // Keep incumbent resizing ahead of fresh entries before comparing reward/cost metrics.
+    const aExisting = a.positionClass === 'existing';
+    const bExisting = b.positionClass === 'existing';
+    if (aExisting !== bExisting) {
+      return aExisting ? -1 : 1;
+    }
+
+    const aExpectedNetEdge = a.expectedNetEdge ?? Number.NEGATIVE_INFINITY;
+    const bExpectedNetEdge = b.expectedNetEdge ?? Number.NEGATIVE_INFINITY;
+    if (aExpectedNetEdge !== bExpectedNetEdge) {
+      return bExpectedNetEdge - aExpectedNetEdge;
+    }
+
+    const aDeltaWeight = Math.abs(a.deltaWeight ?? 0);
+    const bDeltaWeight = Math.abs(b.deltaWeight ?? 0);
+    if (aDeltaWeight !== bDeltaWeight) {
+      return bDeltaWeight - aDeltaWeight;
+    }
+
+    if (a.diff !== b.diff) {
+      return b.diff - a.diff;
+    }
+
+    return a.symbol.localeCompare(b.symbol);
+  }
+
+  private buildTurnoverBudgetSummary(
+    requests: TradeRequest[],
+    selectedRequests: TradeRequest[],
+    turnoverCap: number,
+    partialScaledRequest: TradeRequest | null,
+  ): {
+    turnoverCap: number;
+    requestedCount: number;
+    requestedNotional: number;
+    budgetNotional: number;
+    selectedCount: number;
+    selectedNotional: number;
+    selectedSymbols: string;
+    skippedSymbols: string;
+    partialScaledSymbol: string;
+  } {
+    // This summary feeds logs so operators can see the requested notional, the effective budget,
+    // and whether the last selected request had to be partially scaled.
+    const requestedNotional = requests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0);
+    const selectedNotional = selectedRequests.reduce(
+      (sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0),
+      0,
+    );
+    return {
+      turnoverCap,
+      requestedCount: requests.length,
+      requestedNotional,
+      budgetNotional: requestedNotional * turnoverCap,
+      selectedCount: selectedRequests.length,
+      selectedNotional,
+      selectedSymbols: selectedRequests.map((request) => request.symbol).join(','),
+      skippedSymbols: requests
+        .filter((request) => !selectedRequests.some((selectedRequest) => selectedRequest.symbol === request.symbol))
+        .map((request) => request.symbol)
+        .join(','),
+      partialScaledSymbol: partialScaledRequest?.symbol ?? '',
+    };
   }
 
   /**
