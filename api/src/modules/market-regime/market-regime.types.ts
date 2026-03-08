@@ -41,7 +41,7 @@ export interface Feargreed {
   timestamp: number;
   date: string;
   timeUntilUpdate: number;
-  diff?: number;
+  delta?: number;
 }
 
 export interface CompactFeargreed {
@@ -56,7 +56,7 @@ export interface FeargreedCachePayload {
   timestamp: number;
   date: string;
   timeUntilUpdate: number;
-  diff: number;
+  delta: number;
 }
 
 export interface CoinMarketCapOverviewDetailResponse {

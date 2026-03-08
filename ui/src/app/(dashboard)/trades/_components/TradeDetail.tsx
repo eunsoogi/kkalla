@@ -16,7 +16,7 @@ import { TradeTypeText } from '@/app/(dashboard)/_shared/trades/TradeTypeText';
 import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
 import { Trade } from '@/app/(dashboard)/_shared/trades/trade.types';
 import { CursorItem } from '@/shared/types/pagination.types';
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber } from '@/utils/number';
 
@@ -35,7 +35,7 @@ import { getTradeCursorAction } from '../_actions/trade.actions';
  * @returns Signed text.
  */
 const formatSignedNumber = (value: number): string => {
-  return `${getDiffPrefix(value)}${formatNumber(value)}`;
+  return `${getDeltaPrefix(value)}${formatNumber(value)}`;
 };
 
 /**
@@ -103,7 +103,7 @@ const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, 
         <span className='text-sm text-gray-500 dark:text-gray-400'>
           {t('trade.amount')}: {formatNumber(item.amount)}
         </span>
-        <span className={`text-sm font-semibold ${getDiffColor(item.profit)}`}>
+        <span className={`text-sm font-semibold ${getDeltaColor(item.profit)}`}>
           {formatSignedNumber(item.profit)}
         </span>
       </div>

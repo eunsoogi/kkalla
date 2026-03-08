@@ -11,7 +11,7 @@ import { formatPercent, formatPrice } from '@/utils/number';
 import type { MarketReportListProps, MarketReportRowProps } from './home.types';
 
 import { ContentModal } from '@/app/(dashboard)/_shared/ui/ContentModal';
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 
 /**
  * Renders the market report table row.
@@ -42,8 +42,8 @@ const MarketReportRow = ({ item, onRowClick }: MarketReportRowProps) => {
       </TableCell>
       <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>
         {item.priceChangePct != null ? (
-          <span className={getDiffColor(item.priceChangePct)}>
-            {getDiffPrefix(item.priceChangePct)}
+          <span className={getDeltaColor(item.priceChangePct)}>
+            {getDeltaPrefix(item.priceChangePct)}
             {item.priceChangePct.toFixed(2)}%
           </span>
         ) : (

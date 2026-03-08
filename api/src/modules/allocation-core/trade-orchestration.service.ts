@@ -39,7 +39,7 @@ import {
   calculateAllocationBand,
   calculateAllocationModelSignals,
   calculateRegimeAdjustedTargetWeight,
-  calculateRelativeDiff,
+  calculateRequestDiff,
   estimateTradeNotionalFromRequest,
   filterExcludedRecommendationsByCategory,
   filterIncludedRecommendationsByCategory,
@@ -279,9 +279,9 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Shared staged-exit medium diff used by partial de-risking flows.
+   * Shared staged-exit medium requestDiff used by partial de-risking flows.
    */
-  public getStagedExitMediumDiff(): number {
+  public getStagedExitMediumRequestDiff(): number {
     return this.defaultTradePolicy.stagedExitMedium;
   }
 
@@ -303,36 +303,36 @@ export class TradeOrchestrationService {
     TradeRequest,
     | 'currentSymbolNotional'
     | 'targetGapWeight'
-    | 'requestedTradeNotional'
-    | 'cappedTradeNotional'
-    | 'cappedTradeDiff'
+    | 'requestNotional'
+    | 'executionNotional'
+    | 'executionDiff'
     | 'sizingContractVersion'
     | 'selectionPolicyVersion'
     | 'forcedFullLiquidation'
   > {
     const currentSymbolNotional = Math.max(0, options.currentWeight * options.marketPrice);
     const targetGapWeight = Math.max(0, Math.abs(options.targetWeight - options.currentWeight));
-    const requestedTradeNotional =
+    const requestNotional =
       currentSymbolNotional > Number.EPSILON
         ? currentSymbolNotional * Math.abs(options.executionDiff)
         : options.marketPrice * targetGapWeight;
     const symbolMaxTurnoverNotional = options.marketPrice * options.policy.symbolMaxTurnoverFraction;
-    const cappedTradeNotional = options.forcedFullLiquidation
-      ? requestedTradeNotional
-      : Math.min(requestedTradeNotional, symbolMaxTurnoverNotional);
+    const executionNotional = options.forcedFullLiquidation
+      ? requestNotional
+      : Math.min(requestNotional, symbolMaxTurnoverNotional);
     const baseDenominator = currentSymbolNotional > Number.EPSILON ? currentSymbolNotional : options.marketPrice;
-    const cappedTradeDiff = options.forcedFullLiquidation
+    const executionDiff = options.forcedFullLiquidation
       ? options.executionDiff
       : baseDenominator > Number.EPSILON
-        ? Math.sign(options.executionDiff) * (cappedTradeNotional / baseDenominator)
+        ? Math.sign(options.executionDiff) * (executionNotional / baseDenominator)
         : 0;
 
     return {
       currentSymbolNotional,
       targetGapWeight,
-      requestedTradeNotional,
-      cappedTradeNotional,
-      cappedTradeDiff,
+      requestNotional,
+      executionNotional,
+      executionDiff,
       sizingContractVersion: this.sizingContractVersion,
       selectionPolicyVersion: this.selectionPolicyVersion,
       forcedFullLiquidation: options.forcedFullLiquidation ?? false,
@@ -1070,7 +1070,7 @@ export class TradeOrchestrationService {
       tradableMarketValueMap,
       triggerReason = 'missing_from_inference',
     } = options;
-    const fullExitDiff = this.defaultTradePolicy.stagedExitFull;
+    const fullExitRequestDiff = this.defaultTradePolicy.stagedExitFull;
 
     return balances.info
       .filter((item) => {
@@ -1084,7 +1084,7 @@ export class TradeOrchestrationService {
           isOrderableSymbol(symbol, orderableSymbols) &&
           isSellAmountSufficient(
             symbol,
-            fullExitDiff,
+            fullExitRequestDiff,
             this.defaultTradePolicy.minimumTradePrice,
             tradableMarketValueMap,
           )
@@ -1095,24 +1095,24 @@ export class TradeOrchestrationService {
         const currentSymbolNotional = tradableMarketValueMap?.get(symbol) ?? 0;
         return {
           symbol,
-          diff: fullExitDiff,
+          requestDiff: fullExitRequestDiff,
           balances,
           marketPrice,
           estimatedNotional: this.buildExecutionSizing({
             currentWeight: marketPrice > Number.EPSILON ? currentSymbolNotional / marketPrice : 0,
             targetWeight: 0,
             marketPrice,
-            executionDiff: fullExitDiff,
+            executionDiff: fullExitRequestDiff,
             forcedFullLiquidation: true,
             policy: this.defaultTradePolicy,
-          }).cappedTradeNotional,
+          }).executionNotional,
           executionUrgency: 'urgent' as const,
           triggerReason,
           ...this.buildExecutionSizing({
             currentWeight: marketPrice > Number.EPSILON ? currentSymbolNotional / marketPrice : 0,
             targetWeight: 0,
             marketPrice,
-            executionDiff: fullExitDiff,
+            executionDiff: fullExitRequestDiff,
             forcedFullLiquidation: true,
             policy: this.defaultTradePolicy,
           }),
@@ -1260,12 +1260,12 @@ export class TradeOrchestrationService {
           return null;
         }
 
-        const diff = calculateRelativeDiff(targetWeight, currentWeight);
-        if (!Number.isFinite(diff) || Math.abs(diff) < Number.EPSILON) {
+        const requestDiff = calculateRequestDiff(targetWeight, currentWeight);
+        if (!Number.isFinite(requestDiff) || Math.abs(requestDiff) < Number.EPSILON) {
           return null;
         }
-        const payoffOverlay = this.resolvePayoffOverlaySellDiff(policy, diff, inference);
-        const adjustedDiff = payoffOverlay.diff;
+        const payoffOverlay = this.resolvePayoffOverlaySellRequestDiff(policy, requestDiff, inference);
+        const adjustedRequestDiff = payoffOverlay.requestDiff;
 
         runtime.logger.log(
           runtime.i18n.t('logging.inference.allocationRecommendation.trade_delta', {
@@ -1274,14 +1274,19 @@ export class TradeOrchestrationService {
               targetWeight,
               currentWeight,
               deltaWeight,
-              diff: adjustedDiff,
+              requestDiff: adjustedRequestDiff,
             },
           }),
         );
 
         if (
-          adjustedDiff < 0 &&
-          !isSellAmountSufficient(inference.symbol, adjustedDiff, policy.minimumTradePrice, tradableMarketValueMap)
+          adjustedRequestDiff < 0 &&
+          !isSellAmountSufficient(
+            inference.symbol,
+            adjustedRequestDiff,
+            policy.minimumTradePrice,
+            tradableMarketValueMap,
+          )
         ) {
           return null;
         }
@@ -1292,26 +1297,26 @@ export class TradeOrchestrationService {
           currentWeight,
           targetWeight,
           marketPrice,
-          executionDiff: adjustedDiff,
+          executionDiff: adjustedRequestDiff,
           policy,
         });
 
         return {
           symbol: inference.symbol,
-          diff: adjustedDiff,
+          requestDiff: adjustedRequestDiff,
           balances,
           marketPrice,
           ...executionSizing,
           // Store the selection inputs once so budget/ranking logic downstream does not have to
           // recompute them with slightly different assumptions.
-          estimatedNotional: executionSizing.cappedTradeNotional,
+          estimatedNotional: executionSizing.executionNotional,
           currentWeight,
           targetWeight,
           deltaWeight,
           // Buy priority is based on the refreshed tradable notional, not the model's stale
           // hasStock flag. Dust-sized leftovers should not get incumbent priority.
           positionClass: this.resolveBuyPositionClass({
-            diff: adjustedDiff,
+            requestDiff: adjustedRequestDiff,
             currentWeight,
             marketPrice,
             minimumTradePrice: policy.minimumTradePrice,
@@ -1323,21 +1328,21 @@ export class TradeOrchestrationService {
           estimatedCostRate,
           spreadRate: inference.spreadRate ?? null,
           impactRate: inference.impactRate ?? null,
-          executionUrgency: adjustedDiff < 0 ? ('urgent' as const) : ('normal' as const),
+          executionUrgency: adjustedRequestDiff < 0 ? ('urgent' as const) : ('normal' as const),
           triggerReason: payoffOverlay.triggerReason ?? 'included_rebalance',
         };
       })
       .filter((item): item is Exclude<typeof item, null> => item !== null)
       .sort((a, b) => {
-        const aSell = a.diff < 0;
-        const bSell = b.diff < 0;
+        const aSell = a.requestDiff < 0;
+        const bSell = b.requestDiff < 0;
         if (aSell !== bSell) {
           return aSell ? -1 : 1;
         }
         if (aSell && bSell) {
-          return a.diff - b.diff;
+          return a.requestDiff - b.requestDiff;
         }
-        return b.diff - a.diff;
+        return b.requestDiff - a.requestDiff;
       });
   }
 
@@ -1354,28 +1359,28 @@ export class TradeOrchestrationService {
           isOrderableSymbol(inference.symbol, orderableSymbols) &&
           isSellAmountSufficient(
             inference.symbol,
-            this.resolveStagedExitDiff(policy, inference),
+            this.resolveStagedExitRequestDiff(policy, inference),
             policy.minimumTradePrice,
             tradableMarketValueMap,
           ),
       )
       .map((inference) => {
         const currentSymbolNotional = tradableMarketValueMap?.get(inference.symbol) ?? 0;
-        const diff = this.resolveStagedExitDiff(policy, inference);
+        const requestDiff = this.resolveStagedExitRequestDiff(policy, inference);
         const executionSizing = this.buildExecutionSizing({
           currentWeight: marketPrice > Number.EPSILON ? currentSymbolNotional / marketPrice : 0,
           targetWeight: 0,
           marketPrice,
-          executionDiff: diff,
+          executionDiff: requestDiff,
           policy,
         });
         return {
           symbol: inference.symbol,
-          diff,
+          requestDiff,
           balances,
           marketPrice,
           ...executionSizing,
-          estimatedNotional: executionSizing.cappedTradeNotional,
+          estimatedNotional: executionSizing.executionNotional,
           inference,
           expectedEdgeRate: this.resolveExpectedEdgeRate(1, inference),
           estimatedCostRate: this.resolveEstimatedCostRate(policy, inference),
@@ -1495,8 +1500,8 @@ export class TradeOrchestrationService {
           return null;
         }
 
-        const diff = calculateRelativeDiff(targetWeight, currentWeight);
-        if (!Number.isFinite(diff) || diff >= 0 || Math.abs(diff) < Number.EPSILON) {
+        const requestDiff = calculateRequestDiff(targetWeight, currentWeight);
+        if (!Number.isFinite(requestDiff) || requestDiff >= 0 || Math.abs(requestDiff) < Number.EPSILON) {
           runtime.logger.log(
             runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
               args: {
@@ -1504,22 +1509,29 @@ export class TradeOrchestrationService {
                 reason: 'invalid_diff',
                 targetWeight,
                 currentWeight,
-                diff,
+                requestDiff,
               },
             }),
           );
           return null;
         }
 
-        const payoffOverlay = this.resolvePayoffOverlaySellDiff(policy, diff, inference);
-        const adjustedDiff = payoffOverlay.diff;
-        if (!isSellAmountSufficient(inference.symbol, adjustedDiff, policy.minimumTradePrice, tradableMarketValueMap)) {
+        const payoffOverlay = this.resolvePayoffOverlaySellRequestDiff(policy, requestDiff, inference);
+        const adjustedRequestDiff = payoffOverlay.requestDiff;
+        if (
+          !isSellAmountSufficient(
+            inference.symbol,
+            adjustedRequestDiff,
+            policy.minimumTradePrice,
+            tradableMarketValueMap,
+          )
+        ) {
           runtime.logger.log(
             runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
               args: {
                 symbol: inference.symbol,
                 reason: 'minimum_sell_amount',
-                diff: adjustedDiff,
+                requestDiff: adjustedRequestDiff,
               },
             }),
           );
@@ -1533,7 +1545,7 @@ export class TradeOrchestrationService {
               targetWeight,
               currentWeight,
               deltaWeight,
-              diff: adjustedDiff,
+              requestDiff: adjustedRequestDiff,
             },
           }),
         );
@@ -1543,16 +1555,16 @@ export class TradeOrchestrationService {
           currentWeight,
           targetWeight,
           marketPrice,
-          executionDiff: adjustedDiff,
+          executionDiff: adjustedRequestDiff,
           policy,
         });
         return {
           symbol: inference.symbol,
-          diff: adjustedDiff,
+          requestDiff: adjustedRequestDiff,
           balances,
           marketPrice,
           ...executionSizing,
-          estimatedNotional: executionSizing.cappedTradeNotional,
+          estimatedNotional: executionSizing.executionNotional,
           inference,
           expectedEdgeRate,
           estimatedCostRate,
@@ -1563,7 +1575,7 @@ export class TradeOrchestrationService {
         };
       })
       .filter((item): item is Exclude<typeof item, null> => item !== null)
-      .sort((a, b) => a.diff - b.diff);
+      .sort((a, b) => a.requestDiff - b.requestDiff);
   }
 
   /**
@@ -1873,7 +1885,7 @@ export class TradeOrchestrationService {
     const excludedTradeRequests = buildExcludedRequests(initialSnapshot);
     const includedTradeRequests = buildIncludedRequests(initialSnapshot);
     const noTradeTrimRequests = buildNoTradeTrimRequests(initialSnapshot);
-    const includedSellRequests = includedTradeRequests.filter((item) => item.diff < 0);
+    const includedSellRequests = includedTradeRequests.filter((item) => item.requestDiff < 0);
     const rawSellRequests = [
       ...additionalSellRequests,
       ...excludedTradeRequests,
@@ -1887,7 +1899,9 @@ export class TradeOrchestrationService {
         initialSnapshot.currentWeights,
       ),
     );
-    const forcedFullLiquidationSellRequests = rawSellRequests.filter((request) => request.forcedFullLiquidation === true);
+    const forcedFullLiquidationSellRequests = rawSellRequests.filter(
+      (request) => request.forcedFullLiquidation === true,
+    );
     const cappedSellCandidates = rawSellRequests.filter((request) => request.forcedFullLiquidation !== true);
     // Sell turnover is now capped by notional budget, not by request count.
     const sellBudgetResult = applyNotionalBudgetToRankedRequests(cappedSellCandidates, {
@@ -1948,7 +1962,7 @@ export class TradeOrchestrationService {
       });
       inferredHoldingSnapshot = refreshedSnapshot;
       const refreshedIncludedRequests = buildIncludedRequests(refreshedSnapshot);
-      const buyRequests = refreshedIncludedRequests.filter((item) => item.diff > 0);
+      const buyRequests = refreshedIncludedRequests.filter((item) => item.requestDiff > 0);
       const availableKrw = resolveAvailableKrwBalance(refreshedBalances);
       // First fit the candidate set into real post-sell KRW, then apply turnover budget to that
       // feasible set. This keeps "cash budget" and "turnover budget" as two separate steps.
@@ -2108,12 +2122,12 @@ export class TradeOrchestrationService {
 
   private resolveTradeNotificationWhatHappened(
     i18n: TradeRuntimeContext['i18n'],
-    trade: Pick<Trade, 'amount' | 'decisionRequestedTradeNotional' | 'decisionCappedTradeNotional'>,
+    trade: Pick<Trade, 'amount' | 'decisionRequestNotional' | 'decisionExecutionNotional'>,
   ): string {
     const reduced =
-      trade.decisionRequestedTradeNotional != null &&
-      trade.decisionCappedTradeNotional != null &&
-      trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+      trade.decisionRequestNotional != null &&
+      trade.decisionExecutionNotional != null &&
+      trade.decisionRequestNotional > trade.decisionExecutionNotional + Number.EPSILON;
 
     return i18n.t(reduced ? 'notify.order.whatHappened.reduced' : 'notify.order.whatHappened.executed', {
       args: {
@@ -2124,9 +2138,9 @@ export class TradeOrchestrationService {
 
   private resolveTradeNotificationWhy(i18n: TradeRuntimeContext['i18n'], trade: Trade): string {
     const reduced =
-      trade.decisionRequestedTradeNotional != null &&
-      trade.decisionCappedTradeNotional != null &&
-      trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+      trade.decisionRequestNotional != null &&
+      trade.decisionExecutionNotional != null &&
+      trade.decisionRequestNotional > trade.decisionExecutionNotional + Number.EPSILON;
 
     if (trade.decisionRegimeSource === 'unavailable_risk_off') {
       return i18n.t('notify.order.why.conservative_mode');
@@ -2204,18 +2218,18 @@ export class TradeOrchestrationService {
         ? fallbackRequest.currentWeight * fallbackRequest.marketPrice
         : null;
     const symbolNotionalFallback =
-      request.diff > 0
+      request.requestDiff > 0
         ? (symbolHoldingNotional ?? fallbackRequest.marketPrice ?? fallbackMarketPrice)
         : symbolHoldingNotional;
     const estimationRequest = {
       ...fallbackRequest,
       // For sells, request.marketPrice is the portfolio baseline, not symbol notional.
       // Avoid falling back to it when we do not have a symbol-level holding source.
-      marketPrice: request.diff > 0 || symbolHoldingNotional != null ? fallbackRequest.marketPrice : undefined,
+      marketPrice: request.requestDiff > 0 || symbolHoldingNotional != null ? fallbackRequest.marketPrice : undefined,
     };
     const estimatedNotional =
-      request.cappedTradeNotional != null && Number.isFinite(request.cappedTradeNotional)
-        ? request.cappedTradeNotional
+      request.executionNotional != null && Number.isFinite(request.executionNotional)
+        ? request.executionNotional
         : estimateTradeNotionalFromRequest(estimationRequest, tradableMarketValueMap, symbolNotionalFallback);
     return {
       ...fallbackRequest,
@@ -2224,13 +2238,13 @@ export class TradeOrchestrationService {
   }
 
   private resolveBuyPositionClass(options: {
-    diff: number;
+    requestDiff: number;
     currentWeight?: number | null;
     marketPrice?: number | null;
     minimumTradePrice: number;
     tradableNotional?: number | null;
   }): 'existing' | 'new' {
-    if (!(Number.isFinite(options.diff) && options.diff > 0)) {
+    if (!(Number.isFinite(options.requestDiff) && options.requestDiff > 0)) {
       return 'new';
     }
 
@@ -2266,10 +2280,10 @@ export class TradeOrchestrationService {
       return bExpectedNetEdge - aExpectedNetEdge;
     }
 
-    const aCappedTradeNotional = a.cappedTradeNotional ?? a.estimatedNotional ?? 0;
-    const bCappedTradeNotional = b.cappedTradeNotional ?? b.estimatedNotional ?? 0;
-    if (aCappedTradeNotional !== bCappedTradeNotional) {
-      return bCappedTradeNotional - aCappedTradeNotional;
+    const aExecutionNotional = a.executionNotional ?? a.estimatedNotional ?? 0;
+    const bExecutionNotional = b.executionNotional ?? b.estimatedNotional ?? 0;
+    if (aExecutionNotional !== bExecutionNotional) {
+      return bExecutionNotional - aExecutionNotional;
     }
 
     const aTargetGapWeight = Math.abs(a.targetGapWeight ?? 0);
@@ -2278,8 +2292,8 @@ export class TradeOrchestrationService {
       return bTargetGapWeight - aTargetGapWeight;
     }
 
-    if (a.diff !== b.diff) {
-      return b.diff - a.diff;
+    if (a.requestDiff !== b.requestDiff) {
+      return b.requestDiff - a.requestDiff;
     }
 
     return a.symbol.localeCompare(b.symbol);
@@ -2364,7 +2378,7 @@ export class TradeOrchestrationService {
       if (request.positionClass !== 'existing') {
         return false;
       }
-      const tradeNotional = request.cappedTradeNotional ?? request.estimatedNotional ?? 0;
+      const tradeNotional = request.executionNotional ?? request.estimatedNotional ?? 0;
       if (!Number.isFinite(tradeNotional) || tradeNotional <= 0) {
         return false;
       }
@@ -2603,8 +2617,8 @@ export class TradeOrchestrationService {
       decisionContextVersion: request.sizingContractVersion ?? null,
       decisionPortfolioValue: request.marketPrice ?? null,
       decisionSymbolNotional: request.currentSymbolNotional ?? null,
-      decisionRequestedTradeNotional: request.requestedTradeNotional ?? null,
-      decisionCappedTradeNotional: request.cappedTradeNotional ?? null,
+      decisionRequestNotional: request.requestNotional ?? null,
+      decisionExecutionNotional: request.executionNotional ?? null,
       decisionExpectedNetEdgeRate: request.expectedNetEdge ?? null,
       decisionPositionClass: request.positionClass ?? null,
       decisionRegimeSource:
@@ -2639,9 +2653,9 @@ export class TradeOrchestrationService {
    * Converts recommendation confidence/action into staged sell intensity.
    * @param policy - Effective trade policy for the current run.
    * @param inference - Recommendation payload used to determine staged exit strength.
-   * @returns Relative sell diff for staged exits.
+   * @returns Relative sell requestDiff for staged exits.
    */
-  private resolveStagedExitDiff(policy: TradePolicyConfig, inference?: AllocationRecommendationData): number {
+  private resolveStagedExitRequestDiff(policy: TradePolicyConfig, inference?: AllocationRecommendationData): number {
     if (!inference) {
       return policy.stagedExitMedium;
     }
@@ -2708,19 +2722,19 @@ export class TradeOrchestrationService {
   }
 
   /**
-   * Applies defensive sell overlays on top of base diff.
+   * Applies defensive sell overlays on top of base requestDiff.
    * @param policy - Effective trade policy for the current run.
-   * @param diff - Base relative diff.
+   * @param requestDiff - Base relative requestDiff.
    * @param inference - Optional recommendation telemetry.
-   * @returns Adjusted diff and optional trigger reason for telemetry.
+   * @returns Adjusted requestDiff and optional trigger reason for telemetry.
    */
-  private resolvePayoffOverlaySellDiff(
+  private resolvePayoffOverlaySellRequestDiff(
     policy: TradePolicyConfig,
-    diff: number,
+    requestDiff: number,
     inference?: AllocationRecommendationData,
   ): PayoffOverlayResult {
-    if (!inference || diff >= 0) {
-      return { diff, triggerReason: null };
+    if (!inference || requestDiff >= 0) {
+      return { requestDiff, triggerReason: null };
     }
 
     const expectedVolatilityRate = this.normalizeExpectedVolatilityRate(inference.expectedVolatilityPct);
@@ -2733,7 +2747,7 @@ export class TradeOrchestrationService {
     if (sellScore >= 0.75 && expectedVolatilityRate >= 0.03) {
       const stopLossFloor = Math.max(policy.payoffOverlayStopLossMin, -Math.min(1, expectedVolatilityRate * 4));
       return {
-        diff: Math.min(diff, stopLossFloor),
+        requestDiff: Math.min(requestDiff, stopLossFloor),
         triggerReason: 'volatility_stop_loss',
       };
     }
@@ -2741,12 +2755,12 @@ export class TradeOrchestrationService {
     if (previousTarget > 0 && currentTarget < previousTarget && buyScore < 0.35 && decisionConfidence >= 0.4) {
       const trailingFloor = Math.max(policy.payoffOverlayTrailingMin, -Math.min(0.8, previousTarget - currentTarget));
       return {
-        diff: Math.min(diff, trailingFloor),
+        requestDiff: Math.min(requestDiff, trailingFloor),
         triggerReason: 'trailing_take_profit',
       };
     }
 
-    return { diff, triggerReason: null };
+    return { requestDiff, triggerReason: null };
   }
 
   /**
@@ -3107,7 +3121,9 @@ export class TradeOrchestrationService {
       }
 
       const effectiveExecutionDiff =
-        request.cappedTradeDiff != null && Number.isFinite(request.cappedTradeDiff) ? request.cappedTradeDiff : request.diff;
+        request.executionDiff != null && Number.isFinite(request.executionDiff)
+          ? request.executionDiff
+          : request.requestDiff;
       if (effectiveExecutionDiff > -1 + Number.EPSILON) {
         return;
       }

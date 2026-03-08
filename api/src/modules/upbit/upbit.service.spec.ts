@@ -155,7 +155,7 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       marketPrice: 1_000_000,
       executionUrgency: 'urgent',
@@ -190,7 +190,7 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'urgent',
     });
@@ -230,7 +230,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'urgent',
     });
@@ -273,7 +273,7 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
@@ -317,7 +317,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.002,
@@ -354,7 +354,7 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
@@ -415,7 +415,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
@@ -457,7 +457,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
@@ -498,7 +498,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: -0.1,
+      requestDiff: -0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.002,
@@ -548,7 +548,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: -0.1,
+      requestDiff: -0.1,
       balances,
       executionUrgency: 'urgent',
       expectedEdgeRate: 0.001,
@@ -589,7 +589,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: -0.1,
+      requestDiff: -0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.002,

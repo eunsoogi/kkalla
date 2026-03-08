@@ -389,7 +389,7 @@ describe('balance-recommendation utils', () => {
   it('should evaluate cost gate and estimate buy notional', () => {
     expect(passesCostGate(0.05, 0.0005, 0.001, 2)).toBe(true);
     expect(passesCostGate(0.001, 0.0005, 0.001, 2)).toBe(false);
-    expect(estimateBuyNotionalFromRequest({ symbol: 'BTC/KRW', diff: 0.2, marketPrice: 1000 })).toBe(200);
+    expect(estimateBuyNotionalFromRequest({ symbol: 'BTC/KRW', requestDiff: 0.2, marketPrice: 1000 })).toBe(200);
   });
 
   it('should calculate model signals from shared weights and feature config', () => {
@@ -424,8 +424,8 @@ describe('balance-recommendation utils', () => {
 
   it('should proportionally scale buy requests when estimated notional exceeds available KRW', () => {
     const buyRequests = [
-      { symbol: 'BTC/KRW', diff: 0.2, marketPrice: 1_000_000, currentWeight: 0.1, deltaWeight: 0.2 },
-      { symbol: 'ETH/KRW', diff: 0.1, marketPrice: 1_000_000, currentWeight: 0.05, deltaWeight: 0.1 },
+      { symbol: 'BTC/KRW', requestDiff: 0.2, marketPrice: 1_000_000, currentWeight: 0.1, deltaWeight: 0.2 },
+      { symbol: 'ETH/KRW', requestDiff: 0.1, marketPrice: 1_000_000, currentWeight: 0.05, deltaWeight: 0.1 },
     ];
 
     const scaled = scaleBuyRequestsToAvailableKrw(buyRequests, 40_000, {
@@ -438,8 +438,8 @@ describe('balance-recommendation utils', () => {
     });
 
     expect(scaled).toHaveLength(2);
-    expect(scaled[0].diff).toBeCloseTo(0.1, 10);
-    expect(scaled[1].diff).toBeCloseTo(0.05, 10);
+    expect(scaled[0].requestDiff).toBeCloseTo(0.1, 10);
+    expect(scaled[1].requestDiff).toBeCloseTo(0.05, 10);
     expect((scaled[0] as any).estimatedNotional).toBeCloseTo(30_000, 10);
     expect((scaled[0] as any).deltaWeight).toBeCloseTo(0.1, 10);
     expect((scaled[0] as any).targetWeight).toBeCloseTo(0.2, 10);
@@ -447,8 +447,8 @@ describe('balance-recommendation utils', () => {
 
   it('should drop scaled buy requests that fall below minimum order amount', () => {
     const buyRequests = [
-      { symbol: 'XRP/KRW', diff: 0.06, marketPrice: 1_000_000 },
-      { symbol: 'BTC/KRW', diff: 0.1, marketPrice: 1_000_000 },
+      { symbol: 'XRP/KRW', requestDiff: 0.06, marketPrice: 1_000_000 },
+      { symbol: 'BTC/KRW', requestDiff: 0.1, marketPrice: 1_000_000 },
     ];
 
     const scaled = scaleBuyRequestsToAvailableKrw(buyRequests, 53_000, {
@@ -462,17 +462,17 @@ describe('balance-recommendation utils', () => {
 
     expect(scaled).toHaveLength(1);
     expect(scaled[0].symbol).toBe('BTC/KRW');
-    expect(scaled[0].diff).toBeCloseTo(0.05, 10);
+    expect(scaled[0].requestDiff).toBeCloseTo(0.05, 10);
   });
 
-  it('should estimate trade notional using absolute diff for sell requests', () => {
-    expect(estimateTradeNotionalFromRequest({ symbol: 'BTC/KRW', diff: -0.2, marketPrice: 1_000 })).toBe(200);
+  it('should estimate trade notional using absolute requestDiff for sell requests', () => {
+    expect(estimateTradeNotionalFromRequest({ symbol: 'BTC/KRW', requestDiff: -0.2, marketPrice: 1_000 })).toBe(200);
   });
 
   it('should partially scale the last ranked request to fit the remaining notional budget', () => {
     const requests = [
-      { symbol: 'BTC/KRW', diff: 0.3, estimatedNotional: 30_000, currentWeight: 0.1, deltaWeight: 0.03 },
-      { symbol: 'ETH/KRW', diff: 0.2, estimatedNotional: 20_000, currentWeight: 0.05, deltaWeight: 0.02 },
+      { symbol: 'BTC/KRW', requestDiff: 0.3, estimatedNotional: 30_000, currentWeight: 0.1, deltaWeight: 0.03 },
+      { symbol: 'ETH/KRW', requestDiff: 0.2, estimatedNotional: 20_000, currentWeight: 0.05, deltaWeight: 0.02 },
     ];
 
     const result = applyNotionalBudgetToRankedRequests(requests, {
@@ -485,7 +485,7 @@ describe('balance-recommendation utils', () => {
     expect(result.selectedRequests[0]).toEqual(requests[0]);
     expect(result.selectedRequests[1].symbol).toBe('ETH/KRW');
     expect(result.selectedRequests[1].estimatedNotional).toBeCloseTo(10_000, 10);
-    expect(result.selectedRequests[1].diff).toBeCloseTo(0.1, 10);
+    expect(result.selectedRequests[1].requestDiff).toBeCloseTo(0.1, 10);
     expect(result.partialScaledRequest?.symbol).toBe('ETH/KRW');
     expect(result.selectedNotional).toBeCloseTo(40_000, 10);
     expect(result.skippedRequests).toHaveLength(0);
@@ -493,8 +493,8 @@ describe('balance-recommendation utils', () => {
 
   it('should skip the boundary request when partial scaling falls below minimum trade price', () => {
     const requests = [
-      { symbol: 'BTC/KRW', diff: 0.3, estimatedNotional: 30_000 },
-      { symbol: 'ETH/KRW', diff: 0.2, estimatedNotional: 20_000 },
+      { symbol: 'BTC/KRW', requestDiff: 0.3, estimatedNotional: 30_000 },
+      { symbol: 'ETH/KRW', requestDiff: 0.2, estimatedNotional: 20_000 },
     ];
 
     const result = applyNotionalBudgetToRankedRequests(requests, {

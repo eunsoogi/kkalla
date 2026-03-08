@@ -13,7 +13,7 @@ import type { User } from '@/modules/user/entities/user.entity';
 import type { AllocationRecommendationData, CategoryExposureCaps, RecommendationItem } from './allocation-core.types';
 
 export interface PayoffOverlayResult {
-  diff: number;
+  requestDiff: number;
   triggerReason: string | null;
 }
 
@@ -132,8 +132,8 @@ export interface ExecuteRebalanceTradesOptions {
 
 export interface ExecutionRequestLike {
   symbol: string;
-  diff: number;
-  cappedTradeDiff?: number | null;
+  requestDiff: number;
+  executionDiff?: number | null;
   inference?: {
     category: Category;
   };

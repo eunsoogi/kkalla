@@ -17,15 +17,15 @@ export interface TradeFilter {
 
 export interface TradeRequest {
   symbol: string;
-  diff: number;
+  requestDiff: number;
   balances: Balances;
   marketPrice?: number;
   // Internal execution-planning fields used only while ranking/capping requests.
   currentSymbolNotional?: number | null;
   targetGapWeight?: number | null;
-  requestedTradeNotional?: number | null;
-  cappedTradeNotional?: number | null;
-  cappedTradeDiff?: number | null;
+  requestNotional?: number | null;
+  executionNotional?: number | null;
+  executionDiff?: number | null;
   sizingContractVersion?: number | null;
   selectionPolicyVersion?: number | null;
   regimePolicyState?: 'available' | 'regimeUnavailable' | null;
@@ -71,8 +71,8 @@ export interface TradeData {
   decisionContextVersion?: number | null;
   decisionPortfolioValue?: number | null;
   decisionSymbolNotional?: number | null;
-  decisionRequestedTradeNotional?: number | null;
-  decisionCappedTradeNotional?: number | null;
+  decisionRequestNotional?: number | null;
+  decisionExecutionNotional?: number | null;
   decisionExpectedNetEdgeRate?: number | null;
   decisionPositionClass?: 'existing' | 'new' | null;
   decisionRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;

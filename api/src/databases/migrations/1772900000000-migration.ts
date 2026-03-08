@@ -47,12 +47,12 @@ export class Migration1772900000000 implements MigrationInterface {
         isNullable: true,
       }),
       new TableColumn({
-        name: 'decision_requested_trade_notional',
+        name: 'decision_request_notional',
         type: 'double',
         isNullable: true,
       }),
       new TableColumn({
-        name: 'decision_capped_trade_notional',
+        name: 'decision_execution_notional',
         type: 'double',
         isNullable: true,
       }),

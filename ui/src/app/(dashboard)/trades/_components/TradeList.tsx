@@ -10,7 +10,7 @@ import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
 import { buildTradeExplanation } from '@/app/(dashboard)/_shared/trades/trade-presentation';
 import { PaginatedItem } from '@/shared/types/pagination.types';
 import { Trade, initialState } from '@/app/(dashboard)/_shared/trades/trade.types';
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber } from '@/utils/number';
 
@@ -55,8 +55,8 @@ export const TradeListItem: React.FC<Trade> = (item) => {
       <TableCell className='px-3 py-3 whitespace-nowrap'>{formatDate(new Date(item.createdAt))}</TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{item.symbol}</TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{formatNumber(item.amount)}</TableCell>
-      <TableCell className={`px-3 py-3 whitespace-nowrap ${getDiffColor(item.profit)}`}>
-        {getDiffPrefix(item.profit)}
+      <TableCell className={`px-3 py-3 whitespace-nowrap ${getDeltaColor(item.profit)}`}>
+        {getDeltaPrefix(item.profit)}
         {formatNumber(item.profit)}
       </TableCell>
       <TableCell className='px-3 py-3 whitespace-nowrap'>{explanation.summary}</TableCell>

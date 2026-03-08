@@ -8,7 +8,7 @@ import SimpleBar from 'simplebar-react';
 
 import { TradeTypeText } from '@/app/(dashboard)/_shared/trades/TradeTypeText';
 import { Trade } from '@/app/(dashboard)/_shared/trades/trade.types';
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
 import { formatNumber } from '@/utils/number';
 import type { TradeList24hProps } from './home.types';
@@ -97,8 +97,8 @@ export function TradeList24h({ items = [], isLoading = false }: TradeList24hProp
                     </TableCell>
                     <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>{item.symbol}</TableCell>
                     <TableCell className='px-4 py-3 whitespace-nowrap text-sm'>{formatNumber(item.amount)}</TableCell>
-                    <TableCell className={`px-4 py-3 whitespace-nowrap text-sm ${getDiffColor(item.profit)}`}>
-                      {getDiffPrefix(item.profit)}
+                    <TableCell className={`px-4 py-3 whitespace-nowrap text-sm ${getDeltaColor(item.profit)}`}>
+                      {getDeltaPrefix(item.profit)}
                       {formatNumber(item.profit)}
                     </TableCell>
                   </TableRow>

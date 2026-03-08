@@ -920,7 +920,7 @@ export class AllocationService implements OnModuleInit {
    * 추론에 없는 기존 보유 종목 매도 요청 생성
    *
    * - 사용자가 보유 중이지만 추론 결과에 포함되지 않은 종목을 매도 대상으로 합니다.
-   * - diff를 -1로 설정하여 즉시 매도하도록 합니다.
+   * - requestDiff를 -1로 설정하여 즉시 매도하도록 합니다.
    *
    * @param balances 사용자 계좌 잔고
    * @param inferences 추론 결과 목록
@@ -947,13 +947,13 @@ export class AllocationService implements OnModuleInit {
    * 편입 거래 요청 생성
    *
    * - 편입 대상 종목들에 대한 매수/매도 거래 요청을 생성합니다.
-   * - diff를 계산하여 목표 비율과 현재 비율의 차이를 구합니다.
-   * - diff가 작은 순서대로 정렬하여 우선순위를 결정합니다.
+   * - requestDiff를 계산하여 목표 비율과 현재 비율의 차이를 구합니다.
+   * - requestDiff가 작은 순서대로 정렬하여 우선순위를 결정합니다.
    *
    * @param balances 사용자 계좌 잔고
    * @param inferences 추론 결과 목록
    * @param count 편입할 최대 종목 수
-   * @returns 편입 거래 요청 목록 (diff 오름차순 정렬)
+   * @returns 편입 거래 요청 목록 (requestDiff 오름차순 정렬)
    */
   private generateIncludedTradeRequests(
     balances: Balances,
@@ -1000,7 +1000,7 @@ export class AllocationService implements OnModuleInit {
    * 편출 거래 요청 생성
    *
    * - 편출 대상 종목들에 대한 매도 거래 요청을 생성합니다.
-   * - diff를 -1로 설정하여 즉시 매도하도록 합니다.
+   * - requestDiff를 -1로 설정하여 즉시 매도하도록 합니다.
    *
    * @param balances 사용자 계좌 잔고
    * @param inferences 추론 결과 목록
@@ -1083,7 +1083,7 @@ export class AllocationService implements OnModuleInit {
         this.tradeOrchestrationService.isNoTradeRecommendation(inference),
     );
 
-    // Delegate exact diff/band/cost-gate logic to shared orchestration for consistency.
+    // Delegate exact requestDiff/band/cost-gate logic to shared orchestration for consistency.
     return this.tradeOrchestrationService.buildNoTradeTrimRequests({
       runtime: tradeRuntime,
       balances,

@@ -157,13 +157,13 @@ export class UpbitService {
     return null;
   }
 
-  public calculateDiff(balances: Balances, symbol: string, targetWeight: number): number {
+  public calculateRequestDiff(balances: Balances, symbol: string, targetWeight: number): number {
     const symbolPrice = this.calculatePrice(balances, symbol);
     const marketPrice = this.calculateTotalPrice(balances);
     const currentWeight = symbolPrice / marketPrice;
-    const diff = (targetWeight - currentWeight) / (currentWeight || 1);
+    const requestDiff = (targetWeight - currentWeight) / (currentWeight || 1);
 
-    return diff;
+    return requestDiff;
   }
 
   public getBalance(balances: Balances, symbol: string): any {
@@ -881,10 +881,12 @@ export class UpbitService {
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<AdjustedOrderResult> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
-    const { symbol, diff, cappedTradeDiff, balances, marketPrice: precomputedMarketPrice } = request;
+    const { symbol, requestDiff, executionDiff, balances, marketPrice: precomputedMarketPrice } = request;
     const [baseAsset] = symbol.split('/');
-    const effectiveDiff = cappedTradeDiff != null && Number.isFinite(cappedTradeDiff) ? cappedTradeDiff : diff;
-    const urgency: OrderExecutionUrgency = request.executionUrgency ?? (effectiveDiff < 0 ? 'urgent' : 'normal');
+    const effectiveExecutionDiff =
+      executionDiff != null && Number.isFinite(executionDiff) ? executionDiff : requestDiff;
+    const urgency: OrderExecutionUrgency =
+      request.executionUrgency ?? (effectiveExecutionDiff < 0 ? 'urgent' : 'normal');
     const symbolExist = await this.isSymbolExist(symbol);
 
     if (!symbolExist) {
@@ -902,18 +904,18 @@ export class UpbitService {
         Number.isFinite(marketPriceCandidate) && marketPriceCandidate > 0
           ? marketPriceCandidate
           : this.calculateTotalPrice(balances);
-      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(effectiveDiff) * 0.9995;
-      const tradeVolume = symbolTradableVolume * Math.abs(effectiveDiff);
+      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(effectiveExecutionDiff) * 0.9995;
+      const tradeVolume = symbolTradableVolume * Math.abs(effectiveExecutionDiff);
 
       let type: OrderTypes | null = null;
       let requestedAmount: number | null = null;
       let requestedVolume: number | null = null;
 
-      if (effectiveDiff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
+      if (effectiveExecutionDiff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
         type = OrderTypes.BUY;
         requestedAmount = tradePrice;
         requestedVolume = currPrice > 0 ? tradePrice / currPrice : null;
-      } else if (effectiveDiff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
+      } else if (effectiveExecutionDiff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
         type = OrderTypes.SELL;
         requestedAmount = tradeVolume * currPrice;
         requestedVolume = tradeVolume;

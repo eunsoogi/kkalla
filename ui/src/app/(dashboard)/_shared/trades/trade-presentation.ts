@@ -22,9 +22,9 @@ const formatNullableNumber = (
 
 const resolvePlainWhy = (t: TranslateFn, trade: Trade): string => {
   const reduced =
-    trade.decisionRequestedTradeNotional != null &&
-    trade.decisionCappedTradeNotional != null &&
-    trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+    trade.decisionRequestNotional != null &&
+    trade.decisionExecutionNotional != null &&
+    trade.decisionRequestNotional > trade.decisionExecutionNotional + Number.EPSILON;
 
   if (trade.decisionRegimeSource === 'unavailable_risk_off') {
     return t('trade.explanation.why.conservativeMode');
@@ -57,9 +57,9 @@ const resolvePlainWhy = (t: TranslateFn, trade: Trade): string => {
 
 const resolvePlainSummary = (t: TranslateFn, trade: Trade): string => {
   const reduced =
-    trade.decisionRequestedTradeNotional != null &&
-    trade.decisionCappedTradeNotional != null &&
-    trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+    trade.decisionRequestNotional != null &&
+    trade.decisionExecutionNotional != null &&
+    trade.decisionRequestNotional > trade.decisionExecutionNotional + Number.EPSILON;
 
   return t(reduced ? 'trade.explanation.whatHappened.reduced' : 'trade.explanation.whatHappened.executed', {
     amount: formatNumber(trade.amount),
@@ -68,9 +68,9 @@ const resolvePlainSummary = (t: TranslateFn, trade: Trade): string => {
 
 const resolveTriageCue = (t: TranslateFn, trade: Trade): string | null => {
   const reduced =
-    trade.decisionRequestedTradeNotional != null &&
-    trade.decisionCappedTradeNotional != null &&
-    trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+    trade.decisionRequestNotional != null &&
+    trade.decisionExecutionNotional != null &&
+    trade.decisionRequestNotional > trade.decisionExecutionNotional + Number.EPSILON;
 
   if (trade.decisionRegimeSource === 'unavailable_risk_off') {
     return t('trade.triage.conservativeMode');
@@ -163,14 +163,14 @@ export const buildTradeExplanation = (trade: Trade, t: TranslateFn): TradeExplan
     ],
     executionLimitRows: [
       {
-        key: 'requestedTradeNotional',
-        label: t('trade.detail.requestedTradeNotional'),
-        value: formatNullableNumber(t, trade.decisionRequestedTradeNotional, (value) => formatNumber(value ?? 0)),
+        key: 'requestNotional',
+        label: t('trade.detail.requestNotional'),
+        value: formatNullableNumber(t, trade.decisionRequestNotional, (value) => formatNumber(value ?? 0)),
       },
       {
-        key: 'cappedTradeNotional',
-        label: t('trade.detail.cappedTradeNotional'),
-        value: formatNullableNumber(t, trade.decisionCappedTradeNotional, (value) => formatNumber(value ?? 0)),
+        key: 'executionNotional',
+        label: t('trade.detail.executionNotional'),
+        value: formatNullableNumber(t, trade.decisionExecutionNotional, (value) => formatNumber(value ?? 0)),
       },
       {
         key: 'positionClass',

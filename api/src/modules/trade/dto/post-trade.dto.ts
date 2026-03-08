@@ -13,5 +13,5 @@ export class PostTradeDto {
   @ApiProperty({
     required: true,
   })
-  diff: number;
+  requestDiff: number;
 }

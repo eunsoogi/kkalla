@@ -102,10 +102,10 @@ export const getBtcDominanceGaugeSegments = (): GaugeSegment[] => BTC_DOMINANCE_
 
 export const getAltcoinSeasonGaugeSegments = (): GaugeSegment[] => ALTCOIN_SEASON_GAUGE_SEGMENTS;
 
-export const getDiffColor = (diff: number) => {
-  return diff > 0 ? 'text-red-500' : diff < 0 ? 'text-blue-500' : 'text-gray-500';
+export const getDeltaColor = (delta: number) => {
+  return delta > 0 ? 'text-red-500' : delta < 0 ? 'text-blue-500' : 'text-gray-500';
 };
 
-export const getDiffPrefix = (diff: number) => {
-  return diff > 0 ? '+' : '';
+export const getDeltaPrefix = (delta: number) => {
+  return delta > 0 ? '+' : '';
 };

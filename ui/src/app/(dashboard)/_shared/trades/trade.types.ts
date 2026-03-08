@@ -15,8 +15,8 @@ export interface TradeApiItem {
   impactRate?: number | null;
   triggerReason?: string | null;
   gateBypassedReason?: string | null;
-  decisionRequestedTradeNotional?: number | null;
-  decisionCappedTradeNotional?: number | null;
+  decisionRequestNotional?: number | null;
+  decisionExecutionNotional?: number | null;
   decisionPositionClass?: 'existing' | 'new' | null;
   decisionRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
   decisionExecutionUrgency?: 'urgent' | 'normal' | null;

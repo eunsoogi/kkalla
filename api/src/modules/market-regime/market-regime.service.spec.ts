@@ -338,7 +338,7 @@ describe('MarketRegimeService', () => {
             timestamp: 1708776000,
             date: '2024-02-24T12:00:00.000Z',
             timeUntilUpdate: 1800,
-            diff: 1,
+            delta: 1,
           },
           asOf: new Date(FIXED_NOW - 59 * 60 * 1000).toISOString(),
         };
@@ -366,7 +366,7 @@ describe('MarketRegimeService', () => {
           timestamp: 1708776000,
           date: '2024-02-24T12:00:00.000Z',
           timeUntilUpdate: 1200,
-          diff: -2,
+          delta: -2,
         };
       }
       return null;

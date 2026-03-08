@@ -54,8 +54,8 @@ describe('TradeOrchestrationService', () => {
       const trade: any = {
         amount: 120000,
         decisionRegimeSource: 'unavailable_risk_off',
-        decisionRequestedTradeNotional: 120000,
-        decisionCappedTradeNotional: 120000,
+        decisionRequestNotional: 120000,
+        decisionExecutionNotional: 120000,
         gateBypassedReason: null,
         triggerReason: 'included_rebalance',
       };
@@ -73,8 +73,8 @@ describe('TradeOrchestrationService', () => {
       const i18n: any = { t: jest.fn(translateKoMessage) };
       const trade: any = {
         amount: 80000,
-        decisionRequestedTradeNotional: 120000,
-        decisionCappedTradeNotional: 80000,
+        decisionRequestNotional: 120000,
+        decisionExecutionNotional: 80000,
         decisionRegimeSource: 'live',
         gateBypassedReason: null,
         triggerReason: 'included_rebalance',
@@ -373,9 +373,9 @@ describe('TradeOrchestrationService', () => {
 
       expect(requests).toHaveLength(1);
       expect(requests[0].symbol).toBe('BTC/KRW');
-      expect(requests[0].diff).toBe(-1);
+      expect(requests[0].requestDiff).toBe(-1);
       expect(requests[0].forcedFullLiquidation).toBe(true);
-      expect(requests[0].cappedTradeDiff).toBe(-1);
+      expect(requests[0].executionDiff).toBe(-1);
     });
 
     it('should not infer execution from requested amount while order is still open', async () => {
@@ -491,7 +491,7 @@ describe('TradeOrchestrationService', () => {
         user: { id: 'user-1' } as any,
         request: {
           symbol: 'BTC/KRW',
-          diff: 1,
+          requestDiff: 1,
           balances: { info: [] } as any,
           requestedAmount: 100_000,
         } as any,
@@ -537,17 +537,17 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(requests).toHaveLength(1);
-      expect(requests[0].requestedTradeNotional).toBeCloseTo(1_000_000, 6);
-      expect(requests[0].cappedTradeNotional).toBeCloseTo(100_000, 6);
-      expect(requests[0].cappedTradeDiff).toBeCloseTo(0.1, 6);
+      expect(requests[0].requestNotional).toBeCloseTo(1_000_000, 6);
+      expect(requests[0].executionNotional).toBeCloseTo(100_000, 6);
+      expect(requests[0].executionDiff).toBeCloseTo(0.1, 6);
     });
 
     it('should preserve capped trade notional when enriching estimated notional for budgeting', () => {
       const enriched = (service as any).enrichRequestEstimatedNotional(
         {
           symbol: 'BTC/KRW',
-          diff: -1,
-          cappedTradeNotional: 30_000,
+          requestDiff: -1,
+          executionNotional: 30_000,
           balances: { info: [] },
           marketPrice: 1_000_000,
           currentWeight: 0.3,
@@ -651,8 +651,8 @@ describe('TradeOrchestrationService', () => {
 
       expect(withoutSlotCount).toHaveLength(2);
       expect(withSlotCount).toHaveLength(2);
-      expect(withoutSlotCount[0].diff).toBeCloseTo(0.25, 6);
-      expect(withSlotCount[0].diff).toBeCloseTo(0.125, 6);
+      expect(withoutSlotCount[0].requestDiff).toBeCloseTo(0.25, 6);
+      expect(withSlotCount[0].requestDiff).toBeCloseTo(0.125, 6);
     });
 
     it('should resolve user-scoped action threshold on per-slot single-symbol scale', () => {
@@ -969,7 +969,7 @@ describe('TradeOrchestrationService', () => {
           symbol: 'BTC/KRW',
           inference: { category: Category.COIN_MAJOR },
           positionClass: 'existing',
-          cappedTradeNotional: 300,
+          executionNotional: 300,
           estimatedNotional: 300,
           regimePolicyState: 'regimeUnavailable',
         },
@@ -977,7 +977,7 @@ describe('TradeOrchestrationService', () => {
           symbol: 'ETH/KRW',
           inference: { category: Category.COIN_MAJOR },
           positionClass: 'new',
-          cappedTradeNotional: 100,
+          executionNotional: 100,
           estimatedNotional: 100,
           regimePolicyState: 'regimeUnavailable',
         },
@@ -1419,7 +1419,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: 1,
+              requestDiff: 1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.BUY },
@@ -1427,7 +1427,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: 1,
+              requestDiff: 1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.BUY },
@@ -1435,7 +1435,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'ETH/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MINOR },
             },
             trade: { type: OrderTypes.SELL },
@@ -1443,7 +1443,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'XRP/KRW',
-              diff: 1,
+              requestDiff: 1,
             },
             trade: { type: OrderTypes.BUY },
           },
@@ -1465,7 +1465,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 0.4, filledVolume: 0.4 },
@@ -1473,14 +1473,14 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'XRP/KRW',
-              diff: -1,
+              requestDiff: -1,
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 200, filledVolume: 200 },
           },
           {
             request: {
               symbol: 'ETH/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MINOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.4 },
@@ -1505,7 +1505,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.996 },
@@ -1524,7 +1524,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.95 },
@@ -1543,7 +1543,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.6 },
@@ -1556,14 +1556,14 @@ describe('TradeOrchestrationService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should keep holding ledger entries when capped sell diff is not a full exit', () => {
+    it('should keep holding ledger entries when capped sell requestDiff is not a full exit', () => {
       const result = (service as any).collectLiquidatedHoldingItems(
         [
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
-              cappedTradeDiff: -0.1,
+              requestDiff: -1,
+              executionDiff: -0.1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 1 },
@@ -1754,7 +1754,7 @@ describe('TradeOrchestrationService', () => {
       const buyRequests = [
         {
           symbol: 'REBALANCE-1/KRW',
-          diff: 0.1,
+          requestDiff: 0.1,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'existing',
@@ -1763,7 +1763,7 @@ describe('TradeOrchestrationService', () => {
         },
         {
           symbol: 'REBALANCE-2/KRW',
-          diff: 0.08,
+          requestDiff: 0.08,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'existing',
@@ -1772,7 +1772,7 @@ describe('TradeOrchestrationService', () => {
         },
         {
           symbol: 'REBALANCE-3/KRW',
-          diff: 0.02,
+          requestDiff: 0.02,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'existing',
@@ -1781,7 +1781,7 @@ describe('TradeOrchestrationService', () => {
         },
         {
           symbol: 'NEW-ENTRY-A/KRW',
-          diff: 0.07,
+          requestDiff: 0.07,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'new',
@@ -1790,7 +1790,7 @@ describe('TradeOrchestrationService', () => {
         },
         {
           symbol: 'NEW-ENTRY-B/KRW',
-          diff: 0.06,
+          requestDiff: 0.06,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'new',
@@ -1842,7 +1842,7 @@ describe('TradeOrchestrationService', () => {
 
       const executedSymbols = executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol);
       expect(executedSymbols).toEqual(['REBALANCE-1/KRW', 'REBALANCE-2/KRW']);
-      expect(executeTradeSpy.mock.calls[1][0].request.diff).toBeCloseTo(0.065, 10);
+      expect(executeTradeSpy.mock.calls[1][0].request.requestDiff).toBeCloseTo(0.065, 10);
       expect(executedSymbols).not.toContain('NEW-ENTRY-A/KRW');
       expect(executedSymbols).not.toContain('NEW-ENTRY-B/KRW');
       expect(result.map((trade) => trade.symbol)).toEqual(executedSymbols);
@@ -1892,7 +1892,7 @@ describe('TradeOrchestrationService', () => {
       const buyRequests = [
         {
           symbol: 'REBALANCE-1/KRW',
-          diff: 0.05,
+          requestDiff: 0.05,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'existing',
@@ -1901,7 +1901,7 @@ describe('TradeOrchestrationService', () => {
         },
         {
           symbol: 'NEW-ENTRY-A/KRW',
-          diff: 0.07,
+          requestDiff: 0.07,
           balances,
           marketPrice: 1_000_000,
           positionClass: 'new',
@@ -1976,8 +1976,8 @@ describe('TradeOrchestrationService', () => {
         ]),
       } as any;
       const sellRequests = [
-        { symbol: 'SELL-1/KRW', diff: -0.1, balances, marketPrice: 1_000_000 },
-        { symbol: 'SELL-2/KRW', diff: -0.2, balances, marketPrice: 1_000_000 },
+        { symbol: 'SELL-1/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 },
+        { symbol: 'SELL-2/KRW', requestDiff: -0.2, balances, marketPrice: 1_000_000 },
       ] as any[];
       const holdingLedgerService: any = {
         fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
@@ -2024,7 +2024,7 @@ describe('TradeOrchestrationService', () => {
         'SELL-1/KRW',
         'SELL-2/KRW',
       ]);
-      expect(executeTradeSpy.mock.calls[1][0].request.diff).toBeCloseTo(-0.075, 10);
+      expect(executeTradeSpy.mock.calls[1][0].request.requestDiff).toBeCloseTo(-0.075, 10);
       expect(runtime.i18n.t).toHaveBeenCalledWith(
         'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
         expect.objectContaining({
@@ -2059,8 +2059,8 @@ describe('TradeOrchestrationService', () => {
         tradableMarketValueMap: new Map<string, number>(),
       } as any;
       const sellRequests = [
-        { symbol: 'SELL-1/KRW', diff: -1, balances, marketPrice: 1_000_000 },
-        { symbol: 'SELL-2/KRW', diff: -0.1, balances, marketPrice: 1_000_000 },
+        { symbol: 'SELL-1/KRW', requestDiff: -1, balances, marketPrice: 1_000_000 },
+        { symbol: 'SELL-2/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 },
       ] as any[];
       const holdingLedgerService: any = {
         fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
@@ -2130,7 +2130,7 @@ describe('TradeOrchestrationService', () => {
         currentWeights: new Map<string, number>(),
         tradableMarketValueMap: new Map<string, number>(),
       } as any;
-      const sellRequests = [{ symbol: 'STALE-SELL/KRW', diff: -0.1, balances, marketPrice: 1_000_000 }] as any[];
+      const sellRequests = [{ symbol: 'STALE-SELL/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 }] as any[];
       const holdingLedgerService: any = {
         fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
         replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
@@ -2214,7 +2214,7 @@ describe('TradeOrchestrationService', () => {
         buildIncludedRequests: () => [
           {
             symbol: 'ETH/KRW',
-            diff: -1,
+            requestDiff: -1,
             forcedFullLiquidation: true,
             balances,
             marketPrice: 1_000_000,
@@ -2228,7 +2228,7 @@ describe('TradeOrchestrationService', () => {
       expect(executeTradeSpy.mock.calls[0][0].request.forcedFullLiquidation).toBe(true);
     });
 
-    it('should keep diff=-1 staged exits inside sell turnover budget unless explicitly forced', async () => {
+    it('should keep requestDiff=-1 staged exits inside sell turnover budget unless explicitly forced', async () => {
       const user = { id: 'user-1' } as any;
       const balances: any = { info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }] };
       const initialSnapshot = {
@@ -2264,8 +2264,8 @@ describe('TradeOrchestrationService', () => {
         buildIncludedRequests: () => [
           {
             symbol: 'ETH/KRW',
-            diff: -1,
-            cappedTradeDiff: -0.1,
+            requestDiff: -1,
+            executionDiff: -0.1,
             forcedFullLiquidation: false,
             balances,
             marketPrice: 1_000_000,
@@ -2277,7 +2277,7 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(executeTradeSpy).toHaveBeenCalledTimes(1);
-      expect(executeTradeSpy.mock.calls[0][0].request.cappedTradeDiff).toBeCloseTo(-0.01, 10);
+      expect(executeTradeSpy.mock.calls[0][0].request.executionDiff).toBeCloseTo(-0.01, 10);
     });
   });
 });

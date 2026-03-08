@@ -456,7 +456,7 @@
     },
     "date": "날짜",
     "detail": {
-      "cappedTradeNotional": "실행된 주문 한도 (결정 시점)",
+      "executionNotional": "실행 기준 주문 금액 (결정 시점)",
       "costCalibrationCoefficient": "비용 보정 계수",
       "executionUrgency": "실행 우선도 (결정 시점)",
       "fallbackState": "예외/보조 처리 상태",
@@ -464,7 +464,7 @@
       "positionClass": "포지션 유형 (결정 시점)",
       "realizedCostRate": "실제 비용률",
       "regimeSource": "시장 판단 상태",
-      "requestedTradeNotional": "원래 주문 금액 (결정 시점)",
+      "requestNotional": "요청 주문 금액 (결정 시점)",
       "sections": {
         "costReview": "비용 검토",
         "decisionSummary": "의사결정 요약",

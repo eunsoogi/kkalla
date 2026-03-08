@@ -156,16 +156,18 @@ export class Trade extends BaseEntity {
   decisionSymbolNotional: number | null;
 
   @Column({
+    name: 'decision_request_notional',
     type: 'double',
     nullable: true,
   })
-  decisionRequestedTradeNotional: number | null;
+  decisionRequestNotional: number | null;
 
   @Column({
+    name: 'decision_execution_notional',
     type: 'double',
     nullable: true,
   })
-  decisionCappedTradeNotional: number | null;
+  decisionExecutionNotional: number | null;
 
   @Column({
     type: 'double',

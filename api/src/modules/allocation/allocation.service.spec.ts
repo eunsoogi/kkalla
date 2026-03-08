@@ -605,7 +605,7 @@ describe('AllocationService', () => {
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('ETH/KRW');
     expect(requests[0].marketPrice).toBe(marketPrice);
-    expect(requests[0].diff).toBeGreaterThan(0);
+    expect(requests[0].requestDiff).toBeGreaterThan(0);
     expect(requests[0].inference.symbol).toBe('ETH/KRW');
   });
 
@@ -641,7 +641,7 @@ describe('AllocationService', () => {
     expect(majorSignals.modelTargetWeight).toBeCloseTo(minorSignals.modelTargetWeight, 10);
   });
 
-  it('should create positive included trade diff with conviction-normalized sizing', () => {
+  it('should create positive included trade requestDiff with conviction-normalized sizing', () => {
     const balances: any = { info: [] };
     const inferences = [
       {
@@ -664,8 +664,8 @@ describe('AllocationService', () => {
     );
 
     expect(requests).toHaveLength(1);
-    expect(requests[0].diff).toBeGreaterThan(0);
-    expect(requests[0].diff).toBeLessThanOrEqual(1);
+    expect(requests[0].requestDiff).toBeGreaterThan(0);
+    expect(requests[0].requestDiff).toBeLessThanOrEqual(1);
   });
 
   it('should enforce regime-based category exposure caps when creating included trade requests', () => {
@@ -718,7 +718,7 @@ describe('AllocationService', () => {
 
     const minorTargetSum = requests
       .filter((item: any) => item.inference?.category === Category.COIN_MINOR)
-      .reduce((sum: number, item: any) => sum + item.diff, 0);
+      .reduce((sum: number, item: any) => sum + item.requestDiff, 0);
     expect(minorTargetSum).toBeLessThanOrEqual(0.200001);
   });
 
@@ -766,7 +766,7 @@ describe('AllocationService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('KEEP/KRW');
-    expect(requests[0].diff).toBeGreaterThan(0);
+    expect(requests[0].requestDiff).toBeGreaterThan(0);
   });
 
   it('should not trim hold recommendation when current account weight already matches target', () => {
@@ -866,7 +866,7 @@ describe('AllocationService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('KEEP/KRW');
-    expect(requests[0].diff).toBeLessThan(0);
+    expect(requests[0].requestDiff).toBeLessThan(0);
   });
 
   it('should cap included trade requests to 5 slots when minor recommendations are 7', () => {
@@ -1084,8 +1084,8 @@ describe('AllocationService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('TRX/KRW');
-    expect(requests[0].diff).toBeLessThan(0);
-    expect(requests[0].diff).toBeGreaterThanOrEqual(-1);
+    expect(requests[0].requestDiff).toBeLessThan(0);
+    expect(requests[0].requestDiff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should not skip excluded liquidation when tradable market value is unknown', () => {
@@ -1110,15 +1110,15 @@ describe('AllocationService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('AAA/KRW');
-    expect(requests[0].diff).toBeLessThan(0);
-    expect(requests[0].diff).toBeGreaterThanOrEqual(-1);
+    expect(requests[0].requestDiff).toBeLessThan(0);
+    expect(requests[0].requestDiff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should delay missing-inference liquidation until grace window elapses', async () => {
     const user = { id: 'user-1' } as any;
     const request = {
       symbol: 'TRX/KRW',
-      diff: -0.5,
+      requestDiff: -0.5,
       balances: { info: [] },
       marketPrice: 1_000_000,
     } as any;
@@ -1179,14 +1179,14 @@ describe('AllocationService', () => {
     });
 
     const sellRequests = [
-      { symbol: 'SELL-1/KRW', diff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
-      { symbol: 'SELL-2/KRW', diff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
-      { symbol: 'SELL-3/KRW', diff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-1/KRW', requestDiff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-2/KRW', requestDiff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-3/KRW', requestDiff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
     ] as any[];
     const buyRequests = [
-      { symbol: 'BUY-1/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
-      { symbol: 'BUY-2/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
-      { symbol: 'BUY-3/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-1/KRW', requestDiff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-2/KRW', requestDiff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-3/KRW', requestDiff: 0.2, balances, marketPrice: 1_000_000 },
     ] as any[];
 
     jest.spyOn(service as any, 'generateNonAllocationRecommendationTradeRequests').mockReturnValue(sellRequests);
@@ -1203,7 +1203,7 @@ describe('AllocationService', () => {
         const request = payload.request;
         return {
           symbol: request.symbol,
-          type: request.diff < 0 ? 'sell' : 'buy',
+          type: request.requestDiff < 0 ? 'sell' : 'buy',
           amount: 10_000,
           profit: 0,
           inference: request.inference ?? null,
@@ -1416,7 +1416,7 @@ describe('AllocationService', () => {
       .mockReturnValueOnce([
         {
           symbol: 'ETH/KRW',
-          diff: 0.4,
+          requestDiff: 0.4,
           balances,
           marketPrice: 1_000_000,
           inference: inferences[0],
@@ -1464,7 +1464,7 @@ describe('AllocationService', () => {
       user: { id: 'user-1', roles: [] } as any,
       request: {
         symbol: 'BTC/KRW',
-        diff: 0.1,
+        requestDiff: 0.1,
         balances: { info: [] } as any,
       } as any,
     });

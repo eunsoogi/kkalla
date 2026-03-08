@@ -97,21 +97,21 @@ export function sortAllocationRecommendationsByPriority<
       return 1;
     }
 
-    const buyScoreDiff = getBuyPriorityScore(b) - getBuyPriorityScore(a);
-    if (Math.abs(buyScoreDiff) < Number.EPSILON) {
-      const intensityDiff = b.intensity - a.intensity;
-      if (Math.abs(intensityDiff) >= Number.EPSILON) {
-        return intensityDiff;
+    const buyScoreDelta = getBuyPriorityScore(b) - getBuyPriorityScore(a);
+    if (Math.abs(buyScoreDelta) < Number.EPSILON) {
+      const intensityDelta = b.intensity - a.intensity;
+      if (Math.abs(intensityDelta) >= Number.EPSILON) {
+        return intensityDelta;
       }
 
-      const scoreDiff = getRecommendationScore(b) - getRecommendationScore(a);
-      if (Math.abs(scoreDiff) < Number.EPSILON) {
+      const scoreDelta = getRecommendationScore(b) - getRecommendationScore(a);
+      if (Math.abs(scoreDelta) < Number.EPSILON) {
         return 0;
       }
-      return scoreDiff;
+      return scoreDelta;
     }
 
-    return buyScoreDiff;
+    return buyScoreDelta;
   });
 }
 
@@ -145,14 +145,14 @@ export function isOrderableSymbol(symbol: string, orderableSymbols?: Set<string>
 /**
  * Checks sell amount sufficient in the allocation recommendation context.
  * @param symbol - Asset symbol to process.
- * @param diff - Input value for diff.
+ * @param requestDiff - Input value for requestDiff.
  * @param minimumTradePrice - Input value for minimum trade price.
  * @param tradableMarketValueMap - Input value for tradable market value map.
  * @returns Boolean flag that indicates whether the condition is satisfied.
  */
 export function isSellAmountSufficient(
   symbol: string,
-  diff: number,
+  requestDiff: number,
   minimumTradePrice: number,
   tradableMarketValueMap?: Map<string, number>,
 ): boolean {
@@ -169,7 +169,7 @@ export function isSellAmountSufficient(
     return false;
   }
 
-  return tradableMarketValue * Math.abs(diff) >= minimumTradePrice;
+  return tradableMarketValue * Math.abs(requestDiff) >= minimumTradePrice;
 }
 
 /**
@@ -745,12 +745,12 @@ export function passesCostGate(
 }
 
 /**
- * Calculates relative diff for the allocation recommendation flow.
+ * Calculates relative requestDiff for the allocation recommendation flow.
  * @param targetWeight - Input value for target weight.
  * @param currentWeight - Input value for current weight.
  * @returns Computed numeric value for the operation.
  */
-export function calculateRelativeDiff(targetWeight: number, currentWeight: number): number {
+export function calculateRequestDiff(targetWeight: number, currentWeight: number): number {
   return (targetWeight - currentWeight) / (currentWeight || 1);
 }
 
@@ -784,11 +784,11 @@ export function resolveAvailableKrwBalance(balances: Balances): number {
  * @returns Computed numeric value for the operation.
  */
 export function estimateBuyNotionalFromRequest(
-  request: { diff: number; symbol: string; marketPrice?: number },
+  request: { requestDiff: number; symbol: string; marketPrice?: number },
   tradableMarketValueMap?: Map<string, number>,
   fallbackMarketPrice?: number,
 ): number {
-  if (!Number.isFinite(request.diff) || request.diff <= 0) {
+  if (!Number.isFinite(request.requestDiff) || request.requestDiff <= 0) {
     return 0;
   }
 
@@ -797,18 +797,18 @@ export function estimateBuyNotionalFromRequest(
 
 /**
  * Calculates trade notional from request for the allocation recommendation flow.
- * Supports both buy/sell requests by using absolute diff.
+ * Supports both buy/sell requests by using absolute requestDiff.
  * @param request - Request payload for the allocation recommendation operation.
  * @param tradableMarketValueMap - Input value for tradable market value map.
  * @param fallbackMarketPrice - Input value for fallback market price.
  * @returns Computed numeric value for the operation.
  */
 export function estimateTradeNotionalFromRequest(
-  request: { diff: number; symbol: string; marketPrice?: number },
+  request: { requestDiff: number; symbol: string; marketPrice?: number },
   tradableMarketValueMap?: Map<string, number>,
   fallbackMarketPrice?: number,
 ): number {
-  if (!Number.isFinite(request.diff) || Math.abs(request.diff) <= 0) {
+  if (!Number.isFinite(request.requestDiff) || Math.abs(request.requestDiff) <= 0) {
     return 0;
   }
 
@@ -818,7 +818,7 @@ export function estimateTradeNotionalFromRequest(
   }
 
   // Diff is relative to current exposure, so notional is derived from current tradable value.
-  const estimated = baseValue * Math.abs(request.diff);
+  const estimated = baseValue * Math.abs(request.requestDiff);
   if (!Number.isFinite(estimated) || estimated <= 0) {
     return 0;
   }
@@ -835,12 +835,12 @@ export function estimateTradeNotionalFromRequest(
  */
 export function scaleBuyRequestsToAvailableKrw<
   TRequest extends {
-    diff: number;
+    requestDiff: number;
     symbol: string;
     marketPrice?: number;
-    requestedTradeNotional?: number | null;
-    cappedTradeNotional?: number | null;
-    cappedTradeDiff?: number | null;
+    requestNotional?: number | null;
+    executionNotional?: number | null;
+    executionDiff?: number | null;
     estimatedNotional?: number | null;
     currentWeight?: number | null;
     targetWeight?: number | null;
@@ -882,9 +882,9 @@ export function scaleBuyRequestsToAvailableKrw<
 
   const scaledRequests = estimates
     .map(({ request, estimated }) => {
-      const scaledDiff = request.diff * scale;
+      const scaledRequestDiff = request.requestDiff * scale;
       const scaledEstimated = estimated * scale;
-      if (!Number.isFinite(scaledDiff) || scaledDiff <= 0) {
+      if (!Number.isFinite(scaledRequestDiff) || scaledRequestDiff <= 0) {
         return null;
       }
       if (!Number.isFinite(scaledEstimated) || scaledEstimated <= options.minimumTradePrice) {
@@ -893,21 +893,21 @@ export function scaleBuyRequestsToAvailableKrw<
 
       return {
         ...request,
-        diff: scaledDiff,
+        requestDiff: scaledRequestDiff,
         // Carry selection metadata forward so later ranking/capping uses the scaled request,
         // not the original pre-budget numbers.
-        requestedTradeNotional:
-          request.requestedTradeNotional != null && Number.isFinite(request.requestedTradeNotional)
-            ? request.requestedTradeNotional * scale
+        requestNotional:
+          request.requestNotional != null && Number.isFinite(request.requestNotional)
+            ? request.requestNotional * scale
             : undefined,
-        cappedTradeNotional:
-          request.cappedTradeNotional != null && Number.isFinite(request.cappedTradeNotional)
-            ? request.cappedTradeNotional * scale
+        executionNotional:
+          request.executionNotional != null && Number.isFinite(request.executionNotional)
+            ? request.executionNotional * scale
             : scaledEstimated,
-        cappedTradeDiff:
-          request.cappedTradeDiff != null && Number.isFinite(request.cappedTradeDiff)
-            ? request.cappedTradeDiff * scale
-            : scaledDiff,
+        executionDiff:
+          request.executionDiff != null && Number.isFinite(request.executionDiff)
+            ? request.executionDiff * scale
+            : scaledRequestDiff,
         estimatedNotional: scaledEstimated,
         deltaWeight:
           request.deltaWeight != null && Number.isFinite(request.deltaWeight) ? request.deltaWeight * scale : undefined,
@@ -943,10 +943,10 @@ export function scaleBuyRequestsToAvailableKrw<
 export function applyNotionalBudgetToRankedRequests<
   TRequest extends {
     symbol: string;
-    diff: number;
-    requestedTradeNotional?: number | null;
-    cappedTradeNotional?: number | null;
-    cappedTradeDiff?: number | null;
+    requestDiff: number;
+    requestNotional?: number | null;
+    executionNotional?: number | null;
+    executionDiff?: number | null;
     estimatedNotional?: number | null;
     currentWeight?: number | null;
     targetWeight?: number | null;
@@ -1010,19 +1010,19 @@ export function applyNotionalBudgetToRankedRequests<
 
     const scaledRequest = {
       ...request,
-      diff: request.diff * scale,
-      requestedTradeNotional:
-        request.requestedTradeNotional != null && Number.isFinite(request.requestedTradeNotional)
-          ? request.requestedTradeNotional * scale
+      requestDiff: request.requestDiff * scale,
+      requestNotional:
+        request.requestNotional != null && Number.isFinite(request.requestNotional)
+          ? request.requestNotional * scale
           : undefined,
-      cappedTradeNotional:
-        request.cappedTradeNotional != null && Number.isFinite(request.cappedTradeNotional)
-          ? request.cappedTradeNotional * scale
+      executionNotional:
+        request.executionNotional != null && Number.isFinite(request.executionNotional)
+          ? request.executionNotional * scale
           : scaledNotional,
-      cappedTradeDiff:
-        request.cappedTradeDiff != null && Number.isFinite(request.cappedTradeDiff)
-          ? request.cappedTradeDiff * scale
-          : request.diff * scale,
+      executionDiff:
+        request.executionDiff != null && Number.isFinite(request.executionDiff)
+          ? request.executionDiff * scale
+          : request.requestDiff * scale,
       estimatedNotional: scaledNotional,
       deltaWeight:
         request.deltaWeight != null && Number.isFinite(request.deltaWeight) ? request.deltaWeight * scale : undefined,
