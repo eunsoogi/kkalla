@@ -209,6 +209,13 @@ describe('balance-recommendation utils', () => {
     const schema = createAllocationRecommendationResponseSchema(3) as {
       properties: {
         recommendations: {
+          items: {
+            properties: {
+              reason: {
+                minLength: number;
+              };
+            };
+          };
           minItems: number;
           maxItems: number;
         };
@@ -217,6 +224,7 @@ describe('balance-recommendation utils', () => {
 
     expect(schema.properties.recommendations.minItems).toBe(3);
     expect(schema.properties.recommendations.maxItems).toBe(3);
+    expect(schema.properties.recommendations.items.properties.reason.minLength).toBe(70);
   });
 
   it('should resolve inference/consume action from previous/current weights', () => {

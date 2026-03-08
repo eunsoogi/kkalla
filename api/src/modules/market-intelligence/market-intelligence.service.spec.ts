@@ -2,6 +2,7 @@ import { translateKoMessage } from '@/test-utils/i18n.mock';
 
 import { MarketSignal } from './entities/market-signal.entity';
 import { MarketIntelligenceService } from './market-intelligence.service';
+import { MARKET_SIGNAL_RESPONSE_SCHEMA } from './prompts/market-signal.prompt';
 
 describe('MarketIntelligenceService', () => {
   const upbitService = {
@@ -52,6 +53,24 @@ describe('MarketIntelligenceService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('should require detailed market-signal reason length in schema', () => {
+    const schema = MARKET_SIGNAL_RESPONSE_SCHEMA as {
+      properties: {
+        recommendations: {
+          items: {
+            properties: {
+              reason: {
+                minLength: number;
+              };
+            };
+          };
+        };
+      };
+    };
+
+    expect(schema.properties.recommendations.items.properties.reason.minLength).toBe(70);
   });
 
   it('should cap minute-candle lookups to 3 in mixed mode', async () => {

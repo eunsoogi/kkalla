@@ -30,7 +30,10 @@ export const MARKET_SIGNAL_RESPONSE_SCHEMA = {
             minItems: 0,
             maxItems: 10,
           },
-          reason: { type: 'string' },
+          reason: {
+            type: 'string',
+            minLength: 70,
+          },
         },
         required: ['symbol', 'weight', 'confidence', 'cashWeight', 'regime', 'riskFlags', 'reason'],
         additionalProperties: false,
