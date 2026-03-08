@@ -128,6 +128,28 @@ describe('TradeCostCalibrationService', () => {
     expect(disabled.calibrationReason).toBe('disabled');
   });
 
+  it('should degrade lookup errors to invalid static-gate fallback', async () => {
+    jest.spyOn(TradeCostCalibrationSnapshot, 'findOne').mockRejectedValue(new Error('lookup failed'));
+
+    const result = await service.resolveBuyGateCalibration({
+      type: OrderTypes.BUY,
+      urgency: 'normal',
+      estimatedCostRate: 0.0015,
+      spreadRate: 0.0005,
+      impactRate: 0.0005,
+      calibrationContext: {
+        category: Category.COIN_MAJOR,
+        costTier: 'medium',
+        positionClass: 'existing',
+        regimeSource: 'live',
+      },
+    });
+
+    expect(result.calibrationApplied).toBe(false);
+    expect(result.calibrationReason).toBe('invalid');
+    expect(result.calibratedEstimatedCostRate).toBe(0.0015);
+  });
+
   it('should refresh snapshots from recent eligible buy trades', async () => {
     const queryBuilder = {
       leftJoin: jest.fn().mockReturnThis(),

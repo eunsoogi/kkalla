@@ -2213,11 +2213,10 @@ export class TradeOrchestrationService {
       // Avoid falling back to it when we do not have a symbol-level holding source.
       marketPrice: request.diff > 0 || symbolHoldingNotional != null ? fallbackRequest.marketPrice : undefined,
     };
-    const estimatedNotional = estimateTradeNotionalFromRequest(
-      estimationRequest,
-      tradableMarketValueMap,
-      symbolNotionalFallback,
-    );
+    const estimatedNotional =
+      request.cappedTradeNotional != null && Number.isFinite(request.cappedTradeNotional)
+        ? request.cappedTradeNotional
+        : estimateTradeNotionalFromRequest(estimationRequest, tradableMarketValueMap, symbolNotionalFallback);
     return {
       ...fallbackRequest,
       estimatedNotional,

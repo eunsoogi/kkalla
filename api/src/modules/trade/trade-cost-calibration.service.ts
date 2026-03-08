@@ -196,15 +196,24 @@ export class TradeCostCalibrationService {
       return { ...baseResult, calibrationReason: 'no_bucket' };
     }
 
-    const snapshot = await TradeCostCalibrationSnapshot.findOne({
-      where: {
-        version: this.calibrationVersion,
-        category: options.calibrationContext.category,
-        costTier: options.calibrationContext.costTier,
-        positionClass: options.calibrationContext.positionClass,
-        regimeSource: options.calibrationContext.regimeSource,
-      },
-    });
+    let snapshot: TradeCostCalibrationSnapshot | null = null;
+    try {
+      snapshot = await TradeCostCalibrationSnapshot.findOne({
+        where: {
+          version: this.calibrationVersion,
+          category: options.calibrationContext.category,
+          costTier: options.calibrationContext.costTier,
+          positionClass: options.calibrationContext.positionClass,
+          regimeSource: options.calibrationContext.regimeSource,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`trade cost calibration lookup failed: ${this.errorService.getErrorMessage(error)}`);
+      return {
+        ...baseResult,
+        calibrationReason: 'invalid',
+      };
+    }
 
     const calibrationReason = this.resolveLookupStatus(snapshot);
     if (!snapshot || calibrationReason !== 'active') {

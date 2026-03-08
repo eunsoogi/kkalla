@@ -542,6 +542,24 @@ describe('TradeOrchestrationService', () => {
       expect(requests[0].cappedTradeDiff).toBeCloseTo(0.1, 6);
     });
 
+    it('should preserve capped trade notional when enriching estimated notional for budgeting', () => {
+      const enriched = (service as any).enrichRequestEstimatedNotional(
+        {
+          symbol: 'BTC/KRW',
+          diff: -1,
+          cappedTradeNotional: 30_000,
+          balances: { info: [] },
+          marketPrice: 1_000_000,
+          currentWeight: 0.3,
+        },
+        new Map<string, number>([['BTC/KRW', 300_000]]),
+        1_000_000,
+        new Map<string, number>([['BTC/KRW', 0.3]]),
+      );
+
+      expect(enriched.estimatedNotional).toBe(30_000);
+    });
+
     it('should exclude buy requests with non-positive expected net edge', () => {
       const runtime: any = {
         logger: { log: jest.fn() },
