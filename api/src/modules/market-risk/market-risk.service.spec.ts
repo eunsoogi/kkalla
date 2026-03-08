@@ -745,6 +745,7 @@ describe('MarketRiskService', () => {
       {
         symbol: 'ETH/KRW',
         diff: -1,
+        forcedFullLiquidation: true,
         balances,
         marketPrice: 1_000_000,
         inference: inferences[0],
