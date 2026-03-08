@@ -7,12 +7,12 @@ import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
 import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
+import { buildTradeExplanation } from '@/app/(dashboard)/_shared/trades/trade-presentation';
 import { PaginatedItem } from '@/shared/types/pagination.types';
 import { Trade, initialState } from '@/app/(dashboard)/_shared/trades/trade.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
-import { formatNumber, formatPercent } from '@/utils/number';
-import { resolveGateBypassedReasonLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
+import { formatNumber } from '@/utils/number';
 
 import { getTradeAction } from '../_actions/trade.actions';
 import { TRADE_STYLES } from '@/app/(dashboard)/_shared/trades/trade.styles';
@@ -45,15 +45,7 @@ const TradeContent = () => {
  */
 export const TradeListItem: React.FC<Trade> = (item) => {
   const t = useTranslations();
-  const telemetrySummary = `${formatPercent(item.expectedEdgeRate, 2)} / ${formatPercent(
-    item.estimatedCostRate,
-    2,
-  )} / ${formatPercent(item.spreadRate, 2)} / ${formatPercent(item.impactRate, 2)}`;
-  const reasonSummary = item.triggerReason
-    ? resolveTriggerReasonLabel(t, item.triggerReason)
-    : item.gateBypassedReason
-      ? resolveGateBypassedReasonLabel(t, item.gateBypassedReason)
-      : '-';
+  const explanation = buildTradeExplanation(item, t);
 
   return (
     <TableRow>
@@ -67,8 +59,10 @@ export const TradeListItem: React.FC<Trade> = (item) => {
         {getDiffPrefix(item.profit)}
         {formatNumber(item.profit)}
       </TableCell>
-      <TableCell className='px-3 py-3 whitespace-nowrap'>{telemetrySummary}</TableCell>
-      <TableCell className='px-3 py-3 whitespace-nowrap'>{reasonSummary}</TableCell>
+      <TableCell className='px-3 py-3 whitespace-nowrap'>{explanation.summary}</TableCell>
+      <TableCell className='px-3 py-3 whitespace-nowrap'>
+        {explanation.triageCue ? <StatusPill value={explanation.triageCue} tone='neutral' /> : '-'}
+      </TableCell>
     </TableRow>
   );
 };
@@ -107,7 +101,7 @@ export const TradeList = () => {
               <TableHeadCell className='whitespace-nowrap'>{t('symbol')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.amount')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.profit')}</TableHeadCell>
-              <TableHeadCell className='whitespace-nowrap'>{t('trade.telemetry')}</TableHeadCell>
+              <TableHeadCell className='whitespace-nowrap'>{t('trade.detail.summary')}</TableHeadCell>
               <TableHeadCell className='whitespace-nowrap'>{t('trade.reason')}</TableHeadCell>
             </TableRow>
           </TableHead>

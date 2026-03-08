@@ -10,14 +10,15 @@ import { ReportDetailPane } from '@/app/(dashboard)/_shared/report-ui/ReportDeta
 import { ReportListPane } from '@/app/(dashboard)/_shared/report-ui/ReportListPane';
 import { ReportMasterDetailLayout } from '@/app/(dashboard)/_shared/report-ui/ReportMasterDetailLayout';
 import type { ReportMetricItem } from '@/app/(dashboard)/_shared/report-ui/report-ui.types';
+import { StatusPill } from '@/app/(dashboard)/_shared/report-ui/StatusPill';
+import { buildTradeExplanation } from '@/app/(dashboard)/_shared/trades/trade-presentation';
 import { TradeTypeText } from '@/app/(dashboard)/_shared/trades/TradeTypeText';
 import { InfinityScroll } from '@/app/(dashboard)/_shared/infinite-scroll/InfinityScroll';
 import { Trade } from '@/app/(dashboard)/_shared/trades/trade.types';
 import { CursorItem } from '@/shared/types/pagination.types';
 import { getDiffColor, getDiffPrefix } from '@/utils/color';
 import { formatDate } from '@/utils/date';
-import { formatNumber, formatPercent } from '@/utils/number';
-import { resolveGateBypassedReasonLabel, resolveTriggerReasonLabel } from '@/utils/trade-label';
+import { formatNumber } from '@/utils/number';
 
 import type {
   TradeDetailEmptyProps,
@@ -77,6 +78,7 @@ const TradeDetailSection: React.FC<{ title: string; children: React.ReactNode }>
  */
 const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, onSelect }) => {
   const tradeTypeLabel = t(`trade.types.${item.type}`);
+  const explanation = buildTradeExplanation(item, t);
 
   return (
     <button
@@ -105,6 +107,11 @@ const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, 
           {formatSignedNumber(item.profit)}
         </span>
       </div>
+      {explanation.triageCue ? (
+        <div className='mt-3'>
+          <StatusPill value={explanation.triageCue} tone='neutral' />
+        </div>
+      ) : null}
     </button>
   );
 };
@@ -116,32 +123,15 @@ const TradeListItemCard: React.FC<TradeListItemProps> = ({ item, t, isSelected, 
  */
 const TradeDetailPanel: React.FC<TradeDetailPanelProps> = ({ item, t }) => {
   const tradeTypeLabel = t(`trade.types.${item.type}`);
+  const explanation = buildTradeExplanation(item, t);
 
   const costMetrics: ReportMetricItem[] = [
-    {
-      key: 'expectedEdgeRate',
-      label: t('trade.expectedEdgeRate'),
-      value: formatPercent(item.expectedEdgeRate, 2),
-      tone: 'neutral',
-    },
-    {
-      key: 'estimatedCostRate',
-      label: t('trade.estimatedCostRate'),
-      value: formatPercent(item.estimatedCostRate, 2),
-      tone: 'neutral',
-    },
-    {
-      key: 'spreadRate',
-      label: t('trade.spreadRate'),
-      value: formatPercent(item.spreadRate, 2),
-      tone: 'neutral',
-    },
-    {
-      key: 'impactRate',
-      label: t('trade.impactRate'),
-      value: formatPercent(item.impactRate, 2),
-      tone: 'neutral',
-    },
+    ...explanation.costReviewRows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      value: row.value,
+      tone: 'neutral' as const,
+    })),
   ];
 
   const headerMetrics: ReportMetricItem[] = [
@@ -160,9 +150,6 @@ const TradeDetailPanel: React.FC<TradeDetailPanelProps> = ({ item, t }) => {
     },
   ];
 
-  const triggerReason = resolveTriggerReasonLabel(t, item.triggerReason);
-  const gateBypassedReason = resolveGateBypassedReasonLabel(t, item.gateBypassedReason);
-
   return (
     <ReportDetailPane
       title={item.symbol}
@@ -172,20 +159,38 @@ const TradeDetailPanel: React.FC<TradeDetailPanelProps> = ({ item, t }) => {
       headerMetrics={headerMetrics}
     >
       <div className='space-y-5'>
-        <section className='space-y-4'>
-          <div className='space-y-4'>
-            <div>
-              <p className='mb-1 text-xs font-medium text-gray-500 dark:text-gray-400'>{t('trade.triggerReason')}</p>
-              <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{triggerReason}</p>
-            </div>
-            <div>
-              <p className='mb-1 text-xs font-medium text-gray-500 dark:text-gray-400'>{t('trade.gateBypassedReason')}</p>
-              <p className='whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300'>{gateBypassedReason}</p>
-            </div>
-          </div>
-        </section>
-        <TradeDetailSection title={t('report.section.cost')}>
+        <TradeDetailSection title={t('trade.detail.sections.decisionSummary')}>
+          <DetailMetricGrid
+            items={explanation.decisionSummaryRows.map((row) => ({
+              key: row.key,
+              label: row.label,
+              value: row.value,
+              tone: 'neutral' as const,
+            }))}
+          />
+        </TradeDetailSection>
+        <TradeDetailSection title={t('trade.detail.sections.executionLimits')}>
+          <DetailMetricGrid
+            items={explanation.executionLimitRows.map((row) => ({
+              key: row.key,
+              label: row.label,
+              value: row.value,
+              tone: 'neutral' as const,
+            }))}
+          />
+        </TradeDetailSection>
+        <TradeDetailSection title={t('trade.detail.sections.costReview')}>
           <DetailMetricGrid items={costMetrics} />
+        </TradeDetailSection>
+        <TradeDetailSection title={t('trade.detail.sections.modeFallbacks')}>
+          <DetailMetricGrid
+            items={explanation.modeFallbackRows.map((row) => ({
+              key: row.key,
+              label: row.label,
+              value: row.value,
+              tone: 'neutral' as const,
+            }))}
+          />
         </TradeDetailSection>
       </div>
     </ReportDetailPane>

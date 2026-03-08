@@ -48,6 +48,44 @@ describe('TradeOrchestrationService', () => {
       expect((service as any).resolveTradeTriggerReasonLabel(i18n, null)).toBe('-');
       expect((service as any).resolveTradeGateBypassedReasonLabel(i18n, undefined)).toBe('-');
     });
+
+    it('should render trade notification text in plain language for conservative mode', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+      const trade: any = {
+        amount: 120000,
+        decisionRegimeSource: 'unavailable_risk_off',
+        decisionRequestedTradeNotional: 120000,
+        decisionCappedTradeNotional: 120000,
+        gateBypassedReason: null,
+        triggerReason: 'included_rebalance',
+      };
+
+      const whatHappened = (service as any).resolveTradeNotificationWhatHappened(i18n, trade);
+      const why = (service as any).resolveTradeNotificationWhy(i18n, trade);
+
+      expect(whatHappened).toContain('120,000');
+      expect(why).toBe('시장 상황 정보가 부족해 보수적으로 처리했습니다.');
+      expect(why).not.toContain('calibration');
+      expect(why).not.toContain('bucket');
+    });
+
+    it('should render trade notification text for reduced execution without technical jargon', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+      const trade: any = {
+        amount: 80000,
+        decisionRequestedTradeNotional: 120000,
+        decisionCappedTradeNotional: 80000,
+        decisionRegimeSource: 'live',
+        gateBypassedReason: null,
+        triggerReason: 'included_rebalance',
+      };
+
+      const whatHappened = (service as any).resolveTradeNotificationWhatHappened(i18n, trade);
+      const why = (service as any).resolveTradeNotificationWhy(i18n, trade);
+
+      expect(whatHappened).toBe('80,000원어치만 실행했습니다.');
+      expect(why).toBe('한 번에 너무 많이 움직이지 않도록 주문 크기를 줄였습니다.');
+    });
   });
 
   describe('market regime', () => {

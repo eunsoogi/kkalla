@@ -21,7 +21,7 @@ import { AdjustedOrderResult, BuyCostCalibrationContext, MarketFeatures } from '
 import { User } from '@/modules/user/entities/user.entity';
 import { generateMonotonicUlid } from '@/utils/id';
 import { clamp01 } from '@/utils/math';
-import { formatNumber, formatPercent } from '@/utils/number';
+import { formatNumber } from '@/utils/number';
 import { normalizeKrwSymbol } from '@/utils/symbol';
 
 import type { AllocationAuditService } from '../allocation-audit/allocation-audit.service';
@@ -2045,17 +2045,8 @@ export class TradeOrchestrationService {
                   args: {
                     symbol: trade.symbol,
                     type: runtime.i18n.t(`label.order.type.${trade.type}`),
-                    amount: formatNumber(trade.amount),
-                    profit: formatNumber(trade.profit),
-                    expectedEdgeRate: formatPercent(trade.expectedEdgeRate),
-                    estimatedCostRate: formatPercent(trade.estimatedCostRate),
-                    spreadRate: formatPercent(trade.spreadRate),
-                    impactRate: formatPercent(trade.impactRate),
-                    triggerReason: this.resolveTradeTriggerReasonLabel(runtime.i18n, trade.triggerReason),
-                    gateBypassedReason: this.resolveTradeGateBypassedReasonLabel(
-                      runtime.i18n,
-                      trade.gateBypassedReason,
-                    ),
+                    whatHappened: this.resolveTradeNotificationWhatHappened(runtime.i18n, trade),
+                    why: this.resolveTradeNotificationWhy(runtime.i18n, trade),
                   },
                 }),
               )
@@ -2094,6 +2085,57 @@ export class TradeOrchestrationService {
     gateBypassedReason?: string | null,
   ): string {
     return this.resolveTradeReasonLabel(i18n, 'gateBypassedReasons', gateBypassedReason);
+  }
+
+  private resolveTradeNotificationWhatHappened(
+    i18n: TradeRuntimeContext['i18n'],
+    trade: Pick<Trade, 'amount' | 'decisionRequestedTradeNotional' | 'decisionCappedTradeNotional'>,
+  ): string {
+    const reduced =
+      trade.decisionRequestedTradeNotional != null &&
+      trade.decisionCappedTradeNotional != null &&
+      trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+
+    return i18n.t(reduced ? 'notify.order.whatHappened.reduced' : 'notify.order.whatHappened.executed', {
+      args: {
+        amount: formatNumber(trade.amount),
+      },
+    });
+  }
+
+  private resolveTradeNotificationWhy(i18n: TradeRuntimeContext['i18n'], trade: Trade): string {
+    const reduced =
+      trade.decisionRequestedTradeNotional != null &&
+      trade.decisionCappedTradeNotional != null &&
+      trade.decisionRequestedTradeNotional > trade.decisionCappedTradeNotional + Number.EPSILON;
+
+    if (trade.decisionRegimeSource === 'unavailable_risk_off') {
+      return i18n.t('notify.order.why.conservative_mode');
+    }
+
+    if (reduced) {
+      return i18n.t('notify.order.why.reduced_size');
+    }
+
+    if (trade.gateBypassedReason === 'urgent_risk_reduction') {
+      return i18n.t('notify.order.why.urgent_sell');
+    }
+
+    switch (trade.triggerReason) {
+      case 'included_rebalance':
+        return i18n.t('notify.order.why.rebalance');
+      case 'excluded_staged_exit':
+      case 'no_trade_trim':
+        return i18n.t('notify.order.why.trim_position');
+      case 'missing_from_inference':
+      case 'missing_inference_grace_elapsed':
+        return i18n.t('notify.order.why.remove_out_of_scope');
+      case 'profit-take':
+      case 'trailing_take_profit':
+        return i18n.t('notify.order.why.take_profit');
+      default:
+        return i18n.t('notify.order.why.generic');
+    }
   }
 
   /**

@@ -449,12 +449,72 @@
   "token": "토큰",
   "trade": {
     "amount": "거래금",
+    "absence": {
+      "not_applicable": "해당 없음",
+      "not_captured": "기록되지 않음",
+      "pending": "아직 확정되지 않음"
+    },
     "date": "날짜",
+    "detail": {
+      "cappedTradeNotional": "실행된 주문 한도 (결정 시점)",
+      "costCalibrationCoefficient": "비용 보정 계수",
+      "executionUrgency": "실행 우선도 (결정 시점)",
+      "fallbackState": "예외/보조 처리 상태",
+      "modeState": "실행 모드",
+      "positionClass": "포지션 유형 (결정 시점)",
+      "realizedCostRate": "실제 비용률",
+      "regimeSource": "시장 판단 상태",
+      "requestedTradeNotional": "원래 주문 금액 (결정 시점)",
+      "sections": {
+        "costReview": "비용 검토",
+        "decisionSummary": "의사결정 요약",
+        "executionLimits": "실행 제한 정보",
+        "modeFallbacks": "모드 및 예외 처리"
+      },
+      "summary": "무슨 일이 있었는지",
+      "why": "왜 이렇게 처리됐는지"
+    },
     "estimatedCostRate": "추정 비용률",
+    "executionUrgency": {
+      "normal": "일반",
+      "urgent": "긴급"
+    },
+    "explanation": {
+      "fallback": {
+        "gateBypassed": "일반 규칙보다 우선 처리됨"
+      },
+      "mode": {
+        "conservative": "보수적으로 실행됨",
+        "standard": "기본 규칙으로 실행됨"
+      },
+      "whatHappened": {
+        "executed": "{amount}원어치 실행했습니다.",
+        "reduced": "{amount}원어치만 실행했습니다."
+      },
+      "why": {
+        "conservativeMode": "시장 상황 정보가 부족해 보수적으로 처리했습니다.",
+        "generic": "현재 비중과 위험 기준에 따라 처리했습니다.",
+        "rebalance": "현재 자산 비중을 맞추기 위해 처리했습니다.",
+        "reducedSize": "한 번에 너무 많이 움직이지 않도록 주문 크기를 줄였습니다.",
+        "removeOutOfScope": "추천 대상에서 벗어난 종목을 정리했습니다.",
+        "takeProfit": "수익을 보호하는 쪽으로 처리했습니다.",
+        "trimPosition": "비중을 천천히 줄이도록 처리했습니다.",
+        "urgentSell": "손실 확대를 막는 쪽을 우선했습니다."
+      }
+    },
     "expectedEdgeRate": "기대 엣지",
     "gateBypassedReason": "게이트 우회 사유",
     "impactRate": "임팩트 비용률",
+    "positionClass": {
+      "existing": "기존 보유",
+      "new": "신규 진입"
+    },
     "profit": "수익금",
+    "regimeSource": {
+      "cacheFallback": "캐시 기준",
+      "live": "실시간 기준",
+      "unavailableRiskOff": "보수 모드"
+    },
     "gateBypassedReasons": {
       "earnings": "실적 이벤트 영향",
       "latency": "지연 보정",
@@ -464,6 +524,15 @@
     "reason": "트리거/우회",
     "spreadRate": "스프레드 비용률",
     "telemetry": "엣지/비용/스프레드/임팩트",
+    "time": {
+      "decision": "결정 시점",
+      "execution": "체결 후"
+    },
+    "triage": {
+      "conservativeMode": "보수 모드",
+      "reducedExecution": "축소 실행",
+      "urgentExecution": "긴급 처리"
+    },
     "triggerReason": "트리거 사유",
     "triggerReasons": {
       "below_min_trade_amount": "최소 주문 금액 미달",
