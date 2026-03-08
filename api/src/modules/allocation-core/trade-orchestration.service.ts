@@ -3107,7 +3107,9 @@ export class TradeOrchestrationService {
         return;
       }
 
-      if (request.diff > -1 + Number.EPSILON) {
+      const effectiveExecutionDiff =
+        request.cappedTradeDiff != null && Number.isFinite(request.cappedTradeDiff) ? request.cappedTradeDiff : request.diff;
+      if (effectiveExecutionDiff > -1 + Number.EPSILON) {
         return;
       }
 

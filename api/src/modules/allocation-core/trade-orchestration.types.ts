@@ -133,6 +133,7 @@ export interface ExecuteRebalanceTradesOptions {
 export interface ExecutionRequestLike {
   symbol: string;
   diff: number;
+  cappedTradeDiff?: number | null;
   inference?: {
     category: Category;
   };

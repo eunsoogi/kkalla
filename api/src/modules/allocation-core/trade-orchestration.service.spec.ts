@@ -1538,6 +1538,26 @@ describe('TradeOrchestrationService', () => {
       expect(result).toEqual([]);
     });
 
+    it('should keep holding ledger entries when capped sell diff is not a full exit', () => {
+      const result = (service as any).collectLiquidatedHoldingItems(
+        [
+          {
+            request: {
+              symbol: 'BTC/KRW',
+              diff: -1,
+              cappedTradeDiff: -0.1,
+              inference: { category: Category.COIN_MAJOR },
+            },
+            trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 1 },
+          },
+        ],
+        OrderTypes.SELL,
+        [{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }],
+      );
+
+      expect(result).toEqual([]);
+    });
+
     it('should build merged holding save payload with removed symbols excluded', () => {
       const payload = (service as any).buildMergedHoldingsForSave(
         [
