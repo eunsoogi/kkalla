@@ -247,6 +247,9 @@
       "success_all": "{count}개 종목의 특성 추출을 완료했습니다.",
       "success_one": "{symbol} 종목의 특성 추출을 완료했습니다."
     },
+    "cost_calibration": {
+      "gate": "[매수 비용 보정 게이트] calibrationApplied={calibrationApplied}, calibrationReason={calibrationReason}, bucketKey={bucketKey}, staticNonFeeCostRate={staticNonFeeCostRate}, rawMultiplier={rawMultiplier}, appliedMultiplier={appliedMultiplier}, calibratedEstimatedCostRate={calibratedEstimatedCostRate}, expectedEdgeRate={expectedEdgeRate}, staticDecision={staticDecision}, calibratedDecision={calibratedDecision}"
+    },
     "market": {
       "load_failed": "{symbol} 마켓 데이터 로드에 실패했습니다."
     },

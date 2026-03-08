@@ -3,7 +3,7 @@ import { Balances } from 'ccxt';
 import { AllocationRecommendationData } from '../allocation-core/allocation-core.types';
 import { SortDirection } from '../item/item.enum';
 import { OrderTypes } from '../upbit/upbit.enum';
-import { OrderExecutionUrgency, UpbitOrderCostEstimate } from '../upbit/upbit.types';
+import { BuyCostCalibrationContext, OrderExecutionUrgency, UpbitOrderCostEstimate } from '../upbit/upbit.types';
 
 export interface TradeFilter {
   symbol?: string;
@@ -48,6 +48,7 @@ export interface TradeRequest {
   requestPrice?: number | null;
   executionUrgency?: OrderExecutionUrgency;
   costEstimate?: UpbitOrderCostEstimate | null;
+  costCalibrationContext?: BuyCostCalibrationContext | null;
 }
 
 export interface TradeData {

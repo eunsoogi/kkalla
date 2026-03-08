@@ -9,6 +9,7 @@ import { ErrorService } from '../error/error.service';
 import { TwoPhaseRetryOptions } from '../error/error.types';
 import { NotifyService } from '../notify/notify.service';
 import { Schedule } from '../schedule/entities/schedule.entity';
+import { TradeCostCalibrationService } from '../trade/trade-cost-calibration.service';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
@@ -16,6 +17,7 @@ import { OrderTypes } from './upbit.enum';
 import {
   AdjustOrderRequest,
   AdjustedOrderResult,
+  BuyCostCalibrationLookupResult,
   KrwMarketData,
   KrwTickerDailyData,
   OrderExecutionUrgency,
@@ -53,6 +55,7 @@ export class UpbitService {
     private readonly errorService: ErrorService,
     private readonly notifyService: NotifyService,
     private readonly cacheService: CacheService,
+    private readonly tradeCostCalibrationService: TradeCostCalibrationService,
   ) {}
 
   public async readConfig(user: User): Promise<UpbitConfig> {
@@ -604,6 +607,30 @@ export class UpbitService {
     return expectedEdgeRate <= estimatedCostRate + this.EDGE_COST_BUFFER_RATE;
   }
 
+  private logBuyCostCalibrationDecision(args: {
+    calibration: BuyCostCalibrationLookupResult;
+    expectedEdgeRate: number | null | undefined;
+    staticDecision: 'allow' | 'skip';
+    calibratedDecision: 'allow' | 'skip';
+  }): void {
+    this.logger.log(
+      this.i18n.t('logging.upbit.cost_calibration.gate', {
+        args: {
+          calibrationApplied: args.calibration.calibrationApplied,
+          calibrationReason: args.calibration.calibrationReason,
+          bucketKey: args.calibration.bucketKey ?? '',
+          staticNonFeeCostRate: args.calibration.staticNonFeeCostRate ?? '',
+          rawMultiplier: args.calibration.rawMultiplier ?? '',
+          appliedMultiplier: args.calibration.appliedMultiplier,
+          calibratedEstimatedCostRate: args.calibration.calibratedEstimatedCostRate ?? '',
+          expectedEdgeRate: args.expectedEdgeRate ?? '',
+          staticDecision: args.staticDecision,
+          calibratedDecision: args.calibratedDecision,
+        },
+      }),
+    );
+  }
+
   private resolveOrderNotional(order: Order | null, fallbackPrice: number): number {
     if (!order) {
       return 0;
@@ -903,20 +930,52 @@ export class UpbitService {
         (type === OrderTypes.BUY
           ? await this.estimateOrderCost(symbol, type, requestedAmount, currPrice)
           : await this.estimateOrderCost(symbol, type, requestedVolume ?? 0, currPrice));
+      const calibration = await this.tradeCostCalibrationService.resolveBuyGateCalibration({
+        type,
+        urgency,
+        estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+        spreadRate: dynamicCostEstimate.spreadRate,
+        impactRate: dynamicCostEstimate.impactRate,
+        calibrationContext: request.costCalibrationContext,
+      });
+      const effectiveEstimatedCostRate =
+        calibration.calibrationApplied && calibration.calibratedEstimatedCostRate != null
+          ? calibration.calibratedEstimatedCostRate
+          : dynamicCostEstimate.estimatedCostRate;
+      const staticDecision = this.shouldSkipForEdgeCost(
+        urgency,
+        request.expectedEdgeRate,
+        dynamicCostEstimate.estimatedCostRate,
+      )
+        ? 'skip'
+        : 'allow';
+      const calibratedDecision = this.shouldSkipForEdgeCost(
+        urgency,
+        request.expectedEdgeRate,
+        effectiveEstimatedCostRate,
+      )
+        ? 'skip'
+        : 'allow';
+      this.logBuyCostCalibrationDecision({
+        calibration,
+        expectedEdgeRate: request.expectedEdgeRate,
+        staticDecision,
+        calibratedDecision,
+      });
       const gateBypassedReason =
         urgency === 'urgent' &&
         request.expectedEdgeRate != null &&
         Number.isFinite(request.expectedEdgeRate) &&
-        request.expectedEdgeRate <= dynamicCostEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE
+        request.expectedEdgeRate <= effectiveEstimatedCostRate + this.EDGE_COST_BUFFER_RATE
           ? 'urgent_risk_reduction'
           : (request.gateBypassedReason ?? null);
 
-      if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, dynamicCostEstimate.estimatedCostRate)) {
+      if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, effectiveEstimatedCostRate)) {
         return this.createAdjustedOrderResult(request, {
           requestPrice: currPrice,
           requestedAmount,
           requestedVolume,
-          estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+          estimatedCostRate: effectiveEstimatedCostRate,
           spreadRate: dynamicCostEstimate.spreadRate,
           impactRate: dynamicCostEstimate.impactRate,
           triggerReason: request.triggerReason ?? 'edge_below_cost',
@@ -929,7 +988,7 @@ export class UpbitService {
           requestPrice: currPrice,
           requestedAmount,
           requestedVolume,
-          estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+          estimatedCostRate: effectiveEstimatedCostRate,
           spreadRate: dynamicCostEstimate.spreadRate,
           impactRate: dynamicCostEstimate.impactRate,
           triggerReason: request.triggerReason ?? 'invalid_order_amount',
@@ -982,7 +1041,7 @@ export class UpbitService {
         filledAmount,
         filledVolume,
         averagePrice,
-        estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+        estimatedCostRate: effectiveEstimatedCostRate,
         spreadRate: dynamicCostEstimate.spreadRate,
         impactRate: dynamicCostEstimate.impactRate,
         gateBypassedReason,

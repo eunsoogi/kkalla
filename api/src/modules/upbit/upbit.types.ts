@@ -1,8 +1,38 @@
 import { Balances, Order } from 'ccxt';
 
+import { Category } from '../category/category.enum';
 import { OrderTypes } from './upbit.enum';
 
 export type OrderExecutionUrgency = 'urgent' | 'normal';
+export type BuyCostCalibrationCostTier = 'low' | 'medium' | 'high';
+export type BuyCostCalibrationSnapshotStatus = 'active' | 'warmup' | 'stale' | 'invalid';
+export type BuyCostCalibrationReason =
+  | 'active'
+  | 'disabled'
+  | 'warmup'
+  | 'stale'
+  | 'invalid'
+  | 'missing'
+  | 'non_buy'
+  | 'urgent'
+  | 'no_bucket';
+
+export interface BuyCostCalibrationContext {
+  category: Category;
+  costTier: BuyCostCalibrationCostTier;
+  positionClass: 'existing' | 'new';
+  regimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off';
+}
+
+export interface BuyCostCalibrationLookupResult {
+  calibrationApplied: boolean;
+  calibrationReason: BuyCostCalibrationReason;
+  bucketKey: string | null;
+  staticNonFeeCostRate: number | null;
+  rawMultiplier: number | null;
+  appliedMultiplier: number;
+  calibratedEstimatedCostRate: number | null;
+}
 
 export interface UpbitOrderCostEstimate {
   feeRate: number;
@@ -34,6 +64,7 @@ export interface AdjustOrderRequest {
   marketPrice?: number;
   executionUrgency?: OrderExecutionUrgency;
   costEstimate?: UpbitOrderCostEstimate | null;
+  costCalibrationContext?: BuyCostCalibrationContext | null;
   expectedEdgeRate?: number | null;
   gateBypassedReason?: string | null;
   triggerReason?: string | null;

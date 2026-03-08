@@ -17,7 +17,7 @@ import { Trade } from '@/modules/trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '@/modules/trade/trade.types';
 import { UPBIT_MINIMUM_TRADE_PRICE } from '@/modules/upbit/upbit.constant';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
-import { AdjustedOrderResult, MarketFeatures } from '@/modules/upbit/upbit.types';
+import { AdjustedOrderResult, BuyCostCalibrationContext, MarketFeatures } from '@/modules/upbit/upbit.types';
 import { User } from '@/modules/user/entities/user.entity';
 import { generateMonotonicUlid } from '@/utils/id';
 import { clamp01 } from '@/utils/math';
@@ -333,6 +333,48 @@ export class TradeOrchestrationService {
       sizingContractVersion: this.sizingContractVersion,
       selectionPolicyVersion: this.selectionPolicyVersion,
       forcedFullLiquidation: options.forcedFullLiquidation ?? false,
+    };
+  }
+
+  private resolveBuyCostTier(nonFeeCostRate: number | null): 'low' | 'medium' | 'high' | null {
+    if (nonFeeCostRate == null || !Number.isFinite(nonFeeCostRate)) {
+      return null;
+    }
+
+    if (nonFeeCostRate < 0.001) {
+      return 'low';
+    }
+
+    if (nonFeeCostRate < 0.0025) {
+      return 'medium';
+    }
+
+    return 'high';
+  }
+
+  private buildBuyCostCalibrationContext(
+    request: Pick<TradeRequest, 'inference' | 'spreadRate' | 'impactRate' | 'positionClass'>,
+    regimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null,
+  ): BuyCostCalibrationContext | null {
+    const category = request.inference?.category;
+    const positionClass = request.positionClass;
+    if (!category || !positionClass || !regimeSource) {
+      return null;
+    }
+
+    const costTier = this.resolveBuyCostTier(
+      (request.spreadRate != null ? Math.max(0, request.spreadRate) : 0) +
+        (request.impactRate != null ? Math.max(0, request.impactRate) : 0),
+    );
+    if (!costTier) {
+      return null;
+    }
+
+    return {
+      category,
+      costTier,
+      positionClass,
+      regimeSource,
     };
   }
 
@@ -1949,6 +1991,7 @@ export class TradeOrchestrationService {
         ...request,
         regimePolicyState: options.regimePolicyState ?? 'available',
         regimePolicySource: options.regimePolicySource ?? null,
+        costCalibrationContext: this.buildBuyCostCalibrationContext(request, options.regimePolicySource ?? null),
       }));
       if (cappedBuyRequests.length !== prioritizedBuyRequests.length || buyBudgetResult.partialScaledRequest != null) {
         runtime.logger.log(
