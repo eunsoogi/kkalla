@@ -189,6 +189,25 @@ export class Trade extends BaseEntity {
 
   @Column({
     type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  decisionExecutionUrgency: 'urgent' | 'normal' | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  realizedCostRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  costCalibrationCoefficient: number | null;
+
+  @Column({
+    type: 'varchar',
     length: 64,
     nullable: true,
   })

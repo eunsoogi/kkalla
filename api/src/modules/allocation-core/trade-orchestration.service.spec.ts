@@ -350,6 +350,14 @@ describe('TradeOrchestrationService', () => {
       expect(metrics.filledAmount).toBe(100_000);
     });
 
+    it('should derive realized cost rate and calibration coefficient from request and fill prices', () => {
+      const realizedCostRate = (service as any).resolveRealizedCostRate(OrderTypes.BUY, 100, 101, 0.003, 0.001, 0.0015);
+      const calibrationCoefficient = (service as any).resolveCostCalibrationCoefficient(realizedCostRate, 0.003);
+
+      expect(realizedCostRate).toBeCloseTo(0.0105, 10);
+      expect(calibrationCoefficient).toBeCloseTo(0.0105 / 0.003, 10);
+    });
+
     it('should reconcile open market orders with fetchOrder before deciding execution failure', async () => {
       const runtime: any = {
         logger: { warn: jest.fn() },

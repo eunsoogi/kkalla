@@ -29,6 +29,7 @@ export interface TradeRequest {
   sizingContractVersion?: number | null;
   selectionPolicyVersion?: number | null;
   regimePolicyState?: 'available' | 'regimeUnavailable' | null;
+  regimePolicySource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
   forcedFullLiquidation?: boolean | null;
   estimatedNotional?: number | null;
   currentWeight?: number | null;
@@ -74,6 +75,9 @@ export interface TradeData {
   decisionExpectedNetEdgeRate?: number | null;
   decisionPositionClass?: 'existing' | 'new' | null;
   decisionRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
+  decisionExecutionUrgency?: OrderExecutionUrgency | null;
+  realizedCostRate?: number | null;
+  costCalibrationCoefficient?: number | null;
   gateBypassedReason?: string | null;
   triggerReason?: string | null;
 }

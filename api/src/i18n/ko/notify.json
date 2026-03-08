@@ -5,6 +5,7 @@
     "task_failed": "*[시스템 알림]* 자산 배분 감사 작업 실패\n> {message}"
   },
   "allocationRecommendation": {
+    "regime_unavailable_risk_off": "시장 국면 데이터를 불러오지 못해 신규 진입을 막는 보수적 모드로 실행합니다.",
     "result": "자산 배분 추천이 생성되었습니다.\n\n{transactions}",
     "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight}) {actionLabel}\n> 근거: {reason}",
     "actionLabel": {

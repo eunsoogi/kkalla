@@ -207,6 +207,7 @@ describe('UpbitService', () => {
       executionUrgency: 'urgent',
     });
 
+    expect(result.requestPrice).toBeCloseTo(100_000_000, 4);
     expect(result.requestedAmount).toBeCloseTo(99_950, 6);
     expect(result.filledAmount).toBeCloseTo(99_950, 6);
     expect(result.order?.side).toBe(OrderTypes.BUY);

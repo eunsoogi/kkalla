@@ -715,6 +715,11 @@ export class AllocationService implements OnModuleInit {
     );
     const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
+    if (regimePolicy.regimePolicyState === 'regimeUnavailable') {
+      this.logger.warn(this.i18n.t('logging.marketRegime.regime_unavailable_risk_off'));
+      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regime_unavailable_risk_off'));
+      assertLockOrThrow();
+    }
     const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
       inferences: authorizedRecommendations,
       currentWeights: executionSnapshot.currentWeights,

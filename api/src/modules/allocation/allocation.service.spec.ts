@@ -1272,6 +1272,39 @@ describe('AllocationService', () => {
     expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 매수');
   });
 
+  it('should notify degraded unavailable risk-off mode separately from recommendation payload', async () => {
+    const categoryService = (service as any).categoryService;
+    const notifyService = (service as any).notifyService;
+    const upbitService = (service as any).upbitService;
+    const marketRegimeService = (service as any).marketRegimeService;
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValue({ info: [] });
+    (upbitService as any).calculateTradableMarketValue = jest.fn().mockResolvedValue(0);
+    marketRegimeService.getSnapshot.mockRejectedValue(new Error('market regime failed'));
+
+    await service.executeAllocationForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          action: 'hold',
+          modelTargetWeight: 0.25,
+          prevModelTargetWeight: 0,
+          reason: '변동성으로 관망',
+          hasStock: false,
+        },
+      ] as any,
+      'new',
+    );
+
+    expect(notifyService.notify).toHaveBeenCalledTimes(2);
+    expect(notifyService.notify.mock.calls[0][1]).toContain('보수적 모드');
+    expect(notifyService.notify.mock.calls[1][1]).toContain('(0% -> 25%) 매수');
+  });
+
   it('should override hasStock flag using the requesting user holdings', async () => {
     const categoryService = (service as any).categoryService;
     const upbitService = (service as any).upbitService;

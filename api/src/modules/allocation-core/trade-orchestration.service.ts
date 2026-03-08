@@ -1840,6 +1840,7 @@ export class TradeOrchestrationService {
       (request) => ({
         ...request,
         regimePolicyState: options.regimePolicyState ?? 'available',
+        regimePolicySource: options.regimePolicySource ?? null,
       }),
     );
 
@@ -1947,6 +1948,7 @@ export class TradeOrchestrationService {
       const cappedBuyRequests = buyBudgetResult.selectedRequests.map((request) => ({
         ...request,
         regimePolicyState: options.regimePolicyState ?? 'available',
+        regimePolicySource: options.regimePolicySource ?? null,
       }));
       if (cappedBuyRequests.length !== prioritizedBuyRequests.length || buyBudgetResult.partialScaledRequest != null) {
         runtime.logger.log(
@@ -2288,6 +2290,56 @@ export class TradeOrchestrationService {
     });
   }
 
+  private resolveRealizedCostRate(
+    type: OrderTypes,
+    requestPrice: number | null,
+    averagePrice: number | null,
+    estimatedCostRate: number | null,
+    spreadRate: number | null,
+    impactRate: number | null,
+  ): number | null {
+    if (
+      requestPrice == null ||
+      averagePrice == null ||
+      !Number.isFinite(requestPrice) ||
+      !Number.isFinite(averagePrice) ||
+      requestPrice <= Number.EPSILON ||
+      averagePrice <= Number.EPSILON
+    ) {
+      return null;
+    }
+
+    const estimatedFeeRate = Math.max(
+      0,
+      (estimatedCostRate ?? 0) - Math.max(0, spreadRate ?? 0) - Math.max(0, impactRate ?? 0),
+    );
+    const realizedExecutionDriftRate =
+      type === OrderTypes.BUY
+        ? Math.max(0, (averagePrice - requestPrice) / requestPrice)
+        : Math.max(0, (requestPrice - averagePrice) / requestPrice);
+
+    const realizedCostRate = estimatedFeeRate + realizedExecutionDriftRate;
+    return Number.isFinite(realizedCostRate) ? realizedCostRate : null;
+  }
+
+  private resolveCostCalibrationCoefficient(
+    realizedCostRate: number | null,
+    estimatedCostRate: number | null,
+  ): number | null {
+    if (
+      realizedCostRate == null ||
+      estimatedCostRate == null ||
+      !Number.isFinite(realizedCostRate) ||
+      !Number.isFinite(estimatedCostRate) ||
+      estimatedCostRate <= Number.EPSILON
+    ) {
+      return null;
+    }
+
+    const coefficient = realizedCostRate / estimatedCostRate;
+    return Number.isFinite(coefficient) ? coefficient : null;
+  }
+
   /**
    * Shared trade execution/persistence path used by allocation and risk services.
    */
@@ -2395,6 +2447,22 @@ export class TradeOrchestrationService {
 
     const amount = filledAmount;
     const profit = await runtime.exchangeService.calculateProfit(request.balances, executionOrder, amount);
+    const effectiveRequestPrice = adjustedOrder.requestPrice ?? request.requestPrice ?? null;
+    const effectiveEstimatedCostRate = adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null;
+    const effectiveSpreadRate = adjustedOrder.spreadRate ?? request.spreadRate ?? null;
+    const effectiveImpactRate = adjustedOrder.impactRate ?? request.impactRate ?? null;
+    const realizedCostRate = this.resolveRealizedCostRate(
+      type,
+      effectiveRequestPrice,
+      resolvedAveragePrice,
+      effectiveEstimatedCostRate,
+      effectiveSpreadRate,
+      effectiveImpactRate,
+    );
+    const costCalibrationCoefficient = this.resolveCostCalibrationCoefficient(
+      realizedCostRate,
+      effectiveEstimatedCostRate,
+    );
 
     // Estimate unrealized edge lost by partial fill (for post-trade diagnostics only).
     const missingRequestedAmount =
@@ -2428,16 +2496,16 @@ export class TradeOrchestrationService {
       amount,
       profit,
       inference: request.inference,
-      requestPrice: adjustedOrder.requestPrice ?? request.requestPrice ?? null,
+      requestPrice: effectiveRequestPrice,
       averagePrice: resolvedAveragePrice,
       requestedAmount,
       requestedVolume,
       filledAmount,
       filledVolume,
       expectedEdgeRate,
-      estimatedCostRate: adjustedOrder.estimatedCostRate ?? request.estimatedCostRate ?? null,
-      spreadRate: adjustedOrder.spreadRate ?? request.spreadRate ?? null,
-      impactRate: adjustedOrder.impactRate ?? request.impactRate ?? null,
+      estimatedCostRate: effectiveEstimatedCostRate,
+      spreadRate: effectiveSpreadRate,
+      impactRate: effectiveImpactRate,
       missedOpportunityCost,
       decisionContextVersion: request.sizingContractVersion ?? null,
       decisionPortfolioValue: request.marketPrice ?? null,
@@ -2447,9 +2515,13 @@ export class TradeOrchestrationService {
       decisionExpectedNetEdgeRate: request.expectedNetEdge ?? null,
       decisionPositionClass: request.positionClass ?? null,
       decisionRegimeSource:
-        request.regimePolicyState === 'regimeUnavailable'
+        request.regimePolicySource ??
+        (request.regimePolicyState === 'regimeUnavailable'
           ? 'unavailable_risk_off'
-          : (request.inference?.marketRegimeSource ?? null),
+          : (request.inference?.marketRegimeSource ?? null)),
+      decisionExecutionUrgency: request.executionUrgency ?? null,
+      realizedCostRate,
+      costCalibrationCoefficient,
       gateBypassedReason: adjustedOrder.gateBypassedReason ?? request.gateBypassedReason ?? null,
       triggerReason: adjustedOrder.triggerReason ?? request.triggerReason ?? null,
     });

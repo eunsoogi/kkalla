@@ -913,6 +913,7 @@ export class UpbitService {
 
       if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, dynamicCostEstimate.estimatedCostRate)) {
         return this.createAdjustedOrderResult(request, {
+          requestPrice: currPrice,
           requestedAmount,
           requestedVolume,
           estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
@@ -925,6 +926,7 @@ export class UpbitService {
       const primaryOrderAmount = type === OrderTypes.BUY ? (requestedAmount ?? 0) : (requestedVolume ?? 0);
       if (primaryOrderAmount <= 0) {
         return this.createAdjustedOrderResult(request, {
+          requestPrice: currPrice,
           requestedAmount,
           requestedVolume,
           estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
@@ -974,7 +976,7 @@ export class UpbitService {
 
       return this.createAdjustedOrderResult(request, {
         order: finalOrder,
-        requestPrice: null,
+        requestPrice: currPrice,
         requestedAmount,
         requestedVolume,
         filledAmount,
