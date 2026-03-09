@@ -50,7 +50,7 @@ export class GoogleTokenStrategy extends PassportStrategy(Strategy, 'google-toke
     try {
       userInfo = await this.googleClient.getTokenInfo(accessToken);
     } catch (err) {
-      this.logger.error(this.i18n.t('logging.auth.google.token_info_failed'), err);
+      this.logger.error(this.i18n.t('logging.auth.google.tokenInfoFailed'), err);
       throw new UnauthorizedException(err);
     }
 

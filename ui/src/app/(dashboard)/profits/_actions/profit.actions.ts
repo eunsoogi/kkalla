@@ -29,7 +29,7 @@ export const getMyProfitAction = async (): Promise<ProfitResponse> => {
   } catch (error) {
     return {
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };

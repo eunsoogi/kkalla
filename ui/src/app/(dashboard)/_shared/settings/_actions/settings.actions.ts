@@ -73,7 +73,7 @@ export const postConfigAction = async (url: string, formData: FormData): Promise
   } catch (error) {
     return {
       success: false,
-      message: t('error.update_failed', { error: String(error) }),
+      message: t('error.updateFailed', { error: String(error) }),
     };
   }
 };

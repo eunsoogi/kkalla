@@ -22,7 +22,7 @@ export class FeatureService {
    * Upbit 특정 종목의 기술적 지표 feature 추출
    */
   public async extractMarketFeatures(symbol: string): Promise<MarketFeatures | null> {
-    this.logger.log(this.i18n.t('logging.upbit.features.start_one', { args: { symbol } }));
+    this.logger.log(this.i18n.t('logging.upbit.features.startOne', { args: { symbol } }));
 
     try {
       const marketData = await this.upbitService.getMarketData(symbol);
@@ -202,10 +202,10 @@ export class FeatureService {
         }
       }
 
-      this.logger.log(this.i18n.t('logging.upbit.features.success_one', { args: { symbol } }));
+      this.logger.log(this.i18n.t('logging.upbit.features.successOne', { args: { symbol } }));
       return formattedFeatures;
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.upbit.features.failed_one', { args: { symbol } }), error);
+      this.logger.error(this.i18n.t('logging.upbit.features.failedOne', { args: { symbol } }), error);
       return null;
     }
   }
@@ -215,7 +215,7 @@ export class FeatureService {
    */
   public async extractAllKrwMarketFeatures(symbols?: string[]): Promise<MarketFeatures[]> {
     this.logger.log(
-      this.i18n.t('logging.upbit.features.start_all', {
+      this.i18n.t('logging.upbit.features.startAll', {
         args: { count: symbols ? symbols.length : 'all KRW' },
       }),
     );
@@ -242,14 +242,14 @@ export class FeatureService {
             results.push(features);
           }
         } catch (error) {
-          this.logger.warn(this.i18n.t('logging.upbit.features.extract_failed', { args: { symbol } }), error);
+          this.logger.warn(this.i18n.t('logging.upbit.features.extractFailed', { args: { symbol } }), error);
         }
       }
 
-      this.logger.log(this.i18n.t('logging.upbit.features.success_all', { args: { count: results.length } }));
+      this.logger.log(this.i18n.t('logging.upbit.features.successAll', { args: { count: results.length } }));
       return results;
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.upbit.features.failed_all'), error);
+      this.logger.error(this.i18n.t('logging.upbit.features.failedAll'), error);
       throw error;
     }
   }
@@ -1168,7 +1168,7 @@ export class FeatureService {
       });
     } catch (error) {
       this.logger.error(
-        this.i18n.t('logging.upbit.features.recent_recommendations_failed', { args: { symbol } }),
+        this.i18n.t('logging.upbit.features.recentRecommendationsFailed', { args: { symbol } }),
         error,
       );
       return [];

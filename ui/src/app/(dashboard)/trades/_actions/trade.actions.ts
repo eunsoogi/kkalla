@@ -47,7 +47,7 @@ export const getTradeAction = async (params?: GetTradeParams): Promise<Paginated
     return {
       ...initialState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };
@@ -86,7 +86,7 @@ export const getTradeCursorAction = async (params: TradeCursorParams): Promise<C
     return {
       ...initialCursorState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };

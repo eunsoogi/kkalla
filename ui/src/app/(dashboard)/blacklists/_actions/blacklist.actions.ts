@@ -30,7 +30,7 @@ export const getBlacklistsAction = async (params: BlacklistsParams): Promise<Pag
     });
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };
@@ -48,7 +48,7 @@ export const getBlacklistAction = async (id: string): Promise<Blacklist> => {
     const { data } = await client.get(`/api/v1/blacklists/${id}`);
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };
@@ -81,7 +81,7 @@ export async function createBlacklistAction(_: BlacklistState, formData: FormDat
   } catch (error) {
     return {
       success: false,
-      message: t('error.create_failed', { error: String(error) }),
+      message: t('error.createFailed', { error: String(error) }),
     };
   }
 }
@@ -115,7 +115,7 @@ export async function updateBlacklistAction(_: BlacklistState, formData: FormDat
   } catch (error) {
     return {
       success: false,
-      message: t('error.update_failed', { error: String(error) }),
+      message: t('error.updateFailed', { error: String(error) }),
     };
   }
 }
@@ -141,7 +141,7 @@ export async function deleteBlacklistAction(_: BlacklistState, formData: FormDat
   } catch (error) {
     return {
       success: false,
-      message: t('error.delete_failed', { error: String(error) }),
+      message: t('error.deleteFailed', { error: String(error) }),
     };
   }
 }

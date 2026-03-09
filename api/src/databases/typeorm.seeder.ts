@@ -33,7 +33,7 @@ export class TypeOrmSeeder implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     const ran = await this.redlockService.withLock(SEED_LOCK_RESOURCE, SEED_LOCK_DURATION_MS, () => this.seedAll());
     if (ran === undefined) {
-      this.logger.log(this.i18n.t('logging.seed.skip_locked'));
+      this.logger.log(this.i18n.t('logging.seed.skipLocked'));
     }
   }
 

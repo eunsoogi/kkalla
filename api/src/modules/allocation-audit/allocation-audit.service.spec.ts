@@ -18,11 +18,11 @@ describe('AllocationAuditService', () => {
       template.replace(/\{(\w+)\}/g, (_: string, key: string) => String(args[key] ?? ''));
 
     const templates: Record<string, string> = {
-      'logging.allocationAudit.summary.no_valid_items': 'No valid items',
+      'logging.allocationAudit.summary.noValidItems': 'No valid items',
       'logging.allocationAudit.summary.accuracy': 'accuracy={ratio}% ({hit}/{total})',
-      'logging.allocationAudit.summary.avg_return': 'avgReturn={value}',
-      'logging.allocationAudit.summary.avg_overall': 'avgOverall={value}',
-      'logging.allocationAudit.summary.low_score': 'lowScore={count}',
+      'logging.allocationAudit.summary.avgReturn': 'avgReturn={value}',
+      'logging.allocationAudit.summary.avgOverall': 'avgOverall={value}',
+      'logging.allocationAudit.summary.lowScore': 'lowScore={count}',
       'logging.allocationAudit.summary.guardrails': 'guardrails={value}',
       'logging.allocationAudit.summary.na': 'N/A',
       'logging.allocationAudit.summary.none': 'none',

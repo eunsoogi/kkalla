@@ -65,13 +65,13 @@ const ScheduleForm: React.FC = () => {
   return (
     <>
       <div className='flex flex-col items-start gap-2 text-left w-full'>
-        <h5 className='card-title text-dark dark:text-white'>{t('service.activation_title')}</h5>
+        <h5 className='card-title text-dark dark:text-white'>{t('service.activationTitle')}</h5>
       </div>
       <div className='mt-6 rounded-lg border border-amber-200 dark:border-amber-500 bg-amber-50/80 dark:bg-amber-500/10 p-4'>
-        <p className='text-sm font-semibold text-amber-700 dark:text-amber-300'>{t('service.registerFlow.risk_summary')}</p>
-        <p className='mt-2 text-sm text-amber-700 dark:text-amber-200'>{t('service.registerFlow.risk_note')}</p>
+        <p className='text-sm font-semibold text-amber-700 dark:text-amber-300'>{t('service.registerFlow.riskSummary')}</p>
+        <p className='mt-2 text-sm text-amber-700 dark:text-amber-200'>{t('service.registerFlow.riskNote')}</p>
         <details className='group mt-3'>
-          <summary className='cursor-pointer text-sm font-medium text-primary'>{t('service.registerFlow.risk_open')}</summary>
+          <summary className='cursor-pointer text-sm font-medium text-primary'>{t('service.registerFlow.riskOpen')}</summary>
           <p className='mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300'>{t('service.termsofuse')}</p>
         </details>
         <div className='mt-4'>
@@ -82,7 +82,7 @@ const ScheduleForm: React.FC = () => {
               onChange={(event) => setRiskAcknowledged(event.target.checked)}
             />
             <Label className='mt-0.5' htmlFor='riskAcknowledged'>
-              {t('service.registerFlow.risk_ack_label')}
+              {t('service.registerFlow.riskAckLabel')}
             </Label>
           </div>
         </div>

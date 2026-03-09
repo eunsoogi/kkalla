@@ -35,7 +35,7 @@ export class CacheService implements OnModuleDestroy {
       return JSON.parse(raw) as T;
     } catch (error) {
       // Redis 장애 및 JSON 파싱 실패 시 캐시를 무시하고 통과
-      this.logger.warn(this.i18n.t('logging.cache.get_failed', { args: { key } }), error as Error);
+      this.logger.warn(this.i18n.t('logging.cache.getFailed', { args: { key } }), error as Error);
       return null;
     }
   }
@@ -53,7 +53,7 @@ export class CacheService implements OnModuleDestroy {
       }
     } catch (error) {
       // 캐시 저장 실패는 비치명적으로 처리 (원래 로직은 이미 실행 완료된 상태여야 함)
-      this.logger.warn(this.i18n.t('logging.cache.set_failed', { args: { key } }), error as Error);
+      this.logger.warn(this.i18n.t('logging.cache.setFailed', { args: { key } }), error as Error);
     }
   }
 
@@ -65,7 +65,7 @@ export class CacheService implements OnModuleDestroy {
       await this.client.del(key);
     } catch (error) {
       // 삭제 실패 역시 치명적이지 않으므로 무시
-      this.logger.warn(this.i18n.t('logging.cache.del_failed', { args: { key } }), error as Error);
+      this.logger.warn(this.i18n.t('logging.cache.delFailed', { args: { key } }), error as Error);
     }
   }
 
@@ -74,7 +74,7 @@ export class CacheService implements OnModuleDestroy {
       await this.client.quit();
     } catch (error) {
       // 종료 시점 에러도 무시
-      this.logger.warn(this.i18n.t('logging.cache.quit_failed'), error as Error);
+      this.logger.warn(this.i18n.t('logging.cache.quitFailed'), error as Error);
     }
   }
 }

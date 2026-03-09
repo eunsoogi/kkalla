@@ -16,7 +16,7 @@ export class BlacklistService {
   public async findOne(id: string): Promise<Blacklist> {
     const blacklist = await Blacklist.findOneBy({ id });
     if (!blacklist) {
-      throw new NotFoundException(this.i18nService.t('logging.blacklist.not_found', { args: { id } }));
+      throw new NotFoundException(this.i18nService.t('logging.blacklist.notFound', { args: { id } }));
     }
     return blacklist;
   }
@@ -38,7 +38,7 @@ export class BlacklistService {
   public async update(id: string, updateBlacklistDto: UpdateBlacklistDto): Promise<Blacklist> {
     const blacklist = await Blacklist.findOneBy({ id });
     if (!blacklist) {
-      throw new NotFoundException(this.i18nService.t('logging.blacklist.not_found', { args: { id } }));
+      throw new NotFoundException(this.i18nService.t('logging.blacklist.notFound', { args: { id } }));
     }
     Object.assign(blacklist, updateBlacklistDto);
     return await Blacklist.save(blacklist);
@@ -47,7 +47,7 @@ export class BlacklistService {
   public async remove(id: string): Promise<void> {
     const blacklist = await Blacklist.findOneBy({ id });
     if (!blacklist) {
-      throw new NotFoundException(this.i18nService.t('logging.blacklist.not_found', { args: { id } }));
+      throw new NotFoundException(this.i18nService.t('logging.blacklist.notFound', { args: { id } }));
     }
     await Blacklist.remove(blacklist);
   }

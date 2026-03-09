@@ -31,7 +31,7 @@ export const getRolesAction = async (params: RolesParams): Promise<PaginatedItem
     });
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };
@@ -49,7 +49,7 @@ export const getRoleAction = async (id: string): Promise<Role> => {
     const { data } = await client.get(`/api/v1/roles/${id}`);
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };
@@ -84,7 +84,7 @@ export async function createRoleAction(_: RoleState, formData: FormData): Promis
   } catch (error) {
     return {
       success: false,
-      message: t('error.create_failed', { error: String(error) }),
+      message: t('error.createFailed', { error: String(error) }),
     };
   }
 }
@@ -120,7 +120,7 @@ export async function updateRoleAction(_: RoleState, formData: FormData): Promis
   } catch (error) {
     return {
       success: false,
-      message: t('error.update_failed', { error: String(error) }),
+      message: t('error.updateFailed', { error: String(error) }),
     };
   }
 }
@@ -147,7 +147,7 @@ export async function deleteRoleAction(_: RoleState, formData: FormData): Promis
   } catch (error) {
     return {
       success: false,
-      message: t('error.delete_failed', { error: String(error) }),
+      message: t('error.deleteFailed', { error: String(error) }),
     };
   }
 }
@@ -164,7 +164,7 @@ export const getPermissionsAction = async (): Promise<Permission[]> => {
     const { data } = await client.get('/api/v1/permissions');
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };

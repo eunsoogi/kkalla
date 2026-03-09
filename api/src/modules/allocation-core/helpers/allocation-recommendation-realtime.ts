@@ -35,11 +35,11 @@ export function buildRecommendationRealtimeInferenceHandlers(options: {
   responseLabel: string;
 }): RecommendationRealtimeInferenceHandlers {
   return {
-    onNewsError: (error) => options.logger.error(options.i18n.t('logging.news.load_failed'), error),
-    onMarketRegimeError: (error) => options.logger.error(options.i18n.t('logging.marketRegime.load_failed'), error),
+    onNewsError: (error) => options.logger.error(options.i18n.t('logging.news.loadFailed'), error),
+    onMarketRegimeError: (error) => options.logger.error(options.i18n.t('logging.marketRegime.loadFailed'), error),
     onValidationGuardrailError: (error, symbol) => {
       options.logger.warn(
-        options.i18n.t('logging.inference.allocationRecommendation.validation_guardrail_load_failed', {
+        options.i18n.t('logging.inference.allocationRecommendation.validationGuardrailLoadFailed', {
           args: { symbol },
         }),
         error,
@@ -47,20 +47,20 @@ export function buildRecommendationRealtimeInferenceHandlers(options: {
     },
     onUnexpectedSymbol: ({ outputSymbol }) => {
       options.logger.warn(
-        options.i18n.t('logging.inference.allocationRecommendation.response_unexpected_symbol', {
+        options.i18n.t('logging.inference.allocationRecommendation.responseUnexpectedSymbol', {
           args: { outputSymbol },
         }),
       );
     },
     onDuplicateSymbol: ({ outputSymbol }) => {
       options.logger.warn(
-        options.i18n.t('logging.inference.allocationRecommendation.response_duplicate_symbol', {
+        options.i18n.t('logging.inference.allocationRecommendation.responseDuplicateSymbol', {
           args: { outputSymbol },
         }),
       );
     },
     onInferenceFailed: (error) =>
-      options.logger.warn(options.i18n.t('logging.inference.allocationRecommendation.realtime_failed'), error),
+      options.logger.warn(options.i18n.t('logging.inference.allocationRecommendation.realtimeFailed'), error),
     buildIncompleteResponseError: ({ expectedCount, receivedCount }) =>
       `Incomplete ${options.responseLabel} multi-symbol response: expected ${expectedCount}, received ${receivedCount}`,
     buildMissingResponseError: ({ symbol }) => `Missing ${options.responseLabel} result for ${symbol}`,
@@ -222,7 +222,7 @@ async function inferAndPersistRealtimeRecommendation<TItem extends Recommendatio
         options.onSymbolNormalized({ item, targetSymbol });
       } else {
         options.logger.warn(
-          options.i18n.t('logging.inference.allocationRecommendation.symbol_normalized', {
+          options.i18n.t('logging.inference.allocationRecommendation.symbolNormalized', {
             args: {
               from: item.symbol,
               to: targetSymbol,

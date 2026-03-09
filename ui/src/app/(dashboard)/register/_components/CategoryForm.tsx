@@ -89,8 +89,8 @@ const CategoryFormContent = () => {
               <p className='text-sm text-gray-500 dark:text-gray-400 mb-4'>{t('category.description')}</p>
               <p className='text-sm text-primary mb-4'>
                 {enabledCategoryCount > 0
-                  ? t('category.selected_count', { count: enabledCategoryCount })
-                  : t('category.selected_empty')}
+                  ? t('category.selectedCount', { count: enabledCategoryCount })
+                  : t('category.selectedEmpty')}
               </p>
               <div className='flex flex-wrap gap-4 mt-2'>
                 {allCategories.map((categoryEnum) => {

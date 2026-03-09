@@ -81,7 +81,7 @@ export class MarketRegimeService {
       const cachedSnapshot = this.buildSnapshotFromCache(cachedPayload, 'cache_fallback');
       if (cachedSnapshot) {
         this.logger.warn(
-          this.i18n.t('logging.marketRegime.snapshot_live_failed_fallback_cache', {
+          this.i18n.t('logging.marketRegime.snapshotLiveFailedFallbackCache', {
             args: {
               asOf: cachedSnapshot.asOf.toISOString(),
             },
@@ -117,7 +117,7 @@ export class MarketRegimeService {
       const cachedFeargreed = this.buildFeargreedFromCache(cachedPayload);
       if (cachedFeargreed) {
         this.logger.warn(
-          this.i18n.t('logging.marketRegime.feargreed_live_failed_fallback_cache', {
+          this.i18n.t('logging.marketRegime.feargreedLiveFailedFallbackCache', {
             args: {
               asOf: new Date(cachedFeargreed.timestamp * 1000).toISOString(),
             },
@@ -158,7 +158,7 @@ export class MarketRegimeService {
         if (feargreed) {
           const feargreedAsOf = new Date(feargreed.timestamp * 1000);
           this.logger.warn(
-            this.i18n.t('logging.marketRegime.cmc_overview_failed_using_feargreed_fallback', {
+            this.i18n.t('logging.marketRegime.cmcOverviewFailedUsingFeargreedFallback', {
               args: {
                 asOf: feargreedAsOf.toISOString(),
                 message: this.errorService.getErrorMessage(error),
@@ -179,7 +179,7 @@ export class MarketRegimeService {
       }
 
       this.logger.warn(
-        this.i18n.t('logging.marketRegime.cmc_overview_failed_using_cache', {
+        this.i18n.t('logging.marketRegime.cmcOverviewFailedUsingCache', {
           args: {
             asOf: fallbackAsOf.toISOString(),
             message: this.errorService.getErrorMessage(error),
@@ -236,7 +236,7 @@ export class MarketRegimeService {
       return await this.loadFeargreed();
     } catch (error) {
       this.logger.warn(
-        this.i18n.t('logging.marketRegime.snapshot_feargreed_load_failed', {
+        this.i18n.t('logging.marketRegime.snapshotFeargreedLoadFailed', {
           args: {
             message: this.errorService.getErrorMessage(error),
           },

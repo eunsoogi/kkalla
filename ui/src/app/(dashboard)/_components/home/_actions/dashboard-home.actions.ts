@@ -23,7 +23,7 @@ export const getLatestMarketReportsAction = async (
     });
     return { success: true, items: Array.isArray(data) ? data : [] };
   } catch (error) {
-    return { success: false, message: t('error.fetch_failed', { error: String(error) }), items: [] };
+    return { success: false, message: t('error.fetchFailed', { error: String(error) }), items: [] };
   }
 };
 
@@ -43,7 +43,7 @@ export const getHoldingsAction = async (): Promise<{
     const { data } = await client.get<HoldingWithDailyChange[]>('/api/v1/holdings');
     return { success: true, items: Array.isArray(data) ? data : [] };
   } catch (error) {
-    return { success: false, message: t('error.fetch_failed', { error: String(error) }), items: [] };
+    return { success: false, message: t('error.fetchFailed', { error: String(error) }), items: [] };
   }
 };
 
@@ -64,6 +64,6 @@ export const getDashboardNewsAction = async (
     });
     return { success: true, items: Array.isArray(data) ? data : [] };
   } catch (error) {
-    return { success: false, message: t('error.fetch_failed', { error: String(error) }), items: [] };
+    return { success: false, message: t('error.fetchFailed', { error: String(error) }), items: [] };
   }
 };

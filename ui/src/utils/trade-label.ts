@@ -1,5 +1,7 @@
 type TranslateFn = (key: string) => string;
 
+const toTranslationKeySegment = (value: string): string => value.replace(/[-_]+([a-zA-Z0-9])/g, (_, char: string) => char.toUpperCase());
+
 const translateWithFallback = (t: TranslateFn, key: string, fallback: string): string => {
   try {
     const translated = t(key);
@@ -14,7 +16,7 @@ export const resolveTriggerReasonLabel = (t: TranslateFn, reason?: string | null
     return '-';
   }
 
-  return translateWithFallback(t, `trade.triggerReasons.${reason}`, reason);
+  return translateWithFallback(t, `trade.triggerReasons.${toTranslationKeySegment(reason)}`, reason);
 };
 
 export const resolveGateBypassedReasonLabel = (t: TranslateFn, reason?: string | null): string => {
@@ -22,5 +24,5 @@ export const resolveGateBypassedReasonLabel = (t: TranslateFn, reason?: string |
     return '-';
   }
 
-  return translateWithFallback(t, `trade.gateBypassedReasons.${reason}`, reason);
+  return translateWithFallback(t, `trade.gateBypassedReasons.${toTranslationKeySegment(reason)}`, reason);
 };

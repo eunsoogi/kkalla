@@ -43,7 +43,7 @@ const UpbitIp: React.FC = () => {
 
   return (
     <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
-      <span className='font-medium'>{t('upbit.ip_label')}:</span>
+      <span className='font-medium'>{t('upbit.ipLabel')}:</span>
       <code className='px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded'>{data}</code>
       <Button type='button' color='gray' size='xs' onClick={handleCopyIp}>
         {t('copy.ip')}
@@ -61,7 +61,7 @@ const UpbitIpSkeleton: React.FC = () => {
 
   return (
     <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
-      <span className='font-medium'>{t('upbit.ip_label')}:</span>
+      <span className='font-medium'>{t('upbit.ipLabel')}:</span>
       <code className='px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded'>{t('status.unknown')}</code>
       <Button type='button' color='gray' size='xs' disabled>
         {t('copy.ip')}
@@ -81,8 +81,8 @@ const UpbitGrants: React.FC = () => {
     <div className='flex items-center gap-2 text-gray-700 dark:text-gray-300'>
       <span className='font-medium'>{t('upbit.grant')}:</span>
       <div className='flex gap-2'>
-        <ColoredBadge text={t('upbit.grants.view_asset')} />
-        <ColoredBadge text={t('upbit.grants.view_order')} />
+        <ColoredBadge text={t('upbit.grants.viewAsset')} />
+        <ColoredBadge text={t('upbit.grants.viewOrder')} />
         <ColoredBadge text={t('upbit.grants.order')} />
       </div>
     </div>

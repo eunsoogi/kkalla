@@ -78,7 +78,7 @@ const UpbitForm: React.FC = () => {
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='upbitAccessKey'>{t('upbit.access_key_label')}</Label>
+                    <Label htmlFor='upbitAccessKey'>{t('upbit.accessKeyLabel')}</Label>
                   </div>
                   <TextInput
                     id='upbitAccessKey'
@@ -88,7 +88,7 @@ const UpbitForm: React.FC = () => {
                     autoComplete='off'
                     className='form-control form-rounded-xl'
                   />
-                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>{t('upbit.access_key_help')}</p>
+                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>{t('upbit.accessKeyHelp')}</p>
                 </div>
               </div>
             </div>
@@ -96,7 +96,7 @@ const UpbitForm: React.FC = () => {
               <div className='flex flex-col gap-4'>
                 <div>
                   <div className='mb-2 block'>
-                    <Label htmlFor='upbitSecretKey'>{t('upbit.secret_key_label')}</Label>
+                    <Label htmlFor='upbitSecretKey'>{t('upbit.secretKeyLabel')}</Label>
                   </div>
                   <TextInput
                     id='upbitSecretKey'
@@ -106,7 +106,7 @@ const UpbitForm: React.FC = () => {
                     autoComplete='off'
                     className='form-control form-rounded-xl'
                   />
-                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>{t('upbit.secret_key_help')}</p>
+                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>{t('upbit.secretKeyHelp')}</p>
                 </div>
               </div>
             </div>

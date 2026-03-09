@@ -27,7 +27,7 @@ export class UserService {
 
     if (!user) {
       throw new NotFoundException(
-        this.i18n.t('logging.user.error.not_found', {
+        this.i18n.t('logging.user.error.notFound', {
           args: { id },
         }),
       );
