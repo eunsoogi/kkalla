@@ -196,7 +196,7 @@ export class MarketRiskService implements OnModuleInit {
           error,
         );
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.dropped_malformed', {
+          this.i18n.t('logging.sqs.message.droppedMalformed', {
             args: {
               module: TradeExecutionModule.RISK,
               error: stringifyUnknownError(error),
@@ -215,7 +215,7 @@ export class MarketRiskService implements OnModuleInit {
         assertLockOrThrow();
 
         this.logger.debug(
-          this.i18n.t('logging.sqs.message.executed_trades_debug', {
+          this.i18n.t('logging.sqs.message.executedTradesDebug', {
             args: {
               module: TradeExecutionModule.RISK,
               messageKey: parsedMessage.messageKey,
@@ -241,7 +241,7 @@ export class MarketRiskService implements OnModuleInit {
       isNonRetryableExecutionError,
       onSkippedProcessing: (messageKey) => {
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.skipped_processing', {
+          this.i18n.t('logging.sqs.message.skippedProcessing', {
             args: {
               module: TradeExecutionModule.RISK,
               messageKey,
@@ -251,7 +251,7 @@ export class MarketRiskService implements OnModuleInit {
       },
       onVisibilityExtendFailed: (targetMessage, error) => {
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.visibility_extend_failed', {
+          this.i18n.t('logging.sqs.message.visibilityExtendFailed', {
             args: {
               id: targetMessage.MessageId ?? 'unknown',
             },
@@ -261,7 +261,7 @@ export class MarketRiskService implements OnModuleInit {
       },
       onHeartbeatFailed: (context, error) => {
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.ledger_heartbeat_failed', {
+          this.i18n.t('logging.sqs.message.ledgerHeartbeatFailed', {
             args: {
               module: context.module,
               messageKey: context.messageKey,
@@ -335,7 +335,7 @@ export class MarketRiskService implements OnModuleInit {
   private async checkMarketRiskEvents(): Promise<void> {
     const users: User[] = await this.scheduleService.getUsers();
     if (users.length === 0) {
-      this.logger.log(this.i18n.t('logging.market.risk.no_users'));
+      this.logger.log(this.i18n.t('logging.market.risk.noUsers'));
       return;
     }
 
@@ -344,7 +344,7 @@ export class MarketRiskService implements OnModuleInit {
 
     if (!holdingItems.length) {
       // 감시할 종목이 없으면 조용히 종료
-      this.logger.log(this.i18n.t('logging.market.risk.no_holdings'));
+      this.logger.log(this.i18n.t('logging.market.risk.noHoldings'));
       return;
     }
 
@@ -381,7 +381,7 @@ export class MarketRiskService implements OnModuleInit {
     } catch (error) {
       // BTC 변동성 계산 오류는 전체 흐름을 깨지 않고 로그만 남김
       // 개별 심볼 체크가 계속 진행될 수 있도록 false 반환
-      this.logger.error(this.i18n.t('logging.market.risk.check_failed', { args: { symbol: this.BTC_SYMBOL } }), error);
+      this.logger.error(this.i18n.t('logging.market.risk.checkFailed', { args: { symbol: this.BTC_SYMBOL } }), error);
       return false;
     }
 
@@ -403,7 +403,7 @@ export class MarketRiskService implements OnModuleInit {
     const currBucketPercentText = ((btcVolatility.currBucket ?? 0) * 100).toFixed(0);
 
     this.logger.log(
-      this.i18n.t('logging.market.risk.bucket_increased', {
+      this.i18n.t('logging.market.risk.bucketIncreased', {
         args: {
           symbol: this.BTC_SYMBOL,
           prevPercent: prevPercentText,
@@ -493,7 +493,7 @@ export class MarketRiskService implements OnModuleInit {
 
             // 변동 구간이 상승한 경우, i18n 로그 남기기
             this.logger.log(
-              this.i18n.t('logging.market.risk.bucket_increased', {
+              this.i18n.t('logging.market.risk.bucketIncreased', {
                 args: {
                   symbol,
                   prevPercent: prevPercentText,
@@ -509,7 +509,7 @@ export class MarketRiskService implements OnModuleInit {
           } catch (error) {
             // 개별 심볼 변동성 계산 오류는 전체 흐름을 깨지 않고 로그만 남김
             // 다른 종목들의 리스크 체크는 계속 진행
-            this.logger.error(this.i18n.t('logging.market.risk.check_failed', { args: { symbol } }), error);
+            this.logger.error(this.i18n.t('logging.market.risk.checkFailed', { args: { symbol } }), error);
             return null;
           }
         }),
@@ -544,7 +544,7 @@ export class MarketRiskService implements OnModuleInit {
 
     // 캔들이 부족하면 계산 불가
     if (!candles || candles.length < 11) {
-      this.logger.log(this.i18n.t('logging.market.risk.not_enough_candles', { args: { symbol } }));
+      this.logger.log(this.i18n.t('logging.market.risk.notEnoughCandles', { args: { symbol } }));
       return null;
     }
 
@@ -604,7 +604,7 @@ export class MarketRiskService implements OnModuleInit {
   private async triggerVolatility(volatileItems: RecommendationItem[], users: User[]): Promise<boolean> {
     // 변동성이 감지된 종목이 없다면 아무 작업도 하지 않음
     if (!volatileItems.length) {
-      this.logger.log(this.i18n.t('logging.market.risk.no_trigger'));
+      this.logger.log(this.i18n.t('logging.market.risk.noTrigger'));
       return false;
     }
 
@@ -617,7 +617,7 @@ export class MarketRiskService implements OnModuleInit {
 
     // 변동성이 감지된 종목 개수 로그
     this.logger.log(
-      this.i18n.t('logging.market.risk.trigger_start', {
+      this.i18n.t('logging.market.risk.triggerStart', {
         args: { count: uniqueChangedItems.length },
       }),
     );
@@ -727,7 +727,7 @@ export class MarketRiskService implements OnModuleInit {
       // 모든 메시지를 병렬로 전송 (성능 최적화)
       const results = await Promise.all(messages.map((message) => this.sqs.send(message)));
       this.logger.debug(
-        this.i18n.t('logging.sqs.producer.send_results_debug', {
+        this.i18n.t('logging.sqs.producer.sendResultsDebug', {
           args: {
             module: this.outboundQueueModuleLabel,
             count: results.length,
@@ -829,8 +829,8 @@ export class MarketRiskService implements OnModuleInit {
     const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
     if (regimePolicy.regimePolicyState === 'regimeUnavailable') {
-      this.logger.warn(this.i18n.t('logging.marketRegime.regime_unavailable_risk_off'));
-      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regime_unavailable_risk_off'));
+      this.logger.warn(this.i18n.t('logging.marketRegime.regimeUnavailableRiskOff'));
+      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regimeUnavailableRiskOff'));
       assertLockOrThrow();
     }
     const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
@@ -939,7 +939,7 @@ export class MarketRiskService implements OnModuleInit {
     const { featureScore, buyScore, sellScore, modelTargetWeight, action } =
       this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures, previousModelTargetWeight);
     this.logger.log(
-      this.i18n.t('logging.inference.allocationRecommendation.model_signal', {
+      this.i18n.t('logging.inference.allocationRecommendation.modelSignal', {
         args: {
           symbol: symbol ?? 'N/A',
           intensity,
@@ -981,7 +981,7 @@ export class MarketRiskService implements OnModuleInit {
       return 0;
     }
     this.logger.log(
-      this.i18n.t('logging.inference.allocationRecommendation.target_weight', {
+      this.i18n.t('logging.inference.allocationRecommendation.targetWeight', {
         args: {
           symbol: inference.symbol,
           baseTargetWeight,
@@ -1011,7 +1011,7 @@ export class MarketRiskService implements OnModuleInit {
     try {
       return Boolean(await this.cacheService.get(this.getSymbolCooldownKey(symbol)));
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.market.risk.cooldown_read_failed', { args: { symbol } }), error);
+      this.logger.warn(this.i18n.t('logging.market.risk.cooldownReadFailed', { args: { symbol } }), error);
       return false;
     }
   }
@@ -1035,7 +1035,7 @@ export class MarketRiskService implements OnModuleInit {
     try {
       await this.cacheService.set(this.getSymbolCooldownKey(symbol), true, ttlSeconds);
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.market.risk.cooldown_write_failed', { args: { symbol } }), error);
+      this.logger.warn(this.i18n.t('logging.market.risk.cooldownWriteFailed', { args: { symbol } }), error);
     }
   }
 
@@ -1276,7 +1276,7 @@ export class MarketRiskService implements OnModuleInit {
       errorService: this.errorService,
       allocationAuditService: this.allocationAuditService,
       onLatestMetricsError: (error) => {
-        this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
+        this.logger.error(this.i18n.t('logging.inference.recentRecommendationsFailed'), error);
       },
       calculateModelSignals: (intensity, category, marketFeatures, symbol, previousModelTargetWeight) =>
         this.calculateModelSignals(intensity, category, marketFeatures, symbol, previousModelTargetWeight),
@@ -1290,7 +1290,7 @@ export class MarketRiskService implements OnModuleInit {
       enqueueAllocationBatchValidation: (batchId) =>
         this.allocationAuditService.enqueueAllocationBatchValidation(batchId),
       onEnqueueValidationError: (error) =>
-        this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.enqueue_validation_failed'), error),
+        this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.enqueueValidationFailed'), error),
     });
 
     if (recommendationResults.length === 0) {

@@ -40,7 +40,7 @@ describe('UserService', () => {
     jest.spyOn(User, 'findOne').mockResolvedValueOnce(null);
 
     await expect(service.findById('missing-id')).rejects.toBeInstanceOf(NotFoundException);
-    expect(i18n.t).toHaveBeenCalledWith('logging.user.error.not_found', {
+    expect(i18n.t).toHaveBeenCalledWith('logging.user.error.notFound', {
       args: { id: 'missing-id' },
     });
   });

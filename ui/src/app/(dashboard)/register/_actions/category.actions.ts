@@ -21,7 +21,7 @@ export const getCategoriesAction = async (): Promise<Category[]> => {
     const { data } = await client.get('/api/v1/categories');
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };
@@ -39,7 +39,7 @@ export const getCategoryAction = async (id: string): Promise<Category> => {
     const { data } = await client.get(`/api/v1/categories/${id}`);
     return data;
   } catch (error) {
-    console.error(t('error.fetch_failed'), error);
+    console.error(t('error.fetchFailed'), error);
     throw error;
   }
 };
@@ -63,13 +63,13 @@ export async function createCategoryAction(_: CategoryState, formData: FormData)
 
     return {
       success: true,
-      message: t('category.create_success'),
+      message: t('category.createSuccess'),
     };
   } catch (error) {
-    console.error(t('error.create_failed'), error);
+    console.error(t('error.createFailed'), error);
     return {
       success: false,
-      message: t('error.create_failed'),
+      message: t('error.createFailed'),
     };
   }
 }
@@ -95,13 +95,13 @@ export async function updateCategoryAction(_: CategoryState, formData: FormData)
 
     return {
       success: true,
-      message: t('category.update_success'),
+      message: t('category.updateSuccess'),
     };
   } catch (error) {
-    console.error(t('error.update_failed'), error);
+    console.error(t('error.updateFailed'), error);
     return {
       success: false,
-      message: t('error.update_failed'),
+      message: t('error.updateFailed'),
     };
   }
 }
@@ -124,13 +124,13 @@ export async function deleteCategoryAction(_: CategoryState, formData: FormData)
 
     return {
       success: true,
-      message: t('category.delete_success'),
+      message: t('category.deleteSuccess'),
     };
   } catch (error) {
-    console.error(t('error.delete_failed'), error);
+    console.error(t('error.deleteFailed'), error);
     return {
       success: false,
-      message: t('error.delete_failed'),
+      message: t('error.deleteFailed'),
     };
   }
 }

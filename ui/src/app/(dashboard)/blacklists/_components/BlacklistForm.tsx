@@ -81,7 +81,7 @@ const BlacklistFormContent: React.FC<BlacklistFormProps> = ({ id }) => {
   const handleDelete = async () => {
     if (!id) return;
 
-    const confirmDelete = window.confirm(t('blacklist.delete_confirm'));
+    const confirmDelete = window.confirm(t('blacklist.deleteConfirm'));
     if (!confirmDelete) return;
 
     const formData = new FormData();

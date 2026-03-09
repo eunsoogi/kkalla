@@ -41,7 +41,7 @@ export const getMarketSignalsAction = async (
     return {
       ...initialPaginatedState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };
@@ -83,7 +83,7 @@ export const getMarketSignalsCursorAction = async (
     return {
       ...initialCursorState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };
@@ -112,7 +112,7 @@ export const getAllocationRecommendationsAction = async (
     return {
       ...initialPaginatedState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };
@@ -141,7 +141,7 @@ export const getAllocationRecommendationsCursorAction = async (
     return {
       ...initialCursorState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };

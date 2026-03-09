@@ -189,7 +189,7 @@ export class AllocationService implements OnModuleInit {
           error,
         );
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.dropped_malformed', {
+          this.i18n.t('logging.sqs.message.droppedMalformed', {
             args: {
               module: TradeExecutionModule.ALLOCATION,
               error: stringifyUnknownError(error),
@@ -213,7 +213,7 @@ export class AllocationService implements OnModuleInit {
         assertLockOrThrow();
 
         this.logger.debug(
-          this.i18n.t('logging.sqs.message.executed_trades_debug', {
+          this.i18n.t('logging.sqs.message.executedTradesDebug', {
             args: {
               module: TradeExecutionModule.ALLOCATION,
               messageKey: parsedMessage.messageKey,
@@ -239,7 +239,7 @@ export class AllocationService implements OnModuleInit {
       isNonRetryableExecutionError,
       onSkippedProcessing: (messageKey) => {
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.skipped_processing', {
+          this.i18n.t('logging.sqs.message.skippedProcessing', {
             args: {
               module: TradeExecutionModule.ALLOCATION,
               messageKey,
@@ -249,7 +249,7 @@ export class AllocationService implements OnModuleInit {
       },
       onVisibilityExtendFailed: (targetMessage, error) => {
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.visibility_extend_failed', {
+          this.i18n.t('logging.sqs.message.visibilityExtendFailed', {
             args: {
               id: targetMessage.MessageId ?? 'unknown',
             },
@@ -259,7 +259,7 @@ export class AllocationService implements OnModuleInit {
       },
       onHeartbeatFailed: (context, error) => {
         this.logger.warn(
-          this.i18n.t('logging.sqs.message.ledger_heartbeat_failed', {
+          this.i18n.t('logging.sqs.message.ledgerHeartbeatFailed', {
             args: {
               module: context.module,
               messageKey: context.messageKey,
@@ -488,7 +488,7 @@ export class AllocationService implements OnModuleInit {
 
       const user = users[index];
       this.logger.warn(
-        this.i18n.t('logging.schedule.allocationRecommendation.holdings_load_failed', {
+        this.i18n.t('logging.schedule.allocationRecommendation.holdingsLoadFailed', {
           args: {
             id: user?.id ?? 'unknown',
             error: stringifyUnknownError(result.reason),
@@ -596,7 +596,7 @@ export class AllocationService implements OnModuleInit {
       // 모든 메시지를 병렬로 전송 (성능 최적화)
       const results = await Promise.all(messages.map((message) => this.sqs.send(message)));
       this.logger.debug(
-        this.i18n.t('logging.sqs.producer.send_results_debug', {
+        this.i18n.t('logging.sqs.producer.sendResultsDebug', {
           args: {
             module: this.outboundQueueModuleLabel,
             count: results.length,
@@ -716,8 +716,8 @@ export class AllocationService implements OnModuleInit {
     const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
     if (regimePolicy.regimePolicyState === 'regimeUnavailable') {
-      this.logger.warn(this.i18n.t('logging.marketRegime.regime_unavailable_risk_off'));
-      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regime_unavailable_risk_off'));
+      this.logger.warn(this.i18n.t('logging.marketRegime.regimeUnavailableRiskOff'));
+      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regimeUnavailableRiskOff'));
       assertLockOrThrow();
     }
     const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
@@ -888,7 +888,7 @@ export class AllocationService implements OnModuleInit {
         try {
           await this.clearMissingInferenceCount(user.id, symbol);
         } catch (error) {
-          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.missing_clear_failed'), error);
+          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.missingClearFailed'), error);
         }
       }),
     );
@@ -907,7 +907,7 @@ export class AllocationService implements OnModuleInit {
             triggerReason: 'missing_inference_grace_elapsed',
           };
         } catch (error) {
-          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.missing_count_failed'), error);
+          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.missingCountFailed'), error);
           return request;
         }
       }),
@@ -1160,7 +1160,7 @@ export class AllocationService implements OnModuleInit {
     const { featureScore, buyScore, sellScore, modelTargetWeight, action } =
       this.tradeOrchestrationService.calculateModelSignals(intensity, marketFeatures, previousModelTargetWeight);
     this.logger.log(
-      this.i18n.t('logging.inference.allocationRecommendation.model_signal', {
+      this.i18n.t('logging.inference.allocationRecommendation.modelSignal', {
         args: {
           symbol: symbol ?? 'N/A',
           intensity,
@@ -1202,7 +1202,7 @@ export class AllocationService implements OnModuleInit {
       return 0;
     }
     this.logger.log(
-      this.i18n.t('logging.inference.allocationRecommendation.target_weight', {
+      this.i18n.t('logging.inference.allocationRecommendation.targetWeight', {
         args: {
           symbol: inference.symbol,
           baseTargetWeight,
@@ -1290,13 +1290,13 @@ export class AllocationService implements OnModuleInit {
     try {
       latestState = await this.cacheService.get<MarketSignalState>(MARKET_SIGNAL_STATE_CACHE_KEY);
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.schedule.allocationRecommendation.state_cache_read_failed'), error);
+      this.logger.warn(this.i18n.t('logging.schedule.allocationRecommendation.stateCacheReadFailed'), error);
     }
 
     let recommendations: MarketSignal[];
 
     if (!latestState?.batchId || !this.isLatestRecommendationStateFresh(latestState)) {
-      this.logger.warn(this.i18n.t('logging.schedule.allocationRecommendation.state_stale_fallback'));
+      this.logger.warn(this.i18n.t('logging.schedule.allocationRecommendation.stateStaleFallback'));
       recommendations = await MarketSignal.getLatestSignals();
     } else if (!latestState.hasRecommendations) {
       const latestRecommendations = await MarketSignal.getLatestSignals();
@@ -1329,7 +1329,7 @@ export class AllocationService implements OnModuleInit {
 
     if (minimumFilteredOutRecommendations.length > 0) {
       this.logger.log(
-        this.i18n.t('logging.schedule.allocationRecommendation.minimum_filtered', {
+        this.i18n.t('logging.schedule.allocationRecommendation.minimumFiltered', {
           args: {
             count: minimumFilteredOutRecommendations.length,
             symbols: minimumFilteredOutRecommendations.map((recommendation) => recommendation.symbol).join(', '),
@@ -1351,9 +1351,9 @@ export class AllocationService implements OnModuleInit {
       {
         isSymbolExist: (symbol) => this.upbitService.isSymbolExist(symbol),
         onAllCheckFailed: () =>
-          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_failed')),
+          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckFailed')),
         onPartialCheck: () =>
-          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_partial')),
+          this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckPartial')),
       },
     );
 
@@ -1383,7 +1383,7 @@ export class AllocationService implements OnModuleInit {
       return this.tradeOrchestrationService.clampToUnitInterval(tunedConfidence);
     } catch (error) {
       this.logger.warn(
-        this.i18n.t('logging.schedule.allocationRecommendation.minimum_confidence_resolve_failed', {
+        this.i18n.t('logging.schedule.allocationRecommendation.minimumConfidenceResolveFailed', {
           args: {
             error: stringifyUnknownError(error),
           },
@@ -1411,7 +1411,7 @@ export class AllocationService implements OnModuleInit {
 
     if (filteredSymbols.length > 0) {
       this.logger.log(
-        this.i18n.t('logging.schedule.allocationRecommendation.blacklist_filtered', {
+        this.i18n.t('logging.schedule.allocationRecommendation.blacklistFiltered', {
           args: {
             count: filteredSymbols.length,
             symbols: filteredSymbols.join(', '),
@@ -1458,7 +1458,7 @@ export class AllocationService implements OnModuleInit {
       errorService: this.errorService,
       allocationAuditService: this.allocationAuditService,
       onLatestMetricsError: (error) => {
-        this.logger.error(this.i18n.t('logging.inference.recent_recommendations_failed'), error);
+        this.logger.error(this.i18n.t('logging.inference.recentRecommendationsFailed'), error);
       },
       calculateModelSignals: (intensity, category, marketFeatures, symbol, previousModelTargetWeight) =>
         this.calculateModelSignals(intensity, category, marketFeatures, symbol, previousModelTargetWeight),
@@ -1478,7 +1478,7 @@ export class AllocationService implements OnModuleInit {
       enqueueAllocationBatchValidation: (batchId) =>
         this.allocationAuditService.enqueueAllocationBatchValidation(batchId),
       onEnqueueValidationError: (error) =>
-        this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.enqueue_validation_failed'), error),
+        this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.enqueueValidationFailed'), error),
     });
 
     if (recommendationResults.length === 0) {
@@ -1618,7 +1618,7 @@ export class AllocationService implements OnModuleInit {
       }
     } catch (error) {
       this.logger.warn(
-        this.i18n.t('logging.inference.allocationRecommendation.prev_target_weight_failed', {
+        this.i18n.t('logging.inference.allocationRecommendation.prevTargetWeightFailed', {
           args: { symbol: entity.symbol, id: entity.id },
         }),
         error,
@@ -1637,7 +1637,7 @@ export class AllocationService implements OnModuleInit {
     try {
       return await this.allocationAuditService.getAllocationValidationBadgeMap(ids);
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.validation_badges_load_failed'), error);
+      this.logger.warn(this.i18n.t('logging.inference.allocationRecommendation.validationBadgesLoadFailed'), error);
       return new Map();
     }
   }

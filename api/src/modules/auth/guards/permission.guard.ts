@@ -26,7 +26,7 @@ export class PermissionGuard implements CanActivate {
     const { user } = ctx.switchToHttp().getRequest();
 
     if (!user) {
-      throw new ForbiddenException(this.i18n.t('logging.auth.permission.no_user'));
+      throw new ForbiddenException(this.i18n.t('logging.auth.permission.noUser'));
     }
 
     const userPermissions = user.roles?.flatMap((role) => role.permissions) || [];
@@ -34,7 +34,7 @@ export class PermissionGuard implements CanActivate {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        this.i18n.t('logging.auth.permission.insufficient_permissions', {
+        this.i18n.t('logging.auth.permission.insufficientPermissions', {
           args: { permissions: requiredPermissions.join(', ') },
         }),
       );

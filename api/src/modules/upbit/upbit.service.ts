@@ -93,8 +93,8 @@ export class UpbitService {
       } catch (error) {
         // API 키가 만료됐다면
         if (error instanceof AuthenticationError) {
-          this.logger.error(this.i18n.t('logging.upbit.apikey.server_expired'));
-          await this.notifyService.notifyServer(this.i18n.t('notify.upbit.apikey.server_expired'));
+          this.logger.error(this.i18n.t('logging.upbit.apikey.serverExpired'));
+          await this.notifyService.notifyServer(this.i18n.t('notify.upbit.apikey.serverExpired'));
         }
 
         throw error;
@@ -116,7 +116,7 @@ export class UpbitService {
       } catch (error) {
         // API 키가 만료됐다면
         if (error instanceof AuthenticationError) {
-          this.logger.warn(this.i18n.t('logging.upbit.apikey.user_expired', { args: { id: user.id } }));
+          this.logger.warn(this.i18n.t('logging.upbit.apikey.userExpired', { args: { id: user.id } }));
 
           // 스케줄 비활성화
           const schedule = await Schedule.findByUser(user);
@@ -124,10 +124,10 @@ export class UpbitService {
           if (schedule) {
             schedule.enabled = false;
             await schedule.save();
-            this.logger.log(this.i18n.t('logging.upbit.apikey.schedule_disabled', { args: { id: user.id } }));
+            this.logger.log(this.i18n.t('logging.upbit.apikey.scheduleDisabled', { args: { id: user.id } }));
           }
 
-          await this.notifyService.notify(user, this.i18n.t('notify.upbit.apikey.user_expired'));
+          await this.notifyService.notify(user, this.i18n.t('notify.upbit.apikey.userExpired'));
         }
 
         throw error;
@@ -614,7 +614,7 @@ export class UpbitService {
     calibratedDecision: 'allow' | 'skip';
   }): void {
     this.logger.log(
-      this.i18n.t('logging.upbit.cost_calibration.gate', {
+      this.i18n.t('logging.upbit.costCalibration.gate', {
         args: {
           calibrationApplied: args.calibration.calibrationApplied,
           calibrationReason: args.calibration.calibrationReason,
@@ -1082,7 +1082,7 @@ export class UpbitService {
       this.logger.log(this.i18n.t('logging.upbit.markets.found', { args: { count: krwMarkets.length } }));
       return krwMarkets;
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.upbit.markets.load_failed'), error);
+      this.logger.error(this.i18n.t('logging.upbit.markets.loadFailed'), error);
       throw error;
     }
   }
@@ -1136,7 +1136,7 @@ export class UpbitService {
 
       return data;
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.upbit.market.load_failed', { args: { symbol } }), error);
+      this.logger.error(this.i18n.t('logging.upbit.market.loadFailed', { args: { symbol } }), error);
       throw error;
     }
   }
@@ -1205,7 +1205,7 @@ export class UpbitService {
 
       return candles;
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.upbit.market.load_failed', { args: { symbol } }), error);
+      this.logger.error(this.i18n.t('logging.upbit.market.loadFailed', { args: { symbol } }), error);
       throw error;
     }
   }

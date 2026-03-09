@@ -98,7 +98,7 @@ const RoleFormContent: React.FC<RoleFormProps> = ({ id }) => {
   const handleDelete = async () => {
     if (!id) return;
 
-    const confirmDelete = window.confirm(t('role.delete_confirm'));
+    const confirmDelete = window.confirm(t('role.deleteConfirm'));
     if (!confirmDelete) return;
 
     const formData = new FormData();

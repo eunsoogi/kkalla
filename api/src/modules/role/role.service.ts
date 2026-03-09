@@ -21,7 +21,7 @@ export class RoleService {
 
     if (!role) {
       throw new NotFoundException(
-        this.i18n.t('logging.role.error.not_found', {
+        this.i18n.t('logging.role.error.notFound', {
           args: { id },
         }),
       );

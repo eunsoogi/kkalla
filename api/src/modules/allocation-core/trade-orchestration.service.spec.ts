@@ -1847,7 +1847,7 @@ describe('TradeOrchestrationService', () => {
       expect(executedSymbols).not.toContain('NEW-ENTRY-B/KRW');
       expect(result.map((trade) => trade.symbol)).toEqual(executedSymbols);
       expect(runtime.i18n.t).toHaveBeenCalledWith(
-        'logging.inference.allocationRecommendation.buy_turnover_budget_applied',
+        'logging.inference.allocationRecommendation.buyTurnoverBudgetApplied',
         expect.objectContaining({
           args: expect.objectContaining({
             turnoverCap: 0.5,
@@ -2026,7 +2026,7 @@ describe('TradeOrchestrationService', () => {
       ]);
       expect(executeTradeSpy.mock.calls[1][0].request.requestDiff).toBeCloseTo(-0.075, 10);
       expect(runtime.i18n.t).toHaveBeenCalledWith(
-        'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
+        'logging.inference.allocationRecommendation.sellTurnoverBudgetApplied',
         expect.objectContaining({
           args: expect.objectContaining({
             turnoverCap: 0.5,
@@ -2105,7 +2105,7 @@ describe('TradeOrchestrationService', () => {
 
       expect(executeTradeSpy).toHaveBeenCalledTimes(2);
       expect(runtime.i18n.t).toHaveBeenCalledWith(
-        'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
+        'logging.inference.allocationRecommendation.sellTurnoverBudgetApplied',
         expect.objectContaining({
           args: expect.objectContaining({
             requestedCount: 2,

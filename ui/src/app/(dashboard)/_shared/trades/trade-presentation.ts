@@ -5,7 +5,10 @@ import type { Trade, TradeExplanation, TradeFieldAbsence } from './trade.types';
 
 type TranslateFn = (key: string, values?: Record<string, any>) => string;
 
-const translateAbsence = (t: TranslateFn, state: TradeFieldAbsence): string => t(`trade.absence.${state}`);
+const toTranslationKeySegment = (value: string): string => value.replace(/[-_]+([a-zA-Z0-9])/g, (_, char: string) => char.toUpperCase());
+
+const translateAbsence = (t: TranslateFn, state: TradeFieldAbsence): string =>
+  t(`trade.absence.${toTranslationKeySegment(state)}`);
 
 const formatNullableNumber = (
   t: TranslateFn,

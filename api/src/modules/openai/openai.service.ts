@@ -180,7 +180,7 @@ export class OpenaiService {
   public async createBatch(batchRequests: string): Promise<string> {
     const client = await this.getServerClient();
 
-    this.logger.log(this.i18n.t('logging.openai.batch.upload_start'));
+    this.logger.log(this.i18n.t('logging.openai.batch.uploadStart'));
 
     // 배치 요청 파일 업로드
     const file = await client.files.create({
@@ -188,7 +188,7 @@ export class OpenaiService {
       purpose: 'batch',
     });
 
-    this.logger.log(this.i18n.t('logging.openai.batch.upload_complete', { args: { fileId: file.id } }));
+    this.logger.log(this.i18n.t('logging.openai.batch.uploadComplete', { args: { fileId: file.id } }));
 
     // 배치 작업 생성 (Responses API)
     const batch = await client.batches.create({
@@ -200,7 +200,7 @@ export class OpenaiService {
       },
     });
 
-    this.logger.log(this.i18n.t('logging.openai.batch.job_created', { args: { batchId: batch.id } }));
+    this.logger.log(this.i18n.t('logging.openai.batch.jobCreated', { args: { batchId: batch.id } }));
     return batch.id;
   }
 
@@ -237,13 +237,13 @@ export class OpenaiService {
           return await this.downloadBatchResult(batch.output_file_id);
         } else if (batch.error_file_id) {
           // 배치 작업에 실패한 경우
-          this.logger.error(this.i18n.t('logging.openai.batch.has_errors'));
+          this.logger.error(this.i18n.t('logging.openai.batch.hasErrors'));
           const errors = await this.downloadBatchResult(batch.error_file_id);
-          this.logger.error(this.i18n.t('logging.openai.batch.error_details'), JSON.stringify(errors));
-          throw new Error(this.i18n.t('logging.openai.batch.failed_with_errors'));
+          this.logger.error(this.i18n.t('logging.openai.batch.errorDetails'), JSON.stringify(errors));
+          throw new Error(this.i18n.t('logging.openai.batch.failedWithErrors'));
         } else {
           // 두 ID가 모두 없는 예외적인 경우
-          throw new Error(this.i18n.t('logging.openai.batch.no_files'));
+          throw new Error(this.i18n.t('logging.openai.batch.noFiles'));
         }
       } else if (['failed', 'cancelled', 'expired'].includes(batch.status)) {
         // 배치 작업에 실패한 경우
@@ -256,11 +256,11 @@ export class OpenaiService {
 
     // 최대 대기 시간 초과 시 배치 취소
     try {
-      this.logger.warn(this.i18n.t('logging.openai.batch.timeout_cancelling', { args: { batchId } }));
+      this.logger.warn(this.i18n.t('logging.openai.batch.timeoutCancelling', { args: { batchId } }));
       await client.batches.cancel(batchId);
       this.logger.log(this.i18n.t('logging.openai.batch.cancelled', { args: { batchId } }));
     } catch (cancelError) {
-      this.logger.error(this.i18n.t('logging.openai.batch.cancel_failed', { args: { batchId } }), cancelError);
+      this.logger.error(this.i18n.t('logging.openai.batch.cancelFailed', { args: { batchId } }), cancelError);
     }
 
     await this.notifyService.notifyServer(this.i18n.t('logging.openai.batch.timeout', { args: { batchId } }));
@@ -273,7 +273,7 @@ export class OpenaiService {
    */
   public async downloadBatchResult(outputFileId: string | null | undefined): Promise<any[]> {
     if (!outputFileId) {
-      this.logger.warn(this.i18n.t('logging.openai.batch.no_output_file'));
+      this.logger.warn(this.i18n.t('logging.openai.batch.noOutputFile'));
       return [];
     }
 
@@ -285,7 +285,7 @@ export class OpenaiService {
     const results: any[] = [];
 
     this.logger.debug(
-      this.i18n.t('logging.openai.batch.raw_results_debug', { args: { count: lines.length } }),
+      this.i18n.t('logging.openai.batch.rawResultsDebug', { args: { count: lines.length } }),
       resultsText,
     );
 
@@ -298,7 +298,7 @@ export class OpenaiService {
         if (result.error) {
           // 오류가 발생했을 떄
           this.logger.warn(
-            this.i18n.t('logging.openai.batch.request_failed', {
+            this.i18n.t('logging.openai.batch.requestFailed', {
               args: { customId: result.custom_id, error: result.error.message },
             }),
           );
@@ -318,12 +318,12 @@ export class OpenaiService {
           });
         }
       } catch (error) {
-        this.logger.error(this.i18n.t('logging.openai.batch.parse_error'), this.errorService.getErrorMessage(error));
+        this.logger.error(this.i18n.t('logging.openai.batch.parseError'), this.errorService.getErrorMessage(error));
         results.push({ error: 'Failed to parse result line', line });
       }
     }
 
-    this.logger.log(this.i18n.t('logging.openai.batch.results_processed', { args: { count: results.length } }));
+    this.logger.log(this.i18n.t('logging.openai.batch.resultsProcessed', { args: { count: results.length } }));
     return results;
   }
 

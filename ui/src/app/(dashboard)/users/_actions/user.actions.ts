@@ -75,7 +75,7 @@ export const updateUserAction = async (_: UserState, formData: FormData): Promis
   } catch (error) {
     return {
       success: false,
-      message: t('error.update_failed', { error: String(error) }),
+      message: t('error.updateFailed', { error: String(error) }),
     };
   }
 };

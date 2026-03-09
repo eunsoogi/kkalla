@@ -92,7 +92,7 @@ export class RedlockService implements OnModuleDestroy {
 
       // Lock 획득 실패 시 함수 실행 건너뜀
       if (!activeLock) {
-        this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
+        this.logger.debug(this.i18n.t('logging.redlock.lock.notAcquired', { args: { resourceName } }));
         return undefined;
       }
 
@@ -114,7 +114,7 @@ export class RedlockService implements OnModuleDestroy {
           .catch((error) => {
             extensionError = error;
             extensionAbortController.abort();
-            this.logger.error(this.i18n.t('logging.redlock.lock.extend_error', { args: { resourceName } }), error);
+            this.logger.error(this.i18n.t('logging.redlock.lock.extendError', { args: { resourceName } }), error);
           })
           .finally(() => {
             extensionInFlight = null;
@@ -158,7 +158,7 @@ export class RedlockService implements OnModuleDestroy {
           await activeLock.release();
           this.logger.debug(this.i18n.t('logging.redlock.lock.released', { args: { resourceName } }));
         } catch (error) {
-          this.logger.error(this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName } }), error);
+          this.logger.error(this.i18n.t('logging.redlock.lock.releaseError', { args: { resourceName } }), error);
         }
       }
     }
@@ -176,7 +176,7 @@ export class RedlockService implements OnModuleDestroy {
     const lock = await this.acquireLock(lockKey, duration);
 
     if (!lock) {
-      this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
+      this.logger.debug(this.i18n.t('logging.redlock.lock.notAcquired', { args: { resourceName } }));
       return false;
     }
 
@@ -186,13 +186,13 @@ export class RedlockService implements OnModuleDestroy {
       try {
         await callback();
       } catch (error) {
-        this.logger.error(this.i18n.t('logging.redlock.lock.background_task_error', { args: { resourceName } }), error);
+        this.logger.error(this.i18n.t('logging.redlock.lock.backgroundTaskError', { args: { resourceName } }), error);
       } finally {
         try {
           await lock.release();
           this.logger.debug(this.i18n.t('logging.redlock.lock.released', { args: { resourceName } }));
         } catch (error) {
-          this.logger.error(this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName } }), error);
+          this.logger.error(this.i18n.t('logging.redlock.lock.releaseError', { args: { resourceName } }), error);
         }
       }
     })();
@@ -226,7 +226,7 @@ export class RedlockService implements OnModuleDestroy {
       const lock = await this.acquireLock(lockKey, duration);
 
       if (!lock) {
-        this.logger.debug(this.i18n.t('logging.redlock.lock.not_acquired', { args: { resourceName } }));
+        this.logger.debug(this.i18n.t('logging.redlock.lock.notAcquired', { args: { resourceName } }));
         await this.releaseStartLocks(acquiredLocks);
         return false;
       }
@@ -240,7 +240,7 @@ export class RedlockService implements OnModuleDestroy {
         await callback();
       } catch (error) {
         this.logger.error(
-          this.i18n.t('logging.redlock.lock.background_task_error', { args: { resourceName: logResourceName } }),
+          this.i18n.t('logging.redlock.lock.backgroundTaskError', { args: { resourceName: logResourceName } }),
           error,
         );
       } finally {
@@ -305,7 +305,7 @@ export class RedlockService implements OnModuleDestroy {
         );
       } catch (error) {
         this.logger.error(
-          this.i18n.t('logging.redlock.lock.release_error', { args: { resourceName: acquiredLock.resourceName } }),
+          this.i18n.t('logging.redlock.lock.releaseError', { args: { resourceName: acquiredLock.resourceName } }),
           error,
         );
       }

@@ -191,16 +191,16 @@ export class MarketIntelligenceService {
     this.logger.log(this.i18n.t('logging.inference.marketSignal.start'));
 
     // 메시지 빌드
-    this.logger.log(this.i18n.t('logging.inference.marketSignal.build_msg_start'));
+    this.logger.log(this.i18n.t('logging.inference.marketSignal.buildMsgStart'));
 
     const { messages, marketRegime } = await this.errorService.retryWithFallback(() =>
       this.buildMarketSignalMessages(symbols),
     );
 
-    this.logger.log(this.i18n.t('logging.inference.marketSignal.build_msg_complete'));
+    this.logger.log(this.i18n.t('logging.inference.marketSignal.buildMsgComplete'));
 
     // 배치 요청 처리
-    this.logger.log(this.i18n.t('logging.inference.marketSignal.batch_start'));
+    this.logger.log(this.i18n.t('logging.inference.marketSignal.batchStart'));
 
     const inferenceResult = await this.errorService.retryWithFallback(async () => {
       const requestConfig = {
@@ -230,7 +230,7 @@ export class MarketIntelligenceService {
       };
     });
 
-    this.logger.log(this.i18n.t('logging.inference.marketSignal.batch_complete'));
+    this.logger.log(this.i18n.t('logging.inference.marketSignal.batchComplete'));
 
     const normalizedRecommendations = this.normalizeMarketSignals(inferenceResult.recommendations, symbols);
     const hasRecommendations = normalizedRecommendations.length > 0;
@@ -276,7 +276,7 @@ export class MarketIntelligenceService {
     this.allocationAuditService
       .enqueueMarketBatchValidation(inferenceResult.batchId)
       .catch((error) =>
-        this.logger.warn(this.i18n.t('logging.inference.marketSignal.enqueue_validation_failed'), error),
+        this.logger.warn(this.i18n.t('logging.inference.marketSignal.enqueueValidationFailed'), error),
       );
 
     return recommendationResults.map((saved) => ({
@@ -313,7 +313,7 @@ export class MarketIntelligenceService {
       await this.cacheService.set(MARKET_SIGNAL_STATE_CACHE_KEY, state, MARKET_SIGNAL_STATE_CACHE_TTL_SECONDS);
     } catch (error) {
       this.logger.warn(
-        this.i18n.t('logging.cache.set_failed', {
+        this.i18n.t('logging.cache.setFailed', {
           args: { key: MARKET_SIGNAL_STATE_CACHE_KEY },
         }),
         error,
@@ -342,7 +342,7 @@ export class MarketIntelligenceService {
     const news = await fetchCoinNewsWithFallback({
       newsService: this.newsService,
       errorService: this.errorService,
-      onError: (error) => this.logger.error(this.i18n.t('logging.news.load_failed'), error),
+      onError: (error) => this.logger.error(this.i18n.t('logging.news.loadFailed'), error),
     });
     if (news && news.length > 0) {
       this.openaiService.addPromptPair(messages, PROMPT_INPUT_NEWS, news);
@@ -364,7 +364,7 @@ export class MarketIntelligenceService {
         this.openaiService.addPromptPair(messages, PROMPT_INPUT_VALIDATION_MARKET, validationSummary);
       }
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.inference.marketSignal.validation_guardrail_load_failed'), error);
+      this.logger.warn(this.i18n.t('logging.inference.marketSignal.validationGuardrailLoadFailed'), error);
     }
 
     // 종목 feature 데이터 추가
@@ -386,7 +386,7 @@ export class MarketIntelligenceService {
     try {
       return await this.errorService.retryWithFallback(() => this.marketRegimeService.getSnapshot());
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.marketRegime.load_failed'), error);
+      this.logger.error(this.i18n.t('logging.marketRegime.loadFailed'), error);
       return null;
     }
   }
@@ -648,7 +648,7 @@ export class MarketIntelligenceService {
         .execute();
     } catch (error) {
       this.logger.warn(
-        this.i18n.t('logging.inference.marketSignal.recommendation_price_persist_failed', {
+        this.i18n.t('logging.inference.marketSignal.recommendationPricePersistFailed', {
           args: { id },
         }),
         error,
@@ -724,7 +724,7 @@ export class MarketIntelligenceService {
     try {
       return await this.allocationAuditService.getMarketValidationBadgeMap(ids);
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.inference.marketSignal.validation_badges_load_failed'), error);
+      this.logger.warn(this.i18n.t('logging.inference.marketSignal.validationBadgesLoadFailed'), error);
       return new Map();
     }
   }
@@ -752,7 +752,7 @@ export class MarketIntelligenceService {
       const normalizedSymbol = normalizeKrwSymbol(recommendation?.symbol);
       if (!normalizedSymbol) {
         this.logger.warn(
-          this.i18n.t('logging.inference.marketSignal.invalid_symbol_skipped', {
+          this.i18n.t('logging.inference.marketSignal.invalidSymbolSkipped', {
             args: { symbol: recommendation?.symbol ?? 'unknown' },
           }),
         );
@@ -761,7 +761,7 @@ export class MarketIntelligenceService {
 
       if (allowedSet && !allowedSet.has(normalizedSymbol)) {
         this.logger.warn(
-          this.i18n.t('logging.inference.marketSignal.out_of_market_symbol_skipped', {
+          this.i18n.t('logging.inference.marketSignal.outOfMarketSymbolSkipped', {
             args: { symbol: normalizedSymbol },
           }),
         );

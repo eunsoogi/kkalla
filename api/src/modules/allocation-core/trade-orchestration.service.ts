@@ -1229,7 +1229,7 @@ export class TradeOrchestrationService {
         const bandRatio = policy.allocationBandRatio * rebalanceBandMultiplier;
         if (!shouldReallocate(targetWeight, deltaWeight, minBand, bandRatio)) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.skip_allocation_band', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.skipAllocationBand', {
               args: {
                 symbol: inference.symbol,
                 targetWeight,
@@ -1247,7 +1247,7 @@ export class TradeOrchestrationService {
         const expectedNetEdgeRate = expectedEdgeRate - estimatedCostRate - policy.edgeRiskBufferRate;
         if (deltaWeight > 0 && expectedNetEdgeRate <= 0) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.skip_cost_gate', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.skipCostGate', {
               args: {
                 symbol: inference.symbol,
                 deltaWeight,
@@ -1268,7 +1268,7 @@ export class TradeOrchestrationService {
         const adjustedRequestDiff = payoffOverlay.requestDiff;
 
         runtime.logger.log(
-          runtime.i18n.t('logging.inference.allocationRecommendation.trade_delta', {
+          runtime.i18n.t('logging.inference.allocationRecommendation.tradeDelta', {
             args: {
               symbol: inference.symbol,
               targetWeight,
@@ -1417,7 +1417,7 @@ export class TradeOrchestrationService {
       .map((inference) => {
         if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: { symbol: inference.symbol, reason: 'not_orderable' },
             }),
           );
@@ -1426,7 +1426,7 @@ export class TradeOrchestrationService {
 
         if (inference.modelTargetWeight == null || !Number.isFinite(inference.modelTargetWeight)) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: { symbol: inference.symbol, reason: 'missing_target_weight' },
             }),
           );
@@ -1451,7 +1451,7 @@ export class TradeOrchestrationService {
         const deltaWeight = targetWeight - currentWeight;
         if (deltaWeight >= 0) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: {
                 symbol: inference.symbol,
                 reason: 'not_overweight',
@@ -1468,7 +1468,7 @@ export class TradeOrchestrationService {
         const bandRatio = policy.allocationBandRatio * rebalanceBandMultiplier;
         if (!shouldReallocate(targetWeight, deltaWeight, minBand, bandRatio)) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: {
                 symbol: inference.symbol,
                 reason: 'allocation_band',
@@ -1486,7 +1486,7 @@ export class TradeOrchestrationService {
         const estimatedCostRate = this.resolveEstimatedCostRate(policy, inference);
         if (!this.passesExpectedEdgeGate(policy, expectedEdgeRate, estimatedCostRate)) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: {
                 symbol: inference.symbol,
                 reason: 'cost_gate',
@@ -1503,7 +1503,7 @@ export class TradeOrchestrationService {
         const requestDiff = calculateRequestDiff(targetWeight, currentWeight);
         if (!Number.isFinite(requestDiff) || requestDiff >= 0 || Math.abs(requestDiff) < Number.EPSILON) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: {
                 symbol: inference.symbol,
                 reason: 'invalid_diff',
@@ -1527,7 +1527,7 @@ export class TradeOrchestrationService {
           )
         ) {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim_skipped', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: {
                 symbol: inference.symbol,
                 reason: 'minimum_sell_amount',
@@ -1539,7 +1539,7 @@ export class TradeOrchestrationService {
         }
 
         runtime.logger.log(
-          runtime.i18n.t('logging.inference.allocationRecommendation.no_trade_trim', {
+          runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrim', {
             args: {
               symbol: inference.symbol,
               targetWeight,
@@ -1817,11 +1817,11 @@ export class TradeOrchestrationService {
         isSymbolExist: (symbol) => runtime.exchangeService.isSymbolExist(symbol),
         onAllCheckFailed: () =>
           runtime.logger.warn(
-            runtime.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_failed'),
+            runtime.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckFailed'),
           ),
         onPartialCheck: () =>
           runtime.logger.warn(
-            runtime.i18n.t('logging.inference.allocationRecommendation.orderable_symbol_check_partial'),
+            runtime.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckPartial'),
           ),
       },
     );
@@ -1923,7 +1923,7 @@ export class TradeOrchestrationService {
       sellBudgetResult.partialScaledRequest != null
     ) {
       runtime.logger.log(
-        runtime.i18n.t('logging.inference.allocationRecommendation.sell_turnover_budget_applied', {
+        runtime.i18n.t('logging.inference.allocationRecommendation.sellTurnoverBudgetApplied', {
           args: this.buildTurnoverBudgetSummary(
             cappedSellCandidates,
             sellBudgetResult.selectedRequests,
@@ -1972,7 +1972,7 @@ export class TradeOrchestrationService {
         minimumTradePrice: policy.minimumTradePrice,
         onBudgetInsufficient: ({ availableKrw: targetAvailableKrw, totalEstimated, requestedCount }) => {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.buy_budget_insufficient', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.buyBudgetInsufficient', {
               args: {
                 availableKrw: targetAvailableKrw,
                 totalEstimated,
@@ -1983,7 +1983,7 @@ export class TradeOrchestrationService {
         },
         onBudgetScaled: ({ availableKrw: targetAvailableKrw, totalEstimated, scale, requestedCount }) => {
           runtime.logger.log(
-            runtime.i18n.t('logging.inference.allocationRecommendation.buy_budget_scaled', {
+            runtime.i18n.t('logging.inference.allocationRecommendation.buyBudgetScaled', {
               args: {
                 availableKrw: targetAvailableKrw,
                 totalEstimated,
@@ -2028,7 +2028,7 @@ export class TradeOrchestrationService {
       }));
       if (cappedBuyRequests.length !== prioritizedBuyRequests.length || buyBudgetResult.partialScaledRequest != null) {
         runtime.logger.log(
-          runtime.i18n.t('logging.inference.allocationRecommendation.buy_turnover_budget_applied', {
+          runtime.i18n.t('logging.inference.allocationRecommendation.buyTurnoverBudgetApplied', {
             args: this.buildTurnoverBudgetSummary(
               prioritizedBuyRequests,
               cappedBuyRequests,
@@ -2143,15 +2143,15 @@ export class TradeOrchestrationService {
       trade.decisionRequestNotional > trade.decisionExecutionNotional + Number.EPSILON;
 
     if (trade.decisionRegimeSource === 'unavailable_risk_off') {
-      return i18n.t('notify.order.why.conservative_mode');
+      return i18n.t('notify.order.why.conservativeMode');
     }
 
     if (reduced) {
-      return i18n.t('notify.order.why.reduced_size');
+      return i18n.t('notify.order.why.reducedSize');
     }
 
     if (trade.gateBypassedReason === 'urgent_risk_reduction') {
-      return i18n.t('notify.order.why.urgent_sell');
+      return i18n.t('notify.order.why.urgentSell');
     }
 
     switch (trade.triggerReason) {
@@ -2159,13 +2159,13 @@ export class TradeOrchestrationService {
         return i18n.t('notify.order.why.rebalance');
       case 'excluded_staged_exit':
       case 'no_trade_trim':
-        return i18n.t('notify.order.why.trim_position');
+        return i18n.t('notify.order.why.trimPosition');
       case 'missing_from_inference':
       case 'missing_inference_grace_elapsed':
-        return i18n.t('notify.order.why.remove_out_of_scope');
+        return i18n.t('notify.order.why.removeOutOfScope');
       case 'profit-take':
       case 'trailing_take_profit':
-        return i18n.t('notify.order.why.take_profit');
+        return i18n.t('notify.order.why.takeProfit');
       default:
         return i18n.t('notify.order.why.generic');
     }
@@ -2183,13 +2183,17 @@ export class TradeOrchestrationService {
       return '-';
     }
 
-    const key = `label.trade.${reasonType}.${reason}`;
+    const key = `label.trade.${reasonType}.${this.toTranslationKeySegment(reason)}`;
     const translated = i18n.t(key);
     if (typeof translated !== 'string' || translated === key) {
       return reason;
     }
 
     return translated;
+  }
+
+  private toTranslationKeySegment(value: string): string {
+    return value.replace(/[-_]+([a-zA-Z0-9])/g, (_match: string, char: string) => char.toUpperCase());
   }
 
   private enrichRequestEstimatedNotional(
@@ -2460,7 +2464,7 @@ export class TradeOrchestrationService {
     const order = adjustedOrder.order;
 
     if (!order) {
-      runtime.logger.log(runtime.i18n.t('logging.trade.not_exist', { args: { id: user.id, symbol: request.symbol } }));
+      runtime.logger.log(runtime.i18n.t('logging.trade.notExist', { args: { id: user.id, symbol: request.symbol } }));
       return null;
     }
 
@@ -2522,7 +2526,7 @@ export class TradeOrchestrationService {
 
     if (!hasExecutedFill) {
       runtime.logger.log(
-        runtime.i18n.t('logging.trade.not_exist', {
+        runtime.i18n.t('logging.trade.notExist', {
           args: { id: user.id, symbol: request.symbol },
         }),
       );

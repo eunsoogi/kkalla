@@ -118,9 +118,9 @@ export class AllocationAuditService {
       await this.ensureBackfillIfNeeded();
       await this.processDueItems();
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.allocationAudit.task.execute_failed'), error);
+      this.logger.error(this.i18n.t('logging.allocationAudit.task.executeFailed'), error);
       await this.safeNotifyServer(
-        this.i18n.t('notify.allocationAudit.task_failed', {
+        this.i18n.t('notify.allocationAudit.taskFailed', {
           args: {
             message: this.errorService.getErrorMessage(error),
           },
@@ -204,9 +204,9 @@ export class AllocationAuditService {
       this.clearMarketMinConfidenceCache();
       this.clearAllocationGlobalGuardrailsCache();
     } catch (error) {
-      this.logger.error(this.i18n.t('logging.allocationAudit.task.cleanup_failed'), error);
+      this.logger.error(this.i18n.t('logging.allocationAudit.task.cleanupFailed'), error);
       await this.safeNotifyServer(
-        this.i18n.t('notify.allocationAudit.cleanup_failed', {
+        this.i18n.t('notify.allocationAudit.cleanupFailed', {
           args: {
             message: this.errorService.getErrorMessage(error),
           },
@@ -657,7 +657,7 @@ export class AllocationAuditService {
     try {
       recommendedMarketMinConfidenceForAllocation = await this.getRecommendedMarketMinConfidenceForAllocation();
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.allocationAudit.summary.min_confidence_load_failed'), error);
+      this.logger.warn(this.i18n.t('logging.allocationAudit.summary.minConfidenceLoadFailed'), error);
     }
 
     return {
@@ -937,7 +937,7 @@ export class AllocationAuditService {
           await AllocationAuditItem.save(itemsToCreate, { chunk: 100 });
         } catch (error) {
           this.logger.warn(
-            this.i18n.t('logging.allocationAudit.task.insert_partial_failed', {
+            this.i18n.t('logging.allocationAudit.task.insertPartialFailed', {
               args: {
                 reportType,
                 batchId,
@@ -1434,7 +1434,7 @@ export class AllocationAuditService {
 
     if (isTerminal && failedItems.length > 0) {
       await this.safeNotifyServer(
-        this.i18n.t('notify.allocationAudit.partially_failed', {
+        this.i18n.t('notify.allocationAudit.partiallyFailed', {
           args: {
             runId: run.id,
             reportType: run.reportType,
@@ -1455,7 +1455,7 @@ export class AllocationAuditService {
   private buildRunSummary(items: AllocationAuditItem[]): string {
     const validItems = items.filter((item) => item.aiVerdict !== 'invalid');
     if (validItems.length < 1) {
-      return this.i18n.t('logging.allocationAudit.summary.no_valid_items');
+      return this.i18n.t('logging.allocationAudit.summary.noValidItems');
     }
 
     const overallScores = validItems
@@ -1486,17 +1486,17 @@ export class AllocationAuditService {
           total: accuracy.total,
         },
       }),
-      this.i18n.t('logging.allocationAudit.summary.avg_return', {
+      this.i18n.t('logging.allocationAudit.summary.avgReturn', {
         args: {
           value: avgReturnText,
         },
       }),
-      this.i18n.t('logging.allocationAudit.summary.avg_overall', {
+      this.i18n.t('logging.allocationAudit.summary.avgOverall', {
         args: {
           value: avgOverallText,
         },
       }),
-      this.i18n.t('logging.allocationAudit.summary.low_score', {
+      this.i18n.t('logging.allocationAudit.summary.lowScore', {
         args: {
           count: lowScoreItems.length,
         },
@@ -1953,7 +1953,7 @@ export class AllocationAuditService {
     try {
       await this.notifyService.notifyServer(message);
     } catch (error) {
-      this.logger.warn(this.i18n.t('logging.allocationAudit.task.notify_failed'), error);
+      this.logger.warn(this.i18n.t('logging.allocationAudit.task.notifyFailed'), error);
     }
   }
 }

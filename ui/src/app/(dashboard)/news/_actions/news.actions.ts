@@ -27,7 +27,7 @@ export const getNewsAction = async (cursor?: string): Promise<CursorItem<News>> 
     return {
       ...initialCursorState,
       success: false,
-      message: t('error.fetch_failed', { error: String(error) }),
+      message: t('error.fetchFailed', { error: String(error) }),
     };
   }
 };
