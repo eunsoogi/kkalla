@@ -4,7 +4,7 @@ export interface MarketRegimeFeargreed {
   timestamp: number;
   date: string;
   timeUntilUpdate: number;
-  diff?: number;
+  delta?: number;
 }
 
 export type MarketRegimeBtcDominanceClassification = 'altcoin_friendly' | 'transition' | 'bitcoin_dominance';

@@ -3,7 +3,7 @@ import React from 'react';
 
 import { useTranslations } from 'next-intl';
 
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 import { formatNumber } from '@/utils/number';
 import type { ProfitDashboardProps } from './profit-dashboard.types';
 
@@ -36,16 +36,16 @@ export function ProfitDashboard({ isLoading = false, profit = 0, todayProfit = 0
     <div className='flex flex-col gap-4 p-4 sm:p-6'>
       <div className='flex flex-col items-center'>
         <span className='text-sm text-gray-500 dark:text-gray-400'>{t('dashboard.totalProfit')}</span>
-        <span className={`text-3xl font-bold ${getDiffColor(profit)}`}>
-          {getDiffPrefix(profit)}
+        <span className={`text-3xl font-bold ${getDeltaColor(profit)}`}>
+          {getDeltaPrefix(profit)}
           {formatNumber(profit)}
           <span className='text-lg font-normal text-gray-500 dark:text-gray-400'> {t('dashboard.currencyKrw')}</span>
         </span>
       </div>
       <div className='flex flex-col items-center border-t border-gray-200 dark:border-gray-700 pt-4'>
         <span className='text-sm text-gray-500 dark:text-gray-400'>{t('dashboard.todayProfit')}</span>
-        <span className={`text-xl font-semibold ${getDiffColor(todayProfit)}`}>
-          {getDiffPrefix(todayProfit)}
+        <span className={`text-xl font-semibold ${getDeltaColor(todayProfit)}`}>
+          {getDeltaPrefix(todayProfit)}
           {formatNumber(todayProfit)}
           <span className='text-sm font-normal text-gray-500 dark:text-gray-400'> {t('dashboard.currencyKrw')}</span>
         </span>

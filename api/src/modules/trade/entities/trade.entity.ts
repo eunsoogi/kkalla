@@ -138,6 +138,77 @@ export class Trade extends BaseEntity {
   missedOpportunityCost: number | null;
 
   @Column({
+    type: 'int',
+    nullable: true,
+  })
+  decisionContextVersion: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  decisionPortfolioValue: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  decisionSymbolNotional: number | null;
+
+  @Column({
+    name: 'decision_request_notional',
+    type: 'double',
+    nullable: true,
+  })
+  decisionRequestNotional: number | null;
+
+  @Column({
+    name: 'decision_execution_notional',
+    type: 'double',
+    nullable: true,
+  })
+  decisionExecutionNotional: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  decisionExpectedNetEdgeRate: number | null;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  decisionPositionClass: 'existing' | 'new' | null;
+
+  @Column({
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  decisionRegimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  decisionExecutionUrgency: 'urgent' | 'normal' | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  realizedCostRate: number | null;
+
+  @Column({
+    type: 'double',
+    nullable: true,
+  })
+  costCalibrationCoefficient: number | null;
+
+  @Column({
     type: 'varchar',
     length: 64,
     nullable: true,

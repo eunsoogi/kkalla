@@ -44,6 +44,7 @@
     "cmc_overview_failed_using_feargreed_fallback": "CoinMarketCap 시장 데이터 로드에 실패하여 공포탐욕지수 기반 기본 스냅샷을 사용합니다. asOf={asOf}, error={message}",
     "feargreed_live_failed_fallback_cache": "공포탐욕지수 실시간 로드에 실패하여 캐시를 사용합니다. asOf={asOf}",
     "load_failed": "시장 국면(BTC 도미넌스/알트코인 시즌 지수) 데이터 로드에 실패했습니다.",
+    "regime_unavailable_risk_off": "시장 국면 데이터를 불러오지 못해 unavailable_risk_off 정책으로 실행합니다.",
     "snapshot_feargreed_load_failed": "시장 지표 스냅샷 생성 중 공포탐욕지수 로드에 실패하여 null로 처리합니다. error={message}",
     "snapshot_live_failed_fallback_cache": "실시간 시장 지표 스냅샷 로드에 실패하여 캐시를 사용합니다. asOf={asOf}"
   },
@@ -51,12 +52,12 @@
     "allocationRecommendation": {
       "buy_budget_insufficient": "[매수 예산 부족] availableKrw={availableKrw}, totalEstimated={totalEstimated}, requestedCount={requestedCount}",
       "buy_budget_scaled": "[매수 예산 축소] availableKrw={availableKrw}, totalEstimated={totalEstimated}, scale={scale}, requestedCount={requestedCount}",
-      "buy_turnover_capped": "[매수 캡 적용] turnoverCap={turnoverCap}, requestedCount={requestedCount}, executedCount={executedCount}, selected={selectedSymbols}, skipped={skippedSymbols}, exempted={exemptedSymbols}",
+      "buy_turnover_budget_applied": "[매수 예산 캡 적용] turnoverCap={turnoverCap}, sizingContractVersion={sizingContractVersion}, selectionPolicyVersion={selectionPolicyVersion}, regimePolicyState={regimePolicyState}, requestedCount={requestedCount}, requestedNotional={requestedNotional}, budgetNotional={budgetNotional}, selectedCount={selectedCount}, selectedNotional={selectedNotional}, selected={selectedSymbols}, skipped={skippedSymbols}, partialScaledSymbol={partialScaledSymbol}",
       "complete": "자산 배분 추천 분석을 완료했습니다.",
       "enqueue_validation_failed": "자산 배분 감사 사후 검증 큐 등록에 실패했습니다.",
       "model_signal": "[모델 시그널] symbol={symbol}, category={category}, intensity={intensity}, featureScore={featureScore}, buyScore={buyScore}, sellScore={sellScore}, modelTargetWeight={modelTargetWeight}, action={action}",
-      "no_trade_trim": "[비거래 트림] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
-      "no_trade_trim_skipped": "[비거래 트림 스킵] symbol={symbol}, reason={reason}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}, minEdge={minEdge}, diff={diff}",
+      "no_trade_trim": "[비거래 트림] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requestDiff={requestDiff}",
+      "no_trade_trim_skipped": "[비거래 트림 스킵] symbol={symbol}, reason={reason}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}, minEdge={minEdge}, requestDiff={requestDiff}",
       "orderable_symbol_check_failed": "주문 가능 심볼 검증에 실패했습니다. KRW 심볼 필터만 사용합니다.",
       "orderable_symbol_check_partial": "일부 주문 가능 심볼 검증에 실패했습니다. 미검증 심볼은 안전상 포함합니다.",
       "presave": "자산 배분 추천 데이터 {count}개를 저장합니다...",
@@ -64,12 +65,13 @@
       "save": "자산 배분 추천 데이터 {count}개를 저장했습니다.",
       "skip_allocation_band": "[거래 스킵/밴드] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requiredBand={requiredBand}",
       "skip_cost_gate": "[거래 스킵/비용게이트] symbol={symbol}, deltaWeight={deltaWeight}, minEdge={minEdge}",
+      "sell_turnover_budget_applied": "[매도 예산 캡 적용] turnoverCap={turnoverCap}, sizingContractVersion={sizingContractVersion}, selectionPolicyVersion={selectionPolicyVersion}, regimePolicyState={regimePolicyState}, requestedCount={requestedCount}, requestedNotional={requestedNotional}, budgetNotional={budgetNotional}, selectedCount={selectedCount}, selectedNotional={selectedNotional}, selected={selectedSymbols}, skipped={skippedSymbols}, partialScaledSymbol={partialScaledSymbol}",
       "start": "자산 배분 추천 분석을 시작합니다...",
       "realtime_failed": "실시간 추천 요청 처리에 실패했습니다.",
       "response_duplicate_symbol": "중복된 다중 심볼 추천 응답 심볼을 무시합니다. output={outputSymbol}",
       "symbol_normalized": "심볼 형식을 정규화했습니다. from={from}, to={to}",
       "target_weight": "[최종 비중] symbol={symbol}, baseTargetWeight={baseTargetWeight}, regimeMultiplier={regimeMultiplier}, modelTargetWeight={modelTargetWeight}",
-      "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, diff={diff}",
+      "trade_delta": "[거래 차이] symbol={symbol}, targetWeight={targetWeight}, currentWeight={currentWeight}, deltaWeight={deltaWeight}, requestDiff={requestDiff}",
       "response_unexpected_symbol": "입력에 없는 다중 심볼 추천 응답 심볼을 무시합니다. output={outputSymbol}",
       "validation_badges_load_failed": "자산 배분 감사 사후 검증 배지 로드에 실패했습니다.",
       "validation_guardrail_load_failed": "자산 배분 감사 사후 검증 가드레일 요약 로드에 실패했습니다. symbol={symbol}"
@@ -244,6 +246,9 @@
       "start_one": "{symbol} 종목의 특성 추출을 시작합니다.",
       "success_all": "{count}개 종목의 특성 추출을 완료했습니다.",
       "success_one": "{symbol} 종목의 특성 추출을 완료했습니다."
+    },
+    "cost_calibration": {
+      "gate": "[매수 비용 보정 게이트] calibrationApplied={calibrationApplied}, calibrationReason={calibrationReason}, bucketKey={bucketKey}, staticNonFeeCostRate={staticNonFeeCostRate}, rawMultiplier={rawMultiplier}, appliedMultiplier={appliedMultiplier}, calibratedEstimatedCostRate={calibratedEstimatedCostRate}, expectedEdgeRate={expectedEdgeRate}, staticDecision={staticDecision}, calibratedDecision={calibratedDecision}"
     },
     "market": {
       "load_failed": "{symbol} 마켓 데이터 로드에 실패했습니다."

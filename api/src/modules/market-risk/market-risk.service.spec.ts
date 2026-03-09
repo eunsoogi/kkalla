@@ -284,7 +284,7 @@ describe('MarketRiskService', () => {
     // Note: BTC/KRW는 1% step을 사용하므로, 이 테스트는 BTC가 아닌 다른 심볼(ETH/KRW)을 사용하여 5% step 동작을 검증
     holdingLedgerService.fetchHoldingsByUsers.mockResolvedValue(items);
 
-    // 첫 번째 호출: 변동폭 0% → 4% (diff 4%) → 트리거 안 됨 (5% step 기준)
+    // 첫 번째 호출: 변동폭 0% → 4% (requestDiff 4%) → 트리거 안 됨 (5% step 기준)
     // BTC/KRW 체크 (변동성 없음, 트리거 안 됨)
     (upbitService.getRecentMinuteCandles as jest.Mock).mockResolvedValueOnce([
       // [timestamp, open, high, low, close, volume]
@@ -307,7 +307,7 @@ describe('MarketRiskService', () => {
 
     await service.handleTick();
 
-    // 두 번째 호출: 변동폭 0% → 5% (diff 5%) → 해당 종목에 대해서만 추론
+    // 두 번째 호출: 변동폭 0% → 5% (requestDiff 5%) → 해당 종목에 대해서만 추론
     // BTC/KRW 체크 (변동성 없음, 트리거 안 됨)
     (upbitService.getRecentMinuteCandles as jest.Mock).mockResolvedValueOnce([
       [0, 0, 100, 100, 100, 0],
@@ -386,8 +386,8 @@ describe('MarketRiskService', () => {
     expect(excludedRequests[0]).toMatchObject({
       symbol: 'CCC/KRW',
     });
-    expect(excludedRequests[0].diff).toBeLessThan(0);
-    expect(excludedRequests[0].diff).toBeGreaterThanOrEqual(-1);
+    expect(excludedRequests[0].requestDiff).toBeLessThan(0);
+    expect(excludedRequests[0].requestDiff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should exclude category-quota overflow symbols in risk mode', () => {
@@ -419,8 +419,8 @@ describe('MarketRiskService', () => {
     expect(excludedRequests[0]).toMatchObject({
       symbol: 'SOL/KRW',
     });
-    expect(excludedRequests[0].diff).toBeLessThan(0);
-    expect(excludedRequests[0].diff).toBeGreaterThanOrEqual(-1);
+    expect(excludedRequests[0].requestDiff).toBeLessThan(0);
+    expect(excludedRequests[0].requestDiff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should calculate risk model signals in 0~1 range and apply regime multiplier', () => {
@@ -455,7 +455,7 @@ describe('MarketRiskService', () => {
     expect(majorSignals.modelTargetWeight).toBeCloseTo(minorSignals.modelTargetWeight, 10);
   });
 
-  it('should create positive included trade diff with conviction-normalized sizing', () => {
+  it('should create positive included trade requestDiff with conviction-normalized sizing', () => {
     const balances: any = { info: [] };
     const inferences = [
       {
@@ -478,8 +478,8 @@ describe('MarketRiskService', () => {
     );
 
     expect(requests).toHaveLength(1);
-    expect(requests[0].diff).toBeGreaterThan(0);
-    expect(requests[0].diff).toBeLessThanOrEqual(1);
+    expect(requests[0].requestDiff).toBeGreaterThan(0);
+    expect(requests[0].requestDiff).toBeLessThanOrEqual(1);
   });
 
   it('should enforce regime-based category exposure caps when creating included trade requests in risk mode', () => {
@@ -531,7 +531,7 @@ describe('MarketRiskService', () => {
 
     const minorTargetSum = requests
       .filter((item: any) => item.inference?.category === Category.COIN_MINOR)
-      .reduce((sum: number, item: any) => sum + item.diff, 0);
+      .reduce((sum: number, item: any) => sum + item.requestDiff, 0);
     expect(minorTargetSum).toBeLessThanOrEqual(0.200001);
   });
 
@@ -578,7 +578,7 @@ describe('MarketRiskService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('KEEP/KRW');
-    expect(requests[0].diff).toBeGreaterThan(0);
+    expect(requests[0].requestDiff).toBeGreaterThan(0);
   });
 
   it('should apply category quota when creating included trade requests in risk mode', () => {
@@ -703,8 +703,8 @@ describe('MarketRiskService', () => {
     expect(excludedRequests[0]).toMatchObject({
       symbol: 'CCC/KRW',
     });
-    expect(excludedRequests[0].diff).toBeLessThan(0);
-    expect(excludedRequests[0].diff).toBeGreaterThanOrEqual(-1);
+    expect(excludedRequests[0].requestDiff).toBeLessThan(0);
+    expect(excludedRequests[0].requestDiff).toBeGreaterThanOrEqual(-1);
   });
 
   it('should allow sell when tradable market value is unknown', () => {
@@ -744,7 +744,8 @@ describe('MarketRiskService', () => {
     jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([
       {
         symbol: 'ETH/KRW',
-        diff: -1,
+        requestDiff: -1,
+        forcedFullLiquidation: true,
         balances,
         marketPrice: 1_000_000,
         inference: inferences[0],
@@ -801,7 +802,7 @@ describe('MarketRiskService', () => {
     jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([
       {
         symbol: 'ETH/KRW',
-        diff: 0.4,
+        requestDiff: 0.4,
         balances,
         marketPrice: 1_000_000,
         inference: inferences[0],
@@ -851,7 +852,7 @@ describe('MarketRiskService', () => {
       user: { id: 'user-1', roles: [] } as any,
       request: {
         symbol: 'BTC/KRW',
-        diff: 0.1,
+        requestDiff: 0.1,
         balances: { info: [] } as any,
       } as any,
     });
@@ -908,14 +909,14 @@ describe('MarketRiskService', () => {
     });
 
     const sellRequests = [
-      { symbol: 'SELL-1/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
-      { symbol: 'SELL-2/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
-      { symbol: 'SELL-3/KRW', diff: -0.4, balances, marketPrice: 1_000_000 },
+      { symbol: 'SELL-1/KRW', requestDiff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-2/KRW', requestDiff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
+      { symbol: 'SELL-3/KRW', requestDiff: -0.4, balances, marketPrice: 1_000_000, currentWeight: 0.4 },
     ] as any[];
     const buyRequests = [
-      { symbol: 'BUY-1/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
-      { symbol: 'BUY-2/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
-      { symbol: 'BUY-3/KRW', diff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-1/KRW', requestDiff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-2/KRW', requestDiff: 0.2, balances, marketPrice: 1_000_000 },
+      { symbol: 'BUY-3/KRW', requestDiff: 0.2, balances, marketPrice: 1_000_000 },
     ] as any[];
 
     jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue(sellRequests);
@@ -930,7 +931,7 @@ describe('MarketRiskService', () => {
         const request = payload.request;
         return {
           symbol: request.symbol,
-          type: request.diff < 0 ? 'sell' : 'buy',
+          type: request.requestDiff < 0 ? 'sell' : 'buy',
           amount: 10_000,
           profit: 0,
           inference: request.inference ?? null,
@@ -1213,7 +1214,7 @@ describe('MarketRiskService', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].symbol).toBe('KEEP/KRW');
-    expect(requests[0].diff).toBeLessThan(0);
+    expect(requests[0].requestDiff).toBeLessThan(0);
   });
 
   it('should fail closed when AI returns an unexpected symbol', async () => {

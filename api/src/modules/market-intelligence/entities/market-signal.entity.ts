@@ -100,7 +100,7 @@ export class MarketSignal extends BaseEntity {
     length: 32,
     nullable: true,
   })
-  marketRegimeSource: 'live' | 'cache_fallback' | null;
+  marketRegimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
 
   @Column({
     type: 'boolean',

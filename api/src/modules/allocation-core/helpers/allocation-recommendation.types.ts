@@ -113,3 +113,16 @@ export interface ScaleBuyRequestsToAvailableKrwOptions {
     requestedCount: number;
   }) => void;
 }
+
+export interface ApplyNotionalBudgetToRankedRequestsOptions {
+  budgetNotional: number;
+  minimumTradePrice: number;
+}
+
+export interface ApplyNotionalBudgetToRankedRequestsResult<TRequest> {
+  requestedNotional: number;
+  selectedNotional: number;
+  selectedRequests: TRequest[];
+  skippedRequests: TRequest[];
+  partialScaledRequest: TRequest | null;
+}

@@ -828,6 +828,11 @@ export class MarketRiskService implements OnModuleInit {
     );
     const regimeMultiplier = regimePolicy.exposureMultiplier;
     assertLockOrThrow();
+    if (regimePolicy.regimePolicyState === 'regimeUnavailable') {
+      this.logger.warn(this.i18n.t('logging.marketRegime.regime_unavailable_risk_off'));
+      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regime_unavailable_risk_off'));
+      assertLockOrThrow();
+    }
     const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
       inferences: heldAllocationRecommendations,
       currentWeights: executionSnapshot.currentWeights,
@@ -866,6 +871,8 @@ export class MarketRiskService implements OnModuleInit {
       referenceSymbols,
       initialSnapshot: executionSnapshot,
       turnoverCap: regimePolicy.turnoverCap,
+      regimePolicyState: regimePolicy.regimePolicyState,
+      regimePolicySource: regimePolicy.regimePolicySource,
       assertLockOrThrow,
       buildExcludedRequests: (snapshot) =>
         this.generateExcludedTradeRequests(
@@ -1074,13 +1081,13 @@ export class MarketRiskService implements OnModuleInit {
    * 편입 거래 요청 생성
    *
    * - 편입 대상 종목들에 대한 매수/매도 거래 요청을 생성합니다.
-   * - diff를 계산하여 목표 비율과 현재 비율의 차이를 구합니다.
-   * - diff가 작은 순서대로 정렬하여 우선순위를 결정합니다.
+   * - requestDiff를 계산하여 목표 비율과 현재 비율의 차이를 구합니다.
+   * - requestDiff가 작은 순서대로 정렬하여 우선순위를 결정합니다.
    *
    * @param balances 사용자 계좌 잔고
    * @param inferences 추론 결과 목록
    * @param count 전체 자산 배분 종목 수
-   * @returns 편입 거래 요청 목록 (diff 오름차순 정렬)
+   * @returns 편입 거래 요청 목록 (requestDiff 오름차순 정렬)
    */
   private generateIncludedTradeRequests(
     balances: Balances,
@@ -1197,7 +1204,7 @@ export class MarketRiskService implements OnModuleInit {
       (inference) => inference.hasStock && this.tradeOrchestrationService.isNoTradeRecommendation(inference),
     );
 
-    // Shared orchestrator applies identical diff/band/cost-gate rules as allocation flow.
+    // Shared orchestrator applies identical requestDiff/band/cost-gate rules as allocation flow.
     return this.tradeOrchestrationService.buildNoTradeTrimRequests({
       runtime: tradeRuntime,
       balances,

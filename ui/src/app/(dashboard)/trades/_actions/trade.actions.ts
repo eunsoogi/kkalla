@@ -4,7 +4,14 @@ import { getTranslations } from 'next-intl/server';
 import { CursorItem, PaginatedItem } from '@/shared/types/pagination.types';
 import { getClient } from '@/utils/api';
 
-import { Trade, initialCursorState, initialState } from '@/app/(dashboard)/_shared/trades/trade.types';
+import {
+  Trade,
+  TradeApiItem,
+  initialCursorState,
+  initialState,
+  normalizeTradeCursor,
+  normalizeTradePagination,
+} from '@/app/(dashboard)/_shared/trades/trade.types';
 
 export interface GetTradeParams {
   page?: number;
@@ -30,12 +37,12 @@ export const getTradeAction = async (params?: GetTradeParams): Promise<Paginated
   }
 
   try {
-    const { data } = await client.get('/api/v1/trades', { params: queryParams });
+    const { data } = await client.get<PaginatedItem<TradeApiItem>>('/api/v1/trades', { params: queryParams });
 
-    return {
-      success: true,
+    return normalizeTradePagination({
       ...data,
-    };
+      success: true,
+    });
   } catch (error) {
     return {
       ...initialState,
@@ -67,14 +74,14 @@ export const getTradeCursorAction = async (params: TradeCursorParams): Promise<C
   const t = await getTranslations();
 
   try {
-    const { data } = await client.get('/api/v1/trades/cursor', {
+    const { data } = await client.get<CursorItem<TradeApiItem>>('/api/v1/trades/cursor', {
       params,
     });
 
-    return {
-      success: true,
+    return normalizeTradeCursor({
       ...data,
-    };
+      success: true,
+    });
   } catch (error) {
     return {
       ...initialCursorState,

@@ -9,6 +9,7 @@ import { ErrorService } from '../error/error.service';
 import { TwoPhaseRetryOptions } from '../error/error.types';
 import { NotifyService } from '../notify/notify.service';
 import { Schedule } from '../schedule/entities/schedule.entity';
+import { TradeCostCalibrationService } from '../trade/trade-cost-calibration.service';
 import { User } from '../user/entities/user.entity';
 import { UpbitConfig } from './entities/upbit-config.entity';
 import { UPBIT_MINIMUM_TRADE_PRICE } from './upbit.constant';
@@ -16,6 +17,7 @@ import { OrderTypes } from './upbit.enum';
 import {
   AdjustOrderRequest,
   AdjustedOrderResult,
+  BuyCostCalibrationLookupResult,
   KrwMarketData,
   KrwTickerDailyData,
   OrderExecutionUrgency,
@@ -53,6 +55,7 @@ export class UpbitService {
     private readonly errorService: ErrorService,
     private readonly notifyService: NotifyService,
     private readonly cacheService: CacheService,
+    private readonly tradeCostCalibrationService: TradeCostCalibrationService,
   ) {}
 
   public async readConfig(user: User): Promise<UpbitConfig> {
@@ -154,13 +157,13 @@ export class UpbitService {
     return null;
   }
 
-  public calculateDiff(balances: Balances, symbol: string, targetWeight: number): number {
+  public calculateRequestDiff(balances: Balances, symbol: string, targetWeight: number): number {
     const symbolPrice = this.calculatePrice(balances, symbol);
     const marketPrice = this.calculateTotalPrice(balances);
     const currentWeight = symbolPrice / marketPrice;
-    const diff = (targetWeight - currentWeight) / (currentWeight || 1);
+    const requestDiff = (targetWeight - currentWeight) / (currentWeight || 1);
 
-    return diff;
+    return requestDiff;
   }
 
   public getBalance(balances: Balances, symbol: string): any {
@@ -604,6 +607,30 @@ export class UpbitService {
     return expectedEdgeRate <= estimatedCostRate + this.EDGE_COST_BUFFER_RATE;
   }
 
+  private logBuyCostCalibrationDecision(args: {
+    calibration: BuyCostCalibrationLookupResult;
+    expectedEdgeRate: number | null | undefined;
+    staticDecision: 'allow' | 'skip';
+    calibratedDecision: 'allow' | 'skip';
+  }): void {
+    this.logger.log(
+      this.i18n.t('logging.upbit.cost_calibration.gate', {
+        args: {
+          calibrationApplied: args.calibration.calibrationApplied,
+          calibrationReason: args.calibration.calibrationReason,
+          bucketKey: args.calibration.bucketKey ?? '',
+          staticNonFeeCostRate: args.calibration.staticNonFeeCostRate ?? '',
+          rawMultiplier: args.calibration.rawMultiplier ?? '',
+          appliedMultiplier: args.calibration.appliedMultiplier,
+          calibratedEstimatedCostRate: args.calibration.calibratedEstimatedCostRate ?? '',
+          expectedEdgeRate: args.expectedEdgeRate ?? '',
+          staticDecision: args.staticDecision,
+          calibratedDecision: args.calibratedDecision,
+        },
+      }),
+    );
+  }
+
   private resolveOrderNotional(order: Order | null, fallbackPrice: number): number {
     if (!order) {
       return 0;
@@ -854,9 +881,12 @@ export class UpbitService {
   public async adjustOrder(user: User, request: AdjustOrderRequest): Promise<AdjustedOrderResult> {
     this.logger.log(this.i18n.t('logging.order.start', { args: { id: user.id } }));
 
-    const { symbol, diff, balances, marketPrice: precomputedMarketPrice } = request;
+    const { symbol, requestDiff, executionDiff, balances, marketPrice: precomputedMarketPrice } = request;
     const [baseAsset] = symbol.split('/');
-    const urgency: OrderExecutionUrgency = request.executionUrgency ?? (diff < 0 ? 'urgent' : 'normal');
+    const effectiveExecutionDiff =
+      executionDiff != null && Number.isFinite(executionDiff) ? executionDiff : requestDiff;
+    const urgency: OrderExecutionUrgency =
+      request.executionUrgency ?? (effectiveExecutionDiff < 0 ? 'urgent' : 'normal');
     const symbolExist = await this.isSymbolExist(symbol);
 
     if (!symbolExist) {
@@ -874,18 +904,18 @@ export class UpbitService {
         Number.isFinite(marketPriceCandidate) && marketPriceCandidate > 0
           ? marketPriceCandidate
           : this.calculateTotalPrice(balances);
-      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(diff) * 0.9995;
-      const tradeVolume = symbolTradableVolume * Math.abs(diff);
+      const tradePrice = (symbolMarketPrice || marketPrice) * Math.abs(effectiveExecutionDiff) * 0.9995;
+      const tradeVolume = symbolTradableVolume * Math.abs(effectiveExecutionDiff);
 
       let type: OrderTypes | null = null;
       let requestedAmount: number | null = null;
       let requestedVolume: number | null = null;
 
-      if (diff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
+      if (effectiveExecutionDiff > 0 && tradePrice > UPBIT_MINIMUM_TRADE_PRICE) {
         type = OrderTypes.BUY;
         requestedAmount = tradePrice;
         requestedVolume = currPrice > 0 ? tradePrice / currPrice : null;
-      } else if (diff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
+      } else if (effectiveExecutionDiff < 0 && tradeVolume * currPrice > UPBIT_MINIMUM_TRADE_PRICE) {
         type = OrderTypes.SELL;
         requestedAmount = tradeVolume * currPrice;
         requestedVolume = tradeVolume;
@@ -902,19 +932,61 @@ export class UpbitService {
         (type === OrderTypes.BUY
           ? await this.estimateOrderCost(symbol, type, requestedAmount, currPrice)
           : await this.estimateOrderCost(symbol, type, requestedVolume ?? 0, currPrice));
+      const liveCalibrationContext =
+        request.costCalibrationContext && type === OrderTypes.BUY
+          ? {
+              ...request.costCalibrationContext,
+              costTier: this.tradeCostCalibrationService.resolveCostTier(
+                Math.max(0, dynamicCostEstimate.spreadRate) + Math.max(0, dynamicCostEstimate.impactRate),
+              ),
+            }
+          : request.costCalibrationContext;
+      const calibration = await this.tradeCostCalibrationService.resolveBuyGateCalibration({
+        type,
+        urgency,
+        estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+        spreadRate: dynamicCostEstimate.spreadRate,
+        impactRate: dynamicCostEstimate.impactRate,
+        calibrationContext: liveCalibrationContext,
+      });
+      const effectiveEstimatedCostRate =
+        calibration.calibrationApplied && calibration.calibratedEstimatedCostRate != null
+          ? calibration.calibratedEstimatedCostRate
+          : dynamicCostEstimate.estimatedCostRate;
+      const staticDecision = this.shouldSkipForEdgeCost(
+        urgency,
+        request.expectedEdgeRate,
+        dynamicCostEstimate.estimatedCostRate,
+      )
+        ? 'skip'
+        : 'allow';
+      const calibratedDecision = this.shouldSkipForEdgeCost(
+        urgency,
+        request.expectedEdgeRate,
+        effectiveEstimatedCostRate,
+      )
+        ? 'skip'
+        : 'allow';
+      this.logBuyCostCalibrationDecision({
+        calibration,
+        expectedEdgeRate: request.expectedEdgeRate,
+        staticDecision,
+        calibratedDecision,
+      });
       const gateBypassedReason =
         urgency === 'urgent' &&
         request.expectedEdgeRate != null &&
         Number.isFinite(request.expectedEdgeRate) &&
-        request.expectedEdgeRate <= dynamicCostEstimate.estimatedCostRate + this.EDGE_COST_BUFFER_RATE
+        request.expectedEdgeRate <= effectiveEstimatedCostRate + this.EDGE_COST_BUFFER_RATE
           ? 'urgent_risk_reduction'
           : (request.gateBypassedReason ?? null);
 
-      if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, dynamicCostEstimate.estimatedCostRate)) {
+      if (this.shouldSkipForEdgeCost(urgency, request.expectedEdgeRate, effectiveEstimatedCostRate)) {
         return this.createAdjustedOrderResult(request, {
+          requestPrice: currPrice,
           requestedAmount,
           requestedVolume,
-          estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+          estimatedCostRate: effectiveEstimatedCostRate,
           spreadRate: dynamicCostEstimate.spreadRate,
           impactRate: dynamicCostEstimate.impactRate,
           triggerReason: request.triggerReason ?? 'edge_below_cost',
@@ -924,9 +996,10 @@ export class UpbitService {
       const primaryOrderAmount = type === OrderTypes.BUY ? (requestedAmount ?? 0) : (requestedVolume ?? 0);
       if (primaryOrderAmount <= 0) {
         return this.createAdjustedOrderResult(request, {
+          requestPrice: currPrice,
           requestedAmount,
           requestedVolume,
-          estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+          estimatedCostRate: effectiveEstimatedCostRate,
           spreadRate: dynamicCostEstimate.spreadRate,
           impactRate: dynamicCostEstimate.impactRate,
           triggerReason: request.triggerReason ?? 'invalid_order_amount',
@@ -973,13 +1046,13 @@ export class UpbitService {
 
       return this.createAdjustedOrderResult(request, {
         order: finalOrder,
-        requestPrice: null,
+        requestPrice: currPrice,
         requestedAmount,
         requestedVolume,
         filledAmount,
         filledVolume,
         averagePrice,
-        estimatedCostRate: dynamicCostEstimate.estimatedCostRate,
+        estimatedCostRate: effectiveEstimatedCostRate,
         spreadRate: dynamicCostEstimate.spreadRate,
         impactRate: dynamicCostEstimate.impactRate,
         gateBypassedReason,

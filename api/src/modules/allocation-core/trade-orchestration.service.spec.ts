@@ -48,6 +48,44 @@ describe('TradeOrchestrationService', () => {
       expect((service as any).resolveTradeTriggerReasonLabel(i18n, null)).toBe('-');
       expect((service as any).resolveTradeGateBypassedReasonLabel(i18n, undefined)).toBe('-');
     });
+
+    it('should render trade notification text in plain language for conservative mode', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+      const trade: any = {
+        amount: 120000,
+        decisionRegimeSource: 'unavailable_risk_off',
+        decisionRequestNotional: 120000,
+        decisionExecutionNotional: 120000,
+        gateBypassedReason: null,
+        triggerReason: 'included_rebalance',
+      };
+
+      const whatHappened = (service as any).resolveTradeNotificationWhatHappened(i18n, trade);
+      const why = (service as any).resolveTradeNotificationWhy(i18n, trade);
+
+      expect(whatHappened).toContain('120,000');
+      expect(why).toBe('시장 상황 정보가 부족해 보수적으로 처리했습니다.');
+      expect(why).not.toContain('calibration');
+      expect(why).not.toContain('bucket');
+    });
+
+    it('should render trade notification text for reduced execution without technical jargon', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+      const trade: any = {
+        amount: 80000,
+        decisionRequestNotional: 120000,
+        decisionExecutionNotional: 80000,
+        decisionRegimeSource: 'live',
+        gateBypassedReason: null,
+        triggerReason: 'included_rebalance',
+      };
+
+      const whatHappened = (service as any).resolveTradeNotificationWhatHappened(i18n, trade);
+      const why = (service as any).resolveTradeNotificationWhy(i18n, trade);
+
+      expect(whatHappened).toBe('80,000원어치만 실행했습니다.');
+      expect(why).toBe('한 번에 너무 많이 움직이지 않도록 주문 크기를 줄였습니다.');
+    });
   });
 
   describe('market regime', () => {
@@ -73,6 +111,28 @@ describe('TradeOrchestrationService', () => {
         throw new Error('failed');
       });
       expect(fallback).toBe(1);
+    });
+
+    it('should expose explicit regimeUnavailable policy state on regime read failure', async () => {
+      const policy = await service.resolveMarketRegimePolicy(async () => {
+        throw new Error('failed');
+      });
+
+      expect(policy.regimePolicyState).toBe('regimeUnavailable');
+      expect(policy.regimePolicySource).toBe('unavailable_risk_off');
+    });
+
+    it('should preserve unavailable risk-off source when reader returns degraded snapshot', async () => {
+      const policy = await service.resolveMarketRegimePolicy(async () => ({
+        btcDominance: 55,
+        altcoinIndex: 50,
+        source: 'unavailable_risk_off',
+        feargreed: null,
+      }));
+
+      expect(policy.regimePolicyState).toBe('regimeUnavailable');
+      expect(policy.regimePolicySource).toBe('unavailable_risk_off');
+      expect(policy.exposureMultiplier).toBe(1);
     });
 
     it('should calculate market signal adjustment in a conservative range', () => {
@@ -313,7 +373,9 @@ describe('TradeOrchestrationService', () => {
 
       expect(requests).toHaveLength(1);
       expect(requests[0].symbol).toBe('BTC/KRW');
-      expect(requests[0].diff).toBe(-1);
+      expect(requests[0].requestDiff).toBe(-1);
+      expect(requests[0].forcedFullLiquidation).toBe(true);
+      expect(requests[0].executionDiff).toBe(-1);
     });
 
     it('should not infer execution from requested amount while order is still open', async () => {
@@ -338,6 +400,14 @@ describe('TradeOrchestrationService', () => {
 
       expect(metrics.hasExecutedFill).toBe(true);
       expect(metrics.filledAmount).toBe(100_000);
+    });
+
+    it('should derive realized cost rate and calibration coefficient from request and fill prices', () => {
+      const realizedCostRate = (service as any).resolveRealizedCostRate(OrderTypes.BUY, 100, 101, 0.003, 0.001, 0.0015);
+      const calibrationCoefficient = (service as any).resolveCostCalibrationCoefficient(realizedCostRate, 0.003);
+
+      expect(realizedCostRate).toBeCloseTo(0.0105, 10);
+      expect(calibrationCoefficient).toBeCloseTo(0.0105 / 0.003, 10);
     });
 
     it('should reconcile open market orders with fetchOrder before deciding execution failure', async () => {
@@ -421,7 +491,7 @@ describe('TradeOrchestrationService', () => {
         user: { id: 'user-1' } as any,
         request: {
           symbol: 'BTC/KRW',
-          diff: 1,
+          requestDiff: 1,
           balances: { info: [] } as any,
           requestedAmount: 100_000,
         } as any,
@@ -434,6 +504,97 @@ describe('TradeOrchestrationService', () => {
   });
 
   describe('included trade request sizing', () => {
+    it('should cap per-symbol trade notional using the shared turnover fraction', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 1,
+            modelTargetWeight: 1,
+            action: 'buy',
+            hasStock: false,
+            decisionConfidence: 1,
+            expectedEdgeRate: 1,
+            estimatedCostRate: 0,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>(),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 1,
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].requestNotional).toBeCloseTo(1_000_000, 6);
+      expect(requests[0].executionNotional).toBeCloseTo(100_000, 6);
+      expect(requests[0].executionDiff).toBeCloseTo(0.1, 6);
+    });
+
+    it('should preserve capped trade notional when enriching estimated notional for budgeting', () => {
+      const enriched = (service as any).enrichRequestEstimatedNotional(
+        {
+          symbol: 'BTC/KRW',
+          requestDiff: -1,
+          executionNotional: 30_000,
+          balances: { info: [] },
+          marketPrice: 1_000_000,
+          currentWeight: 0.3,
+        },
+        new Map<string, number>([['BTC/KRW', 300_000]]),
+        1_000_000,
+        new Map<string, number>([['BTC/KRW', 0.3]]),
+      );
+
+      expect(enriched.estimatedNotional).toBe(30_000);
+    });
+
+    it('should exclude buy requests with non-positive expected net edge', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 1,
+            modelTargetWeight: 1,
+            action: 'buy',
+            hasStock: false,
+            decisionConfidence: 1,
+            expectedEdgeRate: 0.002,
+            estimatedCostRate: 0.002,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>(),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 1,
+      });
+
+      expect(requests).toHaveLength(0);
+    });
+
     it('should normalize target budget by configured slot count', () => {
       const runtime: any = {
         logger: { log: jest.fn() },
@@ -490,8 +651,8 @@ describe('TradeOrchestrationService', () => {
 
       expect(withoutSlotCount).toHaveLength(2);
       expect(withSlotCount).toHaveLength(2);
-      expect(withoutSlotCount[0].diff).toBeCloseTo(0.25, 6);
-      expect(withSlotCount[0].diff).toBeCloseTo(0.125, 6);
+      expect(withoutSlotCount[0].requestDiff).toBeCloseTo(0.25, 6);
+      expect(withSlotCount[0].requestDiff).toBeCloseTo(0.125, 6);
     });
 
     it('should resolve user-scoped action threshold on per-slot single-symbol scale', () => {
@@ -695,6 +856,163 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(requests).toHaveLength(0);
+    });
+
+    it('should classify buy priority from refreshed tradable notional instead of stale hasStock', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 0.4,
+            hasStock: false,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.08,
+            estimatedCostRate: 0.01,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.1]]),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 0.2,
+        tradableMarketValueMap: new Map<string, number>([['BTC/KRW', 10_000]]),
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].positionClass).toBe('existing');
+      expect(requests[0].expectedNetEdge).toBeCloseTo(0.0695, 10);
+    });
+
+    it('should keep incumbent buy priority when tradable map is missing but refreshed holding is meaningful', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 0.4,
+            hasStock: false,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.08,
+            estimatedCostRate: 0.01,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.1]]),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 0.2,
+        tradableMarketValueMap: new Map<string, number>(),
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].positionClass).toBe('existing');
+    });
+
+    it('should treat dust residual holdings as new for buy priority', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+      const requests = service.buildIncludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            id: 'rec-1',
+            batchId: 'batch-1',
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            intensity: 0.4,
+            hasStock: true,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.08,
+            estimatedCostRate: 0.01,
+          } as any,
+        ],
+        targetSlotCount: 1,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.0001]]),
+        marketPrice: 1_000_000,
+        calculateTargetWeight: () => 0.2,
+        tradableMarketValueMap: new Map<string, number>([['BTC/KRW', 4_000]]),
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].positionClass).toBe('new');
+    });
+  });
+
+  describe('regime unavailable buy policy', () => {
+    it('should allow only incumbent re-risking within released notional budget', () => {
+      const requests: any[] = [
+        {
+          symbol: 'BTC/KRW',
+          inference: { category: Category.COIN_MAJOR },
+          positionClass: 'existing',
+          executionNotional: 300,
+          estimatedNotional: 300,
+          regimePolicyState: 'regimeUnavailable',
+        },
+        {
+          symbol: 'ETH/KRW',
+          inference: { category: Category.COIN_MAJOR },
+          positionClass: 'new',
+          executionNotional: 100,
+          estimatedNotional: 100,
+          regimePolicyState: 'regimeUnavailable',
+        },
+      ];
+      const initialSnapshot: any = {
+        balances: { KRW: { free: 200 }, info: [] },
+        marketPrice: 1_000,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.8]]),
+      };
+      const refreshedSnapshot: any = {
+        balances: { KRW: { free: 600 }, info: [] },
+        marketPrice: 1_000,
+        currentWeights: new Map<string, number>([['BTC/KRW', 0.4]]),
+      };
+      const sellExecutions: any[] = [
+        {
+          request: {
+            symbol: 'BTC/KRW',
+            inference: { category: Category.COIN_MAJOR },
+          },
+          trade: {
+            amount: 400,
+          },
+        },
+      ];
+
+      const filtered = (service as any).applyRegimeUnavailableBuyPolicy(
+        requests,
+        initialSnapshot,
+        refreshedSnapshot,
+        sellExecutions,
+      );
+
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].symbol).toBe('BTC/KRW');
     });
   });
 
@@ -1101,7 +1419,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: 1,
+              requestDiff: 1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.BUY },
@@ -1109,7 +1427,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: 1,
+              requestDiff: 1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.BUY },
@@ -1117,7 +1435,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'ETH/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MINOR },
             },
             trade: { type: OrderTypes.SELL },
@@ -1125,7 +1443,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'XRP/KRW',
-              diff: 1,
+              requestDiff: 1,
             },
             trade: { type: OrderTypes.BUY },
           },
@@ -1147,7 +1465,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 0.4, filledVolume: 0.4 },
@@ -1155,14 +1473,14 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'XRP/KRW',
-              diff: -1,
+              requestDiff: -1,
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 200, filledVolume: 200 },
           },
           {
             request: {
               symbol: 'ETH/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MINOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.4 },
@@ -1187,7 +1505,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.996 },
@@ -1206,7 +1524,7 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.95 },
@@ -1225,10 +1543,30 @@ describe('TradeOrchestrationService', () => {
           {
             request: {
               symbol: 'BTC/KRW',
-              diff: -1,
+              requestDiff: -1,
               inference: { category: Category.COIN_MAJOR },
             },
             trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 0.6 },
+          },
+        ],
+        OrderTypes.SELL,
+        [{ symbol: 'BTC/KRW', category: Category.COIN_MAJOR }],
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('should keep holding ledger entries when capped sell requestDiff is not a full exit', () => {
+      const result = (service as any).collectLiquidatedHoldingItems(
+        [
+          {
+            request: {
+              symbol: 'BTC/KRW',
+              requestDiff: -1,
+              executionDiff: -0.1,
+              inference: { category: Category.COIN_MAJOR },
+            },
+            trade: { type: OrderTypes.SELL, requestedVolume: 1, filledVolume: 1 },
           },
         ],
         OrderTypes.SELL,
@@ -1382,7 +1720,7 @@ describe('TradeOrchestrationService', () => {
       ]);
     });
 
-    it('should bypass buy turnover cap for all new-entry buys regardless of diff size', async () => {
+    it('should apply unified buy notional budget without new-entry exemptions', async () => {
       const user = { id: 'user-1' } as any;
       const balances: any = {
         info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
@@ -1391,8 +1729,14 @@ describe('TradeOrchestrationService', () => {
         balances,
         orderableSymbols: new Set<string>(),
         marketPrice: 1_000_000,
-        currentWeights: new Map<string, number>(),
-        tradableMarketValueMap: new Map<string, number>(),
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.1],
+          ['SELL-2/KRW', 0.2],
+        ]),
+        tradableMarketValueMap: new Map<string, number>([
+          ['SELL-1/KRW', 100_000],
+          ['SELL-2/KRW', 200_000],
+        ]),
       } as any;
       const refreshedSnapshot = {
         balances,
@@ -1410,38 +1754,48 @@ describe('TradeOrchestrationService', () => {
       const buyRequests = [
         {
           symbol: 'REBALANCE-1/KRW',
-          diff: 0.5,
+          requestDiff: 0.1,
           balances,
           marketPrice: 1_000_000,
-          inference: { hasStock: true },
+          positionClass: 'existing',
+          deltaWeight: 0.1,
+          expectedNetEdge: 0.05,
         },
         {
           symbol: 'REBALANCE-2/KRW',
-          diff: 0.2,
+          requestDiff: 0.08,
           balances,
           marketPrice: 1_000_000,
-          inference: { hasStock: true },
+          positionClass: 'existing',
+          deltaWeight: 0.08,
+          expectedNetEdge: 0.04,
         },
         {
           symbol: 'REBALANCE-3/KRW',
-          diff: 0.1,
+          requestDiff: 0.02,
           balances,
           marketPrice: 1_000_000,
-          inference: { hasStock: true },
+          positionClass: 'existing',
+          deltaWeight: 0.02,
+          expectedNetEdge: 0.01,
         },
         {
           symbol: 'NEW-ENTRY-A/KRW',
-          diff: 0.04,
+          requestDiff: 0.07,
           balances,
           marketPrice: 1_000_000,
-          inference: { hasStock: false },
+          positionClass: 'new',
+          deltaWeight: 0.07,
+          expectedNetEdge: 0.2,
         },
         {
           symbol: 'NEW-ENTRY-B/KRW',
-          diff: 0.03,
+          requestDiff: 0.06,
           balances,
           marketPrice: 1_000_000,
-          inference: { hasStock: false },
+          positionClass: 'new',
+          deltaWeight: 0.06,
+          expectedNetEdge: 0.15,
         },
       ] as any[];
       const holdingLedgerService: any = {
@@ -1480,30 +1834,450 @@ describe('TradeOrchestrationService', () => {
         user,
         referenceSymbols: ['NEW-ENTRY-A/KRW', 'NEW-ENTRY-B/KRW', 'REBALANCE-1/KRW'],
         initialSnapshot,
-        turnoverCap: 0.2,
+        turnoverCap: 0.5,
         buildExcludedRequests: () => [],
         buildIncludedRequests: (snapshot) => (snapshot === initialSnapshot ? [] : buyRequests),
         buildNoTradeTrimRequests: () => [],
       });
 
       const executedSymbols = executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol);
-      expect(executedSymbols).toEqual(['REBALANCE-1/KRW', 'NEW-ENTRY-A/KRW', 'NEW-ENTRY-B/KRW']);
-      expect(executedSymbols).not.toContain('REBALANCE-2/KRW');
-      expect(executedSymbols).not.toContain('REBALANCE-3/KRW');
+      expect(executedSymbols).toEqual(['REBALANCE-1/KRW', 'REBALANCE-2/KRW']);
+      expect(executeTradeSpy.mock.calls[1][0].request.requestDiff).toBeCloseTo(0.065, 10);
+      expect(executedSymbols).not.toContain('NEW-ENTRY-A/KRW');
+      expect(executedSymbols).not.toContain('NEW-ENTRY-B/KRW');
       expect(result.map((trade) => trade.symbol)).toEqual(executedSymbols);
       expect(runtime.i18n.t).toHaveBeenCalledWith(
-        'logging.inference.allocationRecommendation.buy_turnover_capped',
+        'logging.inference.allocationRecommendation.buy_turnover_budget_applied',
         expect.objectContaining({
           args: expect.objectContaining({
-            turnoverCap: 0.2,
-            requestedCount: 3,
-            executedCount: 1,
-            selectedSymbols: 'REBALANCE-1/KRW',
-            skippedSymbols: 'REBALANCE-2/KRW,REBALANCE-3/KRW',
-            exemptedSymbols: 'NEW-ENTRY-A/KRW,NEW-ENTRY-B/KRW',
+            turnoverCap: 0.5,
+            requestedCount: 5,
+            requestedNotional: 330000,
+            budgetNotional: 165000,
+            selectedCount: 2,
+            selectedNotional: 165000,
+            selectedSymbols: 'REBALANCE-1/KRW,REBALANCE-2/KRW',
+            skippedSymbols: 'REBALANCE-3/KRW,NEW-ENTRY-A/KRW,NEW-ENTRY-B/KRW',
+            partialScaledSymbol: 'REBALANCE-2/KRW',
           }),
         }),
       );
+    });
+
+    it('should keep new-entry buys eligible when tradable value map is missing', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.1],
+          ['SELL-2/KRW', 0.2],
+        ]),
+        tradableMarketValueMap: new Map<string, number>([
+          ['SELL-1/KRW', 100_000],
+          ['SELL-2/KRW', 200_000],
+        ]),
+      } as any;
+      const refreshedSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(['NEW-ENTRY-A/KRW', 'REBALANCE-1/KRW']),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const buyRequests = [
+        {
+          symbol: 'REBALANCE-1/KRW',
+          requestDiff: 0.05,
+          balances,
+          marketPrice: 1_000_000,
+          positionClass: 'existing',
+          deltaWeight: 0.05,
+          expectedNetEdge: 0.04,
+        },
+        {
+          symbol: 'NEW-ENTRY-A/KRW',
+          requestDiff: 0.07,
+          balances,
+          marketPrice: 1_000_000,
+          positionClass: 'new',
+          deltaWeight: 0.07,
+          expectedNetEdge: 0.2,
+        },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(refreshedSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'buy',
+            amount: 10_000,
+            profit: 0,
+            inference: request.inference ?? null,
+          }) as any,
+      );
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['NEW-ENTRY-A/KRW', 'REBALANCE-1/KRW'],
+        initialSnapshot,
+        turnoverCap: 1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: (snapshot) => (snapshot === initialSnapshot ? [] : buyRequests),
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol)).toEqual([
+        'REBALANCE-1/KRW',
+        'NEW-ENTRY-A/KRW',
+      ]);
+    });
+
+    it('should apply sell notional budget with boundary partial scaling', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.1],
+          ['SELL-2/KRW', 0.2],
+        ]),
+        tradableMarketValueMap: new Map<string, number>([
+          ['SELL-1/KRW', 100_000],
+          ['SELL-2/KRW', 200_000],
+        ]),
+      } as any;
+      const sellRequests = [
+        { symbol: 'SELL-1/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 },
+        { symbol: 'SELL-2/KRW', requestDiff: -0.2, balances, marketPrice: 1_000_000 },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'sell',
+            amount: 10_000,
+            profit: 0,
+          }) as any,
+      );
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['SELL-1/KRW', 'SELL-2/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.5,
+        buildExcludedRequests: () => sellRequests,
+        buildIncludedRequests: () => [],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol)).toEqual([
+        'SELL-1/KRW',
+        'SELL-2/KRW',
+      ]);
+      expect(executeTradeSpy.mock.calls[1][0].request.requestDiff).toBeCloseTo(-0.075, 10);
+      expect(runtime.i18n.t).toHaveBeenCalledWith(
+        'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
+        expect.objectContaining({
+          args: expect.objectContaining({
+            turnoverCap: 0.5,
+            requestedCount: 2,
+            requestedNotional: 50000,
+            budgetNotional: 25000,
+            selectedCount: 2,
+            selectedNotional: 25000,
+            selectedSymbols: 'SELL-1/KRW,SELL-2/KRW',
+            skippedSymbols: '',
+            partialScaledSymbol: 'SELL-2/KRW',
+          }),
+        }),
+      );
+    });
+
+    it('should derive sell notional from refreshed current weight when tradable map is missing', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([
+          ['SELL-1/KRW', 0.01],
+          ['SELL-2/KRW', 0.22],
+        ]),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const sellRequests = [
+        { symbol: 'SELL-1/KRW', requestDiff: -1, balances, marketPrice: 1_000_000 },
+        { symbol: 'SELL-2/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'sell',
+            amount: 10_000,
+            profit: 0,
+          }) as any,
+      );
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['SELL-1/KRW', 'SELL-2/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.5,
+        buildExcludedRequests: () => sellRequests,
+        buildIncludedRequests: () => [],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).toHaveBeenCalledTimes(2);
+      expect(runtime.i18n.t).toHaveBeenCalledWith(
+        'logging.inference.allocationRecommendation.sell_turnover_budget_applied',
+        expect.objectContaining({
+          args: expect.objectContaining({
+            requestedCount: 2,
+            requestedNotional: 32000,
+            budgetNotional: 16000,
+            selectedNotional: 16000,
+            partialScaledSymbol: 'SELL-2/KRW',
+          }),
+        }),
+      );
+    });
+
+    it('should not inflate sell notional to portfolio market value when symbol holding is unknown', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const sellRequests = [{ symbol: 'STALE-SELL/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 }] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockResolvedValue(null as any);
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['STALE-SELL/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.5,
+        buildExcludedRequests: () => sellRequests,
+        buildIncludedRequests: () => [],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should bypass sell turnover budget for full-liquidation requests', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = { info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }] };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([['ETH/KRW', 0.1]]),
+        tradableMarketValueMap: new Map<string, number>([['ETH/KRW', 100_000]]),
+      } as any;
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([{ symbol: 'ETH/KRW', category: Category.COIN_MINOR }]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = { notify: jest.fn(), clearClients: jest.fn() };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: { getBalances: jest.fn().mockResolvedValue(balances), clearClients: jest.fn() },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'sell',
+            amount: 10_000,
+            profit: 0,
+            requestedVolume: 1,
+            filledVolume: 1,
+            inference: request.inference ?? null,
+          }) as any,
+      );
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['ETH/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: () => [
+          {
+            symbol: 'ETH/KRW',
+            requestDiff: -1,
+            forcedFullLiquidation: true,
+            balances,
+            marketPrice: 1_000_000,
+            inference: { symbol: 'ETH/KRW', category: Category.COIN_MINOR } as any,
+          },
+        ],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).toHaveBeenCalledTimes(1);
+      expect(executeTradeSpy.mock.calls[0][0].request.forcedFullLiquidation).toBe(true);
+    });
+
+    it('should keep requestDiff=-1 staged exits inside sell turnover budget unless explicitly forced', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = { info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }] };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([['ETH/KRW', 0.3]]),
+        tradableMarketValueMap: new Map<string, number>([['ETH/KRW', 300_000]]),
+      } as any;
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([{ symbol: 'ETH/KRW', category: Category.COIN_MINOR }]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = { notify: jest.fn(), clearClients: jest.fn() };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: { getBalances: jest.fn().mockResolvedValue(balances), clearClients: jest.fn() },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(initialSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockResolvedValue(null);
+
+      await service.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['ETH/KRW'],
+        initialSnapshot,
+        turnoverCap: 0.1,
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: () => [
+          {
+            symbol: 'ETH/KRW',
+            requestDiff: -1,
+            executionDiff: -0.1,
+            forcedFullLiquidation: false,
+            balances,
+            marketPrice: 1_000_000,
+            estimatedNotional: 300_000,
+            inference: { symbol: 'ETH/KRW', category: Category.COIN_MINOR } as any,
+          },
+        ],
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).toHaveBeenCalledTimes(1);
+      expect(executeTradeSpy.mock.calls[0][0].request.executionDiff).toBeCloseTo(-0.01, 10);
     });
   });
 });

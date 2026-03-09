@@ -3,7 +3,7 @@ import { Balances } from 'ccxt';
 import { AllocationRecommendationData } from '../allocation-core/allocation-core.types';
 import { SortDirection } from '../item/item.enum';
 import { OrderTypes } from '../upbit/upbit.enum';
-import { OrderExecutionUrgency, UpbitOrderCostEstimate } from '../upbit/upbit.types';
+import { BuyCostCalibrationContext, OrderExecutionUrgency, UpbitOrderCostEstimate } from '../upbit/upbit.types';
 
 export interface TradeFilter {
   symbol?: string;
@@ -17,9 +17,26 @@ export interface TradeFilter {
 
 export interface TradeRequest {
   symbol: string;
-  diff: number;
+  requestDiff: number;
   balances: Balances;
   marketPrice?: number;
+  // Internal execution-planning fields used only while ranking/capping requests.
+  currentSymbolNotional?: number | null;
+  targetGapWeight?: number | null;
+  requestNotional?: number | null;
+  executionNotional?: number | null;
+  executionDiff?: number | null;
+  sizingContractVersion?: number | null;
+  selectionPolicyVersion?: number | null;
+  regimePolicyState?: 'available' | 'regimeUnavailable' | null;
+  regimePolicySource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
+  forcedFullLiquidation?: boolean | null;
+  estimatedNotional?: number | null;
+  currentWeight?: number | null;
+  targetWeight?: number | null;
+  deltaWeight?: number | null;
+  positionClass?: 'existing' | 'new';
+  expectedNetEdge?: number | null;
   inference?: AllocationRecommendationData;
   expectedEdgeRate?: number | null;
   estimatedCostRate?: number | null;
@@ -31,6 +48,7 @@ export interface TradeRequest {
   requestPrice?: number | null;
   executionUrgency?: OrderExecutionUrgency;
   costEstimate?: UpbitOrderCostEstimate | null;
+  costCalibrationContext?: BuyCostCalibrationContext | null;
 }
 
 export interface TradeData {
@@ -50,6 +68,17 @@ export interface TradeData {
   spreadRate?: number | null;
   impactRate?: number | null;
   missedOpportunityCost?: number | null;
+  decisionContextVersion?: number | null;
+  decisionPortfolioValue?: number | null;
+  decisionSymbolNotional?: number | null;
+  decisionRequestNotional?: number | null;
+  decisionExecutionNotional?: number | null;
+  decisionExpectedNetEdgeRate?: number | null;
+  decisionPositionClass?: 'existing' | 'new' | null;
+  decisionRegimeSource?: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null;
+  decisionExecutionUrgency?: OrderExecutionUrgency | null;
+  realizedCostRate?: number | null;
+  costCalibrationCoefficient?: number | null;
   gateBypassedReason?: string | null;
   triggerReason?: string | null;
 }

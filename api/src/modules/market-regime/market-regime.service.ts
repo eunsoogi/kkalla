@@ -273,11 +273,11 @@ export class MarketRegimeService {
       throw new Error('Invalid feargreed numeric fields');
     }
 
-    let diff = 0;
+    let delta = 0;
     if (response.data.length > 1) {
       const previous = Number.parseInt(response.data[1].value, 10);
       if (Number.isFinite(previous)) {
-        diff = index - previous;
+        delta = index - previous;
       }
     }
 
@@ -287,7 +287,7 @@ export class MarketRegimeService {
       timestamp,
       date: formatDate(timestamp),
       timeUntilUpdate: Number.isFinite(timeUntilUpdate) ? timeUntilUpdate : 0,
-      diff,
+      delta,
     };
   }
 
@@ -338,7 +338,7 @@ export class MarketRegimeService {
       timestamp: item.timestamp,
       date: item.date,
       timeUntilUpdate: item.timeUntilUpdate,
-      diff: Number.isFinite(item.diff) ? Number(item.diff) : 0,
+      delta: Number.isFinite(item.delta) ? Number(item.delta) : 0,
     };
 
     await this.cacheService.set(
@@ -350,7 +350,7 @@ export class MarketRegimeService {
 
   private buildSnapshotFromCache(
     payload: MarketRegimeCachePayload | null,
-    source: 'live' | 'cache_fallback',
+    source: 'live' | 'cache_fallback' | 'unavailable_risk_off',
   ): MarketRegimeSnapshot | null {
     if (!payload) {
       return null;
@@ -398,7 +398,7 @@ export class MarketRegimeService {
       timestamp: payload.timestamp,
       date: payload.date || formatDate(payload.timestamp),
       timeUntilUpdate: Number.isFinite(payload.timeUntilUpdate) ? payload.timeUntilUpdate : 0,
-      diff: Number.isFinite(payload.diff) ? payload.diff : 0,
+      delta: Number.isFinite(payload.delta) ? payload.delta : 0,
     };
   }
 
@@ -407,7 +407,7 @@ export class MarketRegimeService {
     altcoinIndex: number;
     feargreed?: Feargreed | CompactFeargreed | null;
     asOf: Date;
-    source: 'live' | 'cache_fallback';
+    source: 'live' | 'cache_fallback' | 'unavailable_risk_off';
   }): MarketRegimeSnapshot {
     const normalizedAsOf = params.asOf instanceof Date ? params.asOf : new Date(params.asOf);
     const staleAgeMs = Math.max(0, Date.now() - normalizedAsOf.getTime());
@@ -443,7 +443,7 @@ export class MarketRegimeService {
       date: 'date' in input && typeof input.date === 'string' ? input.date : formatDate(timestamp),
       timeUntilUpdate:
         'timeUntilUpdate' in input && Number.isFinite(input.timeUntilUpdate) ? Number(input.timeUntilUpdate) : 0,
-      diff: 'diff' in input && Number.isFinite(input.diff) ? Number(input.diff) : 0,
+      delta: 'delta' in input && Number.isFinite(input.delta) ? Number(input.delta) : 0,
     };
   }
 

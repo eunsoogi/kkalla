@@ -7,8 +7,8 @@ import {
   getAltcoinSeasonGaugeSegments,
   getBtcDominanceGaugeSegments,
   GaugeSegment,
-  getDiffColor,
-  getDiffPrefix,
+  getDeltaColor,
+  getDeltaPrefix,
   getFeargreedGaugeSegments,
 } from '@/utils/color';
 import { formatDate } from '@/utils/date';
@@ -171,7 +171,7 @@ const FeargreedGauge = ({ item = null, gaugeId = 'feargreed', pointUnitLabel }: 
   const hasScore = Number.isFinite(item?.index);
   const score = hasScore ? Number(item?.index) : 0;
   const displayScore = hasScore ? score.toLocaleString() : '-';
-  const diff = hasScore && Number.isFinite(item?.diff) ? Number(item?.diff) : null;
+  const delta = hasScore && Number.isFinite(item?.delta) ? Number(item?.delta) : null;
   const stage = item?.classification ?? '-';
 
   return (
@@ -183,10 +183,10 @@ const FeargreedGauge = ({ item = null, gaugeId = 'feargreed', pointUnitLabel }: 
         <>
           <div className='flex items-start justify-center gap-1'>
             <div className='text-3xl font-bold leading-none text-gray-900 dark:text-white'>{displayScore}</div>
-            {diff != null && (
-              <div className={`mt-0.5 text-xs font-medium ${getDiffColor(diff)}`}>
-                {getDiffPrefix(diff)}
-                {diff.toLocaleString()}
+            {delta != null && (
+              <div className={`mt-0.5 text-xs font-medium ${getDeltaColor(delta)}`}>
+                {getDeltaPrefix(delta)}
+                {delta.toLocaleString()}
               </div>
             )}
           </div>

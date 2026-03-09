@@ -8,7 +8,7 @@ import SimpleBar from 'simplebar-react';
 
 import { PaginatedItem } from '@/shared/types/pagination.types';
 import { ProfitData } from '@/app/(dashboard)/_shared/profit/_types/profit.types';
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 import { formatNumber } from '@/utils/number';
 
 import { getProfitsAction } from '../_actions/profit.actions';
@@ -30,8 +30,8 @@ const ProfitTableItem = ({ email, profit }: ProfitData) => {
   return (
     <TableRow>
       <TableCell className='whitespace-nowrap'>{email}</TableCell>
-      <TableCell className={`whitespace-nowrap ${getDiffColor(profit)}`}>
-        {getDiffPrefix(profit)}
+      <TableCell className={`whitespace-nowrap ${getDeltaColor(profit)}`}>
+        {getDeltaPrefix(profit)}
         {formatNumber(profit)}
       </TableCell>
     </TableRow>

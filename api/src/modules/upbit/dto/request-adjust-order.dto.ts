@@ -16,7 +16,7 @@ export class RequestAdjustOrderDto {
     required: true,
     example: -0.5,
   })
-  diff: number;
+  requestDiff: number;
 
   @ApiProperty({
     required: false,

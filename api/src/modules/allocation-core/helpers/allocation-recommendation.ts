@@ -14,6 +14,8 @@ import { clamp, clamp01 } from '@/utils/math';
 
 import type {
   AllocationModelSignals,
+  ApplyNotionalBudgetToRankedRequestsOptions,
+  ApplyNotionalBudgetToRankedRequestsResult,
   CalculateAllocationModelSignalsOptions,
   CategoryRecommendationFilterConfig,
   FeatureScoreConfig,
@@ -34,6 +36,8 @@ import type {
 export { clamp, clamp01 } from '@/utils/math';
 export type {
   AllocationModelSignals,
+  ApplyNotionalBudgetToRankedRequestsOptions,
+  ApplyNotionalBudgetToRankedRequestsResult,
   CalculateAllocationModelSignalsOptions,
   CategoryRecommendationFilterConfig,
   FeatureScoreConfig,
@@ -93,21 +97,21 @@ export function sortAllocationRecommendationsByPriority<
       return 1;
     }
 
-    const buyScoreDiff = getBuyPriorityScore(b) - getBuyPriorityScore(a);
-    if (Math.abs(buyScoreDiff) < Number.EPSILON) {
-      const intensityDiff = b.intensity - a.intensity;
-      if (Math.abs(intensityDiff) >= Number.EPSILON) {
-        return intensityDiff;
+    const buyScoreDelta = getBuyPriorityScore(b) - getBuyPriorityScore(a);
+    if (Math.abs(buyScoreDelta) < Number.EPSILON) {
+      const intensityDelta = b.intensity - a.intensity;
+      if (Math.abs(intensityDelta) >= Number.EPSILON) {
+        return intensityDelta;
       }
 
-      const scoreDiff = getRecommendationScore(b) - getRecommendationScore(a);
-      if (Math.abs(scoreDiff) < Number.EPSILON) {
+      const scoreDelta = getRecommendationScore(b) - getRecommendationScore(a);
+      if (Math.abs(scoreDelta) < Number.EPSILON) {
         return 0;
       }
-      return scoreDiff;
+      return scoreDelta;
     }
 
-    return buyScoreDiff;
+    return buyScoreDelta;
   });
 }
 
@@ -141,14 +145,14 @@ export function isOrderableSymbol(symbol: string, orderableSymbols?: Set<string>
 /**
  * Checks sell amount sufficient in the allocation recommendation context.
  * @param symbol - Asset symbol to process.
- * @param diff - Input value for diff.
+ * @param requestDiff - Input value for requestDiff.
  * @param minimumTradePrice - Input value for minimum trade price.
  * @param tradableMarketValueMap - Input value for tradable market value map.
  * @returns Boolean flag that indicates whether the condition is satisfied.
  */
 export function isSellAmountSufficient(
   symbol: string,
-  diff: number,
+  requestDiff: number,
   minimumTradePrice: number,
   tradableMarketValueMap?: Map<string, number>,
 ): boolean {
@@ -165,7 +169,7 @@ export function isSellAmountSufficient(
     return false;
   }
 
-  return tradableMarketValue * Math.abs(diff) >= minimumTradePrice;
+  return tradableMarketValue * Math.abs(requestDiff) >= minimumTradePrice;
 }
 
 /**
@@ -741,12 +745,12 @@ export function passesCostGate(
 }
 
 /**
- * Calculates relative diff for the allocation recommendation flow.
+ * Calculates relative requestDiff for the allocation recommendation flow.
  * @param targetWeight - Input value for target weight.
  * @param currentWeight - Input value for current weight.
  * @returns Computed numeric value for the operation.
  */
-export function calculateRelativeDiff(targetWeight: number, currentWeight: number): number {
+export function calculateRequestDiff(targetWeight: number, currentWeight: number): number {
   return (targetWeight - currentWeight) / (currentWeight || 1);
 }
 
@@ -780,11 +784,31 @@ export function resolveAvailableKrwBalance(balances: Balances): number {
  * @returns Computed numeric value for the operation.
  */
 export function estimateBuyNotionalFromRequest(
-  request: { diff: number; symbol: string; marketPrice?: number },
+  request: { requestDiff: number; symbol: string; marketPrice?: number },
   tradableMarketValueMap?: Map<string, number>,
   fallbackMarketPrice?: number,
 ): number {
-  if (!Number.isFinite(request.diff) || request.diff <= 0) {
+  if (!Number.isFinite(request.requestDiff) || request.requestDiff <= 0) {
+    return 0;
+  }
+
+  return estimateTradeNotionalFromRequest(request, tradableMarketValueMap, fallbackMarketPrice);
+}
+
+/**
+ * Calculates trade notional from request for the allocation recommendation flow.
+ * Supports both buy/sell requests by using absolute requestDiff.
+ * @param request - Request payload for the allocation recommendation operation.
+ * @param tradableMarketValueMap - Input value for tradable market value map.
+ * @param fallbackMarketPrice - Input value for fallback market price.
+ * @returns Computed numeric value for the operation.
+ */
+export function estimateTradeNotionalFromRequest(
+  request: { requestDiff: number; symbol: string; marketPrice?: number },
+  tradableMarketValueMap?: Map<string, number>,
+  fallbackMarketPrice?: number,
+): number {
+  if (!Number.isFinite(request.requestDiff) || Math.abs(request.requestDiff) <= 0) {
     return 0;
   }
 
@@ -793,7 +817,8 @@ export function estimateBuyNotionalFromRequest(
     return 0;
   }
 
-  const estimated = baseValue * request.diff;
+  // Diff is relative to current exposure, so notional is derived from current tradable value.
+  const estimated = baseValue * Math.abs(request.requestDiff);
   if (!Number.isFinite(estimated) || estimated <= 0) {
     return 0;
   }
@@ -810,9 +835,16 @@ export function estimateBuyNotionalFromRequest(
  */
 export function scaleBuyRequestsToAvailableKrw<
   TRequest extends {
-    diff: number;
+    requestDiff: number;
     symbol: string;
     marketPrice?: number;
+    requestNotional?: number | null;
+    executionNotional?: number | null;
+    executionDiff?: number | null;
+    estimatedNotional?: number | null;
+    currentWeight?: number | null;
+    targetWeight?: number | null;
+    deltaWeight?: number | null;
   },
 >(buyRequests: TRequest[], availableKrw: number, options: ScaleBuyRequestsToAvailableKrwOptions): TRequest[] {
   if (buyRequests.length < 1) {
@@ -838,7 +870,8 @@ export function scaleBuyRequestsToAvailableKrw<
     return buyRequests;
   }
 
-  // Scale every buy request proportionally to preserve the requested portfolio shape.
+  // Budget scaling happens before turnover-budget capping so the later selector only sees
+  // buys that are feasible with the post-sell KRW balance.
   const scale = availableKrw / totalEstimated;
   options.onBudgetScaled?.({
     availableKrw,
@@ -849,9 +882,9 @@ export function scaleBuyRequestsToAvailableKrw<
 
   const scaledRequests = estimates
     .map(({ request, estimated }) => {
-      const scaledDiff = request.diff * scale;
+      const scaledRequestDiff = request.requestDiff * scale;
       const scaledEstimated = estimated * scale;
-      if (!Number.isFinite(scaledDiff) || scaledDiff <= 0) {
+      if (!Number.isFinite(scaledRequestDiff) || scaledRequestDiff <= 0) {
         return null;
       }
       if (!Number.isFinite(scaledEstimated) || scaledEstimated <= options.minimumTradePrice) {
@@ -860,10 +893,34 @@ export function scaleBuyRequestsToAvailableKrw<
 
       return {
         ...request,
-        diff: scaledDiff,
+        requestDiff: scaledRequestDiff,
+        // Carry selection metadata forward so later ranking/capping uses the scaled request,
+        // not the original pre-budget numbers.
+        requestNotional:
+          request.requestNotional != null && Number.isFinite(request.requestNotional)
+            ? request.requestNotional * scale
+            : undefined,
+        executionNotional:
+          request.executionNotional != null && Number.isFinite(request.executionNotional)
+            ? request.executionNotional * scale
+            : scaledEstimated,
+        executionDiff:
+          request.executionDiff != null && Number.isFinite(request.executionDiff)
+            ? request.executionDiff * scale
+            : scaledRequestDiff,
+        estimatedNotional: scaledEstimated,
+        deltaWeight:
+          request.deltaWeight != null && Number.isFinite(request.deltaWeight) ? request.deltaWeight * scale : undefined,
+        targetWeight:
+          request.currentWeight != null &&
+          Number.isFinite(request.currentWeight) &&
+          request.deltaWeight != null &&
+          Number.isFinite(request.deltaWeight)
+            ? request.currentWeight + request.deltaWeight * scale
+            : request.targetWeight,
       };
     })
-    .filter((item): item is TRequest => item !== null);
+    .filter((item) => item !== null) as TRequest[];
 
   if (scaledRequests.length < 1) {
     options.onBudgetInsufficient?.({
@@ -874,6 +931,126 @@ export function scaleBuyRequestsToAvailableKrw<
   }
 
   return scaledRequests;
+}
+
+/**
+ * Applies a hard notional budget to a ranked request list.
+ * The final request may be partially scaled once to fit the remaining budget.
+ * @param requests - Ranked requests in execution order.
+ * @param options - Budget options.
+ * @returns Selected/skipped requests with budget summary.
+ */
+export function applyNotionalBudgetToRankedRequests<
+  TRequest extends {
+    symbol: string;
+    requestDiff: number;
+    requestNotional?: number | null;
+    executionNotional?: number | null;
+    executionDiff?: number | null;
+    estimatedNotional?: number | null;
+    currentWeight?: number | null;
+    targetWeight?: number | null;
+    deltaWeight?: number | null;
+  },
+>(
+  requests: TRequest[],
+  options: ApplyNotionalBudgetToRankedRequestsOptions,
+): ApplyNotionalBudgetToRankedRequestsResult<TRequest> {
+  const requestedNotional = requests.reduce((total, request) => {
+    const estimatedNotional =
+      request.estimatedNotional != null && Number.isFinite(request.estimatedNotional) ? request.estimatedNotional : 0;
+    return total + Math.max(0, estimatedNotional);
+  }, 0);
+
+  if (!Number.isFinite(options.budgetNotional) || options.budgetNotional <= 0 || requests.length < 1) {
+    return {
+      requestedNotional,
+      selectedNotional: 0,
+      selectedRequests: [],
+      skippedRequests: [...requests],
+      partialScaledRequest: null,
+    };
+  }
+
+  let remainingBudget = options.budgetNotional;
+  let selectedNotional = 0;
+  const selectedRequests: TRequest[] = [];
+  const skippedRequests: TRequest[] = [];
+  let partialScaledRequest: TRequest | null = null;
+
+  for (const [index, request] of requests.entries()) {
+    const estimatedNotional =
+      request.estimatedNotional != null && Number.isFinite(request.estimatedNotional) ? request.estimatedNotional : 0;
+
+    if (estimatedNotional <= 0) {
+      skippedRequests.push(request);
+      continue;
+    }
+
+    if (estimatedNotional <= remainingBudget) {
+      selectedRequests.push(request);
+      selectedNotional += estimatedNotional;
+      remainingBudget -= estimatedNotional;
+      continue;
+    }
+
+    // We allow only the boundary request to be partially scaled. This avoids a hard cut that
+    // strands too much budget while still keeping the ranking semantics simple and deterministic.
+    const scale = remainingBudget / estimatedNotional;
+    if (!Number.isFinite(scale) || scale <= 0) {
+      skippedRequests.push(...requests.slice(index));
+      break;
+    }
+
+    const scaledNotional = estimatedNotional * scale;
+    if (scaledNotional <= options.minimumTradePrice) {
+      skippedRequests.push(...requests.slice(index));
+      break;
+    }
+
+    const scaledRequest = {
+      ...request,
+      requestDiff: request.requestDiff * scale,
+      requestNotional:
+        request.requestNotional != null && Number.isFinite(request.requestNotional)
+          ? request.requestNotional * scale
+          : undefined,
+      executionNotional:
+        request.executionNotional != null && Number.isFinite(request.executionNotional)
+          ? request.executionNotional * scale
+          : scaledNotional,
+      executionDiff:
+        request.executionDiff != null && Number.isFinite(request.executionDiff)
+          ? request.executionDiff * scale
+          : request.requestDiff * scale,
+      estimatedNotional: scaledNotional,
+      deltaWeight:
+        request.deltaWeight != null && Number.isFinite(request.deltaWeight) ? request.deltaWeight * scale : undefined,
+      targetWeight:
+        request.currentWeight != null &&
+        Number.isFinite(request.currentWeight) &&
+        request.deltaWeight != null &&
+        Number.isFinite(request.deltaWeight)
+          ? request.currentWeight + request.deltaWeight * scale
+          : request.targetWeight,
+    } as TRequest;
+
+    selectedRequests.push(scaledRequest);
+    selectedNotional += scaledNotional;
+    partialScaledRequest = scaledRequest;
+    // Once the boundary request consumes the remaining budget, lower-ranked requests do not get
+    // a second chance to absorb leftover notional.
+    skippedRequests.push(...requests.slice(index + 1));
+    break;
+  }
+
+  return {
+    requestedNotional,
+    selectedNotional,
+    selectedRequests,
+    skippedRequests,
+    partialScaledRequest,
+  };
 }
 
 /**

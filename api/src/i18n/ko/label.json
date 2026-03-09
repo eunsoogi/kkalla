@@ -1,15 +1,5 @@
 {
   "order": {
-    "status": {
-      "canceled": "취소",
-      "cancelled": "취소",
-      "closed": "종료",
-      "done": "체결 완료",
-      "filled": "전체 체결",
-      "open": "주문 접수",
-      "partially_filled": "부분 체결",
-      "wait": "대기"
-    },
     "type": {
       "buy": "매수",
       "sell": "매도"

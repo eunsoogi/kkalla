@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 
 import { useTranslations } from 'next-intl';
 import SimpleBar from 'simplebar-react';
 
-import { getDiffColor, getDiffPrefix } from '@/utils/color';
+import { getDeltaColor, getDeltaPrefix } from '@/utils/color';
 import { formatPrice } from '@/utils/number';
 
 import type { HoldingRowProps, HoldingsListProps } from './home.types';
@@ -23,8 +23,8 @@ const HoldingRow = ({ item }: HoldingRowProps) => (
     </TableCell>
     <TableCell className='px-4 py-3 whitespace-nowrap'>
       {item.dailyChangePct != null ? (
-        <span className={getDiffColor(item.dailyChangePct)}>
-          {getDiffPrefix(item.dailyChangePct)}
+        <span className={getDeltaColor(item.dailyChangePct)}>
+          {getDeltaPrefix(item.dailyChangePct)}
           {item.dailyChangePct.toFixed(2)}%
         </span>
       ) : (

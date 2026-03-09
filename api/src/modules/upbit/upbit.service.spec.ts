@@ -19,6 +19,22 @@ describe('UpbitService', () => {
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue(undefined),
   };
+  const tradeCostCalibrationService = {
+    resolveCostTier: jest.fn((nonFeeCostRate: number) => {
+      if (nonFeeCostRate < 0.001) return 'low';
+      if (nonFeeCostRate < 0.0025) return 'medium';
+      return 'high';
+    }),
+    resolveBuyGateCalibration: jest.fn().mockResolvedValue({
+      calibrationApplied: false,
+      calibrationReason: 'missing',
+      bucketKey: null,
+      staticNonFeeCostRate: null,
+      rawMultiplier: null,
+      appliedMultiplier: 1,
+      calibratedEstimatedCostRate: null,
+    }),
+  };
 
   beforeEach(() => {
     errorService.retry.mockReset();
@@ -28,6 +44,17 @@ describe('UpbitService', () => {
     errorService.getErrorMessage.mockClear();
     cacheService.get.mockResolvedValue(null);
     cacheService.set.mockResolvedValue(undefined);
+    tradeCostCalibrationService.resolveBuyGateCalibration.mockClear();
+    tradeCostCalibrationService.resolveCostTier.mockClear();
+    tradeCostCalibrationService.resolveBuyGateCalibration.mockResolvedValue({
+      calibrationApplied: false,
+      calibrationReason: 'missing',
+      bucketKey: null,
+      staticNonFeeCostRate: null,
+      rawMultiplier: null,
+      appliedMultiplier: 1,
+      calibratedEstimatedCostRate: null,
+    });
     service = new UpbitService(
       {
         t: jest.fn(translateKoMessage),
@@ -38,6 +65,7 @@ describe('UpbitService', () => {
         notifyServer: jest.fn().mockResolvedValue(undefined),
       } as any,
       cacheService as any,
+      tradeCostCalibrationService as any,
     );
   });
 
@@ -127,7 +155,7 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       marketPrice: 1_000_000,
       executionUrgency: 'urgent',
@@ -162,7 +190,7 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'urgent',
     });
@@ -202,11 +230,12 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'urgent',
     });
 
+    expect(result.requestPrice).toBeCloseTo(100_000_000, 4);
     expect(result.requestedAmount).toBeCloseTo(99_950, 6);
     expect(result.filledAmount).toBeCloseTo(99_950, 6);
     expect(result.order?.side).toBe(OrderTypes.BUY);
@@ -244,13 +273,109 @@ describe('UpbitService', () => {
 
     await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
     });
 
     expect(orderSpy).toHaveBeenCalledWith(user, expect.objectContaining({ type: OrderTypes.BUY }));
+  });
+
+  it('should tighten only the normal buy gate when calibrated cost is higher than static cost', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      BTC: { free: 0 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    jest.spyOn(service, 'calculateTotalPrice').mockReturnValue(1_000_000);
+    jest.spyOn(service as any, 'estimateOrderCost').mockResolvedValue({
+      feeRate: 0.0005,
+      spreadRate: 0.0004,
+      impactRate: 0.0004,
+      estimatedCostRate: 0.0013,
+    });
+    const orderSpy = jest.spyOn(service, 'order').mockResolvedValue({
+      side: OrderTypes.BUY,
+      status: 'open',
+      cost: 99_950,
+      filled: 0.001,
+      average: 99_950_000,
+    } as any);
+    tradeCostCalibrationService.resolveBuyGateCalibration.mockResolvedValueOnce({
+      calibrationApplied: true,
+      calibrationReason: 'active',
+      bucketKey: 'coin_major:low:existing:live',
+      staticNonFeeCostRate: 0.0008,
+      rawMultiplier: 1.5,
+      appliedMultiplier: 1.5,
+      calibratedEstimatedCostRate: 0.0017,
+    });
+
+    const result = await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      requestDiff: 0.1,
+      balances,
+      executionUrgency: 'normal',
+      expectedEdgeRate: 0.002,
+    });
+
+    expect(orderSpy).not.toHaveBeenCalled();
+    expect(result.order).toBeNull();
+    expect(result.estimatedCostRate).toBeCloseTo(0.0017, 10);
+  });
+
+  it('should override calibration cost tier from live spread and impact before lookup', async () => {
+    const user = { id: 'user-1' } as any;
+    const balances: any = {
+      info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      BTC: { free: 0 },
+    };
+
+    jest.spyOn(service, 'isSymbolExist').mockResolvedValue(true);
+    jest.spyOn(service, 'getPrice').mockResolvedValue(100_000_000);
+    jest.spyOn(service, 'calculateTotalPrice').mockReturnValue(1_000_000);
+    jest.spyOn(service as any, 'estimateOrderCost').mockResolvedValue({
+      feeRate: 0.0005,
+      spreadRate: 0.0016,
+      impactRate: 0.0012,
+      estimatedCostRate: 0.0033,
+    });
+    jest.spyOn(service, 'order').mockResolvedValue({
+      side: OrderTypes.BUY,
+      status: 'open',
+      cost: 99_950,
+      filled: 0.001,
+      average: 99_950_000,
+    } as any);
+
+    await service.adjustOrder(user, {
+      symbol: 'BTC/KRW',
+      requestDiff: 0.1,
+      balances,
+      executionUrgency: 'normal',
+      expectedEdgeRate: 0.01,
+      costCalibrationContext: {
+        category: 'coin_major' as any,
+        costTier: 'low',
+        positionClass: 'existing',
+        regimeSource: 'live',
+      },
+    });
+
+    expect(tradeCostCalibrationService.resolveBuyGateCalibration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calibrationContext: expect.objectContaining({
+          category: 'coin_major',
+          costTier: 'high',
+          positionClass: 'existing',
+          regimeSource: 'live',
+        }),
+      }),
+    );
   });
 
   it('should keep empty fill metadata for open market orders with missing fill metadata', async () => {
@@ -290,7 +415,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
@@ -332,7 +457,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: 0.1,
+      requestDiff: 0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.01,
@@ -373,7 +498,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: -0.1,
+      requestDiff: -0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.002,
@@ -423,7 +548,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: -0.1,
+      requestDiff: -0.1,
       balances,
       executionUrgency: 'urgent',
       expectedEdgeRate: 0.001,
@@ -464,7 +589,7 @@ describe('UpbitService', () => {
 
     const result = await service.adjustOrder(user, {
       symbol: 'BTC/KRW',
-      diff: -0.1,
+      requestDiff: -0.1,
       balances,
       executionUrgency: 'normal',
       expectedEdgeRate: 0.002,

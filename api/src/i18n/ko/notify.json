@@ -5,6 +5,7 @@
     "task_failed": "*[시스템 알림]* 자산 배분 감사 작업 실패\n> {message}"
   },
   "allocationRecommendation": {
+    "regime_unavailable_risk_off": "시장 국면 데이터를 불러오지 못해 신규 진입을 막는 보수적 모드로 실행합니다.",
     "result": "자산 배분 추천이 생성되었습니다.\n\n{transactions}",
     "transaction": "*{symbol}* ({prevModelTargetWeight} -> {modelTargetWeight}) {actionLabel}\n> 근거: {reason}",
     "actionLabel": {
@@ -23,7 +24,21 @@
   "order": {
     "fail": "{symbol} 주문에 실패했습니다.",
     "result": "다음과 같이 매매했습니다.\n\n{transactions}",
-    "transaction": "> {symbol} {type}, 거래금: {amount}, 수익금: {profit}, 기대엣지: {expectedEdgeRate}, 추정비용: {estimatedCostRate}, 스프레드: {spreadRate}, 임팩트: {impactRate}, 트리거: {triggerReason}, 게이트우회: {gateBypassedReason}"
+    "transaction": "*{symbol}* {type}\n> {whatHappened}\n> 이유: {why}",
+    "whatHappened": {
+      "executed": "{amount}원어치 실행했습니다.",
+      "reduced": "{amount}원어치만 실행했습니다."
+    },
+    "why": {
+      "conservative_mode": "시장 상황 정보가 부족해 보수적으로 처리했습니다.",
+      "reduced_size": "한 번에 너무 많이 움직이지 않도록 주문 크기를 줄였습니다.",
+      "urgent_sell": "손실 확대를 막는 쪽을 우선했습니다.",
+      "rebalance": "현재 자산 비중을 맞추기 위해 처리했습니다.",
+      "trim_position": "비중을 천천히 줄이도록 처리했습니다.",
+      "remove_out_of_scope": "추천 대상에서 벗어난 종목을 정리했습니다.",
+      "take_profit": "수익을 보호하는 쪽으로 처리했습니다.",
+      "generic": "현재 비중과 위험 기준에 따라 처리했습니다."
+    }
   },
   "profit": {
     "result": "수익금: {profit}"
