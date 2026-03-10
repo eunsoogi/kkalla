@@ -123,6 +123,7 @@ export interface ExecuteRebalanceTradesOptions {
   initialSnapshot: TradeExecutionSnapshot;
   turnoverCap: number;
   additionalSellRequests?: TradeRequest[];
+  recommendationNotificationRecommendations?: AllocationRecommendationData[];
   assertLockOrThrow?: () => void;
   buildExcludedRequests: (snapshot: TradeExecutionSnapshot) => TradeRequest[];
   buildIncludedRequests: (snapshot: TradeExecutionSnapshot) => TradeRequest[];
