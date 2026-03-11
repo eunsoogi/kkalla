@@ -2028,7 +2028,6 @@ export class TradeOrchestrationService {
     let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
     let inferredHoldingSnapshot = initialSnapshot;
     let finalPlannedRequests: TradeRequest[] = [...sellRequests];
-    let recommendationNotificationSent = false;
     if (refreshedBalances) {
       const refreshedSnapshot = await this.buildTradeExecutionSnapshot({
         runtime,
@@ -2115,17 +2114,6 @@ export class TradeOrchestrationService {
         );
       }
       finalPlannedRequests = [...sellRequests, ...cappedBuyRequests];
-      if (recommendationNotificationRecommendations && recommendationNotificationRecommendations.length > 0) {
-        await this.notifyAllocationRecommendationBestEffort({
-          notifyService,
-          runtime,
-          user,
-          recommendations: recommendationNotificationRecommendations,
-          plannedRequests: finalPlannedRequests,
-        });
-        assertLockOrThrow();
-        recommendationNotificationSent = true;
-      }
       buyExecutions = await executeTradesSequentiallyWithRequests(
         cappedBuyRequests,
         (request) =>
@@ -2136,21 +2124,6 @@ export class TradeOrchestrationService {
           }),
         assertLockOrThrow,
       );
-      assertLockOrThrow();
-    }
-
-    if (
-      !recommendationNotificationSent &&
-      recommendationNotificationRecommendations &&
-      recommendationNotificationRecommendations.length > 0
-    ) {
-      await this.notifyAllocationRecommendationBestEffort({
-        notifyService,
-        runtime,
-        user,
-        recommendations: recommendationNotificationRecommendations,
-        plannedRequests: finalPlannedRequests,
-      });
       assertLockOrThrow();
     }
 
@@ -2168,6 +2141,17 @@ export class TradeOrchestrationService {
       this.buildMergedHoldingsForSave(existingHoldings, liquidatedItems, executedBuyItems, inferredHoldItems),
     );
     assertLockOrThrow();
+
+    if (recommendationNotificationRecommendations && recommendationNotificationRecommendations.length > 0) {
+      await this.notifyAllocationRecommendationBestEffort({
+        notifyService,
+        runtime,
+        user,
+        recommendations: recommendationNotificationRecommendations,
+        plannedRequests: finalPlannedRequests,
+      });
+      assertLockOrThrow();
+    }
 
     const allTrades: Trade[] = [...sellTrades, ...buyTrades];
     if (allTrades.length > 0) {
