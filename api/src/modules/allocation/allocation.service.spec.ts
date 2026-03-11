@@ -1269,7 +1269,42 @@ describe('AllocationService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 매수');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 비중 유지');
+  });
+
+  it('should render hold label in allocation notify message when no planned request remains', async () => {
+    const categoryService = (service as any).categoryService;
+    const notifyService = (service as any).notifyService;
+    const upbitService = (service as any).upbitService;
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValue({ info: [] });
+    (upbitService as any).calculateTradableMarketValue = jest.fn().mockResolvedValue(0);
+    jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateNoTradeTrimRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateNonAllocationRecommendationTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'applyMissingInferenceGraceWindow').mockResolvedValue([]);
+
+    await service.executeAllocationForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          action: 'hold',
+          modelTargetWeight: 0.25,
+          prevModelTargetWeight: 0,
+          reason: '변동성으로 관망',
+          hasStock: false,
+        },
+      ] as any,
+      'new',
+    );
+
+    expect(notifyService.notify).toHaveBeenCalledTimes(1);
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 비중 유지');
   });
 
   it('should notify degraded unavailable risk-off mode separately from recommendation payload', async () => {
@@ -1302,7 +1337,7 @@ describe('AllocationService', () => {
 
     expect(notifyService.notify).toHaveBeenCalledTimes(2);
     expect(notifyService.notify.mock.calls[0][1]).toContain('보수적 모드');
-    expect(notifyService.notify.mock.calls[1][1]).toContain('(0% -> 25%) 매수');
+    expect(notifyService.notify.mock.calls[1][1]).toContain('(0% -> 25%) 비중 유지');
   });
 
   it('should override hasStock flag using the requesting user holdings', async () => {

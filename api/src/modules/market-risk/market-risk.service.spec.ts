@@ -1086,7 +1086,46 @@ describe('MarketRiskService', () => {
     );
 
     expect(notifyService.notify).toHaveBeenCalledTimes(1);
-    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 매수');
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 비중 유지');
+  });
+
+  it('should render hold label in market-risk notify message when no planned request remains', async () => {
+    const categoryService = (service as any).categoryService;
+    const notifyService = (service as any).notifyService;
+
+    categoryService.findEnabledByUser.mockResolvedValue([{ category: Category.COIN_MAJOR }]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValue([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    upbitService.getBalances.mockResolvedValue({ info: [] } as any);
+    jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateNoTradeTrimRequests').mockReturnValue([]);
+
+    await service.executeVolatilityTradesForUser(
+      { id: 'user-1', roles: [] } as any,
+      [
+        {
+          id: 'inference-1',
+          batchId: 'batch-1',
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          action: 'hold',
+          modelTargetWeight: 0.25,
+          prevModelTargetWeight: 0,
+          reason: '변동성으로 관망',
+          hasStock: true,
+        },
+      ] as any,
+    );
+
+    expect(notifyService.notify).toHaveBeenCalledTimes(1);
+    expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 비중 유지');
   });
 
   it('should block trade-request backfill in risk mode', () => {

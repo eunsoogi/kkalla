@@ -12,6 +12,7 @@ import type { NewsService } from '@/modules/news/news.service';
 import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import type { OpenaiService } from '@/modules/openai/openai.service';
 import type { ResponseCreateConfig } from '@/modules/openai/openai.types';
+import { stringifyUnknownError } from '@/modules/trade-execution-ledger/helpers/sqs-message';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '@/modules/trade/trade.types';
@@ -48,6 +49,7 @@ import {
   isSellAmountSufficient,
   normalizeAllocationRecommendationBatchResponsePayload,
   normalizeCandidateWeight,
+  resolveAllocationRecommendationActionLabelKey,
   resolveAvailableKrwBalance,
   resolveConsumeRecommendationAction,
   resolveInferenceRecommendationAction as resolveInferenceRecommendationActionByWeight,
@@ -55,6 +57,7 @@ import {
   resolveServerRecommendationAction,
   scaleBuyRequestsToAvailableKrw,
   shouldReallocate,
+  toPercentString,
 } from './helpers/allocation-recommendation';
 import type { NormalizedAllocationRecommendationResponse } from './helpers/allocation-recommendation';
 import { buildAllocationRecommendationPromptMessages } from './helpers/allocation-recommendation-context';
@@ -290,6 +293,85 @@ export class TradeOrchestrationService {
    */
   public clampToUnitInterval(value: number): number {
     return clamp01(value);
+  }
+
+  /**
+   * Builds the shared allocation recommendation notification message for allocation/risk flows.
+   */
+  public buildAllocationRecommendationNotificationMessage(options: {
+    i18n: I18nService;
+    recommendations: AllocationRecommendationData[];
+    plannedRequests: Array<Pick<TradeRequest, 'symbol' | 'requestDiff'>>;
+  }): string {
+    const netRequestDiffBySymbol = new Map<string, number>();
+
+    options.plannedRequests.forEach((request) => {
+      if (!(Number.isFinite(request.requestDiff) && Math.abs(request.requestDiff) > Number.EPSILON)) {
+        return;
+      }
+
+      netRequestDiffBySymbol.set(
+        request.symbol,
+        (netRequestDiffBySymbol.get(request.symbol) ?? 0) + request.requestDiff,
+      );
+    });
+
+    return options.i18n.t('notify.allocationRecommendation.result', {
+      args: {
+        transactions: options.recommendations
+          .map((recommendation) =>
+            options.i18n.t('notify.allocationRecommendation.transaction', {
+              args: {
+                symbol: recommendation.symbol,
+                prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
+                modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
+                actionLabel: options.i18n.t(
+                  resolveAllocationRecommendationActionLabelKey(
+                    ((): AllocationRecommendationAction => {
+                      const netRequestDiff = netRequestDiffBySymbol.get(recommendation.symbol) ?? 0;
+                      if (netRequestDiff > Number.EPSILON) {
+                        return 'buy';
+                      }
+                      if (netRequestDiff < -Number.EPSILON) {
+                        return 'sell';
+                      }
+                      return 'hold';
+                    })(),
+                  ),
+                ),
+                reason: toUserFacingText(recommendation.reason ?? '') || '-',
+              },
+            }),
+          )
+          .join('\n\n'),
+      },
+    });
+  }
+
+  private async notifyAllocationRecommendationBestEffort(options: {
+    notifyService: NotifyService;
+    runtime: TradeRuntimeContext;
+    user: User;
+    recommendations: AllocationRecommendationData[];
+    plannedRequests: Array<Pick<TradeRequest, 'symbol' | 'requestDiff'>>;
+  }): Promise<void> {
+    try {
+      await options.notifyService.notify(
+        options.user,
+        this.buildAllocationRecommendationNotificationMessage({
+          i18n: options.runtime.i18n,
+          recommendations: options.recommendations,
+          plannedRequests: options.plannedRequests,
+        }),
+      );
+    } catch (error) {
+      options.runtime.logger.warn(
+        options.runtime.i18n.t('logging.inference.allocationRecommendation.notifyFailed', {
+          args: { error: stringifyUnknownError(error) },
+        }),
+        error,
+      );
+    }
   }
 
   private buildExecutionSizing(options: {
@@ -1816,13 +1898,9 @@ export class TradeOrchestrationService {
       {
         isSymbolExist: (symbol) => runtime.exchangeService.isSymbolExist(symbol),
         onAllCheckFailed: () =>
-          runtime.logger.warn(
-            runtime.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckFailed'),
-          ),
+          runtime.logger.warn(runtime.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckFailed')),
         onPartialCheck: () =>
-          runtime.logger.warn(
-            runtime.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckPartial'),
-          ),
+          runtime.logger.warn(runtime.i18n.t('logging.inference.allocationRecommendation.orderableSymbolCheckPartial')),
       },
     );
     assertLockOrThrow();
@@ -1874,6 +1952,7 @@ export class TradeOrchestrationService {
       initialSnapshot,
       turnoverCap,
       additionalSellRequests = [],
+      recommendationNotificationRecommendations,
       assertLockOrThrow = () => undefined,
       buildExcludedRequests,
       buildIncludedRequests,
@@ -1953,6 +2032,7 @@ export class TradeOrchestrationService {
 
     let buyExecutions: Array<{ request: TradeRequest; trade: Trade | null }> = [];
     let inferredHoldingSnapshot = initialSnapshot;
+    let finalPlannedRequests: TradeRequest[] = [...sellRequests];
     if (refreshedBalances) {
       const refreshedSnapshot = await this.buildTradeExecutionSnapshot({
         runtime,
@@ -2038,6 +2118,7 @@ export class TradeOrchestrationService {
           }),
         );
       }
+      finalPlannedRequests = [...sellRequests, ...cappedBuyRequests];
       buyExecutions = await executeTradesSequentiallyWithRequests(
         cappedBuyRequests,
         (request) =>
@@ -2066,6 +2147,17 @@ export class TradeOrchestrationService {
     );
     assertLockOrThrow();
 
+    if (recommendationNotificationRecommendations && recommendationNotificationRecommendations.length > 0) {
+      await this.notifyAllocationRecommendationBestEffort({
+        notifyService,
+        runtime,
+        user,
+        recommendations: recommendationNotificationRecommendations,
+        plannedRequests: finalPlannedRequests,
+      });
+      assertLockOrThrow();
+    }
+
     const allTrades: Trade[] = [...sellTrades, ...buyTrades];
     if (allTrades.length > 0) {
       await notifyService.notify(
@@ -2083,7 +2175,7 @@ export class TradeOrchestrationService {
                   },
                 }),
               )
-              .join('\n'),
+              .join('\n\n'),
           },
         }),
       );

@@ -9,10 +9,6 @@ import { I18nService } from 'nestjs-i18n';
 import { CategoryExposureCaps } from '@/modules/allocation-core/allocation-core.types';
 import { AllocationSlotService } from '@/modules/allocation-core/allocation-slot.service';
 import {
-  resolveAllocationRecommendationActionLabelKey,
-  toPercentString,
-} from '@/modules/allocation-core/helpers/allocation-recommendation';
-import {
   inferAndPersistSharedRealtimeRecommendation,
   normalizeRecommendationTargetSymbol,
 } from '@/modules/allocation-core/helpers/allocation-recommendation-realtime';
@@ -726,29 +722,6 @@ export class AllocationService implements OnModuleInit {
       targetSlotCount: slotCount,
     });
 
-    // 추론 결과를 사용자에게 알림 전송 (종목별 추천 비율 표시)
-    await this.notifyService.notify(
-      user,
-      this.i18n.t('notify.allocationRecommendation.result', {
-        args: {
-          transactions: userScopedRecommendations
-            .map((recommendation) =>
-              this.i18n.t('notify.allocationRecommendation.transaction', {
-                args: {
-                  symbol: recommendation.symbol,
-                  prevModelTargetWeight: toPercentString(recommendation.prevModelTargetWeight),
-                  modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
-                  actionLabel: this.i18n.t(resolveAllocationRecommendationActionLabelKey(recommendation.action)),
-                  reason: toUserFacingText(recommendation.reason ?? '') || '-',
-                },
-              }),
-            )
-            .join('\n\n'),
-        },
-      }),
-    );
-    assertLockOrThrow();
-
     // 편입/편출 결정 분리
     // 1. 추론에 없는 기존 보유 종목 매도 요청 (완전 매도)
     const rawNonAllocationRecommendationTradeRequests: TradeRequest[] =
@@ -766,6 +739,55 @@ export class AllocationService implements OnModuleInit {
     );
     assertLockOrThrow();
 
+    const buildExcludedRequests = (snapshot: typeof executionSnapshot) =>
+      this.generateExcludedTradeRequests(
+        snapshot.balances,
+        userScopedRecommendations,
+        slotCount,
+        snapshot.marketPrice,
+        snapshot.orderableSymbols,
+        snapshot.tradableMarketValueMap,
+        allowBackfill,
+      );
+    const buildIncludedRequests = (snapshot: typeof executionSnapshot) =>
+      this.generateIncludedTradeRequests(
+        snapshot.balances,
+        userScopedRecommendations,
+        slotCount,
+        regimeMultiplier,
+        snapshot.currentWeights,
+        snapshot.marketPrice,
+        snapshot.orderableSymbols,
+        snapshot.tradableMarketValueMap,
+        allowBackfill,
+        regimePolicy.rebalanceBandMultiplier,
+        regimePolicy.categoryExposureCaps,
+      );
+    const buildNoTradeTrimRequests = (snapshot: typeof executionSnapshot) =>
+      this.generateNoTradeTrimRequests(
+        snapshot.balances,
+        userScopedRecommendations,
+        slotCount,
+        regimeMultiplier,
+        snapshot.currentWeights,
+        snapshot.marketPrice,
+        snapshot.orderableSymbols,
+        snapshot.tradableMarketValueMap,
+        allowBackfill,
+        regimePolicy.rebalanceBandMultiplier,
+        regimePolicy.categoryExposureCaps,
+      );
+    const buildInferredHoldingItems = (snapshot: typeof executionSnapshot) =>
+      this.buildInferredHoldingItemsForLedger(
+        userScopedRecommendations,
+        slotCount,
+        regimeMultiplier,
+        snapshot.currentWeights,
+        snapshot.orderableSymbols,
+        regimePolicy.categoryExposureCaps,
+        allowBackfill,
+      );
+
     // 공통 오케스트레이션 서비스로 매도/매수/원장 반영/알림 흐름을 위임한다.
     return this.tradeOrchestrationService.executeRebalanceTrades({
       runtime: tradeRuntime,
@@ -778,55 +800,12 @@ export class AllocationService implements OnModuleInit {
       regimePolicyState: regimePolicy.regimePolicyState,
       regimePolicySource: regimePolicy.regimePolicySource,
       additionalSellRequests: nonAllocationRecommendationTradeRequests,
+      recommendationNotificationRecommendations: userScopedRecommendations,
       assertLockOrThrow,
-      buildExcludedRequests: (snapshot) =>
-        this.generateExcludedTradeRequests(
-          snapshot.balances,
-          userScopedRecommendations,
-          slotCount,
-          snapshot.marketPrice,
-          snapshot.orderableSymbols,
-          snapshot.tradableMarketValueMap,
-          allowBackfill,
-        ),
-      buildIncludedRequests: (snapshot) =>
-        this.generateIncludedTradeRequests(
-          snapshot.balances,
-          userScopedRecommendations,
-          slotCount,
-          regimeMultiplier,
-          snapshot.currentWeights,
-          snapshot.marketPrice,
-          snapshot.orderableSymbols,
-          snapshot.tradableMarketValueMap,
-          allowBackfill,
-          regimePolicy.rebalanceBandMultiplier,
-          regimePolicy.categoryExposureCaps,
-        ),
-      buildNoTradeTrimRequests: (snapshot) =>
-        this.generateNoTradeTrimRequests(
-          snapshot.balances,
-          userScopedRecommendations,
-          slotCount,
-          regimeMultiplier,
-          snapshot.currentWeights,
-          snapshot.marketPrice,
-          snapshot.orderableSymbols,
-          snapshot.tradableMarketValueMap,
-          allowBackfill,
-          regimePolicy.rebalanceBandMultiplier,
-          regimePolicy.categoryExposureCaps,
-        ),
-      buildInferredHoldingItems: (snapshot) =>
-        this.buildInferredHoldingItemsForLedger(
-          userScopedRecommendations,
-          slotCount,
-          regimeMultiplier,
-          snapshot.currentWeights,
-          snapshot.orderableSymbols,
-          regimePolicy.categoryExposureCaps,
-          allowBackfill,
-        ),
+      buildExcludedRequests,
+      buildIncludedRequests,
+      buildNoTradeTrimRequests,
+      buildInferredHoldingItems,
     });
   }
 

@@ -1167,10 +1167,7 @@ export class FeatureService {
         count: ALLOCATION_RECOMMENDATION_MESSAGE_CONFIG.recent,
       });
     } catch (error) {
-      this.logger.error(
-        this.i18n.t('logging.upbit.features.recentRecommendationsFailed', { args: { symbol } }),
-        error,
-      );
+      this.logger.error(this.i18n.t('logging.upbit.features.recentRecommendationsFailed', { args: { symbol } }), error);
       return [];
     }
   }

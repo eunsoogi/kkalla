@@ -275,9 +275,7 @@ export class MarketIntelligenceService {
     await this.cacheLatestSignalState(inferenceResult.batchId, true);
     this.allocationAuditService
       .enqueueMarketBatchValidation(inferenceResult.batchId)
-      .catch((error) =>
-        this.logger.warn(this.i18n.t('logging.inference.marketSignal.enqueueValidationFailed'), error),
-      );
+      .catch((error) => this.logger.warn(this.i18n.t('logging.inference.marketSignal.enqueueValidationFailed'), error));
 
     return recommendationResults.map((saved) => ({
       id: saved.id,
