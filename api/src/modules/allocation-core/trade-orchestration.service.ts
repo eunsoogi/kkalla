@@ -12,6 +12,7 @@ import type { NewsService } from '@/modules/news/news.service';
 import { toUserFacingText } from '@/modules/openai/openai-citation.util';
 import type { OpenaiService } from '@/modules/openai/openai.service';
 import type { ResponseCreateConfig } from '@/modules/openai/openai.types';
+import { stringifyUnknownError } from '@/modules/trade-execution-ledger/helpers/sqs-message';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { Trade } from '@/modules/trade/entities/trade.entity';
 import { TradeData, TradeRequest } from '@/modules/trade/trade.types';
@@ -340,6 +341,32 @@ export class TradeOrchestrationService {
           .join('\n\n'),
       },
     });
+  }
+
+  private async notifyAllocationRecommendationBestEffort(options: {
+    notifyService: NotifyService;
+    runtime: TradeRuntimeContext;
+    user: User;
+    recommendations: AllocationRecommendationData[];
+    plannedRequests: Array<Pick<TradeRequest, 'symbol' | 'requestDiff'>>;
+  }): Promise<void> {
+    try {
+      await options.notifyService.notify(
+        options.user,
+        this.buildAllocationRecommendationNotificationMessage({
+          i18n: options.runtime.i18n,
+          recommendations: options.recommendations,
+          plannedRequests: options.plannedRequests,
+        }),
+      );
+    } catch (error) {
+      options.runtime.logger.warn(
+        options.runtime.i18n.t('logging.inference.allocationRecommendation.notifyFailed', {
+          args: { error: stringifyUnknownError(error) },
+        }),
+        error,
+      );
+    }
   }
 
   private buildExecutionSizing(options: {
@@ -2089,14 +2116,13 @@ export class TradeOrchestrationService {
       }
       finalPlannedRequests = [...sellRequests, ...cappedBuyRequests];
       if (recommendationNotificationRecommendations && recommendationNotificationRecommendations.length > 0) {
-        await notifyService.notify(
+        await this.notifyAllocationRecommendationBestEffort({
+          notifyService,
+          runtime,
           user,
-          this.buildAllocationRecommendationNotificationMessage({
-            i18n: runtime.i18n,
-            recommendations: recommendationNotificationRecommendations,
-            plannedRequests: finalPlannedRequests,
-          }),
-        );
+          recommendations: recommendationNotificationRecommendations,
+          plannedRequests: finalPlannedRequests,
+        });
         assertLockOrThrow();
         recommendationNotificationSent = true;
       }
@@ -2118,14 +2144,13 @@ export class TradeOrchestrationService {
       recommendationNotificationRecommendations &&
       recommendationNotificationRecommendations.length > 0
     ) {
-      await notifyService.notify(
+      await this.notifyAllocationRecommendationBestEffort({
+        notifyService,
+        runtime,
         user,
-        this.buildAllocationRecommendationNotificationMessage({
-          i18n: runtime.i18n,
-          recommendations: recommendationNotificationRecommendations,
-          plannedRequests: finalPlannedRequests,
-        }),
-      );
+        recommendations: recommendationNotificationRecommendations,
+        plannedRequests: finalPlannedRequests,
+      });
       assertLockOrThrow();
     }
 

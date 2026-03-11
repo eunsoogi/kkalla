@@ -52,6 +52,7 @@
     "allocationRecommendation": {
       "buyBudgetInsufficient": "[매수 예산 부족] availableKrw={availableKrw}, totalEstimated={totalEstimated}, requestedCount={requestedCount}",
       "buyBudgetScaled": "[매수 예산 축소] availableKrw={availableKrw}, totalEstimated={totalEstimated}, scale={scale}, requestedCount={requestedCount}",
+      "notifyFailed": "추천 알림 전송에 실패했습니다. error={error}",
       "buyTurnoverBudgetApplied": "[매수 예산 캡 적용] turnoverCap={turnoverCap}, sizingContractVersion={sizingContractVersion}, selectionPolicyVersion={selectionPolicyVersion}, regimePolicyState={regimePolicyState}, requestedCount={requestedCount}, requestedNotional={requestedNotional}, budgetNotional={budgetNotional}, selectedCount={selectedCount}, selectedNotional={selectedNotional}, selected={selectedSymbols}, skipped={skippedSymbols}, partialScaledSymbol={partialScaledSymbol}",
       "complete": "자산 배분 추천 분석을 완료했습니다.",
       "enqueueValidationFailed": "자산 배분 감사 사후 검증 큐 등록에 실패했습니다.",

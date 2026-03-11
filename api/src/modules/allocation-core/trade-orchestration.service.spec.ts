@@ -1829,6 +1829,98 @@ describe('TradeOrchestrationService', () => {
       expect(notifyService.notify.mock.calls[0][1]).toContain('\n\n*ETH/KRW* 매도');
     });
 
+    it('should continue rebalance when recommendation notification fails', async () => {
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>([['SELL-1/KRW', 0.1]]),
+        tradableMarketValueMap: new Map<string, number>([['SELL-1/KRW', 100_000]]),
+      } as any;
+      const refreshedSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(['BUY-1/KRW']),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest
+          .fn()
+          .mockRejectedValueOnce(new Error('recommendation notify failed'))
+          .mockResolvedValueOnce(undefined),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(service, 'buildTradeExecutionSnapshot').mockResolvedValue(refreshedSnapshot);
+      const executeTradeSpy = jest.spyOn(service, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: request.requestDiff < 0 ? 'sell' : 'buy',
+            amount: 10_000,
+            profit: 0,
+            inference: request.inference ?? null,
+            decisionRequestNotional: 10_000,
+            decisionExecutionNotional: 10_000,
+            decisionRegimeSource: 'live',
+            triggerReason: 'included_rebalance',
+            gateBypassedReason: null,
+          }) as any,
+      );
+
+      await expect(
+        service.executeRebalanceTrades({
+          runtime,
+          holdingLedgerService,
+          notifyService,
+          user,
+          referenceSymbols: ['SELL-1/KRW', 'BUY-1/KRW'],
+          initialSnapshot,
+          turnoverCap: 1,
+          recommendationNotificationRecommendations: [
+            {
+              symbol: 'BUY-1/KRW',
+              prevModelTargetWeight: 0,
+              modelTargetWeight: 0.25,
+              reason: 'BUY 근거',
+            } as any,
+          ],
+          buildExcludedRequests: () => [{ symbol: 'SELL-1/KRW', requestDiff: -0.1, balances, marketPrice: 1_000_000 }],
+          buildIncludedRequests: (snapshot) =>
+            snapshot === initialSnapshot
+              ? []
+              : [{ symbol: 'BUY-1/KRW', requestDiff: 0.25, balances, marketPrice: 1_000_000 }],
+          buildNoTradeTrimRequests: () => [],
+        }),
+      ).resolves.toHaveLength(2);
+
+      expect(executeTradeSpy.mock.calls.map((call: any[]) => call[0].request.symbol)).toEqual([
+        'SELL-1/KRW',
+        'BUY-1/KRW',
+      ]);
+      expect(runtime.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('추천 알림 전송에 실패했습니다. error=Error: recommendation notify failed'),
+        expect.any(Error),
+      );
+    });
+
     it('should apply unified buy notional budget without new-entry exemptions', async () => {
       const user = { id: 'user-1' } as any;
       const balances: any = {
