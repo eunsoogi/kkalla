@@ -39,6 +39,7 @@ jolly-canyon/
 
 - Write repository documentation and persistent project notes in English.
 - Respond to the user in Korean by default unless the user explicitly asks for another conversation language.
+- When code changes affect behavior, structure, configuration, workflows, or public interfaces, update the relevant documentation in the same change set, including `README.md`, `api/README.md`, `ui/README.md`, `docs/`, `api/docs/`, and `ui/docs/` as applicable.
 - API root module imports core modules first, then feature modules in alphabetical order.
 - Shared backend domain logic belongs in `api/src/modules/allocation-core/**`, not duplicated across `allocation` and `market-risk`.
 - Backend module-local contracts use `*.types.ts`; prompt content lives in `*.prompt.md` and is loaded at runtime.
