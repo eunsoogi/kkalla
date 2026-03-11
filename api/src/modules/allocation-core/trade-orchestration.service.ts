@@ -303,21 +303,17 @@ export class TradeOrchestrationService {
     recommendations: AllocationRecommendationData[];
     plannedRequests: Array<Pick<TradeRequest, 'symbol' | 'requestDiff'>>;
   }): string {
-    const plannedActionBySymbol = new Map<string, AllocationRecommendationAction>();
+    const netRequestDiffBySymbol = new Map<string, number>();
 
     options.plannedRequests.forEach((request) => {
       if (!(Number.isFinite(request.requestDiff) && Math.abs(request.requestDiff) > Number.EPSILON)) {
         return;
       }
 
-      if (request.requestDiff < 0) {
-        plannedActionBySymbol.set(request.symbol, 'sell');
-        return;
-      }
-
-      if (!plannedActionBySymbol.has(request.symbol)) {
-        plannedActionBySymbol.set(request.symbol, 'buy');
-      }
+      netRequestDiffBySymbol.set(
+        request.symbol,
+        (netRequestDiffBySymbol.get(request.symbol) ?? 0) + request.requestDiff,
+      );
     });
 
     return options.i18n.t('notify.allocationRecommendation.result', {
@@ -331,7 +327,16 @@ export class TradeOrchestrationService {
                 modelTargetWeight: toPercentString(recommendation.modelTargetWeight),
                 actionLabel: options.i18n.t(
                   resolveAllocationRecommendationActionLabelKey(
-                    plannedActionBySymbol.get(recommendation.symbol) ?? 'hold',
+                    ((): AllocationRecommendationAction => {
+                      const netRequestDiff = netRequestDiffBySymbol.get(recommendation.symbol) ?? 0;
+                      if (netRequestDiff > Number.EPSILON) {
+                        return 'buy';
+                      }
+                      if (netRequestDiff < -Number.EPSILON) {
+                        return 'sell';
+                      }
+                      return 'hold';
+                    })(),
                   ),
                 ),
                 reason: toUserFacingText(recommendation.reason ?? '') || '-',

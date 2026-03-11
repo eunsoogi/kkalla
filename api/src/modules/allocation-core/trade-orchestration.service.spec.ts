@@ -125,6 +125,29 @@ describe('TradeOrchestrationService', () => {
       expect(message).toContain('*XRP/KRW* (20% -> 20%) 비중 유지');
       expect(message).toContain('\n\n*ETH/KRW*');
     });
+
+    it('should use the net request direction when a symbol appears in both sell and buy legs', () => {
+      const i18n: any = { t: jest.fn(translateKoMessage) };
+
+      const message = service.buildAllocationRecommendationNotificationMessage({
+        i18n,
+        recommendations: [
+          {
+            symbol: 'BTC/KRW',
+            prevModelTargetWeight: 0.2,
+            modelTargetWeight: 0.3,
+            reason: 'BTC 근거',
+          } as any,
+        ],
+        plannedRequests: [
+          { symbol: 'BTC/KRW', requestDiff: -0.1 },
+          { symbol: 'BTC/KRW', requestDiff: 0.25 },
+        ],
+      });
+
+      expect(message).toContain('*BTC/KRW* (20% -> 30%) 비중 확대');
+      expect(message).not.toContain('비중 축소');
+    });
   });
 
   describe('market regime', () => {
