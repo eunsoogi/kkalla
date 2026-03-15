@@ -1186,9 +1186,6 @@ export class MarketRiskService implements OnModuleInit {
     };
     const includedAllocationRecommendations = this.buildHeldIncludedRecommendationsByCategory(inferences);
 
-    // 편출 대상 종목 선정:
-    // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
-    // 2. intensity <= 0 && hasStock인 종목들
     const filteredAllocationRecommendations = [
       ...includedAllocationRecommendations.slice(count),
       ...this.buildHeldExcludedRecommendationsByCategory(inferences),

@@ -380,7 +380,17 @@ describe('MarketRiskService', () => {
       },
     ];
 
-    const excludedRequests = (service as any).generateExcludedTradeRequests(balances, inferences, 2, 1_000_000);
+    const excludedRequests = (service as any).generateExcludedTradeRequests(
+      balances,
+      inferences,
+      2,
+      1_000_000,
+      undefined,
+      new Map<string, number>([
+        ['BTC/KRW', 550_000],
+        ['ETH/KRW', 450_000],
+      ]),
+    );
 
     expect(excludedRequests).toHaveLength(1);
     expect(excludedRequests[0]).toMatchObject({
@@ -1318,6 +1328,48 @@ describe('MarketRiskService', () => {
 
     expect(requests).toHaveLength(2);
     expect(requests.map((request: any) => request.symbol)).toEqual(['XRP/KRW', 'ETH/KRW']);
+  });
+
+  it('should keep held symbols ahead of breakout entries when the account is already full in risk mode', () => {
+    const requests = (service as any).generateIncludedTradeRequests(
+      { info: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.9,
+          decisionConfidence: 0.9,
+          modelTargetWeight: 0.9,
+          action: 'buy',
+          hasStock: true,
+        },
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.8,
+          decisionConfidence: 0.8,
+          modelTargetWeight: 0.8,
+          action: 'buy',
+          hasStock: true,
+        },
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          intensity: 0.95,
+          decisionConfidence: 0.95,
+          modelTargetWeight: 0.95,
+          action: 'buy',
+          hasStock: false,
+        },
+      ] as any,
+      2,
+      1,
+      new Map(),
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(requests.map((request: any) => request.symbol)).toEqual(['BTC/KRW', 'ETH/KRW']);
   });
 
   it('should not trim hold recommendation when current account weight already matches target in risk mode', () => {
