@@ -15,6 +15,10 @@ describe('HoldingLedgerService', () => {
     service = module.get<HoldingLedgerService>(HoldingLedgerService);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
