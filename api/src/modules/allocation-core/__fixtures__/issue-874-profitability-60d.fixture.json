@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-15T00:00:00.000Z",
+  "windowDays": 60,
+  "steps": [
+    {
+      "recommendationId": "rec-1",
+      "symbol": "BTC/KRW",
+      "horizonHours": 168,
+      "pnlAmount": 120,
+      "deployedCapital": 400,
+      "turnoverNotional": 150,
+      "equity": 1120
+    },
+    {
+      "recommendationId": "rec-2",
+      "symbol": "ETH/KRW",
+      "horizonHours": 168,
+      "pnlAmount": -40,
+      "deployedCapital": 500,
+      "turnoverNotional": 200,
+      "equity": 1080
+    },
+    {
+      "recommendationId": "rec-3",
+      "symbol": "SOL/KRW",
+      "horizonHours": 168,
+      "pnlAmount": 80,
+      "deployedCapital": 500,
+      "turnoverNotional": 200,
+      "equity": 1160
+    }
+  ]
+}
