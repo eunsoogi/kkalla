@@ -15,7 +15,7 @@ import type { ResponseCreateConfig } from '@/modules/openai/openai.types';
 import { stringifyUnknownError } from '@/modules/trade-execution-ledger/helpers/sqs-message';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { Trade } from '@/modules/trade/entities/trade.entity';
-import type { TradeCostCalibrationService } from '@/modules/trade/trade-cost-calibration.service';
+import { TradeCostCalibrationService } from '@/modules/trade/trade-cost-calibration.service';
 import { TradeData, TradeRequest } from '@/modules/trade/trade.types';
 import { UPBIT_MINIMUM_TRADE_PRICE } from '@/modules/upbit/upbit.constant';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';

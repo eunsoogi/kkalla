@@ -1,5 +1,8 @@
+import { Test } from '@nestjs/testing';
+
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { Category } from '@/modules/category/category.enum';
+import { TradeCostCalibrationService } from '@/modules/trade/trade-cost-calibration.service';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
 import { translateKoMessage } from '@/test-utils/i18n.mock';
 
@@ -85,6 +88,29 @@ describe('TradeOrchestrationService', () => {
 
       expect(whatHappened).toBe('80,000원어치만 실행했습니다.');
       expect(why).toBe('한 번에 너무 많이 움직이지 않도록 주문 크기를 줄였습니다.');
+    });
+  });
+
+  describe('dependency injection', () => {
+    it('should inject the runtime TradeCostCalibrationService token when provided by Nest', async () => {
+      const calibrationService = {
+        resolveBuyGateCalibration: jest.fn(),
+        resolveExecutionNotionalMultiplier: jest.fn(),
+      };
+
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          TradeOrchestrationService,
+          {
+            provide: TradeCostCalibrationService,
+            useValue: calibrationService,
+          },
+        ],
+      }).compile();
+
+      const nestedService = moduleRef.get(TradeOrchestrationService);
+
+      expect((nestedService as any).tradeCostCalibrationService).toBe(calibrationService);
     });
   });
 
