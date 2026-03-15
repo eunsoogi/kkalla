@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { Balances, Order } from 'ccxt';
 
@@ -15,6 +15,7 @@ import type { ResponseCreateConfig } from '@/modules/openai/openai.types';
 import { stringifyUnknownError } from '@/modules/trade-execution-ledger/helpers/sqs-message';
 import { executeTradesSequentiallyWithRequests } from '@/modules/trade-execution-ledger/helpers/trade-execution-runner';
 import { Trade } from '@/modules/trade/entities/trade.entity';
+import type { TradeCostCalibrationService } from '@/modules/trade/trade-cost-calibration.service';
 import { TradeData, TradeRequest } from '@/modules/trade/trade.types';
 import { UPBIT_MINIMUM_TRADE_PRICE } from '@/modules/upbit/upbit.constant';
 import { OrderTypes } from '@/modules/upbit/upbit.enum';
@@ -107,6 +108,8 @@ class RealtimeRecommendationResponseError extends Error {
  */
 @Injectable()
 export class TradeOrchestrationService {
+  constructor(@Optional() private readonly tradeCostCalibrationService?: TradeCostCalibrationService) {}
+
   /**
    * Default trade policy shared by allocation/risk flows.
    * Callers may still override by explicitly passing `policy`.
@@ -116,9 +119,27 @@ export class TradeOrchestrationService {
     minimumAllocationBand: SHARED_REBALANCE_POLICY.minAllocationBand,
     allocationBandRatio: SHARED_REBALANCE_POLICY.allocationBandRatio,
     symbolMaxTurnoverFraction: SHARED_REBALANCE_POLICY.symbolMaxTurnoverFraction,
+    defaultGrossExposureTarget: SHARED_REBALANCE_POLICY.defaultGrossExposureTarget,
+    newEntryMaxTurnoverFraction: SHARED_REBALANCE_POLICY.newEntryMaxTurnoverFraction,
+    existingAdjustmentMaxTurnoverFraction: SHARED_REBALANCE_POLICY.existingAdjustmentMaxTurnoverFraction,
+    defensiveExitMaxTurnoverFraction: SHARED_REBALANCE_POLICY.defensiveExitMaxTurnoverFraction,
     estimatedFeeRate: SHARED_REBALANCE_POLICY.estimatedFeeRate,
     estimatedSlippageRate: SHARED_REBALANCE_POLICY.estimatedSlippageRate,
     edgeRiskBufferRate: SHARED_REBALANCE_POLICY.edgeRiskBufferRate,
+    replacementEdgeDeltaMin: SHARED_REBALANCE_POLICY.replacementEdgeDeltaMin,
+    breakoutEntryMinConfidence: SHARED_REBALANCE_POLICY.breakoutEntryMinConfidence,
+    breakoutEntryMaxConcurrentEntries: SHARED_REBALANCE_POLICY.breakoutEntryMaxConcurrentEntries,
+    breakoutEntryMaxEntriesPerCategory: SHARED_REBALANCE_POLICY.breakoutEntryMaxEntriesPerCategory,
+    profitabilityAuditTargetHitRate: SHARED_REBALANCE_POLICY.profitabilityAuditTargetHitRate,
+    profitabilityAuditTargetHitRateLift: SHARED_REBALANCE_POLICY.profitabilityAuditTargetHitRateLift,
+    profitabilityReplayWindowDays: SHARED_REBALANCE_POLICY.profitabilityReplayWindowDays,
+    profitabilityAuditPreferredHorizons: SHARED_REBALANCE_POLICY.profitabilityAuditPreferredHorizons,
+    calibrationLowCostActiveExecutionNotionalMultiplier:
+      SHARED_REBALANCE_POLICY.calibrationLowCostActiveExecutionNotionalMultiplier,
+    calibrationMediumCostActiveExecutionNotionalMultiplier:
+      SHARED_REBALANCE_POLICY.calibrationMediumCostActiveExecutionNotionalMultiplier,
+    calibrationElevatedCostActiveExecutionNotionalMultiplier:
+      SHARED_REBALANCE_POLICY.calibrationElevatedCostActiveExecutionNotionalMultiplier,
     stagedExitLight: SHARED_REBALANCE_POLICY.stagedExitLight,
     stagedExitMedium: SHARED_REBALANCE_POLICY.stagedExitMedium,
     stagedExitFull: SHARED_REBALANCE_POLICY.stagedExitFull,
@@ -398,7 +419,14 @@ export class TradeOrchestrationService {
       currentSymbolNotional > Number.EPSILON
         ? currentSymbolNotional * Math.abs(options.executionDiff)
         : options.marketPrice * targetGapWeight;
-    const symbolMaxTurnoverNotional = options.marketPrice * options.policy.symbolMaxTurnoverFraction;
+    const turnoverFraction = options.forcedFullLiquidation
+      ? 1
+      : options.executionDiff < 0
+        ? options.policy.defensiveExitMaxTurnoverFraction
+        : currentSymbolNotional > Number.EPSILON
+          ? options.policy.existingAdjustmentMaxTurnoverFraction
+          : options.policy.newEntryMaxTurnoverFraction;
+    const symbolMaxTurnoverNotional = options.marketPrice * turnoverFraction;
     const executionNotional = options.forcedFullLiquidation
       ? requestNotional
       : Math.min(requestNotional, symbolMaxTurnoverNotional);
@@ -461,6 +489,80 @@ export class TradeOrchestrationService {
       positionClass,
       regimeSource,
     };
+  }
+
+  private scaleTradeRequestNotional(request: TradeRequest, scale: number): TradeRequest {
+    return {
+      ...request,
+      requestDiff: request.requestDiff * scale,
+      requestNotional:
+        request.requestNotional != null && Number.isFinite(request.requestNotional)
+          ? request.requestNotional * scale
+          : request.requestNotional,
+      executionNotional:
+        request.executionNotional != null && Number.isFinite(request.executionNotional)
+          ? request.executionNotional * scale
+          : request.executionNotional,
+      executionDiff:
+        request.executionDiff != null && Number.isFinite(request.executionDiff)
+          ? request.executionDiff * scale
+          : request.executionDiff,
+      estimatedNotional:
+        request.estimatedNotional != null && Number.isFinite(request.estimatedNotional)
+          ? request.estimatedNotional * scale
+          : request.estimatedNotional,
+      deltaWeight:
+        request.deltaWeight != null && Number.isFinite(request.deltaWeight)
+          ? request.deltaWeight * scale
+          : request.deltaWeight,
+      targetWeight:
+        request.currentWeight != null &&
+        Number.isFinite(request.currentWeight) &&
+        request.deltaWeight != null &&
+        Number.isFinite(request.deltaWeight)
+          ? request.currentWeight + request.deltaWeight * scale
+          : request.targetWeight,
+    };
+  }
+
+  private async applyCalibrationAwareBuySizing(
+    requests: TradeRequest[],
+    tradeCostCalibrationService: TradeCostCalibrationService | undefined,
+    regimeSource: 'live' | 'cache_fallback' | 'unavailable_risk_off' | null,
+  ): Promise<TradeRequest[]> {
+    if (!tradeCostCalibrationService || requests.length < 1) {
+      return requests;
+    }
+
+    return Promise.all(
+      requests.map(async (request) => {
+        const costCalibrationContext = this.buildBuyCostCalibrationContext(request, regimeSource);
+        if (!costCalibrationContext) {
+          return request;
+        }
+
+        const calibration = await tradeCostCalibrationService.resolveBuyGateCalibration({
+          type: OrderTypes.BUY,
+          urgency: request.executionUrgency ?? 'normal',
+          estimatedCostRate: request.estimatedCostRate ?? null,
+          spreadRate: request.spreadRate ?? null,
+          impactRate: request.impactRate ?? null,
+          calibrationContext: costCalibrationContext,
+        });
+        const executionNotionalMultiplier = tradeCostCalibrationService.resolveExecutionNotionalMultiplier(calibration);
+        const scaledRequest =
+          Number.isFinite(executionNotionalMultiplier) &&
+          executionNotionalMultiplier > Number.EPSILON &&
+          Math.abs(executionNotionalMultiplier - 1) > Number.EPSILON
+            ? this.scaleTradeRequestNotional(request, executionNotionalMultiplier)
+            : request;
+
+        return {
+          ...scaledRequest,
+          costCalibrationContext,
+        };
+      }),
+    );
   }
 
   /**
@@ -1253,7 +1355,6 @@ export class TradeOrchestrationService {
       runtime,
       balances,
       candidates,
-      targetSlotCount,
       regimeMultiplier,
       currentWeights,
       marketPrice,
@@ -1283,10 +1384,7 @@ export class TradeOrchestrationService {
       };
     });
     const totalConviction = convictionRows.reduce((sum, row) => sum + row.conviction, 0);
-    const targetSlotDenominator = Math.max(1, targetSlotCount ?? candidates.length);
-    const targetBudget = clamp01(
-      convictionRows.reduce((sum, row) => sum + row.baseTargetWeight, 0) / targetSlotDenominator,
-    );
+    const targetBudget = clamp01(policy.defaultGrossExposureTarget * regimeMultiplier);
     const categoryAllocatedTargetWeight = new Map<Category, number>();
 
     return convictionRows
@@ -1482,6 +1580,7 @@ export class TradeOrchestrationService {
       runtime,
       balances,
       candidates,
+      bestReplacementNetEdge = Number.NEGATIVE_INFINITY,
       topK,
       regimeMultiplier,
       currentWeights,
@@ -1494,9 +1593,12 @@ export class TradeOrchestrationService {
     const policy = this.resolveTradePolicy(options.policy);
     const normalizedTopK = Math.max(1, topK);
     const categoryAllocatedTargetWeight = new Map<Category, number>();
-
     return candidates
       .map((inference) => {
+        if (!inference.hasStock || !this.isNoTradeRecommendation(inference)) {
+          return null;
+        }
+
         if (!isOrderableSymbol(inference.symbol, orderableSymbols)) {
           runtime.logger.log(
             runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
@@ -1566,7 +1668,13 @@ export class TradeOrchestrationService {
 
         const expectedEdgeRate = this.resolveExpectedEdgeRate(deltaWeight, inference);
         const estimatedCostRate = this.resolveEstimatedCostRate(policy, inference);
-        if (!this.passesExpectedEdgeGate(policy, expectedEdgeRate, estimatedCostRate)) {
+        const expectedNetEdgeRate = expectedEdgeRate - estimatedCostRate - policy.edgeRiskBufferRate;
+        const replacementAdvantage = bestReplacementNetEdge - expectedNetEdgeRate;
+        const canTrimForReplacement =
+          Number.isFinite(bestReplacementNetEdge) &&
+          bestReplacementNetEdge > 0 &&
+          replacementAdvantage >= policy.replacementEdgeDeltaMin;
+        if (!this.passesExpectedEdgeGate(policy, expectedEdgeRate, estimatedCostRate) && !canTrimForReplacement) {
           runtime.logger.log(
             runtime.i18n.t('logging.inference.allocationRecommendation.noTradeTrimSkipped', {
               args: {
@@ -2094,6 +2202,16 @@ export class TradeOrchestrationService {
           sellExecutions,
         );
       }
+      prioritizedBuyRequests = await this.applyCalibrationAwareBuySizing(
+        prioritizedBuyRequests,
+        this.tradeCostCalibrationService,
+        options.regimePolicySource ?? null,
+      );
+      prioritizedBuyRequests = scaleBuyRequestsToAvailableKrw(prioritizedBuyRequests, availableKrw, {
+        tradableMarketValueMap: refreshedSnapshot.tradableMarketValueMap,
+        fallbackMarketPrice: refreshedSnapshot.marketPrice,
+        minimumTradePrice: policy.minimumTradePrice,
+      });
       const buyBudgetResult = applyNotionalBudgetToRankedRequests(prioritizedBuyRequests, {
         budgetNotional:
           prioritizedBuyRequests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) *
@@ -2104,7 +2222,9 @@ export class TradeOrchestrationService {
         ...request,
         regimePolicyState: options.regimePolicyState ?? 'available',
         regimePolicySource: options.regimePolicySource ?? null,
-        costCalibrationContext: this.buildBuyCostCalibrationContext(request, options.regimePolicySource ?? null),
+        costCalibrationContext:
+          request.costCalibrationContext ??
+          this.buildBuyCostCalibrationContext(request, options.regimePolicySource ?? null),
       }));
       if (cappedBuyRequests.length !== prioritizedBuyRequests.length || buyBudgetResult.partialScaledRequest != null) {
         runtime.logger.log(

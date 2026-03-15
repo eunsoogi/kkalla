@@ -25,6 +25,21 @@ export const SHARED_REBALANCE_POLICY = {
   payoffOverlayStopLossMin: -0.5,
   payoffOverlayTrailingMin: -0.3,
   minAllocationConfidence: 0.35,
+  defaultGrossExposureTarget: 0.9,
+  newEntryMaxTurnoverFraction: 0.18,
+  existingAdjustmentMaxTurnoverFraction: 0.1,
+  defensiveExitMaxTurnoverFraction: 0.25,
+  replacementEdgeDeltaMin: 0.0015,
+  breakoutEntryMinConfidence: 0.6,
+  breakoutEntryMaxConcurrentEntries: 2,
+  breakoutEntryMaxEntriesPerCategory: 1,
+  profitabilityAuditTargetHitRate: 0.58,
+  profitabilityAuditTargetHitRateLift: 0.04,
+  profitabilityReplayWindowDays: 60,
+  profitabilityAuditPreferredHorizons: [168, 72, 24] as const,
+  calibrationLowCostActiveExecutionNotionalMultiplier: 1.15,
+  calibrationMediumCostActiveExecutionNotionalMultiplier: 1,
+  calibrationElevatedCostActiveExecutionNotionalMultiplier: 0.85,
 } as const;
 
 /**

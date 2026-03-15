@@ -566,7 +566,7 @@ describe('TradeOrchestrationService', () => {
   });
 
   describe('included trade request sizing', () => {
-    it('should cap per-symbol trade notional using the shared turnover fraction', () => {
+    it('should allocate explicit gross exposure target and apply new entry turnover fraction', () => {
       const runtime: any = {
         logger: { log: jest.fn() },
         i18n: { t: jest.fn(translateKoMessage) },
@@ -599,9 +599,10 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(requests).toHaveLength(1);
-      expect(requests[0].requestNotional).toBeCloseTo(1_000_000, 6);
-      expect(requests[0].executionNotional).toBeCloseTo(100_000, 6);
-      expect(requests[0].executionDiff).toBeCloseTo(0.1, 6);
+      expect(requests[0].targetWeight).toBeCloseTo(0.9, 6);
+      expect(requests[0].requestNotional).toBeCloseTo(900_000, 6);
+      expect(requests[0].executionNotional).toBeCloseTo(180_000, 6);
+      expect(requests[0].executionDiff).toBeCloseTo(0.18, 6);
     });
 
     it('should preserve capped trade notional when enriching estimated notional for budgeting', () => {
@@ -657,7 +658,7 @@ describe('TradeOrchestrationService', () => {
       expect(requests).toHaveLength(0);
     });
 
-    it('should normalize target budget by configured slot count', () => {
+    it('should allocate explicit gross exposure target without slot normalization', () => {
       const runtime: any = {
         logger: { log: jest.fn() },
         i18n: { t: jest.fn(translateKoMessage) },
@@ -713,8 +714,9 @@ describe('TradeOrchestrationService', () => {
 
       expect(withoutSlotCount).toHaveLength(2);
       expect(withSlotCount).toHaveLength(2);
-      expect(withoutSlotCount[0].requestDiff).toBeCloseTo(0.25, 6);
-      expect(withSlotCount[0].requestDiff).toBeCloseTo(0.125, 6);
+      expect(withoutSlotCount[0].targetWeight).toBeCloseTo(0.45, 6);
+      expect(withSlotCount[0].targetWeight).toBeCloseTo(0.45, 6);
+      expect(withSlotCount[0].requestDiff).toBeCloseTo(0.45, 6);
     });
 
     it('should resolve user-scoped action threshold on per-slot single-symbol scale', () => {
@@ -859,6 +861,7 @@ describe('TradeOrchestrationService', () => {
       const requests = service.buildNoTradeTrimRequests({
         runtime,
         balances: { info: [] } as any,
+        bestReplacementNetEdge: 0.0275,
         candidates: [
           {
             symbol: 'BTC/KRW',
@@ -875,6 +878,128 @@ describe('TradeOrchestrationService', () => {
       });
 
       expect(requests).toHaveLength(0);
+    });
+
+    it('should allow no-trade trim when a replacement candidate exceeds the configured edge delta', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildNoTradeTrimRequests({
+        runtime,
+        balances: { info: [] } as any,
+        bestReplacementNetEdge: 0.0275,
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'no_trade',
+            hasStock: true,
+            modelTargetWeight: 0.05,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.001,
+            estimatedCostRate: 0.002,
+          } as any,
+          {
+            symbol: 'ETH/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'buy',
+            modelTargetWeight: 0.9,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.03,
+            estimatedCostRate: 0.002,
+          } as any,
+        ],
+        topK: 5,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([
+          ['BTC/KRW', 0.3],
+          ['ETH/KRW', 0],
+        ]),
+        marketPrice: 1_000_000,
+        tradableMarketValueMap: new Map<string, number>([['BTC/KRW', 300_000]]),
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].symbol).toBe('BTC/KRW');
+      expect(requests[0].triggerReason).toBe('no_trade_trim');
+    });
+
+    it('should keep no-trade trim blocked when the replacement candidate is still net-negative', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildNoTradeTrimRequests({
+        runtime,
+        balances: { info: [] } as any,
+        bestReplacementNetEdge: -0.0004,
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'no_trade',
+            hasStock: true,
+            modelTargetWeight: 0.05,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.001,
+            estimatedCostRate: 0.0025,
+          } as any,
+          {
+            symbol: 'ETH/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'buy',
+            modelTargetWeight: 0.9,
+            decisionConfidence: 0.9,
+            expectedEdgeRate: 0.0021,
+            estimatedCostRate: 0.002,
+          } as any,
+        ],
+        topK: 5,
+        regimeMultiplier: 1,
+        currentWeights: new Map<string, number>([
+          ['BTC/KRW', 0.3],
+          ['ETH/KRW', 0],
+        ]),
+        marketPrice: 1_000_000,
+        tradableMarketValueMap: new Map<string, number>([['BTC/KRW', 300_000]]),
+      });
+
+      expect(requests).toHaveLength(0);
+    });
+
+    it('should not block forced liquidations or excluded staged exits behind profitability gating', () => {
+      const runtime: any = {
+        logger: { log: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {},
+      };
+
+      const requests = service.buildExcludedTradeRequests({
+        runtime,
+        balances: { info: [] } as any,
+        candidates: [
+          {
+            symbol: 'BTC/KRW',
+            category: Category.COIN_MAJOR,
+            action: 'sell',
+            hasStock: true,
+            decisionConfidence: 0.95,
+            expectedEdgeRate: 0,
+            estimatedCostRate: 1,
+          } as any,
+        ],
+        marketPrice: 1_000_000,
+        tradableMarketValueMap: new Map<string, number>([['BTC/KRW', 300_000]]),
+      });
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0].triggerReason).toBe('excluded_staged_exit');
+      expect(requests[0].requestDiff).toBeLessThan(0);
     });
 
     it('should persist current holding weight when sell is downgraded to hold by min threshold', () => {
@@ -2179,6 +2304,216 @@ describe('TradeOrchestrationService', () => {
         'REBALANCE-1/KRW',
         'NEW-ENTRY-A/KRW',
       ]);
+    });
+
+    it('should apply calibration-aware sizing before buy turnover budgeting and execution', async () => {
+      const calibratedService = new TradeOrchestrationService({
+        resolveBuyGateCalibration: jest.fn().mockResolvedValue({
+          calibrationApplied: true,
+          calibrationReason: 'active',
+          bucketKey: 'coin_major:high:existing:live',
+          appliedMultiplier: 1.3,
+        }),
+        resolveExecutionNotionalMultiplier: jest.fn().mockReturnValue(0.85),
+      } as any);
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '1000000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const refreshedSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(['BTC/KRW']),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const buyRequests = [
+        {
+          symbol: 'BTC/KRW',
+          requestDiff: 0.1,
+          executionDiff: 0.1,
+          requestNotional: 100_000,
+          executionNotional: 100_000,
+          estimatedNotional: 100_000,
+          balances,
+          marketPrice: 1_000_000,
+          positionClass: 'existing',
+          currentWeight: 0,
+          deltaWeight: 0.1,
+          targetWeight: 0.1,
+          expectedNetEdge: 0.04,
+          estimatedCostRate: 0.0021,
+          spreadRate: 0.0011,
+          impactRate: 0.001,
+          executionUrgency: 'normal',
+          inference: { category: Category.COIN_MAJOR } as any,
+        },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(calibratedService, 'buildTradeExecutionSnapshot').mockResolvedValue(refreshedSnapshot);
+      const executeTradeSpy = jest.spyOn(calibratedService, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'buy',
+            amount: 10_000,
+            profit: 0,
+            inference: request.inference ?? null,
+          }) as any,
+      );
+
+      await calibratedService.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['BTC/KRW'],
+        initialSnapshot,
+        turnoverCap: 1,
+        regimePolicySource: 'live',
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: (snapshot) => (snapshot === initialSnapshot ? [] : buyRequests),
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            symbol: 'BTC/KRW',
+            requestDiff: 0.085,
+            executionDiff: 0.085,
+            executionNotional: 85_000,
+            estimatedNotional: 85_000,
+          }),
+        }),
+      );
+    });
+
+    it('should re-apply available KRW budgeting after calibration-aware buy sizing expands notional', async () => {
+      const calibratedService = new TradeOrchestrationService({
+        resolveBuyGateCalibration: jest.fn().mockResolvedValue({
+          calibrationApplied: true,
+          calibrationReason: 'active',
+          bucketKey: 'coin_major:low:existing:live',
+          appliedMultiplier: 1,
+        }),
+        resolveExecutionNotionalMultiplier: jest.fn().mockReturnValue(1.15),
+      } as any);
+      const user = { id: 'user-1' } as any;
+      const balances: any = {
+        info: [{ currency: 'KRW', unit_currency: 'KRW', balance: '100000' }],
+      };
+      const initialSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const refreshedSnapshot = {
+        balances,
+        orderableSymbols: new Set<string>(['BTC/KRW']),
+        marketPrice: 1_000_000,
+        currentWeights: new Map<string, number>(),
+        tradableMarketValueMap: new Map<string, number>(),
+      } as any;
+      const buyRequests = [
+        {
+          symbol: 'BTC/KRW',
+          requestDiff: 0.095,
+          executionDiff: 0.095,
+          requestNotional: 95_000,
+          executionNotional: 95_000,
+          estimatedNotional: 95_000,
+          balances,
+          marketPrice: 1_000_000,
+          positionClass: 'existing',
+          currentWeight: 0,
+          deltaWeight: 0.095,
+          targetWeight: 0.095,
+          expectedNetEdge: 0.04,
+          estimatedCostRate: 0.0013,
+          spreadRate: 0.0007,
+          impactRate: 0.0006,
+          executionUrgency: 'normal',
+          inference: { category: Category.COIN_MAJOR } as any,
+        },
+      ] as any[];
+      const holdingLedgerService: any = {
+        fetchHoldingsByUser: jest.fn().mockResolvedValue([]),
+        replaceHoldingsForUser: jest.fn().mockResolvedValue([]),
+      };
+      const notifyService: any = {
+        notify: jest.fn(),
+        clearClients: jest.fn(),
+      };
+      const runtime: any = {
+        logger: { log: jest.fn(), warn: jest.fn() },
+        i18n: { t: jest.fn(translateKoMessage) },
+        exchangeService: {
+          getBalances: jest.fn().mockResolvedValue(balances),
+          clearClients: jest.fn(),
+        },
+      };
+
+      jest.spyOn(calibratedService, 'buildTradeExecutionSnapshot').mockResolvedValue(refreshedSnapshot);
+      const executeTradeSpy = jest.spyOn(calibratedService, 'executeTrade').mockImplementation(
+        async ({ request }: any) =>
+          ({
+            symbol: request.symbol,
+            type: 'buy',
+            amount: 10_000,
+            profit: 0,
+            inference: request.inference ?? null,
+          }) as any,
+      );
+
+      await calibratedService.executeRebalanceTrades({
+        runtime,
+        holdingLedgerService,
+        notifyService,
+        user,
+        referenceSymbols: ['BTC/KRW'],
+        initialSnapshot,
+        turnoverCap: 1,
+        regimePolicySource: 'live',
+        buildExcludedRequests: () => [],
+        buildIncludedRequests: (snapshot) => (snapshot === initialSnapshot ? [] : buyRequests),
+        buildNoTradeTrimRequests: () => [],
+      });
+
+      expect(executeTradeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            symbol: 'BTC/KRW',
+            executionNotional: 100_000,
+            estimatedNotional: 100_000,
+          }),
+        }),
+      );
     });
 
     it('should apply sell notional budget with boundary partial scaling', async () => {
