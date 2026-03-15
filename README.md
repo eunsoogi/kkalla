@@ -177,8 +177,7 @@ make install ENV=production
 make uninstall
 ```
 
-> **CI/CD**: On `v*.*.*` tag push, the `bake-release` workflow builds and pushes images; the `deploy` workflow runs Helm install.  
-> For AWS setup, see [this issue comment](https://github.com/eunsoogi/kkalla/issues/448#issuecomment-2614849972).
+> **CI/CD**: On `v*.*.*` tag push, the `bake-release` workflow builds and pushes images; the `deploy` workflow runs Helm install.
 
 ---
 
