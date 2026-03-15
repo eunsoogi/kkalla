@@ -23,7 +23,7 @@ Backend for the [Kkalla](https://github.com/eunsoogi/kkalla) AI investment assis
 - **Upbit / trade** — Market data, trades, profit
 - **News** — News aggregation and management
 - **Notify** — Notifications (e.g. Slack), schedules
-- **Blacklist** — Symbol blacklisting
+- **Blacklist** — Symbol blacklisting with immediate holding-ledger exclusion
 - **Health** — Liveness/readiness for Kubernetes
 - **i18n** — Korean locale support
 
