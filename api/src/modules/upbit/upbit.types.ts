@@ -8,7 +8,6 @@ export type BuyCostCalibrationCostTier = 'low' | 'medium' | 'high';
 export type BuyCostCalibrationSnapshotStatus = 'active' | 'warmup' | 'stale' | 'invalid';
 export type BuyCostCalibrationReason =
   | 'active'
-  | 'disabled'
   | 'warmup'
   | 'stale'
   | 'invalid'

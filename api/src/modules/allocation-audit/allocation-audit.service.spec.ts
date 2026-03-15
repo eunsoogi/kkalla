@@ -21,6 +21,10 @@ describe('AllocationAuditService', () => {
       'logging.allocationAudit.summary.noValidItems': 'No valid items',
       'logging.allocationAudit.summary.accuracy': 'accuracy={ratio}% ({hit}/{total})',
       'logging.allocationAudit.summary.avgReturn': 'avgReturn={value}',
+      'logging.allocationAudit.summary.avgTradeRoi': 'avgTradeRoi={value}',
+      'logging.allocationAudit.summary.deployedCapitalRatio': 'deployedCapitalRatio={value}',
+      'logging.allocationAudit.summary.pnlPerTurnover': 'pnlPerTurnover={value}',
+      'logging.allocationAudit.summary.maxDrawdownPct': 'maxDrawdownPct={value}',
       'logging.allocationAudit.summary.avgOverall': 'avgOverall={value}',
       'logging.allocationAudit.summary.lowScore': 'lowScore={count}',
       'logging.allocationAudit.summary.guardrails': 'guardrails={value}',
@@ -653,5 +657,103 @@ describe('AllocationAuditService', () => {
     const finalValue = await service.getRecommendedMarketMinConfidenceForAllocation();
     expect(finalValue).toBeCloseTo(0.45, 5);
     expect(findSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should choose confidence thresholds from 168h profitability metrics before shorter horizons', () => {
+    const items = [
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'good',
+        directionHit: true,
+        recommendationConfidence: 0.65,
+        horizonHours: 168,
+        tradeRoiPct: 5,
+      })),
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'bad',
+        directionHit: false,
+        recommendationConfidence: 0.45,
+        horizonHours: 168,
+        tradeRoiPct: 0.5,
+      })),
+      ...Array.from({ length: 40 }, () => ({
+        aiVerdict: 'good',
+        directionHit: true,
+        recommendationConfidence: 0.55,
+        horizonHours: 24,
+        tradeRoiPct: 1,
+      })),
+    ];
+
+    expect((service as any).resolveMarketMinConfidenceFromValidation(items)).toBeCloseTo(0.65, 5);
+  });
+
+  it('should keep market min confidence unset when no threshold meets the target hit rate', () => {
+    const items = [
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'good',
+        directionHit: true,
+        recommendationConfidence: 0.4,
+        horizonHours: 168,
+        tradeRoiPct: 0.4,
+      })),
+      ...Array.from({ length: 20 }, () => ({
+        aiVerdict: 'bad',
+        directionHit: false,
+        recommendationConfidence: 0.65,
+        horizonHours: 168,
+        tradeRoiPct: 0.6,
+      })),
+    ];
+
+    expect((service as any).resolveMarketMinConfidenceFromValidation(items)).toBeNull();
+  });
+
+  it('should calculate profitability metrics in chronological order even when items are loaded newest first', () => {
+    const metrics = (service as any).calculateProfitabilityMetricsFromAuditItems([
+      {
+        createdAt: new Date('2026-03-12T00:00:00.000Z'),
+        realizedTradePnl: -50,
+        realizedTradeAmount: 200,
+      },
+      {
+        createdAt: new Date('2026-03-10T00:00:00.000Z'),
+        realizedTradePnl: 100,
+        realizedTradeAmount: 100,
+      },
+    ]);
+
+    expect(metrics.deployedCapitalRatio).toBeCloseTo(0.15, 10);
+    expect(metrics.maxDrawdownPct).toBeCloseTo(50 / 1100, 10);
+  });
+
+  it('should fall back to shorter horizons while preserving existing validation badges', async () => {
+    jest.spyOn(AllocationAuditItem, 'find').mockResolvedValue([
+      {
+        sourceRecommendationId: 'rec-1',
+        reportType: 'allocation',
+        horizonHours: 24,
+        status: 'completed',
+        overallScore: 0.8,
+      },
+      {
+        sourceRecommendationId: 'rec-1',
+        reportType: 'allocation',
+        horizonHours: 72,
+        status: 'completed',
+        overallScore: 0.7,
+      },
+      {
+        sourceRecommendationId: 'rec-1',
+        reportType: 'allocation',
+        horizonHours: 168,
+        status: 'completed',
+        overallScore: 0.9,
+      },
+    ] as any);
+
+    const badges = await service.getAllocationValidationBadgeMap(['rec-1']);
+    const entry = badges.get('rec-1') as Record<string, unknown>;
+
+    expect(Object.keys(entry).sort()).toEqual(['validation24h', 'validation72h']);
   });
 });

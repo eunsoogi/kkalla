@@ -14,7 +14,6 @@ describe('TradeCostCalibrationService', () => {
   beforeEach(() => {
     service = new TradeCostCalibrationService(errorService as any);
     jest.restoreAllMocks();
-    delete process.env.BUY_COST_CALIBRATION_GATE_ENABLED;
   });
 
   it('should resolve cost tier thresholds and clamp multipliers upward only', () => {
@@ -40,7 +39,7 @@ describe('TradeCostCalibrationService', () => {
     expect(service.resolveRawMultiplier(0.01, 0.0009)).toBeNull();
   });
 
-  it('should resolve active, stale, and disabled lookup results', async () => {
+  it('should resolve active and stale lookup results', async () => {
     jest.spyOn(TradeCostCalibrationSnapshot, 'findOne').mockResolvedValue({
       version: 1,
       category: Category.COIN_MAJOR,
@@ -109,23 +108,6 @@ describe('TradeCostCalibrationService', () => {
 
     expect(stale.calibrationApplied).toBe(false);
     expect(stale.calibrationReason).toBe('stale');
-
-    process.env.BUY_COST_CALIBRATION_GATE_ENABLED = 'false';
-    const disabled = await service.resolveBuyGateCalibration({
-      type: OrderTypes.BUY,
-      urgency: 'normal',
-      estimatedCostRate: 0.0015,
-      spreadRate: 0.0005,
-      impactRate: 0.0005,
-      calibrationContext: {
-        category: Category.COIN_MAJOR,
-        costTier: 'medium',
-        positionClass: 'existing',
-        regimeSource: 'live',
-      },
-    });
-
-    expect(disabled.calibrationReason).toBe('disabled');
   });
 
   it('should degrade lookup errors to invalid static-gate fallback', async () => {
@@ -148,6 +130,42 @@ describe('TradeCostCalibrationService', () => {
     expect(result.calibrationApplied).toBe(false);
     expect(result.calibrationReason).toBe('invalid');
     expect(result.calibratedEstimatedCostRate).toBe(0.0015);
+  });
+
+  it('should apply the issue 874 sizing ladder for active calibration buckets', () => {
+    expect(
+      service.resolveExecutionNotionalMultiplier({
+        calibrationApplied: true,
+        calibrationReason: 'active',
+        bucketKey: 'coin_major:low:existing:live',
+        staticNonFeeCostRate: 0.0008,
+        rawMultiplier: 1,
+        appliedMultiplier: 1,
+        calibratedEstimatedCostRate: 0.0013,
+      } as any),
+    ).toBeCloseTo(1.15, 10);
+    expect(
+      service.resolveExecutionNotionalMultiplier({
+        calibrationApplied: true,
+        calibrationReason: 'active',
+        bucketKey: 'coin_major:medium:existing:live',
+        staticNonFeeCostRate: 0.0016,
+        rawMultiplier: 1,
+        appliedMultiplier: 1,
+        calibratedEstimatedCostRate: 0.0021,
+      } as any),
+    ).toBeCloseTo(1, 10);
+    expect(
+      service.resolveExecutionNotionalMultiplier({
+        calibrationApplied: true,
+        calibrationReason: 'active',
+        bucketKey: 'coin_major:high:existing:live',
+        staticNonFeeCostRate: 0.003,
+        rawMultiplier: 1.3,
+        appliedMultiplier: 1.3,
+        calibratedEstimatedCostRate: 0.0039,
+      } as any),
+    ).toBeCloseTo(0.85, 10);
   });
 
   it('should refresh snapshots from recent eligible buy trades', async () => {
