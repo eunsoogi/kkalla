@@ -136,6 +136,24 @@ export class HoldingLedgerService {
             category: item.category,
           })
           .execute(),
+        ),
+      );
+  }
+
+  public async removeHoldingsForAllUsers(items: HoldingLedgerRemoveItem[]): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      items.map((item) =>
+        HoldingLedger.createQueryBuilder()
+          .delete()
+          .where('symbol = :symbol AND category = :category', {
+            symbol: item.symbol,
+            category: item.category,
+          })
+          .execute(),
       ),
     );
   }
