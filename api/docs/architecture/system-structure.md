@@ -183,7 +183,7 @@ flowchart TB
 | `FeatureModule` | 2 | 3 | Market feature extraction + news context |
 | `ProfitModule` | 0 | 3 | Profit read model |
 | `AuthModule` | 2 | 0 | Authentication + role hydration |
-| `BlacklistModule` | 0 | 2 | Symbol exclusion rules |
+| `BlacklistModule` | 1 | 2 | Symbol exclusion rules and retroactive holding-ledger cleanup |
 | `SlackModule` | 0 | 2 | Slack transport |
 | `TradeExecutionLedgerModule` | 0 | 2 | Idempotency and execution state ledger |
 | `RoleModule` | 0 | 1 | Role entity/read/write |
@@ -211,6 +211,7 @@ DashboardModule -> HoldingLedgerModule, MarketIntelligenceModule, MarketRegimeMo
 ErrorModule -> NotifyModule
 FeatureModule -> NewsModule, UpbitModule
 HoldingLedgerModule -> CategoryModule, UpbitModule
+BlacklistModule -> HoldingLedgerModule
 MarketIntelligenceModule -> AllocationAuditModule, BlacklistModule, CacheModule, ErrorModule, FeatureModule, MarketRegimeModule, NewsModule, NotifyModule, OpenaiModule, RedlockModule, UpbitModule
 MarketRegimeModule -> CacheModule, ErrorModule
 MarketRiskModule -> AllocationAuditModule, AllocationCoreModule, CacheModule, CategoryModule, ErrorModule, FeatureModule, HoldingLedgerModule, MarketRegimeModule, NewsModule, NotifyModule, OpenaiModule, ProfitModule, RedlockModule, ScheduleModule, SlackModule, TradeExecutionLedgerModule, UpbitModule, UserModule
@@ -227,7 +228,7 @@ UserModule -> RoleModule
 | Module | Base Path | Main Endpoints |
 | --- | --- | --- |
 | `AuthModule` | `/api/v1/auth` | `GET /roles` |
-| `BlacklistModule` | `/api/v1/blacklists` | list/get/create/update/delete |
+| `BlacklistModule` | `/api/v1/blacklists` | list/get/create/update/delete with immediate holding-ledger cleanup on create/update |
 | `CategoryModule` | `/api/v1/categories` | list/enabled/create/update/delete |
 | `DashboardModule` | `/api/v1/dashboard` | `GET /summary` |
 | `HoldingLedgerModule` | `/api/v1/holdings` | `GET /` |

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { In } from 'typeorm';
+import { EntityManager, In } from 'typeorm';
 
 import { RecommendationItem } from '../allocation-core/allocation-core.types';
 import { User } from '../user/entities/user.entity';
@@ -132,6 +132,25 @@ export class HoldingLedgerService {
           .delete()
           .where('user_id = :userId AND symbol = :symbol AND category = :category', {
             userId: user.id,
+            symbol: item.symbol,
+            category: item.category,
+          })
+          .execute(),
+        ),
+      );
+  }
+
+  public async removeHoldingsForAllUsers(items: HoldingLedgerRemoveItem[], manager?: EntityManager): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      items.map((item) =>
+        (manager?.createQueryBuilder() ?? HoldingLedger.createQueryBuilder())
+          .delete()
+          .from(HoldingLedger)
+          .where('symbol = :symbol AND category = :category', {
             symbol: item.symbol,
             category: item.category,
           })
