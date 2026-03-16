@@ -46,4 +46,21 @@ describe('calculateProfitabilityMetrics', () => {
       sampleCount: 3,
     });
   });
+
+  it('should treat recovery to the prior peak as a completed drawdown recovery', () => {
+    const steps: ProfitabilityMetricInput[] = [
+      { pnlAmount: 100, deployedCapital: 300, turnoverNotional: 100, equity: 1100 },
+      { pnlAmount: -100, deployedCapital: 200, turnoverNotional: 90, equity: 1000 },
+      { pnlAmount: 100, deployedCapital: 150, turnoverNotional: 80, equity: 1100 },
+    ];
+
+    expect(calculateProfitabilityMetrics(steps)).toEqual({
+      feeAdjustedNetExpectancy: 33.333333333333336,
+      deployedCapitalRatio: 0.21666666666666665,
+      pnlPerTurnover: 0.37037037037037035,
+      maxDrawdownPct: 0.09090909090909091,
+      recoveryStepCount: 1,
+      sampleCount: 3,
+    });
+  });
 });

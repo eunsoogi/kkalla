@@ -44,7 +44,7 @@ export function calculateProfitabilityMetrics(steps: ProfitabilityMetricInput[])
   steps.forEach((step, index) => {
     const equity = toSafeNumber(step.equity);
 
-    if (equity > peakEquity) {
+    if (equity >= peakEquity) {
       peakEquity = equity;
       if (drawdownStartIndex != null) {
         recoveryStepCount = Math.max(recoveryStepCount, index - drawdownStartIndex);
