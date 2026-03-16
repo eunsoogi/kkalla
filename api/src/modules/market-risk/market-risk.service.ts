@@ -1064,6 +1064,7 @@ export class MarketRiskService implements OnModuleInit {
 
     const breakoutCandidates = inferences
       .filter((recommendation) => !recommendation.hasStock)
+      .filter((recommendation) => this.tradeOrchestrationService.isOrderableSymbol(recommendation.symbol))
       .filter((recommendation) => recommendation.intensity > 0)
       .filter(
         (recommendation) =>

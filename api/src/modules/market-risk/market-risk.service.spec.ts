@@ -1128,7 +1128,7 @@ describe('MarketRiskService', () => {
     ]);
 
     const passedInferences = includedSpy.mock.calls[0][1];
-    expect(passedInferences.map((item: any) => item.symbol)).toEqual(['BTC/KRW', 'ETH/KRW', 'TSLA']);
+    expect(passedInferences.map((item: any) => item.symbol)).toEqual(['BTC/KRW', 'ETH/KRW', 'SOL/KRW']);
   });
 
   it('should suppress breakout entries when regime policy is unavailable', async () => {
@@ -1328,6 +1328,41 @@ describe('MarketRiskService', () => {
 
     expect(requests).toHaveLength(2);
     expect(requests.map((request: any) => request.symbol)).toEqual(['XRP/KRW', 'ETH/KRW']);
+  });
+
+  it('should ignore non-orderable breakout candidates when applying breakout-entry caps', () => {
+    const selected = (service as any).selectVolatilityExecutionRecommendations(
+      [
+        {
+          symbol: 'AAPL/USD',
+          category: Category.NASDAQ,
+          intensity: 0.99,
+          decisionConfidence: 0.99,
+          action: 'buy',
+          hasStock: false,
+        },
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          intensity: 0.91,
+          decisionConfidence: 0.91,
+          action: 'buy',
+          hasStock: false,
+        },
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.9,
+          decisionConfidence: 0.9,
+          action: 'buy',
+          hasStock: true,
+        },
+      ] as any,
+      'available',
+      'live',
+    );
+
+    expect(selected.map((item: any) => item.symbol)).toEqual(['BTC/KRW', 'XRP/KRW']);
   });
 
   it('should keep held symbols ahead of breakout entries when the account is already full in risk mode', () => {
