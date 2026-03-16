@@ -2211,7 +2211,7 @@ export class TradeOrchestrationService {
         tradableMarketValueMap: refreshedSnapshot.tradableMarketValueMap,
         fallbackMarketPrice: refreshedSnapshot.marketPrice,
         minimumTradePrice: policy.minimumTradePrice,
-      });
+      }).sort((a, b) => this.compareBuyRequestPriority(a, b));
       const buyBudgetResult = applyNotionalBudgetToRankedRequests(prioritizedBuyRequests, {
         budgetNotional:
           prioritizedBuyRequests.reduce((sum, request) => sum + Math.max(0, request.estimatedNotional ?? 0), 0) *
