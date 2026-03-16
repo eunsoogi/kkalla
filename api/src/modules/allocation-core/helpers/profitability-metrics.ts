@@ -36,7 +36,7 @@ export function calculateProfitabilityMetrics(steps: ProfitabilityMetricInput[])
     steps.reduce((sum, step) => sum + Math.max(0, toSafeNumber(step.deployedCapital)), 0) / steps.length;
   const initialCapital = Math.max(0, toSafeNumber(steps[0].equity) - toSafeNumber(steps[0].pnlAmount));
 
-  let peakEquity = toSafeNumber(steps[0].equity);
+  let peakEquity = initialCapital > Number.EPSILON ? initialCapital : toSafeNumber(steps[0].equity);
   let maxDrawdownPct = 0;
   let drawdownStartIndex: number | null = null;
   let recoveryStepCount = 0;
