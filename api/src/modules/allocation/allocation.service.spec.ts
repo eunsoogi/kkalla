@@ -869,6 +869,50 @@ describe('AllocationService', () => {
     expect(requests[0].requestDiff).toBeLessThan(0);
   });
 
+  it('should allow no-trade trim through allocation service wiring when a stronger replacement candidate exists', () => {
+    const balances: any = { info: [] };
+    const requests = (service as any).generateNoTradeTrimRequests(
+      balances,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: true,
+          action: 'no_trade',
+          intensity: 0,
+          modelTargetWeight: 0.05,
+          decisionConfidence: 0.9,
+          expectedEdgeRate: 0.001,
+          estimatedCostRate: 0.002,
+        },
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          hasStock: false,
+          action: 'buy',
+          intensity: 0.8,
+          modelTargetWeight: 0.9,
+          decisionConfidence: 0.9,
+          expectedEdgeRate: 0.03,
+          estimatedCostRate: 0.002,
+        },
+      ] as any,
+      5,
+      1,
+      new Map([
+        ['BTC/KRW', 0.3],
+        ['ETH/KRW', 0],
+      ]),
+      1_000_000,
+      undefined,
+      new Map([['BTC/KRW', 300_000]]),
+      true,
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].symbol).toBe('BTC/KRW');
+  });
+
   it('should cap included trade requests to 5 slots when minor recommendations are 7', () => {
     const balances: any = { info: [] };
     const currentWeights = new Map<string, number>();
@@ -1606,11 +1650,13 @@ describe('AllocationService', () => {
       expect.anything(),
       true,
     );
-    expect(includedSpy).toHaveBeenCalledTimes(2);
+    expect(includedSpy).toHaveBeenCalledTimes(3);
     expect(includedSpy.mock.calls[0][2]).toBe(5);
     expect(includedSpy.mock.calls[0][8]).toBe(true);
     expect(includedSpy.mock.calls[1][2]).toBe(5);
     expect(includedSpy.mock.calls[1][8]).toBe(true);
+    expect(includedSpy.mock.calls[2][2]).toBe(5);
+    expect(includedSpy.mock.calls[2][8]).toBe(true);
   });
 
   it('should fail closed when AI returns an unexpected symbol', async () => {

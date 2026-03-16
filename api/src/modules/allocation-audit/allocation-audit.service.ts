@@ -5,6 +5,10 @@ import { I18nService } from 'nestjs-i18n';
 import type { EasyInputMessage } from 'openai/resources/responses/responses';
 import { In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 
+import {
+  type ProfitabilityMetricInput,
+  calculateProfitabilityMetrics,
+} from '@/modules/allocation-core/helpers/profitability-metrics';
 import { AllocationRecommendation } from '@/modules/allocation/entities/allocation-recommendation.entity';
 import { ErrorService } from '@/modules/error/error.service';
 import { MarketSignal } from '@/modules/market-intelligence/entities/market-signal.entity';
@@ -45,8 +49,8 @@ import {
 export class AllocationAuditService {
   private readonly logger = new Logger(AllocationAuditService.name);
 
-  private readonly MARKET_HORIZONS = [24, 72] as const;
-  private readonly ALLOCATION_HORIZONS = [24, 72] as const;
+  private readonly MARKET_HORIZONS = [24, 72, 168] as const;
+  private readonly ALLOCATION_HORIZONS = [24, 72, 168] as const;
   private readonly BACKFILL_LOOKBACK_DAYS = 7;
   private readonly BACKFILL_RECHECK_INTERVAL_MS = 60 * 60 * 1000;
   private readonly VALIDATION_SUMMARY_LOOKBACK_DAYS = 30;
@@ -360,20 +364,27 @@ export class AllocationAuditService {
 
     const items24h = evaluatedSymbolItems.filter((item) => item.horizonHours === 24);
     const items72h = evaluatedSymbolItems.filter((item) => item.horizonHours === 72);
+    const items168h = evaluatedSymbolItems.filter((item) => item.horizonHours === 168);
     const accuracy24h = this.calculateAccuracy(items24h);
     const accuracy72h = this.calculateAccuracy(items72h);
+    const accuracy168h = this.calculateAccuracy(items168h);
     const avgTradeRoi = this.average(
       evaluatedSymbolItems
         .map((item) => (this.isFiniteNumber(item.tradeRoiPct) ? Number(item.tradeRoiPct) : null))
         .filter((value): value is number => value != null),
     );
+    const profitabilityMetrics = this.calculateProfitabilityMetricsFromAuditItems(evaluatedSymbolItems);
     const topGlobalGuardrails = await this.getAllocationGlobalGuardrails();
 
     return [
       `최근 ${this.VALIDATION_SUMMARY_LOOKBACK_DAYS}일 자산 배분 사후검증 요약 (${symbol})`,
       `24h 방향 정확도: ${accuracy24h.ratio.toFixed(2)}% (${accuracy24h.hit}/${accuracy24h.total})`,
       `72h 방향 정확도: ${accuracy72h.ratio.toFixed(2)}% (${accuracy72h.hit}/${accuracy72h.total})`,
+      `168h 방향 정확도: ${accuracy168h.ratio.toFixed(2)}% (${accuracy168h.hit}/${accuracy168h.total})`,
       `평균 Trade ROI: ${avgTradeRoi != null ? `${avgTradeRoi.toFixed(2)}%` : 'N/A'}`,
+      `배치 자본 비율: ${profitabilityMetrics.deployedCapitalRatio != null ? profitabilityMetrics.deployedCapitalRatio.toFixed(4) : 'N/A'}`,
+      `턴오버 대비 PnL: ${profitabilityMetrics.pnlPerTurnover != null ? profitabilityMetrics.pnlPerTurnover.toFixed(4) : 'N/A'}`,
+      `최대 낙폭: ${profitabilityMetrics.maxDrawdownPct != null ? `${(profitabilityMetrics.maxDrawdownPct * 100).toFixed(2)}%` : 'N/A'}`,
       `전역 주요 가드레일: ${topGlobalGuardrails.length > 0 ? topGlobalGuardrails.join(' | ') : '없음'}`,
     ].join('\n');
   }
@@ -1470,9 +1481,17 @@ export class AllocationAuditService {
     const avgReturn = this.average(
       validItems.map((item) => this.toNullableNumber(item.returnPct)).filter((value): value is number => value != null),
     );
+    const avgTradeRoi = this.average(
+      validItems
+        .map((item) => this.toNullableNumber(item.tradeRoiPct))
+        .filter((value): value is number => value != null),
+    );
+    const profitabilityMetrics = this.calculateProfitabilityMetricsFromAuditItems(validItems);
     const avgOverall = this.average(overallScores);
     const avgReturnText =
       avgReturn != null ? `${avgReturn.toFixed(2)}%` : this.i18n.t('logging.allocationAudit.summary.na');
+    const avgTradeRoiText =
+      avgTradeRoi != null ? `${avgTradeRoi.toFixed(2)}%` : this.i18n.t('logging.allocationAudit.summary.na');
     const avgOverallText =
       avgOverall != null ? avgOverall.toFixed(4) : this.i18n.t('logging.allocationAudit.summary.na');
     const guardrailsText =
@@ -1489,6 +1508,35 @@ export class AllocationAuditService {
       this.i18n.t('logging.allocationAudit.summary.avgReturn', {
         args: {
           value: avgReturnText,
+        },
+      }),
+      this.i18n.t('logging.allocationAudit.summary.avgTradeRoi', {
+        args: {
+          value: avgTradeRoiText,
+        },
+      }),
+      this.i18n.t('logging.allocationAudit.summary.deployedCapitalRatio', {
+        args: {
+          value:
+            profitabilityMetrics.deployedCapitalRatio != null
+              ? profitabilityMetrics.deployedCapitalRatio.toFixed(4)
+              : this.i18n.t('logging.allocationAudit.summary.na'),
+        },
+      }),
+      this.i18n.t('logging.allocationAudit.summary.pnlPerTurnover', {
+        args: {
+          value:
+            profitabilityMetrics.pnlPerTurnover != null
+              ? profitabilityMetrics.pnlPerTurnover.toFixed(4)
+              : this.i18n.t('logging.allocationAudit.summary.na'),
+        },
+      }),
+      this.i18n.t('logging.allocationAudit.summary.maxDrawdownPct', {
+        args: {
+          value:
+            profitabilityMetrics.maxDrawdownPct != null
+              ? `${(profitabilityMetrics.maxDrawdownPct * 100).toFixed(2)}%`
+              : this.i18n.t('logging.allocationAudit.summary.na'),
         },
       }),
       this.i18n.t('logging.allocationAudit.summary.avgOverall', {
@@ -1605,63 +1653,90 @@ export class AllocationAuditService {
         confidence: this.clamp(Number(item.recommendationConfidence), 0, 1),
         directionHit: item.directionHit === true,
         horizonHours: Number(item.horizonHours),
+        tradeRoiPct: this.toNullableNumber(item.tradeRoiPct),
       }));
 
     if (samples.length < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES) {
       return null;
     }
 
-    const samples24h = samples.filter((item) => item.horizonHours === 24);
-    const pool = samples24h.length >= this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES ? samples24h : samples;
-    if (pool.length < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES) {
-      return null;
-    }
+    const pools = [168, 72, 24]
+      .map((horizonHours) => samples.filter((item) => item.horizonHours === horizonHours))
+      .filter((pool) => pool.length >= this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES);
+    pools.push(samples);
 
-    const baselineHitRate = this.calculateDirectionHitRate(pool);
-    const targetHitRate = Math.max(
-      this.ALLOCATION_MARKET_MIN_CONFIDENCE_TARGET_HIT_RATE,
-      baselineHitRate + this.ALLOCATION_MARKET_MIN_CONFIDENCE_TARGET_LIFT,
-    );
-
-    let fallback: { threshold: number; hitRate: number; sampleCount: number } | null = null;
-
-    for (
-      let threshold = this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN;
-      threshold <= this.ALLOCATION_MARKET_MIN_CONFIDENCE_MAX + Number.EPSILON;
-      threshold += this.ALLOCATION_MARKET_MIN_CONFIDENCE_STEP
-    ) {
-      const normalizedThreshold = this.clamp(Math.round(threshold * 100) / 100, 0, 1);
-      const bucket = pool.filter((item) => item.confidence >= normalizedThreshold);
-      const sampleCount = bucket.length;
-      const coverage = sampleCount / pool.length;
-
-      if (
-        sampleCount < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_BUCKET_SAMPLES ||
-        coverage < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_COVERAGE
-      ) {
+    for (const pool of pools) {
+      if (pool.length < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_TOTAL_SAMPLES) {
         continue;
       }
 
-      const hitRate = this.calculateDirectionHitRate(bucket);
-      if (hitRate >= targetHitRate) {
-        return normalizedThreshold;
-      }
+      const baselineHitRate = this.calculateDirectionHitRate(pool);
+      const targetHitRate = Math.max(
+        this.ALLOCATION_MARKET_MIN_CONFIDENCE_TARGET_HIT_RATE,
+        baselineHitRate + this.ALLOCATION_MARKET_MIN_CONFIDENCE_TARGET_LIFT,
+      );
+      const candidates: Array<{
+        threshold: number;
+        hitRate: number;
+        sampleCount: number;
+        medianTradeRoiPct: number | null;
+      }> = [];
 
-      if (
-        !fallback ||
-        hitRate > fallback.hitRate ||
-        (Math.abs(hitRate - fallback.hitRate) < Number.EPSILON && sampleCount > fallback.sampleCount)
+      for (
+        let threshold = this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN;
+        threshold <= this.ALLOCATION_MARKET_MIN_CONFIDENCE_MAX + Number.EPSILON;
+        threshold += this.ALLOCATION_MARKET_MIN_CONFIDENCE_STEP
       ) {
-        fallback = {
-          threshold: normalizedThreshold,
-          hitRate,
-          sampleCount,
-        };
-      }
-    }
+        const normalizedThreshold = this.clamp(Math.round(threshold * 100) / 100, 0, 1);
+        const bucket = pool.filter((item) => item.confidence >= normalizedThreshold);
+        const sampleCount = bucket.length;
+        const coverage = sampleCount / pool.length;
 
-    if (fallback && fallback.hitRate >= baselineHitRate + this.ALLOCATION_MARKET_MIN_CONFIDENCE_TARGET_LIFT / 2) {
-      return fallback.threshold;
+        if (
+          sampleCount < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_BUCKET_SAMPLES ||
+          coverage < this.ALLOCATION_MARKET_MIN_CONFIDENCE_MIN_COVERAGE
+        ) {
+          continue;
+        }
+
+        candidates.push({
+          threshold: normalizedThreshold,
+          hitRate: this.calculateDirectionHitRate(bucket),
+          sampleCount,
+          medianTradeRoiPct: this.calculateMedian(
+            bucket.map((item) => item.tradeRoiPct).filter((value): value is number => value != null),
+          ),
+        });
+      }
+
+      if (candidates.length < 1) {
+        continue;
+      }
+
+      const qualified = candidates.filter((candidate) => candidate.hitRate >= targetHitRate);
+      if (qualified.length < 1) {
+        continue;
+      }
+
+      const ranked = [...qualified].sort((left, right) => {
+        const leftMedian = left.medianTradeRoiPct ?? Number.NEGATIVE_INFINITY;
+        const rightMedian = right.medianTradeRoiPct ?? Number.NEGATIVE_INFINITY;
+        if (rightMedian !== leftMedian) {
+          return rightMedian - leftMedian;
+        }
+
+        if (right.hitRate !== left.hitRate) {
+          return right.hitRate - left.hitRate;
+        }
+
+        if (right.sampleCount !== left.sampleCount) {
+          return right.sampleCount - left.sampleCount;
+        }
+
+        return right.threshold - left.threshold;
+      });
+
+      return ranked[0]?.threshold ?? null;
     }
 
     return null;
@@ -1679,6 +1754,42 @@ export class AllocationAuditService {
 
     const hit = items.filter((item) => item.directionHit).length;
     return hit / items.length;
+  }
+
+  private calculateProfitabilityMetricsFromAuditItems(items: AllocationAuditItem[]) {
+    const orderedItems = [...items].sort(
+      (left, right) =>
+        (left.createdAt instanceof Date ? left.createdAt.getTime() : 0) -
+        (right.createdAt instanceof Date ? right.createdAt.getTime() : 0),
+    );
+    let equity = 1000;
+    const metricInputs: ProfitabilityMetricInput[] = orderedItems.map((item) => {
+      const pnlAmount = this.toNullableNumber(item.realizedTradePnl) ?? 0;
+      equity += pnlAmount;
+
+      return {
+        pnlAmount,
+        deployedCapital: Math.max(0, this.toNullableNumber(item.realizedTradeAmount) ?? 0),
+        turnoverNotional: Math.max(0, this.toNullableNumber(item.realizedTradeAmount) ?? 0),
+        equity,
+      };
+    });
+
+    return calculateProfitabilityMetrics(metricInputs);
+  }
+
+  private calculateMedian(values: number[]): number | null {
+    if (values.length < 1) {
+      return null;
+    }
+
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    return sorted[middle] ?? null;
   }
 
   /**

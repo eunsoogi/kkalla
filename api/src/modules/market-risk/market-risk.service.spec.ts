@@ -380,7 +380,17 @@ describe('MarketRiskService', () => {
       },
     ];
 
-    const excludedRequests = (service as any).generateExcludedTradeRequests(balances, inferences, 2, 1_000_000);
+    const excludedRequests = (service as any).generateExcludedTradeRequests(
+      balances,
+      inferences,
+      2,
+      1_000_000,
+      undefined,
+      new Map<string, number>([
+        ['BTC/KRW', 550_000],
+        ['ETH/KRW', 450_000],
+      ]),
+    );
 
     expect(excludedRequests).toHaveLength(1);
     expect(excludedRequests[0]).toMatchObject({
@@ -1021,9 +1031,10 @@ describe('MarketRiskService', () => {
     const result = await service.executeVolatilityTradesForUser(user, inferences as any, true);
 
     expect(result).toEqual([]);
-    expect(includedSpy).toHaveBeenCalledTimes(2);
+    expect(includedSpy).toHaveBeenCalledTimes(3);
     expect(includedSpy.mock.calls[0][2]).toBe(5);
     expect(includedSpy.mock.calls[1][2]).toBe(5);
+    expect(includedSpy.mock.calls[2][2]).toBe(5);
   });
 
   it('should skip notify and balance fetch when authorized recommendations are not held', async () => {
@@ -1051,6 +1062,166 @@ describe('MarketRiskService', () => {
     expect(notifyService.notify).not.toHaveBeenCalled();
     expect(upbitService.getBalances).not.toHaveBeenCalled();
     expect(holdingLedgerService.replaceHoldingsForUser).not.toHaveBeenCalled();
+  });
+
+  it('should admit at most two breakout entries with one per category when regime is available', async () => {
+    const categoryService = (service as any).categoryService;
+    const includedSpy = jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValueOnce([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    categoryService.findEnabledByUser.mockResolvedValue([
+      { category: Category.COIN_MAJOR },
+      { category: Category.COIN_MINOR },
+      { category: Category.NASDAQ },
+    ]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValue({ info: [] } as any);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+
+    await service.executeVolatilityTradesForUser({ id: 'user-1', roles: [] } as any, [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+        action: 'hold',
+        decisionConfidence: 0.7,
+      } as any,
+      {
+        symbol: 'ETH/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: false,
+        action: 'buy',
+        intensity: 0.8,
+        decisionConfidence: 0.95,
+      } as any,
+      {
+        symbol: 'XRP/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: false,
+        action: 'buy',
+        intensity: 0.75,
+        decisionConfidence: 0.9,
+      } as any,
+      {
+        symbol: 'TSLA',
+        category: Category.NASDAQ,
+        hasStock: false,
+        action: 'buy',
+        intensity: 0.7,
+        decisionConfidence: 0.92,
+      } as any,
+      {
+        symbol: 'SOL/KRW',
+        category: Category.COIN_MINOR,
+        hasStock: false,
+        action: 'buy',
+        intensity: 0.65,
+        decisionConfidence: 0.91,
+      } as any,
+    ]);
+
+    const passedInferences = includedSpy.mock.calls[0][1];
+    expect(passedInferences.map((item: any) => item.symbol)).toEqual(['BTC/KRW', 'ETH/KRW', 'SOL/KRW']);
+  });
+
+  it('should suppress breakout entries when regime policy is unavailable', async () => {
+    const categoryService = (service as any).categoryService;
+    const marketRegimeService = (service as any).marketRegimeService;
+    const includedSpy = jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValueOnce([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    categoryService.findEnabledByUser.mockResolvedValue([
+      { category: Category.COIN_MAJOR },
+      { category: Category.NASDAQ },
+    ]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValue({ info: [] } as any);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+    marketRegimeService.getSnapshot.mockRejectedValueOnce(new Error('regime unavailable'));
+
+    await service.executeVolatilityTradesForUser({ id: 'user-1', roles: [] } as any, [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+        action: 'hold',
+        decisionConfidence: 0.7,
+      } as any,
+      {
+        symbol: 'TSLA',
+        category: Category.NASDAQ,
+        hasStock: false,
+        action: 'buy',
+        intensity: 0.7,
+        decisionConfidence: 0.92,
+      } as any,
+    ]);
+
+    const passedInferences = includedSpy.mock.calls[0][1];
+    expect(passedInferences.map((item: any) => item.symbol)).toEqual(['BTC/KRW']);
+  });
+
+  it('should suppress breakout entries when regime policy source is cache fallback', async () => {
+    const categoryService = (service as any).categoryService;
+    const marketRegimeService = (service as any).marketRegimeService;
+    const includedSpy = jest.spyOn(service as any, 'generateIncludedTradeRequests').mockReturnValue([]);
+    jest.spyOn(service as any, 'generateExcludedTradeRequests').mockReturnValue([]);
+
+    holdingLedgerService.fetchHoldingsByUser.mockResolvedValueOnce([
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+      },
+    ]);
+    categoryService.findEnabledByUser.mockResolvedValue([
+      { category: Category.COIN_MAJOR },
+      { category: Category.NASDAQ },
+    ]);
+    categoryService.checkCategoryPermission.mockReturnValue(true);
+    upbitService.getBalances.mockResolvedValue({ info: [] } as any);
+    upbitService.calculateTradableMarketValue.mockResolvedValue(1_000_000);
+    marketRegimeService.getSnapshot.mockResolvedValueOnce({
+      btcDominance: 55,
+      altcoinIndex: 50,
+      source: 'cache_fallback',
+      feargreed: { index: 55 },
+    });
+
+    await service.executeVolatilityTradesForUser({ id: 'user-1', roles: [] } as any, [
+      {
+        symbol: 'BTC/KRW',
+        category: Category.COIN_MAJOR,
+        hasStock: true,
+        action: 'hold',
+        decisionConfidence: 0.7,
+      } as any,
+      {
+        symbol: 'TSLA',
+        category: Category.NASDAQ,
+        hasStock: false,
+        action: 'buy',
+        intensity: 0.7,
+        decisionConfidence: 0.92,
+      } as any,
+    ]);
+
+    const passedInferences = includedSpy.mock.calls[0][1];
+    expect(passedInferences.map((item: any) => item.symbol)).toEqual(['BTC/KRW']);
   });
 
   it('should include localized recommendation action label in market-risk notify message', async () => {
@@ -1128,7 +1299,7 @@ describe('MarketRiskService', () => {
     expect(notifyService.notify.mock.calls[0][1]).toContain('(0% -> 25%) 비중 유지');
   });
 
-  it('should block trade-request backfill in risk mode', () => {
+  it('should include eligible breakout entries in risk mode', () => {
     const requests = (service as any).generateIncludedTradeRequests(
       { info: [] } as any,
       [
@@ -1155,8 +1326,85 @@ describe('MarketRiskService', () => {
       1_000_000,
     );
 
-    expect(requests).toHaveLength(1);
-    expect(requests[0].symbol).toBe('ETH/KRW');
+    expect(requests).toHaveLength(2);
+    expect(requests.map((request: any) => request.symbol)).toEqual(['XRP/KRW', 'ETH/KRW']);
+  });
+
+  it('should ignore non-orderable breakout candidates when applying breakout-entry caps', () => {
+    const selected = (service as any).selectVolatilityExecutionRecommendations(
+      [
+        {
+          symbol: 'AAPL/USD',
+          category: Category.NASDAQ,
+          intensity: 0.99,
+          decisionConfidence: 0.99,
+          action: 'buy',
+          hasStock: false,
+        },
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          intensity: 0.91,
+          decisionConfidence: 0.91,
+          action: 'buy',
+          hasStock: false,
+        },
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.9,
+          decisionConfidence: 0.9,
+          action: 'buy',
+          hasStock: true,
+        },
+      ] as any,
+      'available',
+      'live',
+    );
+
+    expect(selected.map((item: any) => item.symbol)).toEqual(['BTC/KRW', 'XRP/KRW']);
+  });
+
+  it('should keep held symbols ahead of breakout entries when the account is already full in risk mode', () => {
+    const requests = (service as any).generateIncludedTradeRequests(
+      { info: [] } as any,
+      [
+        {
+          symbol: 'BTC/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.9,
+          decisionConfidence: 0.9,
+          modelTargetWeight: 0.9,
+          action: 'buy',
+          hasStock: true,
+        },
+        {
+          symbol: 'ETH/KRW',
+          category: Category.COIN_MAJOR,
+          intensity: 0.8,
+          decisionConfidence: 0.8,
+          modelTargetWeight: 0.8,
+          action: 'buy',
+          hasStock: true,
+        },
+        {
+          symbol: 'XRP/KRW',
+          category: Category.COIN_MINOR,
+          intensity: 0.95,
+          decisionConfidence: 0.95,
+          modelTargetWeight: 0.95,
+          action: 'buy',
+          hasStock: false,
+        },
+      ] as any,
+      2,
+      1,
+      new Map(),
+      1_000_000,
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(requests.map((request: any) => request.symbol)).toEqual(['BTC/KRW', 'ETH/KRW']);
   });
 
   it('should not trim hold recommendation when current account weight already matches target in risk mode', () => {

@@ -40,10 +40,6 @@ export class TradeCostCalibrationService {
 
   constructor(private readonly errorService: ErrorService) {}
 
-  public isBuyGateCalibrationEnabled(): boolean {
-    return process.env.BUY_COST_CALIBRATION_GATE_ENABLED !== 'false';
-  }
-
   public buildBucketKey(context: BuyCostCalibrationContext): CalibrationBucketKey {
     return `${context.category}:${context.costTier}:${context.positionClass}:${context.regimeSource}`;
   }
@@ -188,10 +184,6 @@ export class TradeCostCalibrationService {
       return { ...baseResult, calibrationReason: 'urgent' };
     }
 
-    if (!this.isBuyGateCalibrationEnabled()) {
-      return { ...baseResult, calibrationReason: 'disabled' };
-    }
-
     if (!options.calibrationContext || decisionNonFeeCostRate == null || staticFeeComponent == null) {
       return { ...baseResult, calibrationReason: 'no_bucket' };
     }
@@ -237,12 +229,25 @@ export class TradeCostCalibrationService {
     };
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
-  public async refreshSnapshots(): Promise<void> {
-    if (!this.isBuyGateCalibrationEnabled()) {
-      return;
+  public resolveExecutionNotionalMultiplier(calibration: BuyCostCalibrationLookupResult): number {
+    if (!calibration.calibrationApplied || calibration.calibrationReason !== 'active') {
+      return 1;
     }
 
+    const costTier = calibration.bucketKey?.split(':')[1] ?? null;
+    if (costTier === 'low' && calibration.appliedMultiplier <= 1) {
+      return 1.15;
+    }
+
+    if (costTier === 'medium' && calibration.appliedMultiplier <= 1) {
+      return 1;
+    }
+
+    return 0.85;
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  public async refreshSnapshots(): Promise<void> {
     const windowEnd = new Date();
     const windowStart = new Date(windowEnd.getTime() - this.recencyWindowMs);
 

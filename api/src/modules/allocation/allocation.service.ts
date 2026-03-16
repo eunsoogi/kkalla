@@ -1061,12 +1061,33 @@ export class AllocationService implements OnModuleInit {
         inference.hasStock &&
         this.tradeOrchestrationService.isNoTradeRecommendation(inference),
     );
+    const replacementRequests = this.generateIncludedTradeRequests(
+      balances,
+      inferences,
+      count,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
+      allowBackfill,
+      rebalanceBandMultiplier,
+      categoryExposureCaps,
+    );
+    const bestReplacementNetEdge = replacementRequests.reduce(
+      (best, request) =>
+        request.requestDiff > 0 && (request.expectedNetEdge ?? Number.NEGATIVE_INFINITY) > 0
+          ? Math.max(best, request.expectedNetEdge ?? Number.NEGATIVE_INFINITY)
+          : best,
+      Number.NEGATIVE_INFINITY,
+    );
 
     // Delegate exact requestDiff/band/cost-gate logic to shared orchestration for consistency.
     return this.tradeOrchestrationService.buildNoTradeTrimRequests({
       runtime: tradeRuntime,
       balances,
       candidates,
+      bestReplacementNetEdge,
       topK: count,
       regimeMultiplier,
       currentWeights,

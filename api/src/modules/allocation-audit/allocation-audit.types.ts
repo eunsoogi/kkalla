@@ -31,6 +31,7 @@ export interface ConfidenceCalibrationSample {
   confidence: number;
   directionHit: boolean;
   horizonHours: number;
+  tradeRoiPct: number | null;
 }
 
 export interface AllocationAuditRunListItem {
@@ -118,6 +119,10 @@ export interface AllocationAuditRunSummary {
   completed: number;
   avgScore: number | null;
   recommendedMarketMinConfidenceForAllocation: number | null;
+  medianTradeRoiPct?: number | null;
+  deployedCapitalRatio?: number | null;
+  pnlPerTurnover?: number | null;
+  maxDrawdownPct?: number | null;
 }
 
 export interface AllocationAuditRunItemSummary {
@@ -128,6 +133,10 @@ export interface AllocationAuditRunItemSummary {
   verdictGood: number;
   verdictMixed: number;
   verdictBad: number;
+  medianTradeRoiPct?: number | null;
+  deployedCapitalRatio?: number | null;
+  pnlPerTurnover?: number | null;
+  maxDrawdownPct?: number | null;
 }
 
 export type AllocationAuditRunPage = PaginatedItem<AllocationAuditRunListItem> & {

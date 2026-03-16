@@ -6,6 +6,7 @@ import { Balances } from 'ccxt';
 import { randomUUID } from 'crypto';
 import { I18nService } from 'nestjs-i18n';
 
+import { SHARED_REBALANCE_POLICY } from '@/modules/allocation-core/allocation-core.constants';
 import {
   AllocationRecommendationData,
   CategoryExposureCaps,
@@ -779,9 +780,23 @@ export class MarketRiskService implements OnModuleInit {
       return [];
     }
 
-    // 변동성 감시는 보유 종목 기준이므로, 미보유 추천은 실행 대상에서 제외한다.
-    const heldAllocationRecommendations = authorizedRecommendations.filter((recommendation) => recommendation.hasStock);
-    if (heldAllocationRecommendations.length === 0) {
+    const regimePolicy = await this.tradeOrchestrationService.resolveMarketRegimePolicy(() =>
+      this.errorService.retryWithFallback(() => this.marketRegimeService.getSnapshot()),
+    );
+    const regimeMultiplier = regimePolicy.exposureMultiplier;
+    assertLockOrThrow();
+    if (regimePolicy.regimePolicyState === 'regimeUnavailable') {
+      this.logger.warn(this.i18n.t('logging.marketRegime.regimeUnavailableRiskOff'));
+      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regimeUnavailableRiskOff'));
+      assertLockOrThrow();
+    }
+
+    const executionRecommendations = this.selectVolatilityExecutionRecommendations(
+      authorizedRecommendations,
+      regimePolicy.regimePolicyState,
+      regimePolicy.regimePolicySource,
+    );
+    if (executionRecommendations.length === 0) {
       return [];
     }
 
@@ -805,7 +820,7 @@ export class MarketRiskService implements OnModuleInit {
       return [];
     }
 
-    const referenceSymbols = heldAllocationRecommendations.map((inference) => inference.symbol);
+    const referenceSymbols = executionRecommendations.map((inference) => inference.symbol);
     const tradeRuntime = {
       logger: this.logger,
       i18n: this.i18n,
@@ -817,19 +832,8 @@ export class MarketRiskService implements OnModuleInit {
       referenceSymbols,
       assertLockOrThrow,
     });
-    // 시장 상황에 따른 전체 익스포저 배율 (risk-on/risk-off)
-    const regimePolicy = await this.tradeOrchestrationService.resolveMarketRegimePolicy(() =>
-      this.errorService.retryWithFallback(() => this.marketRegimeService.getSnapshot()),
-    );
-    const regimeMultiplier = regimePolicy.exposureMultiplier;
-    assertLockOrThrow();
-    if (regimePolicy.regimePolicyState === 'regimeUnavailable') {
-      this.logger.warn(this.i18n.t('logging.marketRegime.regimeUnavailableRiskOff'));
-      await this.notifyService.notify(user, this.i18n.t('notify.allocationRecommendation.regimeUnavailableRiskOff'));
-      assertLockOrThrow();
-    }
     const userScopedRecommendations = this.tradeOrchestrationService.applyUserScopedRecommendationActions({
-      inferences: heldAllocationRecommendations,
+      inferences: executionRecommendations,
       currentWeights: executionSnapshot.currentWeights,
       targetSlotCount: slotCount,
     });
@@ -1042,6 +1046,60 @@ export class MarketRiskService implements OnModuleInit {
       .filter((inference) => inference.hasStock);
   }
 
+  private buildExecutionIncludedRecommendationsByCategory(
+    inferences: AllocationRecommendationData[],
+  ): AllocationRecommendationData[] {
+    return this.tradeOrchestrationService.filterIncludedRecommendations(inferences);
+  }
+
+  private selectVolatilityExecutionRecommendations(
+    inferences: AllocationRecommendationData[],
+    regimePolicyState: 'available' | 'regimeUnavailable',
+    regimePolicySource: 'live' | 'cache_fallback' | 'unavailable_risk_off',
+  ): AllocationRecommendationData[] {
+    const heldRecommendations = inferences.filter((recommendation) => recommendation.hasStock);
+    if (regimePolicyState === 'regimeUnavailable' || regimePolicySource !== 'live') {
+      return heldRecommendations;
+    }
+
+    const breakoutCandidates = inferences
+      .filter((recommendation) => !recommendation.hasStock)
+      .filter((recommendation) => this.tradeOrchestrationService.isOrderableSymbol(recommendation.symbol))
+      .filter((recommendation) => recommendation.intensity > 0)
+      .filter(
+        (recommendation) =>
+          (recommendation.decisionConfidence ?? recommendation.confidence ?? 0) >=
+          SHARED_REBALANCE_POLICY.breakoutEntryMinConfidence,
+      )
+      .sort((left, right) => {
+        const leftConfidence = left.decisionConfidence ?? left.confidence ?? 0;
+        const rightConfidence = right.decisionConfidence ?? right.confidence ?? 0;
+        if (rightConfidence !== leftConfidence) {
+          return rightConfidence - leftConfidence;
+        }
+
+        return right.intensity - left.intensity;
+      });
+
+    const selectedBreakouts: AllocationRecommendationData[] = [];
+    const categoryCounts = new Map<Category, number>();
+    for (const candidate of breakoutCandidates) {
+      if (selectedBreakouts.length >= SHARED_REBALANCE_POLICY.breakoutEntryMaxConcurrentEntries) {
+        break;
+      }
+
+      const categoryCount = categoryCounts.get(candidate.category) ?? 0;
+      if (categoryCount >= SHARED_REBALANCE_POLICY.breakoutEntryMaxEntriesPerCategory) {
+        continue;
+      }
+
+      categoryCounts.set(candidate.category, categoryCount + 1);
+      selectedBreakouts.push(candidate);
+    }
+
+    return [...heldRecommendations, ...selectedBreakouts];
+  }
+
   /**
    * Keeps only held items that should be treated as staged exits.
    * @param inferences - Recommendation payloads.
@@ -1084,7 +1142,7 @@ export class MarketRiskService implements OnModuleInit {
       i18n: this.i18n,
       exchangeService: this.upbitService,
     };
-    const candidates = this.buildHeldIncludedRecommendationsByCategory(inferences).slice(0, count);
+    const candidates = this.buildExecutionIncludedRecommendationsByCategory(inferences).slice(0, count);
     // 공통 서비스의 편입 요청 계산을 사용해 allocation/risk sizing 규칙을 일치시킨다.
     return this.tradeOrchestrationService.buildIncludedTradeRequests({
       runtime: tradeRuntime,
@@ -1129,9 +1187,6 @@ export class MarketRiskService implements OnModuleInit {
     };
     const includedAllocationRecommendations = this.buildHeldIncludedRecommendationsByCategory(inferences);
 
-    // 편출 대상 종목 선정:
-    // 1. 편입 대상 중 count개를 초과한 종목들 (slice(count))
-    // 2. intensity <= 0 && hasStock인 종목들
     const filteredAllocationRecommendations = [
       ...includedAllocationRecommendations.slice(count),
       ...this.buildHeldExcludedRecommendationsByCategory(inferences),
@@ -1181,12 +1236,32 @@ export class MarketRiskService implements OnModuleInit {
     const candidates = inferences.filter(
       (inference) => inference.hasStock && this.tradeOrchestrationService.isNoTradeRecommendation(inference),
     );
+    const replacementRequests = this.generateIncludedTradeRequests(
+      balances,
+      inferences,
+      count,
+      regimeMultiplier,
+      currentWeights,
+      marketPrice,
+      orderableSymbols,
+      tradableMarketValueMap,
+      rebalanceBandMultiplier,
+      categoryExposureCaps,
+    );
+    const bestReplacementNetEdge = replacementRequests.reduce(
+      (best, request) =>
+        request.requestDiff > 0 && (request.expectedNetEdge ?? Number.NEGATIVE_INFINITY) > 0
+          ? Math.max(best, request.expectedNetEdge ?? Number.NEGATIVE_INFINITY)
+          : best,
+      Number.NEGATIVE_INFINITY,
+    );
 
     // Shared orchestrator applies identical requestDiff/band/cost-gate rules as allocation flow.
     return this.tradeOrchestrationService.buildNoTradeTrimRequests({
       runtime: tradeRuntime,
       balances,
       candidates,
+      bestReplacementNetEdge,
       topK: count,
       regimeMultiplier,
       currentWeights,

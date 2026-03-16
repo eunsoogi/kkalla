@@ -43,6 +43,7 @@ Boundary contract:
 - `modules/allocation-core/**`: shared services, types, and helpers used by `allocation`, `market-risk`, and trade execution pipeline code.
 - `TradeOrchestrationService` centralizes duplicated allocation/risk execution logic (market-regime policy, request generation, sell-first/buy-second execution sequencing, and holding-ledger synchronization).
 - Shared policy/runtime defaults for allocation/risk execution are defined in `modules/allocation-core/allocation-core.constants.ts`.
+- Profitability policy for allocation/risk execution is expected to remain centralized in `modules/allocation-core/**`; replay-only baseline comparisons must not leak into runtime services.
 - Module-local contracts are standardized as `*.types.ts` (replacing mixed `*.interface.ts` usage).
 - `utils/**`: framework-agnostic utility code. The rule "utils must not import module-layer code" is enforced by `api/src/utils/utils-boundary.spec.ts`.
 - `modules/**/prompts/*.prompt.md`: prompt source of truth; `.prompt.ts` files load markdown via `api/src/utils/prompt-loader.ts`.
